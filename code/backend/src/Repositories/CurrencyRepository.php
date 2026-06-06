@@ -22,4 +22,34 @@ final readonly class CurrencyRepository
 
         return $id === false ? null : (int) $id;
     }
+
+    public function listEnabled(): array
+    {
+        $statement = $this->pdo->query(
+            <<<'SQL'
+            SELECT
+              id,
+              code,
+              name,
+              symbol,
+              decimal_places,
+              is_enabled
+            FROM currencies
+            WHERE is_enabled = 1
+            ORDER BY code ASC
+            SQL
+        );
+
+        return array_map(
+            static fn (array $row): array => [
+                'id' => (int) $row['id'],
+                'code' => $row['code'],
+                'name' => $row['name'],
+                'symbol' => $row['symbol'],
+                'decimalPlaces' => (int) $row['decimal_places'],
+                'isEnabled' => (bool) $row['is_enabled'],
+            ],
+            $statement->fetchAll(),
+        );
+    }
 }

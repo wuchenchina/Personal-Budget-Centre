@@ -85,6 +85,7 @@ final readonly class AuthService
                 'status' => 'active',
                 'defaultCurrency' => $currencyCode,
             ],
+            'csrfToken' => $this->sessionManager->csrfToken($session['token']),
         ];
     }
 
@@ -120,6 +121,7 @@ final readonly class AuthService
         return [
             'user' => $this->publicUser($user),
             'workspace' => $workspace,
+            'csrfToken' => $this->sessionManager->csrfToken($session['token']),
         ];
     }
 
@@ -137,6 +139,11 @@ final readonly class AuthService
 
     public function me(Request $request): array
     {
+        $token = $this->authenticator->sessionTokenFromRequest($request);
+        if ($token === null) {
+            throw new AuthException('UNAUTHENTICATED', 'Authentication is required.', 401);
+        }
+
         $session = $this->authenticator->activeSession($request);
         if ($session === null) {
             throw new AuthException('UNAUTHENTICATED', 'Authentication is required.', 401);
@@ -152,6 +159,7 @@ final readonly class AuthService
                 'status' => $session['status'],
             ]),
             'workspace' => $this->authenticator->currentWorkspaceForSession($session),
+            'csrfToken' => $this->sessionManager->csrfToken($token),
         ];
     }
 

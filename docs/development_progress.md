@@ -103,12 +103,14 @@
 [x] 前端接入 `/api/auth/me`
 [x] Passkey 需求已納入資料表
 [x] Passkey API route 已占位
-[ ] CSRF token
-[ ] Passkey registration options
-[ ] Passkey registration verify
-[ ] Passkey login options
-[ ] Passkey login verify
-[ ] Passkey credential management
+[x] CSRF token
+[x] 後端 CSRF guard
+[x] 前端 mutation request 自動送 CSRF header
+[x] Passkey registration options
+[x] Passkey registration verify
+[x] Passkey login options
+[x] Passkey login verify
+[x] Passkey credential management
 [x] Workspace list API
 [x] Workspace create API
 [x] Workspace switcher API
@@ -127,7 +129,12 @@
 [x] 前端建立 Workgroup Modal
 [x] 前端編輯 Workgroup
 [x] 前端刪除 Workgroup
-[ ] Permission check middleware
+[x] Permission check middleware
+[x] 後端共用 PermissionGuard
+[x] Workspace service 接入 PermissionGuard
+[x] Workgroup service 接入 PermissionGuard
+[x] Budget service 接入 PermissionGuard
+[x] Budget entry service 接入 PermissionGuard
 [ ] Budget share API
 [x] Budget list API 初版
 [x] Budget detail API 初版
@@ -157,19 +164,20 @@
 [x] 前端 Budget 預覽表格刪除 actions
 [x] Budget Highlights 讀寫
 [x] Transaction Breakdown 讀寫
-[ ] Category alias mapping
-[ ] Currency API
+[x] Category alias mapping
+[x] Currency API
 [ ] Manual exchange rate API
 [ ] Transaction currency conversion
 [ ] Live exchange rate provider
-[ ] Reconciliation API
-[ ] 前端顯示分類差異
-[ ] 前端顯示交易總額差異
-[ ] Markdown export
-[ ] DOCX export
-[ ] PDF export
-[ ] Export history API
-[ ] Export file storage
+[ ] HSBC/BOCHK exchange rate provider
+[x] Reconciliation API
+[x] 前端顯示分類差異
+[x] 前端顯示交易總額差異
+[x] Markdown export
+[x] DOCX export
+[x] PDF export
+[x] Export history API
+[x] Export file storage
 [x] 拆分 `App.tsx` 至 500 行以下
 [x] 拆分 `App.css` 至 500 行以下
 [x] 拆分 `AuthService.php` 至 500 行以下
@@ -199,6 +207,10 @@
 [x] Budget entry CRUD 接入後重新執行 `composer validate --strict`
 [x] Budget entry CRUD 接入後重新執行 PHP syntax check
 [x] Budget entry CRUD 接入後確認單檔低於 500 行
+[x] 安全基礎接入後重新執行 `yarn build`
+[x] 安全基礎接入後重新執行 `composer validate --strict`
+[x] 安全基礎接入後重新執行 PHP syntax check
+[x] 安全基礎接入後確認單檔低於 500 行
 [ ] 正式資料庫環境 API 測試
 [ ] Browser preview
 [ ] 確認 Ant Design 版本是否維持 `antd@6.4.3`

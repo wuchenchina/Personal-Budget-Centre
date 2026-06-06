@@ -76,6 +76,10 @@
   margin-bottom: 16px;
 }
 
+.auth-passkey-button {
+  margin-top: 8px;
+}
+
 .password-strength {
   margin: -12px 0 14px;
   font-size: 12px;

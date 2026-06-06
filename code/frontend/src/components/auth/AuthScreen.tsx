@@ -1,7 +1,7 @@
 import { LoginForm, ProFormSelect, ProFormText } from '@ant-design/pro-components';
-import { Alert, Progress, Tabs } from 'antd';
+import { Alert, Button, Progress, Tabs } from 'antd';
 import type { FormInstance } from 'antd';
-import { LockKeyhole, UserRound, WalletCards } from 'lucide-react';
+import { KeyRound, LockKeyhole, UserRound, WalletCards } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
 import type { AuthFormValues, AuthMode } from '../../types/forms';
 import { isCurrencyCode } from '../../utils/budgetTemplate';
@@ -19,6 +19,7 @@ interface AuthScreenProps {
   watchedPassword: string | undefined;
   onFinish: (values: AuthFormValues) => Promise<void>;
   onModeChange: (mode: AuthMode) => void;
+  onPasskeyLogin: () => Promise<void>;
 }
 
 export function AuthScreen({
@@ -29,6 +30,7 @@ export function AuthScreen({
   watchedPassword,
   onFinish,
   onModeChange,
+  onPasskeyLogin,
 }: AuthScreenProps) {
   const passwordStrength = passwordStrengthFor(watchedPassword);
   const passwordProgressPercent = Math.min((watchedPassword?.length ?? 0) * 10, 100);
@@ -172,7 +174,18 @@ export function AuthScreen({
               ]}
             />
           </>
-        ) : null}
+        ) : (
+          <Button
+            block
+            className="auth-passkey-button"
+            icon={<KeyRound size={16} />}
+            loading={isSubmitting}
+            size="large"
+            onClick={() => void onPasskeyLogin()}
+          >
+            Continue with passkey
+          </Button>
+        )}
       </LoginForm>
     </main>
   );

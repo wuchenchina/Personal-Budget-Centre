@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace BudgetCentre\Services;
 
 use BudgetCentre\Auth\AuthException;
+use BudgetCentre\Auth\PermissionGuard;
 use BudgetCentre\Auth\SessionAuthenticator;
 use BudgetCentre\Http\Request;
+use BudgetCentre\Repositories\BudgetCategoryRepository;
 use BudgetCentre\Repositories\BudgetEntryRepository;
 use BudgetCentre\Repositories\BudgetRepository;
 use BudgetCentre\Repositories\CurrencyRepository;
@@ -15,8 +17,6 @@ use PDO;
 
 final readonly class BudgetEntryService
 {
-    private const WRITE_ROLES = ['owner', 'admin', 'editor'];
-
     public function __construct(
         private PDO $pdo,
         private SessionAuthenticator $authenticator,
@@ -27,10 +27,10 @@ final readonly class BudgetEntryService
     {
         $session = $this->authenticator->authenticatedSession($request);
         $budgetId = $this->budgetIdFromInput($input);
-        $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
+        $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
 
         (new BudgetEntryRepository($this->pdo))->createItem(
-            $this->itemPayload($input, $budgetId),
+            $this->itemPayload($input, $budgetId, $workspaceId),
         );
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
@@ -46,8 +46,8 @@ final readonly class BudgetEntryService
             throw new AuthException('BUDGET_ITEM_NOT_FOUND', 'Budget item was not found.', 404);
         }
 
-        $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
-        $repository->updateItem($id, $this->itemPayload($input, $budgetId));
+        $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
+        $repository->updateItem($id, $this->itemPayload($input, $budgetId, $workspaceId));
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
@@ -72,10 +72,10 @@ final readonly class BudgetEntryService
     {
         $session = $this->authenticator->authenticatedSession($request);
         $budgetId = $this->budgetIdFromInput($input);
-        $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
+        $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
 
         (new BudgetEntryRepository($this->pdo))->createTransaction(
-            $this->transactionPayload($input, $budgetId),
+            $this->transactionPayload($input, $budgetId, $workspaceId),
         );
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
@@ -91,8 +91,8 @@ final readonly class BudgetEntryService
             throw new AuthException('TRANSACTION_NOT_FOUND', 'Transaction was not found.', 404);
         }
 
-        $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
-        $repository->updateTransaction($id, $this->transactionPayload($input, $budgetId));
+        $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
+        $repository->updateTransaction($id, $this->transactionPayload($input, $budgetId, $workspaceId));
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
@@ -113,7 +113,7 @@ final readonly class BudgetEntryService
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
 
-    private function itemPayload(array $input, int $budgetId): array
+    private function itemPayload(array $input, int $budgetId, int $workspaceId): array
     {
         $label = Input::string($input['label'] ?? null);
         $budgetAmount = $this->number($input['budgetAmount'] ?? $input['budget_amount'] ?? null);
@@ -134,7 +134,7 @@ final readonly class BudgetEntryService
 
         return [
             'budget_id' => $budgetId,
-            'category_id' => Input::positiveInt($input['categoryId'] ?? $input['category_id'] ?? null),
+            'category_id' => $this->categoryId($workspaceId, $input, $label),
             'label' => $label,
             'budget_currency_id' => $this->currencyId($input['budgetCurrency'] ?? $input['budget_currency'] ?? null),
             'budget_amount_original' => $budgetAmount,
@@ -149,7 +149,7 @@ final readonly class BudgetEntryService
         ];
     }
 
-    private function transactionPayload(array $input, int $budgetId): array
+    private function transactionPayload(array $input, int $budgetId, int $workspaceId): array
     {
         $details = Input::string($input['details'] ?? null);
         $amount = $this->number($input['amount'] ?? null);
@@ -165,7 +165,7 @@ final readonly class BudgetEntryService
 
         return [
             'budget_id' => $budgetId,
-            'category_id' => Input::positiveInt($input['categoryId'] ?? $input['category_id'] ?? null),
+            'category_id' => $this->categoryId($workspaceId, $input, $details),
             'transaction_date' => Input::date($input['transactionDate'] ?? $input['transaction_date'] ?? null),
             'details' => $details,
             'currency_id' => $this->currencyId($input['currency'] ?? null),
@@ -177,14 +177,18 @@ final readonly class BudgetEntryService
         ];
     }
 
-    private function requireBudgetWrite(int $budgetId, int $userId): void
+    private function requireBudgetWrite(int $budgetId, int $userId): int
     {
-        $workspaceId = (new BudgetRepository($this->pdo))->workspaceIdForBudget($budgetId);
-        if ($workspaceId === null) {
-            throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
-        }
+        $permissions = $this->permissions();
+        $workspaceId = $permissions->workspaceIdForBudget($budgetId);
+        $permissions->requireWorkspaceRole($workspaceId, $userId, PermissionGuard::WRITE_ROLES);
 
-        $this->authenticator->requireWorkspaceRole($workspaceId, $userId, self::WRITE_ROLES);
+        return $workspaceId;
+    }
+
+    private function permissions(): PermissionGuard
+    {
+        return new PermissionGuard($this->pdo, $this->authenticator);
     }
 
     private function budgetDetail(int $budgetId, int $userId): array
@@ -214,6 +218,17 @@ final readonly class BudgetEntryService
         }
 
         return $currencyId;
+    }
+
+    private function categoryId(int $workspaceId, array $input, string $text): ?int
+    {
+        $categoryId = Input::positiveInt($input['categoryId'] ?? $input['category_id'] ?? null);
+
+        return (new BudgetCategoryRepository($this->pdo))->resolveCategoryId(
+            $workspaceId,
+            $categoryId,
+            $text,
+        );
     }
 
     private function number(mixed $value): ?float

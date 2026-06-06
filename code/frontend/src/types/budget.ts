@@ -77,6 +77,58 @@ export interface CurrencyRate {
   rateDate: string;
 }
 
+export interface Currency {
+  id: number;
+  code: CurrencyCode;
+  name: string;
+  symbol: string;
+  decimalPlaces: number;
+  isEnabled: boolean;
+}
+
+export interface BudgetCategoryAlias {
+  id: number;
+  categoryId: number;
+  alias: string;
+  createdAt: string;
+}
+
+export interface BudgetCategory {
+  id: number;
+  workspaceId: number;
+  name: string;
+  parentId: number | null;
+  defaultCurrency: CurrencyCode | null;
+  sortOrder: number;
+  isActive: boolean;
+  aliases: BudgetCategoryAlias[];
+}
+
+export interface BudgetReconciliationRow {
+  budgetId: number;
+  categoryId: number | null;
+  category: string | null;
+  label: string;
+  estimatedAmountBase: number;
+  transactionTotalBase: number;
+  differenceBase: number;
+}
+
+export type BudgetExportFormat = 'markdown' | 'docx' | 'pdf';
+
+export interface BudgetExport {
+  id: number;
+  budgetId: number;
+  userId: number;
+  format: BudgetExportFormat;
+  fileName: string;
+  filePath: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  errorMessage: string | null;
+  createdAt: string;
+  downloadUrl: string;
+}
+
 export interface BudgetTemplateStyle {
   titleFont: string;
   monoFont: string;

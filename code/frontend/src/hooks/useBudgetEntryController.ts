@@ -58,6 +58,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     setEditingBudgetItem(item);
     budgetItemForm.resetFields();
     budgetItemForm.setFieldsValue({
+      categoryId: item.categoryId ?? undefined,
       label: item.label,
       budgetCurrency: item.budget.currency,
       budgetAmount: item.budget.amountOriginal,
@@ -89,6 +90,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       setEntryError(null);
 
       const payload = {
+        categoryId: values.categoryId,
         label: values.label.trim(),
         budgetCurrency: values.budgetCurrency,
         budgetAmount: values.budgetAmount,
@@ -157,6 +159,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     setEditingTransaction(transaction);
     transactionForm.resetFields();
     transactionForm.setFieldsValue({
+      categoryId: transaction.categoryId ?? undefined,
       transactionDate:
         transaction.transactionDate === null ? undefined : dayjs(transaction.transactionDate),
       details: transaction.details,
@@ -188,6 +191,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       setEntryError(null);
 
       const payload = {
+        categoryId: values.categoryId,
         transactionDate: values.transactionDate?.format('YYYY-MM-DD') ?? null,
         details: values.details.trim(),
         currency: values.currency,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BudgetCentre\Services;
 
 use BudgetCentre\Auth\AuthException;
+use BudgetCentre\Auth\PermissionGuard;
 use BudgetCentre\Auth\SessionAuthenticator;
 use BudgetCentre\Http\Request;
 use BudgetCentre\Repositories\WorkgroupRepository;
@@ -14,8 +15,6 @@ use Throwable;
 
 final readonly class WorkgroupService
 {
-    private const WRITE_ROLES = ['owner', 'admin', 'editor'];
-
     public function __construct(
         private PDO $pdo,
         private SessionAuthenticator $authenticator,
@@ -30,7 +29,7 @@ final readonly class WorkgroupService
             throw new AuthException('VALIDATION_ERROR', 'workspaceId query parameter is required.', 422);
         }
 
-        $this->authenticator->requireWorkspaceRole($workspaceId, (int) $session['user_id']);
+        $this->permissions()->requireWorkspaceRole($workspaceId, (int) $session['user_id']);
 
         return (new WorkgroupRepository($this->pdo))->listForWorkspace($workspaceId);
     }
@@ -46,10 +45,10 @@ final readonly class WorkgroupService
             throw new AuthException('VALIDATION_ERROR', 'workspaceId is required.', 422);
         }
 
-        $this->authenticator->requireWorkspaceRole(
+        $this->permissions()->requireWorkspaceRole(
             $workspaceId,
             (int) $session['user_id'],
-            self::WRITE_ROLES,
+            PermissionGuard::WRITE_ROLES,
         );
         $this->validateWorkgroupInput($name, $description);
 
@@ -89,15 +88,10 @@ final readonly class WorkgroupService
         }
 
         $repository = new WorkgroupRepository($this->pdo);
-        $workspaceId = $repository->workspaceIdForWorkgroup($workgroupId);
-        if ($workspaceId === null) {
-            throw new AuthException('WORKGROUP_NOT_FOUND', 'Workgroup was not found.', 404);
-        }
-
-        $this->authenticator->requireWorkspaceRole(
-            $workspaceId,
+        $workspaceId = $this->permissions()->requireWorkgroupRole(
+            $workgroupId,
             (int) $session['user_id'],
-            self::WRITE_ROLES,
+            PermissionGuard::WRITE_ROLES,
         );
         $this->validateWorkgroupInput($name, $description);
 
@@ -122,17 +116,17 @@ final readonly class WorkgroupService
         }
 
         $repository = new WorkgroupRepository($this->pdo);
-        $workspaceId = $repository->workspaceIdForWorkgroup($workgroupId);
-        if ($workspaceId === null) {
-            throw new AuthException('WORKGROUP_NOT_FOUND', 'Workgroup was not found.', 404);
-        }
-
-        $this->authenticator->requireWorkspaceRole(
-            $workspaceId,
+        $this->permissions()->requireWorkgroupRole(
+            $workgroupId,
             (int) $session['user_id'],
-            self::WRITE_ROLES,
+            PermissionGuard::WRITE_ROLES,
         );
         $repository->delete($workgroupId);
+    }
+
+    private function permissions(): PermissionGuard
+    {
+        return new PermissionGuard($this->pdo, $this->authenticator);
     }
 
     private function validateWorkgroupInput(?string $name, ?string $description): void

@@ -9,6 +9,7 @@ interface BudgetItemModalProps {
   editingItem: BudgetItem | null;
   open: boolean;
   error: string | null;
+  categoryOptions: Array<{ label: string; value: number }>;
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
@@ -19,6 +20,7 @@ export function BudgetItemModal({
   editingItem,
   open,
   error,
+  categoryOptions,
   confirmLoading,
   onCancel,
   onOk,
@@ -50,6 +52,10 @@ export function BudgetItemModal({
           ]}
         >
           <Input autoComplete="off" />
+        </Form.Item>
+
+        <Form.Item label="Category" name="categoryId">
+          <Select allowClear options={categoryOptions} placeholder="Optional category" />
         </Form.Item>
 
         <div className="modal-form-grid">

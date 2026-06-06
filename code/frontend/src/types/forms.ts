@@ -39,6 +39,7 @@ export interface BudgetFormValues {
 }
 
 export interface BudgetItemFormValues {
+  categoryId?: number;
   label: string;
   budgetCurrency: CurrencyCode;
   budgetAmount: number;
@@ -50,6 +51,7 @@ export interface BudgetItemFormValues {
 }
 
 export interface TransactionFormValues {
+  categoryId?: number;
   transactionDate?: Dayjs;
   details: string;
   currency: CurrencyCode;

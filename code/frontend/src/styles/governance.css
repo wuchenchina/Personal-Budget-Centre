@@ -122,3 +122,82 @@
   min-height: 44px;
   padding: 8px 9px;
 }
+
+.operation-list {
+  display: grid;
+  gap: 8px;
+}
+
+.operation-list-spaced {
+  margin-top: 10px;
+}
+
+.operation-list-item {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 9px;
+  background: #f7f9f5;
+  border: 1px solid #dfe4dd;
+  border-radius: 8px;
+}
+
+.operation-list-item-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.operation-list-main {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.operation-list-main span,
+.operation-list-main small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operation-list-main span {
+  color: #303732;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.operation-list-main small {
+  color: #6d746f;
+  font-size: 12px;
+}
+
+.alias-row,
+.side-tag-cloud {
+  min-width: 0;
+}
+
+.alias-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.side-compact-row {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.side-currency-select {
+  width: 108px;
+}
+
+.reconciliation-grid {
+  display: grid;
+  gap: 4px;
+}
+
+.reconciliation-grid small {
+  color: #6d746f;
+  font-size: 12px;
+}

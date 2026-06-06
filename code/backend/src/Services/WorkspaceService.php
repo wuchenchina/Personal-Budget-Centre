@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BudgetCentre\Services;
 
 use BudgetCentre\Auth\AuthException;
+use BudgetCentre\Auth\PermissionGuard;
 use BudgetCentre\Auth\SessionAuthenticator;
 use BudgetCentre\Http\Request;
 use BudgetCentre\Repositories\CurrencyRepository;
@@ -19,7 +20,6 @@ use Throwable;
 final readonly class WorkspaceService
 {
     private const WORKSPACE_TYPES = ['family', 'team', 'custom'];
-    private const MEMBER_MANAGE_ROLES = ['owner', 'admin'];
     private const ASSIGNABLE_ROLES = ['admin', 'editor', 'viewer', 'auditor'];
 
     public function __construct(
@@ -89,6 +89,8 @@ final readonly class WorkspaceService
             throw new AuthException('VALIDATION_ERROR', 'workspaceId is required.', 422);
         }
 
+        $this->permissions()->requireWorkspaceRole($workspaceId, (int) $session['user_id']);
+
         $workspace = (new WorkspaceRepository($this->pdo))->findForUser(
             $workspaceId,
             (int) $session['user_id'],
@@ -118,7 +120,7 @@ final readonly class WorkspaceService
             throw new AuthException('VALIDATION_ERROR', 'workspaceId query parameter is required.', 422);
         }
 
-        $this->authenticator->requireWorkspaceRole($workspaceId, (int) $session['user_id']);
+        $this->permissions()->requireWorkspaceRole($workspaceId, (int) $session['user_id']);
 
         return (new WorkspaceMemberRepository($this->pdo))->listForWorkspace($workspaceId);
     }
@@ -139,10 +141,10 @@ final readonly class WorkspaceService
         }
 
         $this->validateAssignableWorkspaceRole($role);
-        $this->authenticator->requireWorkspaceRole(
+        $this->permissions()->requireWorkspaceRole(
             $workspaceId,
             (int) $session['user_id'],
-            self::MEMBER_MANAGE_ROLES,
+            PermissionGuard::MEMBER_MANAGE_ROLES,
         );
 
         $user = (new UserRepository($this->pdo))->findByEmail($email);
@@ -189,10 +191,10 @@ final readonly class WorkspaceService
         }
 
         $this->validateAssignableWorkspaceRole($role);
-        $this->authenticator->requireWorkspaceRole(
+        $this->permissions()->requireWorkspaceRole(
             $workspaceId,
             (int) $session['user_id'],
-            self::MEMBER_MANAGE_ROLES,
+            PermissionGuard::MEMBER_MANAGE_ROLES,
         );
         $this->assertCanMutateWorkspaceMember($workspaceId, (int) $session['user_id'], $userId);
 
@@ -221,10 +223,10 @@ final readonly class WorkspaceService
             throw new AuthException('VALIDATION_ERROR', 'workspaceId and userId are required.', 422);
         }
 
-        $this->authenticator->requireWorkspaceRole(
+        $this->permissions()->requireWorkspaceRole(
             $workspaceId,
             (int) $session['user_id'],
-            self::MEMBER_MANAGE_ROLES,
+            PermissionGuard::MEMBER_MANAGE_ROLES,
         );
         $this->assertCanMutateWorkspaceMember($workspaceId, (int) $session['user_id'], $userId);
 
@@ -234,6 +236,11 @@ final readonly class WorkspaceService
         }
 
         $repository->remove($workspaceId, $userId);
+    }
+
+    private function permissions(): PermissionGuard
+    {
+        return new PermissionGuard($this->pdo, $this->authenticator);
     }
 
     private function validateAssignableWorkspaceRole(string $role): void

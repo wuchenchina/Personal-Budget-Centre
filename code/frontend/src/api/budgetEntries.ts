@@ -6,6 +6,7 @@ interface BudgetResponse {
 }
 
 export interface SaveBudgetItemPayload {
+  categoryId?: number;
   label: string;
   budgetCurrency: CurrencyCode;
   budgetAmount: number;
@@ -25,6 +26,7 @@ export interface UpdateBudgetItemPayload extends SaveBudgetItemPayload {
 }
 
 export interface SaveTransactionPayload {
+  categoryId?: number;
   transactionDate?: string | null;
   details: string;
   currency: CurrencyCode;

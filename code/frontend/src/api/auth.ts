@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './http';
+import { apiGet, apiPost, clearCsrfToken } from './http';
 import type { AuthSession, LoginPayload, RegisterPayload } from '../types/auth';
 
 export function getCurrentSession(): Promise<AuthSession> {
@@ -14,5 +14,5 @@ export function register(payload: RegisterPayload): Promise<AuthSession> {
 }
 
 export function logout(): Promise<Record<string, never>> {
-  return apiPost<Record<string, never>>('/api/auth/logout');
+  return apiPost<Record<string, never>>('/api/auth/logout').finally(clearCsrfToken);
 }

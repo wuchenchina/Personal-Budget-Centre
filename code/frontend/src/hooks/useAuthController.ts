@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Form } from 'antd';
 import { getCurrentSession, login, logout, register } from '../api/auth';
+import { getPasskeyLoginOptions, verifyPasskeyLogin } from '../api/passkeys';
 import type { AuthSession } from '../types/auth';
 import type { AuthFormValues, AuthMode } from '../types/forms';
 import { toCurrencyCode } from '../utils/budgetTemplate';
+import { getPasskeyCredential } from '../utils/webauthn';
 
 interface UseAuthControllerOptions {
   onLogout?: () => void;
@@ -70,6 +72,27 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
     }
   };
 
+  const handlePasskeyLogin = async () => {
+    setIsAuthSubmitting(true);
+    setAuthError(null);
+
+    try {
+      const email = authForm.getFieldValue('email');
+      const passkeyOptions = await getPasskeyLoginOptions(
+        typeof email === 'string' ? email : undefined,
+      );
+      const credential = await getPasskeyCredential(passkeyOptions);
+      const nextSession = await verifyPasskeyLogin(credential);
+
+      setSession(nextSession);
+      setAuthError(null);
+    } catch (error: unknown) {
+      setAuthError(error instanceof Error ? error.message : 'Passkey login failed.');
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  };
+
   const handleLogout = async () => {
     setIsAuthSubmitting(true);
 
@@ -103,6 +126,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
     isSessionLoading,
     watchedPassword,
     handleAuthFinish,
+    handlePasskeyLogin,
     handleLogout,
     switchAuthMode,
   };

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BudgetCentre\Services;
 
 use BudgetCentre\Auth\AuthException;
+use BudgetCentre\Auth\PermissionGuard;
 use BudgetCentre\Auth\SessionAuthenticator;
 use BudgetCentre\Http\Request;
 use BudgetCentre\Repositories\BudgetRepository;
@@ -16,8 +17,6 @@ use Throwable;
 
 final readonly class BudgetService
 {
-    private const WRITE_ROLES = ['owner', 'admin', 'editor'];
-    private const PRIVATE_READ_ROLES = ['owner', 'admin'];
     private const VISIBILITIES = ['private', 'workspace', 'custom'];
     private const STATUSES = ['draft', 'active', 'closed', 'archived'];
 
@@ -35,8 +34,9 @@ final readonly class BudgetService
             throw new AuthException('VALIDATION_ERROR', 'workspaceId query parameter is required.', 422);
         }
 
-        $role = $this->authenticator->requireWorkspaceRole($workspaceId, (int) $session['user_id']);
-        $includePrivate = in_array($role, self::PRIVATE_READ_ROLES, true);
+        $permissions = $this->permissions();
+        $role = $permissions->requireWorkspaceRole($workspaceId, (int) $session['user_id']);
+        $includePrivate = $permissions->canReadPrivateBudgets($role);
 
         return (new BudgetRepository($this->pdo))->listForWorkspace(
             $workspaceId,
@@ -69,10 +69,10 @@ final readonly class BudgetService
             throw new AuthException('VALIDATION_ERROR', 'workspaceId is required.', 422);
         }
 
-        $this->authenticator->requireWorkspaceRole(
+        $this->permissions()->requireWorkspaceRole(
             $workspaceId,
             (int) $session['user_id'],
-            self::WRITE_ROLES,
+            PermissionGuard::WRITE_ROLES,
         );
         $this->validateBudgetInput($title, $ownerName, $startDate, $endDate, $visibility, $status, $note);
 
@@ -138,13 +138,10 @@ final readonly class BudgetService
         }
 
         $repository = new BudgetRepository($this->pdo);
-        $workspaceId = $repository->workspaceIdForBudget($budgetId);
-        if ($workspaceId === null) {
-            throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
-        }
 
-        $role = $this->authenticator->requireWorkspaceRole($workspaceId, (int) $session['user_id']);
-        $includePrivate = in_array($role, self::PRIVATE_READ_ROLES, true);
+        $permissions = $this->permissions();
+        $role = $permissions->requireBudgetRole($budgetId, (int) $session['user_id']);
+        $includePrivate = $permissions->canReadPrivateBudgets($role);
         $budget = $repository->findForUser($budgetId, (int) $session['user_id'], $includePrivate);
         if ($budget === null) {
             throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
@@ -162,15 +159,10 @@ final readonly class BudgetService
         }
 
         $repository = new BudgetRepository($this->pdo);
-        $workspaceId = $repository->workspaceIdForBudget($budgetId);
-        if ($workspaceId === null) {
-            throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
-        }
-
-        $this->authenticator->requireWorkspaceRole(
-            $workspaceId,
+        $this->permissions()->requireBudgetRole(
+            $budgetId,
             (int) $session['user_id'],
-            self::WRITE_ROLES,
+            PermissionGuard::WRITE_ROLES,
         );
 
         $payload = $this->validatedBudgetPayload($input, (string) $session['display_name']);
@@ -207,17 +199,17 @@ final readonly class BudgetService
         }
 
         $repository = new BudgetRepository($this->pdo);
-        $workspaceId = $repository->workspaceIdForBudget($budgetId);
-        if ($workspaceId === null) {
-            throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
-        }
-
-        $this->authenticator->requireWorkspaceRole(
-            $workspaceId,
+        $this->permissions()->requireBudgetRole(
+            $budgetId,
             (int) $session['user_id'],
-            self::WRITE_ROLES,
+            PermissionGuard::WRITE_ROLES,
         );
         $repository->delete($budgetId);
+    }
+
+    private function permissions(): PermissionGuard
+    {
+        return new PermissionGuard($this->pdo, $this->authenticator);
     }
 
     private function validatedBudgetPayload(array $input, string $defaultOwnerName): array

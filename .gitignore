@@ -1,2 +1,4 @@
-code/fronted/node_moudles
-code/fronted/dist
+code/frontend/node_modules/
+code/frontend/dist/
+code/backend/vendor/
+code/backend/storage/

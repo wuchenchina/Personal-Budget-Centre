@@ -16,6 +16,7 @@ import { appTheme } from './config/appConfig';
 import { useAuthController } from './hooks/useAuthController';
 import { useBudgetController } from './hooks/useBudgetController';
 import { useBudgetEntryController } from './hooks/useBudgetEntryController';
+import { useOperationsController } from './hooks/useOperationsController';
 import { useTemplateController } from './hooks/useTemplateController';
 import { useWorkgroupController } from './hooks/useWorkgroupController';
 import { useWorkspaceController } from './hooks/useWorkspaceController';
@@ -41,6 +42,11 @@ function App() {
     replaceBudgetDetail: budget.replaceBudgetDetail,
   });
   const workgroup = useWorkgroupController(workspace.activeWorkspaceId);
+  const operations = useOperationsController({
+    activeWorkspaceId: workspace.activeWorkspaceId,
+    selectedBudget: budget.selectedBudget,
+    session: auth.session,
+  });
 
   if (auth.isSessionLoading) {
     return (
@@ -61,6 +67,7 @@ function App() {
           watchedPassword={auth.watchedPassword}
           onFinish={auth.handleAuthFinish}
           onModeChange={auth.switchAuthMode}
+          onPasskeyLogin={auth.handlePasskeyLogin}
         />
       </ConfigProvider>
     );
@@ -113,6 +120,7 @@ function App() {
             budget={budget}
             workspace={workspace}
             workgroup={workgroup}
+            operations={operations}
             currentUserId={currentUserId}
             canWriteBudgets={canWriteBudgets}
             canManageWorkspaceMembers={canManageWorkspaceMembers}
@@ -137,6 +145,7 @@ function App() {
         editingItem={budgetEntry.editingBudgetItem}
         open={budgetEntry.isBudgetItemModalOpen}
         error={budgetEntry.entryError}
+        categoryOptions={operations.categoryOptions}
         confirmLoading={budgetEntry.isBudgetItemSaving}
         onCancel={budgetEntry.closeBudgetItemModal}
         onOk={budgetEntry.handleBudgetItemSave}
@@ -146,6 +155,7 @@ function App() {
         editingTransaction={budgetEntry.editingTransaction}
         open={budgetEntry.isTransactionModalOpen}
         error={budgetEntry.entryError}
+        categoryOptions={operations.categoryOptions}
         confirmLoading={budgetEntry.isTransactionSaving}
         onCancel={budgetEntry.closeTransactionModal}
         onOk={budgetEntry.handleTransactionSave}

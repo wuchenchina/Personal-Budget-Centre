@@ -1,7 +1,6 @@
 import { Alert, Button, Popconfirm, Select, Space, Tag } from 'antd';
 import {
   LayoutDashboard,
-  LockKeyhole,
   Pencil,
   Plus,
   ShieldCheck,
@@ -11,16 +10,19 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { assignableWorkspaceRoleOptions, roleColors } from '../../config/appConfig';
+import type { OperationsController } from '../../hooks/useOperationsController';
 import type { WorkspaceMember } from '../../types/auth';
 import type { WorkspaceRole } from '../../types/budget';
 import type { BudgetController } from '../../hooks/useBudgetController';
 import type { WorkspaceController } from '../../hooks/useWorkspaceController';
 import type { WorkgroupController } from '../../hooks/useWorkgroupController';
+import { OperationsSections } from './OperationsSections';
 
 interface GovernancePanelProps {
   budget: BudgetController;
   workspace: WorkspaceController;
   workgroup: WorkgroupController;
+  operations: OperationsController;
   currentUserId: number | null;
   canWriteBudgets: boolean;
   canManageWorkspaceMembers: boolean;
@@ -30,6 +32,7 @@ export function GovernancePanel({
   budget,
   workspace,
   workgroup,
+  operations,
   currentUserId,
   canWriteBudgets,
   canManageWorkspaceMembers,
@@ -49,7 +52,11 @@ export function GovernancePanel({
       />
       <WorkgroupSideSection workgroup={workgroup} activeWorkspaceId={workspace.activeWorkspaceId} />
       <PermissionSideSection />
-      <PasskeySideSection />
+      <OperationsSections
+        operations={operations}
+        selectedBudget={budget.selectedBudget}
+        canWriteBudgets={canWriteBudgets}
+      />
     </aside>
   );
 }
@@ -382,22 +389,6 @@ function PermissionSideSection() {
         <Tag color={roleColors.editor}>editor</Tag>
         <Tag color={roleColors.auditor}>auditor</Tag>
       </Space>
-    </div>
-  );
-}
-
-function PasskeySideSection() {
-  return (
-    <div className="side-section">
-      <div className="side-title">
-        <LockKeyhole size={16} />
-        <span>Passkey</span>
-      </div>
-      <Alert
-        type="info"
-        showIcon
-        message="WebAuthn routes will provide macOS passkey registration and login."
-      />
     </div>
   );
 }

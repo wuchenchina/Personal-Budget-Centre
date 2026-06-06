@@ -6,17 +6,24 @@ namespace BudgetCentre;
 
 use BudgetCentre\Auth\AuthException;
 use BudgetCentre\Auth\AuthService;
+use BudgetCentre\Auth\CsrfGuard;
 use BudgetCentre\Auth\SessionAuthenticator;
 use BudgetCentre\Auth\SessionManager;
 use BudgetCentre\Database\ConnectionFactory;
 use BudgetCentre\Database\DatabaseConfigurationException;
+use BudgetCentre\Http\FileResponse;
 use BudgetCentre\Http\InvalidJsonRequestException;
 use BudgetCentre\Http\JsonResponse;
 use BudgetCentre\Http\Request;
 use BudgetCentre\Repositories\BudgetTemplateRepository;
 use BudgetCentre\Repositories\MissingSeedDataException;
+use BudgetCentre\Services\BudgetCategoryService;
 use BudgetCentre\Services\BudgetEntryService;
+use BudgetCentre\Services\BudgetExportService;
+use BudgetCentre\Services\BudgetReconciliationService;
 use BudgetCentre\Services\BudgetService;
+use BudgetCentre\Services\PasskeyService;
+use BudgetCentre\Services\ReferenceDataService;
 use BudgetCentre\Services\WorkspaceService;
 use BudgetCentre\Services\WorkgroupService;
 use JsonException;
@@ -25,12 +32,18 @@ use PDOException;
 
 final class App
 {
-    public function handle(Request $request): JsonResponse
+    public function handle(Request $request): JsonResponse|FileResponse
     {
         $this->applyCorsHeaders();
 
         if ($request->method === 'OPTIONS') {
             return JsonResponse::ok();
+        }
+
+        try {
+            (new CsrfGuard(new SessionManager()))->validate($request);
+        } catch (AuthException $exception) {
+            return $this->apiExceptionResponse($exception);
         }
 
         return match ([$request->method, $request->path]) {
@@ -64,27 +77,25 @@ final class App
             ['POST', '/api/budget-transactions'] => $this->budgetTransactionCreate($request),
             ['PATCH', '/api/budget-transactions'] => $this->budgetTransactionUpdate($request),
             ['DELETE', '/api/budget-transactions'] => $this->budgetTransactionDelete($request),
+            ['GET', '/api/currencies'] => $this->currencyList($request),
+            ['GET', '/api/budget-categories'] => $this->categoryList($request),
+            ['POST', '/api/budget-categories'] => $this->categoryCreate($request),
+            ['PATCH', '/api/budget-categories'] => $this->categoryUpdate($request),
+            ['DELETE', '/api/budget-categories'] => $this->categoryDelete($request),
+            ['POST', '/api/budget-category-aliases'] => $this->categoryAliasCreate($request),
+            ['DELETE', '/api/budget-category-aliases'] => $this->categoryAliasDelete($request),
+            ['GET', '/api/budget-reconciliation'] => $this->reconciliation($request),
+            ['GET', '/api/exports'] => $this->exportList($request),
+            ['POST', '/api/exports'] => $this->exportCreate($request),
+            ['GET', '/api/exports/download'] => $this->exportDownload($request),
             ['GET', '/api/templates/personal-living-budget'] => $this->templateResponse('personal_living_budget'),
-            ['GET', '/api/auth/passkey/register/options'] => JsonResponse::error(
-                'NOT_IMPLEMENTED',
-                'Passkey registration options are part of Phase 2.',
-                501,
-            ),
-            ['POST', '/api/auth/passkey/register/verify'] => JsonResponse::error(
-                'NOT_IMPLEMENTED',
-                'Passkey registration verification is part of Phase 2.',
-                501,
-            ),
-            ['GET', '/api/auth/passkey/login/options'] => JsonResponse::error(
-                'NOT_IMPLEMENTED',
-                'Passkey login options are part of Phase 2.',
-                501,
-            ),
-            ['POST', '/api/auth/passkey/login/verify'] => JsonResponse::error(
-                'NOT_IMPLEMENTED',
-                'Passkey login verification is part of Phase 2.',
-                501,
-            ),
+            ['GET', '/api/auth/passkey/register/options'] => $this->passkeyRegistrationOptions($request),
+            ['POST', '/api/auth/passkey/register/verify'] => $this->passkeyRegistrationVerify($request),
+            ['GET', '/api/auth/passkey/login/options'] => $this->passkeyLoginOptions($request),
+            ['POST', '/api/auth/passkey/login/verify'] => $this->passkeyLoginVerify($request),
+            ['GET', '/api/auth/passkey/credentials'] => $this->passkeyCredentials($request),
+            ['PATCH', '/api/auth/passkey/credentials'] => $this->passkeyCredentialUpdate($request),
+            ['DELETE', '/api/auth/passkey/credentials'] => $this->passkeyCredentialDelete($request),
             default => JsonResponse::error('NOT_FOUND', 'API route not found.', 404),
         };
     }
@@ -340,6 +351,166 @@ final class App
         );
     }
 
+    private function currencyList(Request $request): JsonResponse
+    {
+        return $this->referenceResponse(
+            fn (ReferenceDataService $reference): JsonResponse => JsonResponse::ok([
+                'currencies' => $reference->currencies($request),
+            ]),
+        );
+    }
+
+    private function categoryList(Request $request): JsonResponse
+    {
+        return $this->categoryResponse(
+            fn (BudgetCategoryService $category): JsonResponse => JsonResponse::ok([
+                'categories' => $category->categories($request),
+            ]),
+        );
+    }
+
+    private function categoryCreate(Request $request): JsonResponse
+    {
+        return $this->categoryResponse(
+            fn (BudgetCategoryService $category): JsonResponse => JsonResponse::ok([
+                'categories' => $category->createCategory($request->json(), $request),
+            ], 201),
+        );
+    }
+
+    private function categoryUpdate(Request $request): JsonResponse
+    {
+        return $this->categoryResponse(
+            fn (BudgetCategoryService $category): JsonResponse => JsonResponse::ok([
+                'categories' => $category->updateCategory($request->json(), $request),
+            ]),
+        );
+    }
+
+    private function categoryDelete(Request $request): JsonResponse
+    {
+        return $this->categoryResponse(
+            fn (BudgetCategoryService $category): JsonResponse => JsonResponse::ok([
+                'categories' => $category->deleteCategory($request->json(), $request),
+            ]),
+        );
+    }
+
+    private function categoryAliasCreate(Request $request): JsonResponse
+    {
+        return $this->categoryResponse(
+            fn (BudgetCategoryService $category): JsonResponse => JsonResponse::ok([
+                'categories' => $category->createAlias($request->json(), $request),
+            ], 201),
+        );
+    }
+
+    private function categoryAliasDelete(Request $request): JsonResponse
+    {
+        return $this->categoryResponse(
+            fn (BudgetCategoryService $category): JsonResponse => JsonResponse::ok([
+                'categories' => $category->deleteAlias($request->json(), $request),
+            ]),
+        );
+    }
+
+    private function reconciliation(Request $request): JsonResponse
+    {
+        return $this->reconciliationResponse(
+            fn (BudgetReconciliationService $reconciliation): JsonResponse => JsonResponse::ok([
+                'reconciliation' => $reconciliation->reconciliation($request),
+            ]),
+        );
+    }
+
+    private function exportList(Request $request): JsonResponse
+    {
+        return $this->exportResponse(
+            fn (BudgetExportService $export): JsonResponse => JsonResponse::ok([
+                'exports' => $export->exports($request),
+            ]),
+        );
+    }
+
+    private function exportCreate(Request $request): JsonResponse
+    {
+        return $this->exportResponse(
+            fn (BudgetExportService $export): JsonResponse => JsonResponse::ok([
+                'export' => $export->createExport($request->json(), $request),
+            ], 201),
+        );
+    }
+
+    private function exportDownload(Request $request): JsonResponse|FileResponse
+    {
+        return $this->exportResponse(
+            fn (BudgetExportService $export): FileResponse => $export->download($request),
+        );
+    }
+
+    private function passkeyRegistrationOptions(Request $request): JsonResponse
+    {
+        return $this->passkeyResponse(
+            fn (PasskeyService $passkey): JsonResponse => JsonResponse::ok(
+                $passkey->registrationOptions($request),
+            ),
+        );
+    }
+
+    private function passkeyRegistrationVerify(Request $request): JsonResponse
+    {
+        return $this->passkeyResponse(
+            fn (PasskeyService $passkey): JsonResponse => JsonResponse::ok(
+                $passkey->verifyRegistration($request->json(), $request),
+            ),
+        );
+    }
+
+    private function passkeyLoginOptions(Request $request): JsonResponse
+    {
+        return $this->passkeyResponse(
+            fn (PasskeyService $passkey): JsonResponse => JsonResponse::ok(
+                $passkey->loginOptions($request),
+            ),
+        );
+    }
+
+    private function passkeyLoginVerify(Request $request): JsonResponse
+    {
+        return $this->passkeyResponse(
+            fn (PasskeyService $passkey): JsonResponse => JsonResponse::ok(
+                $passkey->verifyLogin($request->json(), $request),
+            ),
+        );
+    }
+
+    private function passkeyCredentials(Request $request): JsonResponse
+    {
+        return $this->passkeyResponse(
+            fn (PasskeyService $passkey): JsonResponse => JsonResponse::ok([
+                'credentials' => $passkey->credentials($request),
+            ]),
+        );
+    }
+
+    private function passkeyCredentialUpdate(Request $request): JsonResponse
+    {
+        return $this->passkeyResponse(
+            fn (PasskeyService $passkey): JsonResponse => JsonResponse::ok(
+                $passkey->updateCredential($request->json(), $request),
+            ),
+        );
+    }
+
+    private function passkeyCredentialDelete(Request $request): JsonResponse
+    {
+        return $this->passkeyResponse(
+            fn (PasskeyService $passkey): JsonResponse => JsonResponse::ok(
+                $passkey->deleteCredential($request->json(), $request),
+            ),
+        );
+    }
+
     private function authResponse(callable $callback): JsonResponse
     {
         try {
@@ -390,7 +561,57 @@ final class App
         );
     }
 
-    private function serviceResponse(callable $factory, callable $callback): JsonResponse
+    private function referenceResponse(callable $callback): JsonResponse
+    {
+        return $this->serviceResponse(
+            fn (PDO $pdo, SessionAuthenticator $authenticator): ReferenceDataService =>
+                new ReferenceDataService($pdo, $authenticator),
+            $callback,
+        );
+    }
+
+    private function categoryResponse(callable $callback): JsonResponse
+    {
+        return $this->serviceResponse(
+            fn (PDO $pdo, SessionAuthenticator $authenticator): BudgetCategoryService =>
+                new BudgetCategoryService($pdo, $authenticator),
+            $callback,
+        );
+    }
+
+    private function reconciliationResponse(callable $callback): JsonResponse
+    {
+        return $this->serviceResponse(
+            fn (PDO $pdo, SessionAuthenticator $authenticator): BudgetReconciliationService =>
+                new BudgetReconciliationService($pdo, $authenticator),
+            $callback,
+        );
+    }
+
+    private function exportResponse(callable $callback): JsonResponse|FileResponse
+    {
+        return $this->serviceResponse(
+            fn (PDO $pdo, SessionAuthenticator $authenticator): BudgetExportService =>
+                new BudgetExportService($pdo, $authenticator),
+            $callback,
+        );
+    }
+
+    private function passkeyResponse(callable $callback): JsonResponse
+    {
+        try {
+            $pdo = ConnectionFactory::make();
+            $sessionManager = new SessionManager();
+            $authenticator = new SessionAuthenticator($pdo, $sessionManager);
+            $service = new PasskeyService($pdo, $sessionManager, $authenticator);
+
+            return $callback($service);
+        } catch (InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException $exception) {
+            return $this->apiExceptionResponse($exception);
+        }
+    }
+
+    private function serviceResponse(callable $factory, callable $callback): JsonResponse|FileResponse
     {
         try {
             $pdo = ConnectionFactory::make();
