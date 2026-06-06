@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ConfigProvider } from 'antd';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { AuthLoadingScreen } from './components/auth/AuthLoadingScreen';
+import { EmailVerificationScreen } from './components/auth/EmailVerificationScreen';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { BudgetCreateModal } from './components/budget/BudgetCreateModal';
 import { BudgetDocumentPreview } from './components/budget/BudgetDocumentPreview';
@@ -55,6 +56,15 @@ function App() {
     session: auth.session,
   });
   const admin = useAdminController(auth.session?.user.isAdmin === true && activeKey === 'admin');
+  const isEmailVerificationRoute = window.location.pathname === '/email/verify';
+
+  if (isEmailVerificationRoute) {
+    return (
+      <ConfigProvider theme={appTheme}>
+        <EmailVerificationScreen />
+      </ConfigProvider>
+    );
+  }
 
   if (auth.isSessionLoading) {
     return (

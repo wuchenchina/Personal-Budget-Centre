@@ -1,6 +1,13 @@
 import { apiGet, apiPost, clearCsrfToken } from './http';
 import type { AuthSession, LoginPayload, RegisterPayload, RegisterResult } from '../types/auth';
 
+export interface EmailVerificationResult {
+  verified: boolean;
+  alreadyVerified: boolean;
+  email: string;
+  username: string | null;
+}
+
 export function getCurrentSession(): Promise<AuthSession> {
   return apiGet<AuthSession>('/api/auth/me');
 }
@@ -15,6 +22,12 @@ export function register(payload: RegisterPayload): Promise<RegisterResult> {
 
 export function resendEmailVerification(email: string): Promise<{ sent: boolean; email: string }> {
   return apiPost<{ sent: boolean; email: string }>('/api/auth/email/resend', { email });
+}
+
+export function verifyEmailToken(token: string): Promise<EmailVerificationResult> {
+  return apiGet<EmailVerificationResult>(
+    `/api/auth/email/verify?token=${encodeURIComponent(token)}`,
+  );
 }
 
 export function logout(): Promise<Record<string, never>> {

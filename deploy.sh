@@ -19,6 +19,7 @@ REMOTE_HTTPS_PROXY="http://10.0.0.1:7890"
 DEPLOY_MODE="${DEPLOY_MODE:-sync}"
 RUN_DB_INIT="${RUN_DB_INIT:-0}"
 CONFIRM_FRESH_DEPLOY="${CONFIRM_FRESH_DEPLOY:-}"
+DEPLOY_COMMAND="${1:-}"
 
 DB_HOST="localhost"
 DB_PORT="3306"
@@ -119,6 +120,27 @@ require_command ssh
 require_command rsync
 require_command composer
 require_command yarn
+
+case "${DEPLOY_COMMAND}" in
+  "")
+    ;;
+  "sync")
+    DEPLOY_MODE="sync"
+    ;;
+  "migrate")
+    DEPLOY_MODE="sync"
+    RUN_DB_INIT="1"
+    ;;
+  "fresh")
+    DEPLOY_MODE="fresh"
+    CONFIRM_FRESH_DEPLOY="${DOMAIN}"
+    ;;
+  *)
+    echo "Unknown deploy command: ${DEPLOY_COMMAND}" >&2
+    echo "Usage: ./deploy.sh [sync|migrate|fresh]" >&2
+    exit 1
+    ;;
+esac
 
 if [[ ! -f "${SERVER_SSH_KEY}" ]]; then
   echo "SSH key not found: ${SERVER_SSH_KEY}" >&2

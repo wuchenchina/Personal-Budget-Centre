@@ -20,6 +20,23 @@
   border-radius: 8px;
 }
 
+.verification-panel {
+  width: min(100% - 32px, 520px);
+  margin: auto;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.verification-loading {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  gap: 14px;
+  color: #595959;
+}
+
 .auth-pro-form {
   flex: 1;
 }

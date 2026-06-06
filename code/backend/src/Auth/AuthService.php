@@ -161,8 +161,19 @@ final readonly class AuthService
         }
 
         $tokens = new EmailVerificationRepository($this->pdo);
-        $record = $tokens->activeByTokenHash($this->tokenHash($token));
+        $tokenHash = $this->tokenHash($token);
+        $record = $tokens->activeByTokenHash($tokenHash);
         if ($record === null) {
+            $usedRecord = $tokens->byTokenHash($tokenHash);
+            if ($usedRecord !== null && ($usedRecord['email_verified_at'] ?? null) !== null) {
+                return [
+                    'verified' => true,
+                    'alreadyVerified' => true,
+                    'email' => $usedRecord['email'],
+                    'username' => $usedRecord['username'],
+                ];
+            }
+
             throw new AuthException('INVALID_EMAIL_TOKEN', 'Verification link is invalid or expired.', 422);
         }
 
@@ -178,6 +189,7 @@ final readonly class AuthService
 
         return [
             'verified' => true,
+            'alreadyVerified' => false,
             'email' => $record['email'],
             'username' => $record['username'],
         ];
@@ -319,7 +331,7 @@ final readonly class AuthService
     private function sendVerificationEmail(string $email, string $displayName, string $token): void
     {
         $appUrl = rtrim(Env::string('APP_URL', 'http://localhost:5173') ?? 'http://localhost:5173', '/');
-        $link = "{$appUrl}/api/auth/email/verify?token={$token}";
+        $link = "{$appUrl}/email/verify?token={$token}";
         $body = <<<TEXT
 {$displayName}，你好：
 
