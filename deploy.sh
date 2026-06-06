@@ -14,6 +14,9 @@ APP_URL="https://${DOMAIN}"
 API_URL="https://${DOMAIN}"
 VITE_API_BASE_URL="${API_URL}"
 
+REMOTE_HTTP_PROXY="http://10.0.0.1:7890"
+REMOTE_HTTPS_PROXY="http://10.0.0.1:7890"
+
 DB_HOST="localhost"
 DB_PORT="3306"
 DB_NAME="bc_tool_axchen_t"
@@ -65,6 +68,17 @@ WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID}
 WEBAUTHN_RP_NAME=${WEBAUTHN_RP_NAME}
 WEBAUTHN_ORIGIN=${WEBAUTHN_ORIGIN}
 EOF
+}
+
+remote_composer_install() {
+  remote_exec "cd '${REMOTE_PATH}/backend' && \
+    mkdir -p vendor/composer && \
+    http_proxy='${REMOTE_HTTP_PROXY}' \
+    https_proxy='${REMOTE_HTTPS_PROXY}' \
+    HTTP_PROXY='${REMOTE_HTTP_PROXY}' \
+    HTTPS_PROXY='${REMOTE_HTTPS_PROXY}' \
+    COMPOSER_ALLOW_SUPERUSER=1 \
+    composer install --no-dev --optimize-autoloader --no-interaction"
 }
 
 require_command ssh
@@ -121,7 +135,7 @@ echo "[remote] Writing backend .env for ${DOMAIN}"
 write_remote_env
 
 echo "[remote] Installing backend dependencies"
-remote_exec "cd '${REMOTE_PATH}/backend' && composer install --no-dev --optimize-autoloader"
+remote_composer_install
 
 if [[ "${SKIP_DB_INIT:-0}" != "1" ]]; then
   echo "[remote] Initializing existing MySQL database ${DB_NAME}"
