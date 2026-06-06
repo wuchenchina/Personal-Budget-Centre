@@ -21,6 +21,8 @@
   "scripts": {
     "check": "find src public bin -name '*.php' -print0 | xargs -0 -n1 php -l",
     "db:init": "php bin/init-database.php --yes",
-    "db:init:dry-run": "php bin/init-database.php --dry-run"
+    "db:init:dry-run": "php bin/init-database.php --dry-run",
+    "db:reset:dry-run": "php bin/reset-database.php --dry-run",
+    "grant-admin": "php bin/grant-admin.php"
   }
 }

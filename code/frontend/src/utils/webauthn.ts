@@ -63,7 +63,7 @@ function credentialDescriptors(value: unknown): PublicKeyCredentialDescriptor[] 
 
 function publicKeyCredentialToJSON(credential: Credential | null): PublicKeyCredentialJSON {
   if (!(credential instanceof PublicKeyCredential)) {
-    throw new Error('Passkey ceremony did not return a public key credential.');
+    throw new Error('通行密钥操作没有返回有效凭据。');
   }
 
   const response = credential.response;
@@ -96,13 +96,13 @@ function publicKeyCredentialToJSON(credential: Credential | null): PublicKeyCred
 
 function assertWebAuthnSupport(): void {
   if (!window.PublicKeyCredential || !navigator.credentials) {
-    throw new Error('This browser does not support passkeys.');
+    throw new Error('当前浏览器不支持通行密钥。');
   }
 }
 
 function objectValue(value: unknown, fieldName: string): JsonObject {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error(`Invalid passkey option: ${fieldName}.`);
+    throw new Error(`通行密钥参数无效：${fieldName}。`);
   }
 
   return value as JsonObject;
@@ -110,7 +110,7 @@ function objectValue(value: unknown, fieldName: string): JsonObject {
 
 function stringValue(value: unknown, fieldName: string): string {
   if (typeof value !== 'string' || value === '') {
-    throw new Error(`Invalid passkey option: ${fieldName}.`);
+    throw new Error(`通行密钥参数无效：${fieldName}。`);
   }
 
   return value;

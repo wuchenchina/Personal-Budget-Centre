@@ -13,6 +13,7 @@ import type { AuthSession, AuthWorkspace, WorkspaceMember } from '../types/auth'
 import type { WorkspaceMemberFormValues, WorkspaceFormValues } from '../types/forms';
 import type { WorkspaceRole } from '../types/budget';
 import { toCurrencyCode } from '../utils/budgetTemplate';
+import { roleLabels } from '../config/appConfig';
 
 export function useWorkspaceController(
   session: AuthSession | null,
@@ -58,7 +59,7 @@ export function useWorkspaceController(
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setWorkspaceError(error instanceof Error ? error.message : 'Failed to load workspaces.');
+          setWorkspaceError(error instanceof Error ? error.message : '加载工作区失败。');
         }
       })
       .finally(() => {
@@ -94,7 +95,7 @@ export function useWorkspaceController(
       .catch((error: unknown) => {
         if (isMounted) {
           setWorkspaceMemberError(
-            error instanceof Error ? error.message : 'Failed to load workspace members.',
+            error instanceof Error ? error.message : '加载工作区成员失败。',
           );
         }
       })
@@ -112,7 +113,7 @@ export function useWorkspaceController(
   const workspaceOptions = useMemo(
     () =>
       workspaces.map((workspace) => ({
-        label: `${workspace.name} (${workspace.role})`,
+        label: `${workspace.name} (${roleLabels[workspace.role]})`,
         value: workspace.id,
       })),
     [workspaces],
@@ -167,7 +168,7 @@ export function useWorkspaceController(
             },
       );
     } catch (error: unknown) {
-      setWorkspaceError(error instanceof Error ? error.message : 'Failed to switch workspace.');
+      setWorkspaceError(error instanceof Error ? error.message : '切换工作区失败。');
     } finally {
       setIsWorkspaceSwitching(false);
     }
@@ -187,7 +188,7 @@ export function useWorkspaceController(
 
   const handleWorkspaceMemberAdd = async () => {
     if (activeWorkspaceId === null) {
-      setWorkspaceMemberError('Workspace is required before adding members.');
+      setWorkspaceMemberError('请先选择工作区，再添加成员。');
 
       return;
     }
@@ -247,7 +248,7 @@ export function useWorkspaceController(
       );
     } catch (error: unknown) {
       setWorkspaceMemberError(
-        error instanceof Error ? error.message : 'Failed to update workspace member.',
+        error instanceof Error ? error.message : '更新成员权限失败。',
       );
     } finally {
       setUpdatingMemberUserId(null);
@@ -269,7 +270,7 @@ export function useWorkspaceController(
       );
     } catch (error: unknown) {
       setWorkspaceMemberError(
-        error instanceof Error ? error.message : 'Failed to remove workspace member.',
+        error instanceof Error ? error.message : '移除工作区成员失败。',
       );
     } finally {
       setDeletingMemberUserId(null);

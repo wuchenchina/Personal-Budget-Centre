@@ -40,7 +40,7 @@ export function useWorkgroupController(activeWorkspaceId: number | null) {
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setWorkgroupError(error instanceof Error ? error.message : 'Failed to load workgroups.');
+          setWorkgroupError(error instanceof Error ? error.message : '加载工作组失败。');
         }
       })
       .finally(() => {
@@ -71,7 +71,7 @@ export function useWorkgroupController(activeWorkspaceId: number | null) {
 
   const handleWorkgroupSave = async () => {
     if (activeWorkspaceId === null) {
-      setWorkgroupError('Workspace is required before creating workgroups.');
+      setWorkgroupError('请先选择工作区，再创建工作组。');
 
       return;
     }
@@ -123,7 +123,7 @@ export function useWorkgroupController(activeWorkspaceId: number | null) {
         currentWorkgroups.filter((workgroup) => workgroup.id !== workgroupId),
       );
     } catch (error: unknown) {
-      setWorkgroupError(error instanceof Error ? error.message : 'Failed to delete workgroup.');
+      setWorkgroupError(error instanceof Error ? error.message : '删除工作组失败。');
     } finally {
       setDeletingWorkgroupId(null);
     }

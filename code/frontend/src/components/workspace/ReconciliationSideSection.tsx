@@ -19,15 +19,15 @@ export function ReconciliationSideSection({
     <div className="side-section">
       <div className="side-title">
         <RefreshCcw size={16} />
-        <span>Reconciliation</span>
+        <span>对账</span>
       </div>
       <div className="operation-list">
         {selectedBudget === null ? (
-          <div className="empty-line">Select a budget to compare rows.</div>
+          <div className="empty-line">选择一个预算后查看差异。</div>
         ) : operations.isReconciliationLoading ? (
-          <div className="empty-line">Loading reconciliation...</div>
+          <div className="empty-line">正在加载对账结果...</div>
         ) : operations.reconciliation.length === 0 ? (
-          <div className="empty-line">No reconciliation difference.</div>
+          <div className="empty-line">暂无对账差异。</div>
         ) : (
           operations.reconciliation.slice(0, 6).map((row) => (
             <div className="operation-list-item" key={`${row.budgetId}-${row.label}`}>
@@ -36,9 +36,9 @@ export function ReconciliationSideSection({
                 <small>{row.label}</small>
               </div>
               <div className="reconciliation-grid">
-                <small>Est. {formatMoney({ currency, amount: row.estimatedAmountBase })}</small>
-                <small>Tx {formatMoney({ currency, amount: row.transactionTotalBase })}</small>
-                <Tag color={Math.abs(row.differenceBase) < 0.01 ? 'green' : 'orange'}>
+                <small>预算 {formatMoney({ currency, amount: row.estimatedAmountBase })}</small>
+                <small>交易 {formatMoney({ currency, amount: row.transactionTotalBase })}</small>
+                <Tag color={Math.abs(row.differenceBase) < 0.01 ? 'blue' : 'orange'}>
                   {formatMoney({ currency, amount: row.differenceBase })}
                 </Tag>
               </div>

@@ -29,9 +29,9 @@ export function TransactionModal({
     <Modal
       destroyOnClose
       confirmLoading={confirmLoading}
-      okText={editingTransaction === null ? 'Create' : 'Save'}
+      okText={editingTransaction === null ? '创建' : '保存'}
       open={open}
-      title={editingTransaction === null ? 'New transaction' : 'Edit transaction'}
+      title={editingTransaction === null ? '新增交易' : '编辑交易'}
       width={720}
       onCancel={onCancel}
       onOk={onOk}
@@ -44,28 +44,28 @@ export function TransactionModal({
         requiredMark={false}
       >
         <Form.Item
-          label="Details"
+          label="交易详情"
           name="details"
           rules={[
-            { required: true, message: 'Transaction details are required.' },
-            { max: 500, message: 'Transaction details must be 500 characters or less.' },
+            { required: true, message: '请输入交易详情。' },
+            { max: 500, message: '交易详情不能超过 500 个字符。' },
           ]}
         >
           <Input autoComplete="off" />
         </Form.Item>
 
-        <Form.Item label="Category" name="categoryId">
-          <Select allowClear options={categoryOptions} placeholder="Optional category" />
+        <Form.Item label="分类" name="categoryId">
+          <Select allowClear options={categoryOptions} placeholder="可选分类" />
         </Form.Item>
 
         <div className="modal-form-grid">
-          <Form.Item label="Date" name="transactionDate">
+          <Form.Item label="日期" name="transactionDate">
             <DatePicker className="form-full-width" />
           </Form.Item>
           <Form.Item
-            label="Currency"
+            label="货币"
             name="currency"
-            rules={[{ required: true, message: 'Currency is required.' }]}
+            rules={[{ required: true, message: '请选择货币。' }]}
           >
             <Select options={currencyOptions} />
           </Form.Item>
@@ -73,33 +73,33 @@ export function TransactionModal({
 
         <div className="modal-form-grid">
           <Form.Item
-            label="Amount"
+            label="金额"
             name="amount"
-            rules={[{ required: true, message: 'Amount is required.' }]}
+            rules={[{ required: true, message: '请输入金额。' }]}
           >
             <InputNumber className="form-full-width" precision={2} step={100} />
           </Form.Item>
           <Form.Item
-            label="Rate to base"
+            label="兑基准汇率"
             name="rate"
-            rules={[{ type: 'number', min: 0, message: 'Rate must be 0 or greater.' }]}
+            rules={[{ type: 'number', min: 0, message: '汇率不能小于 0。' }]}
           >
             <InputNumber className="form-full-width" precision={6} step={0.01} />
           </Form.Item>
         </div>
 
         <Form.Item
-          label="Sort order"
+          label="排序"
           name="sortOrder"
-          rules={[{ type: 'number', min: 0, message: 'Sort order must be 0 or greater.' }]}
+          rules={[{ type: 'number', min: 0, message: '排序不能小于 0。' }]}
         >
           <InputNumber className="form-full-width" precision={0} step={1} />
         </Form.Item>
 
         <Form.Item
-          label="Remark"
+          label="备注"
           name="remark"
-          rules={[{ max: 500, message: 'Remark must be 500 characters or less.' }]}
+          rules={[{ max: 500, message: '备注不能超过 500 个字符。' }]}
         >
           <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} />
         </Form.Item>

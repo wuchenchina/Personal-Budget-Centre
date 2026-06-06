@@ -5,6 +5,7 @@ declare(strict_types=1);
 use BudgetCentre\App;
 use BudgetCentre\Http\JsonResponse;
 use BudgetCentre\Http\Request;
+use BudgetCentre\Support\Env;
 
 require dirname(__DIR__) . '/src/bootstrap.php';
 
@@ -15,6 +16,6 @@ try {
         'INTERNAL_SERVER_ERROR',
         'Unexpected server error.',
         500,
-        ['detail' => getenv('APP_ENV') === 'local' ? $exception->getMessage() : null],
+        ['detail' => Env::string('APP_ENV') === 'local' ? $exception->getMessage() : null],
     )->send();
 }

@@ -32,7 +32,7 @@ export function useTemplateController(session: AuthSession | null) {
         if (!isMounted) {
           return;
         }
-        setTemplateError(error instanceof Error ? error.message : 'Failed to load template.');
+        setTemplateError(error instanceof Error ? error.message : '加载模板失败。');
       })
       .finally(() => {
         if (isMounted) {

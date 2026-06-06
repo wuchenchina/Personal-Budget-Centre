@@ -24,9 +24,9 @@ export function WorkspaceMemberModal({
     <Modal
       destroyOnClose
       confirmLoading={confirmLoading}
-      okText="Add"
+      okText="添加"
       open={open}
-      title="Add workspace member"
+      title="添加工作区成员"
       onCancel={onCancel}
       onOk={onOk}
     >
@@ -41,19 +41,19 @@ export function WorkspaceMemberModal({
         }}
       >
         <Form.Item
-          label="Email"
+          label="邮箱"
           name="email"
           rules={[
-            { required: true, message: 'Member email is required.' },
-            { type: 'email', message: 'Email format is invalid.' },
+            { required: true, message: '请输入成员邮箱。' },
+            { type: 'email', message: '邮箱格式不正确。' },
           ]}
         >
           <Input autoComplete="email" />
         </Form.Item>
         <Form.Item
-          label="Role"
+          label="角色"
           name="role"
-          rules={[{ required: true, message: 'Member role is required.' }]}
+          rules={[{ required: true, message: '请选择成员角色。' }]}
         >
           <Select options={assignableWorkspaceRoleOptions} />
         </Form.Item>

@@ -2,14 +2,14 @@
   align-self: start;
   padding: 16px;
   background: #fff;
-  border: 1px solid #dfe4dd;
+  border: 1px solid #f0f0f0;
   border-radius: 8px;
 }
 
 .side-section + .side-section {
   margin-top: 18px;
   padding-top: 18px;
-  border-top: 1px solid #dfe4dd;
+  border-top: 1px solid #f0f0f0;
 }
 
 .side-title {
@@ -17,7 +17,7 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
-  color: #202522;
+  color: #1f1f1f;
   font-weight: 650;
 }
 
@@ -33,7 +33,7 @@
 }
 
 .empty-line {
-  color: #6d746f;
+  color: #8c8c8c;
   font-size: 13px;
 }
 
@@ -55,21 +55,21 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: #f7f9f5;
-  border: 1px solid #dfe4dd;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
   border-radius: 8px;
 }
 
 .workspace-list-item {
   min-height: 34px;
   padding: 7px 9px;
-  color: #303732;
+  color: #1f1f1f;
   font-size: 13px;
 }
 
 .workspace-list-item-active {
-  background: #e7f3ed;
-  border-color: #8dcab4;
+  background: #e6f4ff;
+  border-color: #91caff;
 }
 
 .workspace-list-item span {
@@ -103,14 +103,14 @@
 
 .member-list-main span,
 .workgroup-list-main span {
-  color: #303732;
+  color: #1f1f1f;
   font-size: 13px;
   font-weight: 600;
 }
 
 .member-list-main small,
 .workgroup-list-main small {
-  color: #6d746f;
+  color: #8c8c8c;
   font-size: 12px;
 }
 
@@ -137,8 +137,8 @@
   gap: 8px;
   min-width: 0;
   padding: 8px 9px;
-  background: #f7f9f5;
-  border: 1px solid #dfe4dd;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
   border-radius: 8px;
 }
 
@@ -162,13 +162,13 @@
 }
 
 .operation-list-main span {
-  color: #303732;
+  color: #1f1f1f;
   font-size: 13px;
   font-weight: 600;
 }
 
 .operation-list-main small {
-  color: #6d746f;
+  color: #8c8c8c;
   font-size: 12px;
 }
 
@@ -219,12 +219,17 @@
   flex-wrap: wrap;
 }
 
+.passkey-action-row {
+  min-width: 76px;
+  justify-content: flex-end;
+}
+
 .reconciliation-grid {
   display: grid;
   gap: 4px;
 }
 
 .reconciliation-grid small {
-  color: #6d746f;
+  color: #8c8c8c;
   font-size: 12px;
 }

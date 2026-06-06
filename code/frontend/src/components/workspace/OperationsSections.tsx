@@ -10,6 +10,7 @@ import { ReconciliationSideSection } from './ReconciliationSideSection';
 import { ShareSideSection } from './ShareSideSection';
 
 interface OperationsSectionsProps {
+  activeKey: string;
   operations: OperationsController;
   selectedBudget: BudgetDetail | null;
   activeWorkspaceId: number | null;
@@ -20,6 +21,7 @@ interface OperationsSectionsProps {
 }
 
 export function OperationsSections({
+  activeKey,
   operations,
   selectedBudget,
   activeWorkspaceId,
@@ -28,6 +30,11 @@ export function OperationsSections({
   canWriteBudgets,
   canManageBudgetShares,
 }: OperationsSectionsProps) {
+  const showAll = activeKey === 'dashboard';
+  const showSecurity = showAll || activeKey === 'security';
+  const showCurrencies = showAll || activeKey === 'currencies';
+  const showExports = showAll || activeKey === 'exports';
+
   return (
     <>
       {operations.operationsError ? (
@@ -35,18 +42,26 @@ export function OperationsSections({
           <Alert type="error" showIcon message={operations.operationsError} />
         </div>
       ) : null}
-      <ShareSideSection
-        operations={operations}
-        selectedBudget={selectedBudget}
-        activeWorkspaceId={activeWorkspaceId}
-        workspaceMembers={workspaceMembers}
-        workgroups={workgroups}
-        canManageBudgetShares={canManageBudgetShares}
-      />
-      <CategorySideSection operations={operations} canWriteBudgets={canWriteBudgets} />
-      <ReconciliationSideSection operations={operations} selectedBudget={selectedBudget} />
-      <ExportSideSection operations={operations} selectedBudget={selectedBudget} />
-      <PasskeySideSection operations={operations} />
+      {showSecurity ? (
+        <ShareSideSection
+          operations={operations}
+          selectedBudget={selectedBudget}
+          activeWorkspaceId={activeWorkspaceId}
+          workspaceMembers={workspaceMembers}
+          workgroups={workgroups}
+          canManageBudgetShares={canManageBudgetShares}
+        />
+      ) : null}
+      {showCurrencies ? (
+        <>
+          <CategorySideSection operations={operations} canWriteBudgets={canWriteBudgets} />
+          <ReconciliationSideSection operations={operations} selectedBudget={selectedBudget} />
+        </>
+      ) : null}
+      {showExports ? (
+        <ExportSideSection operations={operations} selectedBudget={selectedBudget} />
+      ) : null}
+      {showSecurity ? <PasskeySideSection operations={operations} /> : null}
     </>
   );
 }

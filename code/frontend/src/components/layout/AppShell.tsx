@@ -10,11 +10,12 @@ import {
   LogOut,
   Plus,
   Share2,
+  ShieldCheck,
   UserRound,
   Users,
   WalletCards,
 } from 'lucide-react';
-import { iconSize, roleColors } from '../../config/appConfig';
+import { iconSize, roleColors, roleLabels } from '../../config/appConfig';
 import type { AuthSession, AuthWorkspace } from '../../types/auth';
 import type { WorkspaceRole } from '../../types/budget';
 
@@ -29,6 +30,7 @@ interface AppShellProps {
   workspaceOptions: { label: string; value: number }[];
   activeWorkspaceId: number | null;
   canWriteBudgets: boolean;
+  isAdmin: boolean;
   isWorkspaceLoading: boolean;
   isWorkspaceSwitching: boolean;
   isAuthSubmitting: boolean;
@@ -47,6 +49,7 @@ export function AppShell({
   workspaceOptions,
   activeWorkspaceId,
   canWriteBudgets,
+  isAdmin,
   isWorkspaceLoading,
   isWorkspaceSwitching,
   isAuthSubmitting,
@@ -57,13 +60,16 @@ export function AppShell({
   onLogout,
 }: AppShellProps) {
   const menuItems: MenuProps['items'] = [
-    { key: 'dashboard', icon: <LayoutDashboard size={iconSize} />, label: 'Dashboard' },
-    { key: 'budgets', icon: <WalletCards size={iconSize} />, label: 'Budgets' },
-    { key: 'workspace', icon: <Users size={iconSize} />, label: 'Workspace' },
-    { key: 'currencies', icon: <Landmark size={iconSize} />, label: 'Currencies' },
-    { key: 'security', icon: <KeyRound size={iconSize} />, label: 'Security' },
-    { key: 'exports', icon: <Download size={iconSize} />, label: 'Exports' },
+    { key: 'dashboard', icon: <LayoutDashboard size={iconSize} />, label: '仪表盘' },
+    { key: 'budgets', icon: <WalletCards size={iconSize} />, label: '预算' },
+    { key: 'workspace', icon: <Users size={iconSize} />, label: '工作区' },
+    { key: 'currencies', icon: <Landmark size={iconSize} />, label: '货币' },
+    { key: 'security', icon: <KeyRound size={iconSize} />, label: '安全' },
+    { key: 'exports', icon: <Download size={iconSize} />, label: '导出' },
   ];
+  if (isAdmin) {
+    menuItems.push({ key: 'admin', icon: <ShieldCheck size={iconSize} />, label: '后台' });
+  }
 
   return (
     <Layout className="app-shell">
@@ -74,7 +80,7 @@ export function AppShell({
           </div>
           <div>
             <div className="brand-title">BudgetCentre</div>
-            <div className="brand-caption">Personal Finance</div>
+            <div className="brand-caption">个人财务</div>
           </div>
         </div>
         <Menu
@@ -89,16 +95,16 @@ export function AppShell({
       <Layout>
         <Header className="app-header">
           <div className="workspace-heading">
-            <Text type="secondary">Workspace</Text>
-            <Title level={3}>{session.workspace?.name ?? 'Personal Finance'}</Title>
+            <Text type="secondary">工作区</Text>
+            <Title level={3}>{session.workspace?.name ?? '个人财务'}</Title>
             <Select
-              aria-label="Switch workspace"
+              aria-label="切换工作区"
               className="workspace-switcher"
               disabled={workspaces.length === 0}
               loading={isWorkspaceLoading || isWorkspaceSwitching}
               optionFilterProp="label"
               options={workspaceOptions}
-              placeholder="Select workspace"
+              placeholder="选择工作区"
               showSearch
               value={activeWorkspaceId ?? undefined}
               onChange={onWorkspaceSwitch}
@@ -106,29 +112,29 @@ export function AppShell({
           </div>
           <Space wrap>
             <Tag>
-              {workspaces.length} workspace{workspaces.length === 1 ? '' : 's'}
+              {workspaces.length} 个工作区
             </Tag>
             {workspaceRole ? (
-              <Tag color={roleColors[workspaceRole]}>{workspaceRole}</Tag>
+              <Tag color={roleColors[workspaceRole]}>{roleLabels[workspaceRole]}</Tag>
             ) : (
-              <Tag>no workspace</Tag>
+              <Tag>无工作区</Tag>
             )}
             <span className="user-chip">
               <UserRound size={15} />
               {session.user.displayName}
             </span>
-            <Button icon={<Share2 size={16} />}>Share</Button>
-            <Button icon={<FileText size={16} />}>Export</Button>
+            <Button icon={<Share2 size={16} />}>共享</Button>
+            <Button icon={<FileText size={16} />}>导出</Button>
             <Button
               type="primary"
               disabled={activeWorkspaceId === null || !canWriteBudgets}
               icon={<Plus size={16} />}
               onClick={onNewBudget}
             >
-              New Budget
+              新建预算
             </Button>
             <Button icon={<LogOut size={16} />} loading={isAuthSubmitting} onClick={onLogout}>
-              Logout
+              退出
             </Button>
           </Space>
         </Header>

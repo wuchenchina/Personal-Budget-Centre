@@ -19,7 +19,7 @@ export function ExportSideSection({ operations, selectedBudget }: ExportSideSect
     <div className="side-section">
       <div className="side-title">
         <FileText size={16} />
-        <span>Exports</span>
+        <span>导出</span>
       </div>
       <Space wrap>
         {exportFormats.map((format) => (
@@ -37,11 +37,11 @@ export function ExportSideSection({ operations, selectedBudget }: ExportSideSect
       </Space>
       <div className="operation-list operation-list-spaced">
         {selectedBudget === null ? (
-          <div className="empty-line">Select a budget to export.</div>
+          <div className="empty-line">选择一个预算后导出。</div>
         ) : operations.isExportLoading ? (
-          <div className="empty-line">Loading export history...</div>
+          <div className="empty-line">正在加载导出记录...</div>
         ) : operations.exports.length === 0 ? (
-          <div className="empty-line">No export history.</div>
+          <div className="empty-line">暂无导出记录。</div>
         ) : (
           operations.exports.slice(0, 5).map((item) => (
             <div className="operation-list-item operation-list-item-row" key={item.id}>

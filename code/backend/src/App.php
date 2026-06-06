@@ -23,14 +23,17 @@ use BudgetCentre\Services\BudgetExportService;
 use BudgetCentre\Services\BudgetReconciliationService;
 use BudgetCentre\Services\BudgetService;
 use BudgetCentre\Services\BudgetShareService;
+use BudgetCentre\Services\AdminUserService;
 use BudgetCentre\Services\ExchangeRateService;
 use BudgetCentre\Services\PasskeyService;
 use BudgetCentre\Services\ReferenceDataService;
 use BudgetCentre\Services\WorkspaceService;
 use BudgetCentre\Services\WorkgroupService;
+use BudgetCentre\Support\Env;
 use JsonException;
 use PDO;
 use PDOException;
+use RuntimeException;
 
 final class App
 {
@@ -57,6 +60,8 @@ final class App
             ['POST', '/api/auth/login'] => $this->authLogin($request),
             ['POST', '/api/auth/logout'] => $this->authLogout($request),
             ['GET', '/api/auth/me'] => $this->authMe($request),
+            ['GET', '/api/auth/email/verify'] => $this->authEmailVerify($request),
+            ['POST', '/api/auth/email/resend'] => $this->authEmailResend($request),
             ['GET', '/api/workspaces'] => $this->workspaceList($request),
             ['POST', '/api/workspaces'] => $this->workspaceCreate($request),
             ['POST', '/api/workspaces/switch'] => $this->workspaceSwitch($request),
@@ -99,6 +104,9 @@ final class App
             ['GET', '/api/exports'] => $this->exportList($request),
             ['POST', '/api/exports'] => $this->exportCreate($request),
             ['GET', '/api/exports/download'] => $this->exportDownload($request),
+            ['GET', '/api/admin/users'] => $this->adminUserList($request),
+            ['PATCH', '/api/admin/users'] => $this->adminUserUpdate($request),
+            ['POST', '/api/admin/users/email-verification'] => $this->adminUserEmailVerification($request),
             ['GET', '/api/templates/personal-living-budget'] => $this->templateResponse('personal_living_budget'),
             ['GET', '/api/auth/passkey/register/options'] => $this->passkeyRegistrationOptions($request),
             ['POST', '/api/auth/passkey/register/verify'] => $this->passkeyRegistrationVerify($request),
@@ -113,7 +121,7 @@ final class App
 
     private function applyCorsHeaders(): void
     {
-        $origin = getenv('APP_URL') ?: 'http://localhost:5173';
+        $origin = Env::string('APP_URL', 'http://localhost:5173');
 
         header("Access-Control-Allow-Origin: {$origin}");
         header('Access-Control-Allow-Credentials: true');
@@ -148,6 +156,24 @@ final class App
 
                 return JsonResponse::ok();
             },
+        );
+    }
+
+    private function authEmailVerify(Request $request): JsonResponse
+    {
+        return $this->authResponse(
+            fn (AuthService $auth): JsonResponse => JsonResponse::ok(
+                $auth->verifyEmail((string) ($request->query['token'] ?? '')),
+            ),
+        );
+    }
+
+    private function authEmailResend(Request $request): JsonResponse
+    {
+        return $this->authResponse(
+            fn (AuthService $auth): JsonResponse => JsonResponse::ok(
+                $auth->resendEmailVerification($request->json()),
+            ),
         );
     }
 
@@ -604,6 +630,33 @@ final class App
         );
     }
 
+    private function adminUserList(Request $request): JsonResponse
+    {
+        return $this->adminResponse(
+            fn (AdminUserService $admin): JsonResponse => JsonResponse::ok(
+                $admin->users($request),
+            ),
+        );
+    }
+
+    private function adminUserUpdate(Request $request): JsonResponse
+    {
+        return $this->adminResponse(
+            fn (AdminUserService $admin): JsonResponse => JsonResponse::ok(
+                $admin->updateUser($request->json(), $request),
+            ),
+        );
+    }
+
+    private function adminUserEmailVerification(Request $request): JsonResponse
+    {
+        return $this->adminResponse(
+            fn (AdminUserService $admin): JsonResponse => JsonResponse::ok(
+                $admin->resendVerification($request->json(), $request),
+            ),
+        );
+    }
+
     private function authResponse(callable $callback): JsonResponse
     {
         try {
@@ -613,7 +666,7 @@ final class App
             $auth = new AuthService($pdo, $sessionManager, $authenticator);
 
             return $callback($auth);
-        } catch (InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException $exception) {
+        } catch (InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException | RuntimeException $exception) {
             return $this->apiExceptionResponse($exception);
         }
     }
@@ -722,6 +775,20 @@ final class App
         }
     }
 
+    private function adminResponse(callable $callback): JsonResponse
+    {
+        try {
+            $pdo = ConnectionFactory::make();
+            $sessionManager = new SessionManager();
+            $authenticator = new SessionAuthenticator($pdo, $sessionManager);
+            $service = new AdminUserService($pdo, $authenticator, $sessionManager);
+
+            return $callback($service);
+        } catch (InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException | RuntimeException $exception) {
+            return $this->apiExceptionResponse($exception);
+        }
+    }
+
     private function serviceResponse(callable $factory, callable $callback): JsonResponse|FileResponse
     {
         try {
@@ -737,7 +804,7 @@ final class App
     }
 
     private function apiExceptionResponse(
-        InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException $exception,
+        InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException | RuntimeException $exception,
     ): JsonResponse {
         if ($exception instanceof InvalidJsonRequestException) {
             return JsonResponse::error('INVALID_JSON', $exception->getMessage(), 400);
@@ -760,11 +827,20 @@ final class App
             return JsonResponse::error('DATABASE_NOT_CONFIGURED', $exception->getMessage(), 503);
         }
 
+        if ($exception instanceof RuntimeException) {
+            return JsonResponse::error(
+                'MAIL_DELIVERY_FAILED',
+                'Email delivery failed. Please try again later.',
+                503,
+                ['detail' => Env::string('APP_ENV') === 'local' ? $exception->getMessage() : null],
+            );
+        }
+
         return JsonResponse::error(
             'DATABASE_UNAVAILABLE',
             'Database connection or query failed.',
             503,
-            ['detail' => getenv('APP_ENV') === 'local' ? $exception->getMessage() : null],
+            ['detail' => Env::string('APP_ENV') === 'local' ? $exception->getMessage() : null],
         );
     }
 
@@ -783,14 +859,14 @@ final class App
                 'DATABASE_UNAVAILABLE',
                 'Database connection or query failed.',
                 503,
-                ['detail' => getenv('APP_ENV') === 'local' ? $exception->getMessage() : null],
+                ['detail' => Env::string('APP_ENV') === 'local' ? $exception->getMessage() : null],
             );
         } catch (JsonException $exception) {
             return JsonResponse::error(
                 'TEMPLATE_JSON_INVALID',
                 'Template JSON in database is invalid.',
                 500,
-                ['detail' => getenv('APP_ENV') === 'local' ? $exception->getMessage() : null],
+                ['detail' => Env::string('APP_ENV') === 'local' ? $exception->getMessage() : null],
             );
         }
 

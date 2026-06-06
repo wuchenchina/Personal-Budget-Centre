@@ -16,6 +16,9 @@ VITE_API_BASE_URL="${API_URL}"
 
 REMOTE_HTTP_PROXY="http://10.0.0.1:7890"
 REMOTE_HTTPS_PROXY="http://10.0.0.1:7890"
+DEPLOY_MODE="${DEPLOY_MODE:-sync}"
+RUN_DB_INIT="${RUN_DB_INIT:-0}"
+CONFIRM_FRESH_DEPLOY="${CONFIRM_FRESH_DEPLOY:-}"
 
 DB_HOST="localhost"
 DB_PORT="3306"
@@ -26,6 +29,13 @@ DB_PASSWORD="D1M5KsXi24A6ftXn"
 WEBAUTHN_RP_ID="${DOMAIN}"
 WEBAUTHN_RP_NAME="BudgetCentre"
 WEBAUTHN_ORIGIN="https://${DOMAIN}"
+
+SMTP_HOST="smtp.feishu.cn"
+SMTP_PORT="465"
+SMTP_USERNAME="no-reply@hyis.7zh8.cn"
+SMTP_PASSWORD="7EgOfbbYtMuNxoOD"
+MAIL_FROM="${SMTP_USERNAME}"
+MAIL_FROM_NAME="BudgetCentre"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CODE_ROOT="${PROJECT_ROOT}/code"
@@ -67,6 +77,13 @@ DB_PASSWORD=${DB_PASSWORD}
 WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID}
 WEBAUTHN_RP_NAME=${WEBAUTHN_RP_NAME}
 WEBAUTHN_ORIGIN=${WEBAUTHN_ORIGIN}
+
+SMTP_HOST=${SMTP_HOST}
+SMTP_PORT=${SMTP_PORT}
+SMTP_USERNAME=${SMTP_USERNAME}
+SMTP_PASSWORD=${SMTP_PASSWORD}
+MAIL_FROM=${MAIL_FROM}
+MAIL_FROM_NAME=${MAIL_FROM_NAME}
 EOF
 }
 
@@ -81,6 +98,14 @@ remote_composer_install() {
     composer install --no-dev --optimize-autoloader --no-interaction"
 }
 
+remote_root_status() {
+  remote_exec "if [ -d '${REMOTE_PATH}' ] && [ \"\$(find '${REMOTE_PATH}' -mindepth 1 -maxdepth 1 | head -n 1)\" ]; then echo 'not_empty'; else echo 'empty'; fi"
+}
+
+remote_clear_root() {
+  remote_exec "mkdir -p '${REMOTE_PATH}' && find '${REMOTE_PATH}' -mindepth 1 -maxdepth 1 -exec rm -rf {} +"
+}
+
 require_command ssh
 require_command rsync
 require_command composer
@@ -88,6 +113,17 @@ require_command yarn
 
 if [[ ! -f "${SERVER_SSH_KEY}" ]]; then
   echo "SSH key not found: ${SERVER_SSH_KEY}" >&2
+  exit 1
+fi
+
+if [[ "${DEPLOY_MODE}" != "sync" && "${DEPLOY_MODE}" != "fresh" ]]; then
+  echo "Invalid DEPLOY_MODE: ${DEPLOY_MODE}. Use sync or fresh." >&2
+  exit 1
+fi
+
+if [[ "${DEPLOY_MODE}" == "fresh" && "${CONFIRM_FRESH_DEPLOY}" != "${DOMAIN}" ]]; then
+  echo "Fresh deploy is destructive. Re-run with:" >&2
+  echo "  DEPLOY_MODE=fresh CONFIRM_FRESH_DEPLOY=${DOMAIN} ./deploy.sh" >&2
   exit 1
 fi
 
@@ -106,6 +142,14 @@ echo "[local] Validating backend"
   composer check
   composer db:init:dry-run
 )
+
+echo "[remote] Root status: $(remote_root_status)"
+
+if [[ "${DEPLOY_MODE}" == "fresh" ]]; then
+  echo "[remote] Fresh deploy requested. Clearing ${REMOTE_PATH}"
+  remote_clear_root
+  RUN_DB_INIT="1"
+fi
 
 echo "[remote] Preparing ${REMOTE_PATH}"
 remote_exec "mkdir -p '${REMOTE_PATH}/backend' '${REMOTE_PATH}/database' '${REMOTE_PATH}/backend/storage/exports'"
@@ -137,9 +181,18 @@ write_remote_env
 echo "[remote] Installing backend dependencies"
 remote_composer_install
 
-if [[ "${SKIP_DB_INIT:-0}" != "1" ]]; then
+if [[ "${DEPLOY_MODE}" == "fresh" ]]; then
+  echo "[remote] Fresh deploy requested. Checking database before reset"
+  remote_exec "cd '${REMOTE_PATH}/backend' && php bin/reset-database.php --dry-run"
+  echo "[remote] Clearing existing MySQL objects in ${DB_NAME}"
+  remote_exec "cd '${REMOTE_PATH}/backend' && php bin/reset-database.php --yes"
+fi
+
+if [[ "${RUN_DB_INIT}" == "1" && "${SKIP_DB_INIT:-0}" != "1" ]]; then
   echo "[remote] Initializing existing MySQL database ${DB_NAME}"
   remote_exec "cd '${REMOTE_PATH}/backend' && php bin/init-database.php --yes"
+else
+  echo "[remote] Skipping database initialization for sync deploy"
 fi
 
 cat <<EOF
@@ -152,6 +205,13 @@ Domain:
 Important web server rule:
   Route /api/* to ${REMOTE_PATH}/backend/public/index.php
 
-This script does not create the MySQL database. It only initializes tables, seed data, and views in:
-  ${DB_NAME}
+This script never creates the MySQL database.
+Sync mode does not reset the root path or database.
+Fresh mode clears the remote root path and resets existing MySQL objects before initialization.
+
+Deployment mode:
+  ${DEPLOY_MODE}
+
+Database initialization:
+  ${RUN_DB_INIT}
 EOF

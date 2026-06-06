@@ -10,9 +10,9 @@ export const passwordProgressStatus: Record<
 };
 
 export const passwordStrengthLabels: Record<PasswordStrength, string> = {
-  poor: 'Strength: too short',
-  pass: 'Strength: medium',
-  ok: 'Strength: strong',
+  poor: '强度：太短',
+  pass: '强度：中等',
+  ok: '强度：较强',
 };
 
 export function passwordStrengthFor(value: string | undefined): PasswordStrength {

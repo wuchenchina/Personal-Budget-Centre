@@ -11,6 +11,7 @@ final readonly class CsrfGuard
     private const PUBLIC_UNSAFE_PATHS = [
         '/api/auth/login',
         '/api/auth/register',
+        '/api/auth/email/resend',
         '/api/auth/passkey/login/verify',
     ];
 

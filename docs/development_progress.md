@@ -226,8 +226,45 @@
 [x] deploy 腳本 bash 語法檢查通過
 [x] deploy/init 腳本接入後重新執行 `composer validate --strict`
 [x] deploy/init 腳本接入後重新執行 PHP syntax check
+[x] deploy 改為預設 sync 模式
+[x] deploy fresh 模式需明確確認域名
+[x] deploy fresh 模式會先清遠端根目錄
+[x] deploy fresh 模式會先 reset 既有 MySQL objects
+[x] 新增資料庫 reset dry-run/yes 腳本
+[x] 新增 Nginx 偽靜態配置片段
+[x] 修復雲端 `putenv()` 被禁用導致的 API fatal error
+[x] 雲端 Composer 更新到 2.10.1
+[x] deploy Composer install 加入遠端 proxy
+[x] 新增 username 註冊與登入
+[x] 新增 email verification tokens 資料表 migration
+[x] 新增郵箱驗證寄信服務
+[x] 新增郵箱驗證 API
+[x] 新增郵箱驗證重發 API
+[x] 未驗證郵箱登入會強制驗證
+[x] SMTP 發件人名稱改為 `BudgetCentre`
+[x] 前端登入頁通行密鑰位置與間距調整
+[x] 前端 title 改為 `BudgetCentre`
+[x] 前端主色改回 Ant Design 藍色
+[x] 前端側邊欄白底藍色 hover/selected
+[x] 前端側邊欄導航可切換主內容
+[x] 前端主要可見文案漢化
+[x] 前端角色顯示漢化
+[x] 新增全局 admin 權限欄位 `users.is_admin`
+[x] 新增 admin 權限 migration `006_admin_users.sql`
+[x] 新增 admin 用戶列表 API
+[x] 新增 admin 用戶狀態更新 API
+[x] 新增 admin 郵箱驗證標記
+[x] 新增 admin 驗證郵件重發
+[x] 新增 admin 權限授予/撤銷 API
+[x] 新增 admin bootstrap CLI `bin/grant-admin.php`
+[x] 前端新增 admin 後台導航入口
+[x] 前端新增 admin 用戶管理表格
+[x] 前端 admin 後台僅 `isAdmin` 用戶可見
+[x] admin 後台接入後重新執行 `yarn build`
+[x] admin 後台接入後重新執行 `composer validate --strict`
+[x] admin 後台接入後重新執行 PHP syntax check
+[x] 本地 dev server 已啟動
+[x] Browser preview 已檢查登入頁
 [ ] 正式資料庫環境 API 測試
-[ ] Browser preview
 [x] 確認 Ant Design 版本維持 `antd@6.4.3`
 [ ] 處理 Vite build chunk size warning
-[ ] 本地 dev server 尚未啟動

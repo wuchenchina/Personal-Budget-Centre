@@ -29,9 +29,9 @@ export function BudgetItemModal({
     <Modal
       destroyOnClose
       confirmLoading={confirmLoading}
-      okText={editingItem === null ? 'Create' : 'Save'}
+      okText={editingItem === null ? '创建' : '保存'}
       open={open}
-      title={editingItem === null ? 'New budget highlight' : 'Edit budget highlight'}
+      title={editingItem === null ? '新增预算项' : '编辑预算项'}
       width={720}
       onCancel={onCancel}
       onOk={onOk}
@@ -44,32 +44,32 @@ export function BudgetItemModal({
         requiredMark={false}
       >
         <Form.Item
-          label="Label"
+          label="名称"
           name="label"
           rules={[
-            { required: true, message: 'Highlight label is required.' },
-            { max: 180, message: 'Highlight label must be 180 characters or less.' },
+            { required: true, message: '请输入预算项名称。' },
+            { max: 180, message: '预算项名称不能超过 180 个字符。' },
           ]}
         >
           <Input autoComplete="off" />
         </Form.Item>
 
-        <Form.Item label="Category" name="categoryId">
-          <Select allowClear options={categoryOptions} placeholder="Optional category" />
+        <Form.Item label="分类" name="categoryId">
+          <Select allowClear options={categoryOptions} placeholder="可选分类" />
         </Form.Item>
 
         <div className="modal-form-grid">
           <Form.Item
-            label="Budget currency"
+            label="预算货币"
             name="budgetCurrency"
-            rules={[{ required: true, message: 'Budget currency is required.' }]}
+            rules={[{ required: true, message: '请选择预算货币。' }]}
           >
             <Select options={currencyOptions} />
           </Form.Item>
           <Form.Item
-            label="Budget amount"
+            label="预算金额"
             name="budgetAmount"
-            rules={[{ required: true, message: 'Budget amount is required.' }]}
+            rules={[{ required: true, message: '请输入预算金额。' }]}
           >
             <InputNumber className="form-full-width" precision={2} step={100} />
           </Form.Item>
@@ -77,16 +77,16 @@ export function BudgetItemModal({
 
         <div className="modal-form-grid">
           <Form.Item
-            label="Budget rate to base"
+            label="预算兑基准汇率"
             name="budgetRate"
-            rules={[{ type: 'number', min: 0, message: 'Rate must be 0 or greater.' }]}
+            rules={[{ type: 'number', min: 0, message: '汇率不能小于 0。' }]}
           >
             <InputNumber className="form-full-width" precision={6} step={0.01} />
           </Form.Item>
           <Form.Item
-            label="Sort order"
+            label="排序"
             name="sortOrder"
-            rules={[{ type: 'number', min: 0, message: 'Sort order must be 0 or greater.' }]}
+            rules={[{ type: 'number', min: 0, message: '排序不能小于 0。' }]}
           >
             <InputNumber className="form-full-width" precision={0} step={1} />
           </Form.Item>
@@ -94,25 +94,25 @@ export function BudgetItemModal({
 
         <div className="modal-form-grid">
           <Form.Item
-            label="Estimated currency"
+            label="预计货币"
             name="estimatedCurrency"
-            rules={[{ required: true, message: 'Estimated currency is required.' }]}
+            rules={[{ required: true, message: '请选择预计货币。' }]}
           >
             <Select options={currencyOptions} />
           </Form.Item>
           <Form.Item
-            label="Estimated amount"
+            label="预计金额"
             name="estimatedAmount"
-            rules={[{ required: true, message: 'Estimated amount is required.' }]}
+            rules={[{ required: true, message: '请输入预计金额。' }]}
           >
             <InputNumber className="form-full-width" precision={2} step={100} />
           </Form.Item>
         </div>
 
         <Form.Item
-          label="Estimated rate to base"
+          label="预计兑基准汇率"
           name="estimatedRate"
-          rules={[{ type: 'number', min: 0, message: 'Rate must be 0 or greater.' }]}
+          rules={[{ type: 'number', min: 0, message: '汇率不能小于 0。' }]}
         >
           <InputNumber className="form-full-width" precision={6} step={0.01} />
         </Form.Item>

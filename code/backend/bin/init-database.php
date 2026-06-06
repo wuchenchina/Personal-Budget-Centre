@@ -15,6 +15,8 @@ $defaultSqlFiles = [
     $codeRoot . '/database/002_seed_currencies.sql',
     $codeRoot . '/database/003_seed_template.sql',
     $codeRoot . '/database/004_views.sql',
+    $codeRoot . '/database/005_auth_email_verification.sql',
+    $codeRoot . '/database/006_admin_users.sql',
 ];
 $options = options($argv);
 

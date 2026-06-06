@@ -30,6 +30,20 @@ final class Input
         return $trimmed === '' ? null : $trimmed;
     }
 
+    public static function username(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $username = strtolower(trim($value));
+        if (preg_match('/^[a-z0-9_][a-z0-9_.-]{2,31}$/', $username) !== 1) {
+            return null;
+        }
+
+        return $username;
+    }
+
     public static function positiveInt(mixed $value): ?int
     {
         if (is_int($value)) {

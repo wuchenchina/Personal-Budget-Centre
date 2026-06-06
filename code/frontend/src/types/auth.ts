@@ -5,10 +5,13 @@ export type UserStatus = 'active' | 'disabled' | 'pending';
 export interface AuthUser {
   id: number;
   email: string;
+  username: string | null;
   displayName: string;
   timezone: string | null;
   locale: string | null;
   status: UserStatus;
+  isAdmin: boolean;
+  emailVerifiedAt: string | null;
 }
 
 export interface AuthWorkspace {
@@ -51,11 +54,20 @@ export interface PasskeyCredential {
 }
 
 export interface LoginPayload {
-  email: string;
+  identifier: string;
   password: string;
 }
 
 export interface RegisterPayload extends LoginPayload {
+  username: string;
+  email: string;
   displayName: string;
   defaultCurrency?: CurrencyCode;
 }
+
+export interface EmailVerificationRequired {
+  requiresEmailVerification: true;
+  email: string;
+}
+
+export type RegisterResult = AuthSession | EmailVerificationRequired;

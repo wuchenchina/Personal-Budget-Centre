@@ -25,9 +25,9 @@ export function WorkspaceCreateModal({
     <Modal
       destroyOnClose
       confirmLoading={confirmLoading}
-      okText="Create"
+      okText="创建"
       open={open}
-      title="New workspace"
+      title="新建工作区"
       onCancel={onCancel}
       onOk={onOk}
     >
@@ -42,26 +42,26 @@ export function WorkspaceCreateModal({
         }}
       >
         <Form.Item
-          label="Name"
+          label="名称"
           name="name"
           rules={[
-            { required: true, message: 'Workspace name is required.' },
-            { max: 160, message: 'Workspace name must be 160 characters or less.' },
+            { required: true, message: '请输入工作区名称。' },
+            { max: 160, message: '工作区名称不能超过 160 个字符。' },
           ]}
         >
           <Input autoComplete="organization" />
         </Form.Item>
         <Form.Item
-          label="Type"
+          label="类型"
           name="type"
-          rules={[{ required: true, message: 'Workspace type is required.' }]}
+          rules={[{ required: true, message: '请选择工作区类型。' }]}
         >
           <Select options={workspaceTypeOptions} />
         </Form.Item>
         <Form.Item
-          label="Default currency"
+          label="默认货币"
           name="defaultCurrency"
-          rules={[{ required: true, message: 'Default currency is required.' }]}
+          rules={[{ required: true, message: '请选择默认货币。' }]}
         >
           <Select options={currencyOptions} />
         </Form.Item>

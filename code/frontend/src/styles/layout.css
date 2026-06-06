@@ -1,11 +1,11 @@
 .app-shell {
   min-height: 100vh;
-  background: #f5f6f2;
+  background: #f5f5f5;
 }
 
 .app-sidebar {
-  background: #1f2723;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: #fff;
+  border-right: 1px solid #f0f0f0;
 }
 
 .brand-lockup {
@@ -14,7 +14,7 @@
   gap: 12px;
   height: 72px;
   padding: 0 20px;
-  color: #fff;
+  color: #1f1f1f;
 }
 
 .brand-mark {
@@ -22,8 +22,8 @@
   width: 38px;
   height: 38px;
   place-items: center;
-  color: #d9f2e8;
-  background: #2f7d68;
+  color: #fff;
+  background: #1677ff;
   border-radius: 8px;
 }
 
@@ -35,24 +35,29 @@
 
 .brand-caption {
   margin-top: 3px;
-  color: rgba(255, 255, 255, 0.6);
+  color: #8c8c8c;
   font-size: 12px;
 }
 
 .app-menu {
   background: transparent;
   border-inline-end: 0 !important;
-  color: rgba(255, 255, 255, 0.7);
+  color: #595959;
 }
 
 .app-menu .ant-menu-item {
-  color: rgba(255, 255, 255, 0.72);
+  color: #595959;
   border-radius: 6px;
 }
 
+.app-menu .ant-menu-item:hover {
+  color: #1677ff;
+  background: #e6f4ff;
+}
+
 .app-menu .ant-menu-item-selected {
-  color: #fff;
-  background: rgba(47, 125, 104, 0.45);
+  color: #1677ff;
+  background: #e6f4ff;
 }
 
 .app-header {
@@ -63,7 +68,7 @@
   min-height: 72px;
   padding: 14px 24px;
   background: #ffffff;
-  border-bottom: 1px solid #dfe4dd;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .app-header h3 {
@@ -85,9 +90,9 @@
   gap: 6px;
   height: 32px;
   padding: 0 10px;
-  color: #303732;
-  background: #f1f4ef;
-  border: 1px solid #dfe4dd;
+  color: #1f1f1f;
+  background: #f5f5f5;
+  border: 1px solid #d9d9d9;
   border-radius: 8px;
   font-size: 13px;
   white-space: nowrap;
@@ -100,6 +105,15 @@
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+}
+
+.workspace-grid-panel-only {
+  grid-template-columns: minmax(0, 760px);
+}
+
+.view-stack {
+  display: grid;
   gap: 18px;
 }
 

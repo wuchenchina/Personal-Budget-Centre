@@ -4,8 +4,10 @@ import type { BudgetStatus, CurrencyCode, Visibility, WorkspaceRole } from './bu
 export type AuthMode = 'login' | 'register';
 
 export interface AuthFormValues {
+  identifier?: string;
+  username?: string;
   displayName?: string;
-  email: string;
+  email?: string;
   password: string;
   confirmPassword?: string;
   defaultCurrency?: string;

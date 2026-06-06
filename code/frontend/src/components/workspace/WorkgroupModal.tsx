@@ -24,9 +24,9 @@ export function WorkgroupModal({
     <Modal
       destroyOnClose
       confirmLoading={confirmLoading}
-      okText={editingWorkgroup === null ? 'Create' : 'Save'}
+      okText={editingWorkgroup === null ? '创建' : '保存'}
       open={open}
-      title={editingWorkgroup === null ? 'New workgroup' : 'Edit workgroup'}
+      title={editingWorkgroup === null ? '新建工作组' : '编辑工作组'}
       onCancel={onCancel}
       onOk={onOk}
     >
@@ -37,20 +37,20 @@ export function WorkgroupModal({
         requiredMark={false}
       >
         <Form.Item
-          label="Name"
+          label="名称"
           name="name"
           rules={[
-            { required: true, message: 'Workgroup name is required.' },
-            { max: 160, message: 'Workgroup name must be 160 characters or less.' },
+            { required: true, message: '请输入工作组名称。' },
+            { max: 160, message: '工作组名称不能超过 160 个字符。' },
           ]}
         >
           <Input autoComplete="off" />
         </Form.Item>
         <Form.Item
-          label="Description"
+          label="描述"
           name="description"
           rules={[
-            { max: 500, message: 'Workgroup description must be 500 characters or less.' },
+            { max: 500, message: '工作组描述不能超过 500 个字符。' },
           ]}
         >
           <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} />

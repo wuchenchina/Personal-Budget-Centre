@@ -33,7 +33,7 @@ export function CategorySideSection({
     <div className="side-section">
       <div className="side-title">
         <Tags size={16} />
-        <span>Categories</span>
+        <span>分类</span>
       </div>
       <Space className="side-tag-cloud" wrap>
         {operations.currencies.map((currency) => (
@@ -45,7 +45,7 @@ export function CategorySideSection({
           <Input
             allowClear
             disabled={operations.isCategorySaving}
-            placeholder="New category"
+            placeholder="新分类"
             size="small"
             value={categoryName}
             onChange={(event) => setCategoryName(event.target.value)}
@@ -56,7 +56,7 @@ export function CategorySideSection({
             className="side-currency-select"
             disabled={operations.isCategorySaving}
             options={operations.currencyOptions}
-            placeholder="Currency"
+            placeholder="货币"
             size="small"
             value={defaultCurrency}
             onChange={setDefaultCurrency}
@@ -72,9 +72,9 @@ export function CategorySideSection({
       ) : null}
       <div className="operation-list">
         {operations.isReferenceLoading ? (
-          <div className="empty-line">Loading categories...</div>
+          <div className="empty-line">正在加载分类...</div>
         ) : operations.categories.length === 0 ? (
-          <div className="empty-line">No categories configured.</div>
+          <div className="empty-line">暂无分类。</div>
         ) : (
           operations.categories.map((category) => (
             <CategoryRow
@@ -114,13 +114,14 @@ function CategoryRow({
     <div className="operation-list-item">
       <div className="operation-list-main">
         <span>{category.name}</span>
-        <small>{category.defaultCurrency ?? 'No default currency'}</small>
+        <small>{category.defaultCurrency ?? '无默认货币'}</small>
       </div>
       {canWriteBudgets ? (
         <Popconfirm
-          title="Delete category"
-          description="Existing budget rows will keep their data but lose this category link."
-          okText="Delete"
+          title="删除分类"
+          description="已有预算行会保留数据，但会失去此分类关联。"
+          okText="删除"
+          cancelText="取消"
           okButtonProps={{ danger: true }}
           onConfirm={() => operations.removeCategory(category.id)}
         >
@@ -151,7 +152,7 @@ function CategoryRow({
           <Input
             allowClear
             disabled={operations.isCategorySaving}
-            placeholder="Alias"
+            placeholder="别名"
             size="small"
             value={alias}
             onChange={(event) => setAlias(event.target.value)}

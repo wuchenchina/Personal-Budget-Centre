@@ -62,10 +62,13 @@ final readonly class SessionRepository
               us.current_workspace_id,
               us.expires_at,
               u.email,
+              u.username,
               u.display_name,
               u.timezone,
               u.locale,
-              u.status
+              u.status,
+              u.is_admin,
+              u.email_verified_at
             FROM user_sessions us
             INNER JOIN users u ON u.id = us.user_id
             WHERE us.session_token_hash = :session_token_hash

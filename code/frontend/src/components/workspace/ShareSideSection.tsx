@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { Button, Checkbox, Popconfirm, Select, Tag } from 'antd';
 import { Plus, Share2, Trash2 } from 'lucide-react';
 import type { Workgroup } from '../../api/workgroups';
-import { budgetShareRoleOptions, roleColors } from '../../config/appConfig';
+import {
+  budgetShareRoleLabels,
+  budgetShareRoleOptions,
+  principalTypeLabels,
+  roleColors,
+} from '../../config/appConfig';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import type { WorkspaceMember } from '../../types/auth';
 import type {
@@ -13,9 +18,9 @@ import type {
 } from '../../types/budget';
 
 const principalTypeOptions: Array<{ label: string; value: BudgetSharePrincipalType }> = [
-  { label: 'User', value: 'user' },
-  { label: 'Workgroup', value: 'workgroup' },
-  { label: 'Workspace', value: 'workspace' },
+  { label: principalTypeLabels.user, value: 'user' },
+  { label: principalTypeLabels.workgroup, value: 'workgroup' },
+  { label: principalTypeLabels.workspace, value: 'workspace' },
 ];
 
 interface ShareSideSectionProps {
@@ -58,7 +63,7 @@ export function ShareSideSection({
           }))
         : [
             {
-              label: 'All workspace members',
+              label: '所有工作区成员',
               value: activeWorkspaceId ?? 0,
             },
           ];
@@ -87,10 +92,10 @@ export function ShareSideSection({
     <div className="side-section">
       <div className="side-title">
         <Share2 size={16} />
-        <span>Shares</span>
+        <span>共享</span>
       </div>
       {selectedBudget === null ? (
-        <div className="empty-line">Select a budget to manage sharing.</div>
+        <div className="empty-line">选择一个预算后管理共享。</div>
       ) : (
         <>
           <div className="share-create-grid">
@@ -106,7 +111,7 @@ export function ShareSideSection({
             <Select<number>
               disabled={principalType === 'workspace'}
               options={principalOptions}
-              placeholder="Principal"
+              placeholder="共享对象"
               size="small"
               value={nextPrincipalId}
               onChange={setPrincipalId}
@@ -120,10 +125,10 @@ export function ShareSideSection({
           </div>
           <div className="share-toggle-row">
             <Checkbox checked={canExport} onChange={(event) => setCanExport(event.target.checked)}>
-              Export
+              允许导出
             </Checkbox>
             <Checkbox checked={canReshare} onChange={(event) => setCanReshare(event.target.checked)}>
-              Reshare
+              允许转分享
             </Checkbox>
             <Button
               disabled={!canCreate}
@@ -132,14 +137,14 @@ export function ShareSideSection({
               size="small"
               onClick={handleCreate}
             >
-              Add
+              添加
             </Button>
           </div>
           <div className="operation-list">
             {operations.isShareLoading ? (
-              <div className="empty-line">Loading shares...</div>
+              <div className="empty-line">正在加载共享规则...</div>
             ) : operations.shares.length === 0 ? (
-              <div className="empty-line">No share rules.</div>
+              <div className="empty-line">暂无共享规则。</div>
             ) : (
               operations.shares.map((share) => (
                 <ShareRow key={share.id} share={share} operations={operations} />
@@ -164,7 +169,7 @@ function ShareRow({
       <div className="operation-list-main">
         <span>{share.principalName}</span>
         <small>
-          {share.principalType}
+          {principalTypeLabels[share.principalType]}
           {share.principalEmail ? ` - ${share.principalEmail}` : ''}
         </small>
       </div>
@@ -183,7 +188,7 @@ function ShareRow({
             })
           }
         />
-        <Tag color={roleColors[share.role]}>{share.role}</Tag>
+        <Tag color={roleColors[share.role]}>{budgetShareRoleLabels[share.role]}</Tag>
       </div>
       <div className="share-toggle-row">
         <Checkbox
@@ -198,7 +203,7 @@ function ShareRow({
             })
           }
         >
-          Export
+          允许导出
         </Checkbox>
         <Checkbox
           checked={share.canReshare}
@@ -212,12 +217,13 @@ function ShareRow({
             })
           }
         >
-          Reshare
+          允许转分享
         </Checkbox>
         <Popconfirm
-          title="Remove share"
-          description="This principal will lose access granted by this rule."
-          okText="Remove"
+          title="移除共享"
+          description="此对象将失去该规则授予的访问权限。"
+          okText="移除"
+          cancelText="取消"
           okButtonProps={{ danger: true }}
           onConfirm={() => operations.removeShare(share.id)}
         >

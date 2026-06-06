@@ -13,6 +13,28 @@ export interface ApiResponse<T> {
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
 let csrfToken: string | null = null;
 
+const apiErrorMessages: Record<string, string> = {
+  AUTHENTICATION_FAILED: '认证失败，请重新登录。',
+  BUDGET_NOT_FOUND: '预算不存在或已被删除。',
+  CSRF_TOKEN_INVALID: '登录状态已过期，请重新登录。',
+  DATABASE_NOT_CONFIGURED: '数据库尚未配置完成。',
+  DATABASE_UNAVAILABLE: '数据库暂时不可用。',
+  EMAIL_ALREADY_EXISTS: '邮箱已被注册。',
+  EMAIL_NOT_VERIFIED: '邮箱尚未验证，请先完成邮箱验证。',
+  FORBIDDEN: '当前账号没有权限执行此操作。',
+  INVALID_CREDENTIALS: '用户名、邮箱或密码不正确。',
+  INVALID_EMAIL_TOKEN: '邮箱验证链接无效或已过期。',
+  MAIL_DELIVERY_FAILED: '验证邮件发送失败，请稍后再试。',
+  MISSING_SEED_DATA: '基础数据缺失，请先初始化数据库。',
+  NOT_FOUND: '接口不存在。',
+  PERMISSION_DENIED: '当前账号没有权限执行此操作。',
+  TEMPLATE_NOT_FOUND: '预算模板缺失，请先初始化模板数据。',
+  UNAUTHENTICATED: '请先登录。',
+  USER_NOT_FOUND: '用户不存在或已被删除。',
+  USERNAME_ALREADY_EXISTS: '用户名已被注册。',
+  VALIDATION_ERROR: '输入内容不符合要求。',
+};
+
 interface ApiRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
@@ -57,12 +79,20 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       clearCsrfToken();
     }
 
-    throw new Error(payload.error?.message ?? `Request failed: ${response.status}`);
+    throw new Error(readableApiError(payload.error, response.status));
   }
 
   updateCsrfToken(payload.data);
 
   return payload.data;
+}
+
+function readableApiError(error: ApiErrorPayload | null, status: number): string {
+  if (error?.code !== undefined && apiErrorMessages[error.code] !== undefined) {
+    return apiErrorMessages[error.code];
+  }
+
+  return error?.message ?? `请求失败：${status}`;
 }
 
 function updateCsrfToken(data: unknown) {

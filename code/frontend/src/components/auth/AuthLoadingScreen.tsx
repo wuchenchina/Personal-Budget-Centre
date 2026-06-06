@@ -10,7 +10,7 @@ export function AuthLoadingScreen() {
           </div>
           <div>
             <h1>BudgetCentre</h1>
-            <p>Loading session...</p>
+            <p>正在加载会话...</p>
           </div>
         </div>
       </div>

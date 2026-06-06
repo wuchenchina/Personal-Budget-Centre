@@ -8,7 +8,7 @@
 .metric-panel,
 .document-workbench {
   background: #fff;
-  border: 1px solid #dfe4dd;
+  border: 1px solid #f0f0f0;
   border-radius: 8px;
 }
 
@@ -28,7 +28,7 @@
   gap: 12px;
   min-height: 64px;
   padding: 14px 16px;
-  border-bottom: 1px solid #dfe4dd;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .state-panel {
@@ -131,15 +131,15 @@
   width: 100%;
   min-height: 46px;
   padding: 8px 9px;
-  color: #303732;
-  background: #f7f9f5;
-  border: 1px solid #dfe4dd;
+  color: #1f1f1f;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
   border-radius: 8px;
 }
 
 .budget-list-item-active {
-  background: #e7f3ed;
-  border-color: #8dcab4;
+  background: #e6f4ff;
+  border-color: #91caff;
 }
 
 .budget-list-main {
@@ -169,6 +169,6 @@
 }
 
 .budget-list-main small {
-  color: #6d746f;
+  color: #8c8c8c;
   font-size: 12px;
 }

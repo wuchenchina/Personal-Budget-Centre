@@ -28,9 +28,9 @@ export function BudgetCreateModal({
     <Modal
       destroyOnClose
       confirmLoading={confirmLoading}
-      okText={isEditing ? 'Save' : 'Create'}
+      okText={isEditing ? '保存' : '创建'}
       open={open}
-      title={isEditing ? 'Edit budget' : 'New budget'}
+      title={isEditing ? '编辑预算' : '新建预算'}
       onCancel={onCancel}
       onOk={onOk}
     >
@@ -42,77 +42,77 @@ export function BudgetCreateModal({
         requiredMark={false}
       >
         <Form.Item
-          label="Title"
+          label="标题"
           name="title"
           rules={[
-            { required: true, message: 'Budget title is required.' },
-            { max: 255, message: 'Budget title must be 255 characters or less.' },
+            { required: true, message: '请输入预算标题。' },
+            { max: 255, message: '预算标题不能超过 255 个字符。' },
           ]}
         >
           <Input autoComplete="off" />
         </Form.Item>
         <Form.Item
-          label="Owner name"
+          label="负责人"
           name="ownerName"
           rules={[
-            { required: true, message: 'Owner name is required.' },
-            { max: 160, message: 'Owner name must be 160 characters or less.' },
+            { required: true, message: '请输入负责人。' },
+            { max: 160, message: '负责人不能超过 160 个字符。' },
           ]}
         >
           <Input autoComplete="name" />
         </Form.Item>
         <Form.Item
-          label="Period"
+          label="周期"
           name="dateRange"
-          rules={[{ required: true, message: 'Budget period is required.' }]}
+          rules={[{ required: true, message: '请选择预算周期。' }]}
         >
           <RangePicker className="form-full-width" />
         </Form.Item>
         <Form.Item
-          label="Base currency"
+          label="基准货币"
           name="baseCurrency"
-          rules={[{ required: true, message: 'Base currency is required.' }]}
+          rules={[{ required: true, message: '请选择基准货币。' }]}
         >
           <Select options={currencyOptions} />
         </Form.Item>
         <Form.Item
-          label="Display currency"
+          label="显示货币"
           name="displayCurrency"
-          rules={[{ required: true, message: 'Display currency is required.' }]}
+          rules={[{ required: true, message: '请选择显示货币。' }]}
         >
           <Select options={currencyOptions} />
         </Form.Item>
         <Form.Item
-          label="Visibility"
+          label="可见性"
           name="visibility"
-          rules={[{ required: true, message: 'Visibility is required.' }]}
+          rules={[{ required: true, message: '请选择可见性。' }]}
         >
           <Select
             options={[
-              { label: 'Private', value: 'private' },
-              { label: 'Workspace', value: 'workspace' },
-              { label: 'Custom', value: 'custom' },
+              { label: '私有', value: 'private' },
+              { label: '工作区', value: 'workspace' },
+              { label: '自定义', value: 'custom' },
             ]}
           />
         </Form.Item>
         <Form.Item
-          label="Status"
+          label="状态"
           name="status"
-          rules={[{ required: true, message: 'Status is required.' }]}
+          rules={[{ required: true, message: '请选择状态。' }]}
         >
           <Select
             options={[
-              { label: 'Draft', value: 'draft' },
-              { label: 'Active', value: 'active' },
-              { label: 'Closed', value: 'closed' },
-              { label: 'Archived', value: 'archived' },
+              { label: '草稿', value: 'draft' },
+              { label: '启用', value: 'active' },
+              { label: '关闭', value: 'closed' },
+              { label: '归档', value: 'archived' },
             ]}
           />
         </Form.Item>
         <Form.Item
-          label="Note"
+          label="备注"
           name="note"
-          rules={[{ max: 20000, message: 'Budget note must be 20000 characters or less.' }]}
+          rules={[{ max: 20000, message: '备注不能超过 20000 个字符。' }]}
         >
           <Input.TextArea autoSize={{ minRows: 2, maxRows: 5 }} />
         </Form.Item>

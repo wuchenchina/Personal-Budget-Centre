@@ -28,11 +28,10 @@ final class Env
             $value = trim($value);
             $value = trim($value, "\"'");
 
-            if ($key === '' || getenv($key) !== false) {
+            if ($key === '' || self::raw($key) !== null) {
                 continue;
             }
 
-            putenv("{$key}={$value}");
             $_ENV[$key] = $value;
             $_SERVER[$key] = $value;
         }
@@ -40,21 +39,41 @@ final class Env
 
     public static function string(string $key, ?string $default = null): ?string
     {
-        $value = getenv($key);
-        if ($value === false || $value === '') {
+        $value = self::raw($key);
+        if ($value === null || $value === '') {
             return $default;
         }
 
-        return $value;
+        return (string) $value;
     }
 
     public static function int(string $key, int $default): int
     {
-        $value = getenv($key);
-        if ($value === false || $value === '') {
+        $value = self::raw($key);
+        if ($value === null || $value === '') {
             return $default;
         }
 
         return (int) $value;
+    }
+
+    private static function raw(string $key): mixed
+    {
+        if (array_key_exists($key, $_ENV)) {
+            return $_ENV[$key];
+        }
+
+        if (array_key_exists($key, $_SERVER)) {
+            return $_SERVER[$key];
+        }
+
+        if (function_exists('getenv')) {
+            $value = getenv($key);
+            if ($value !== false) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 }

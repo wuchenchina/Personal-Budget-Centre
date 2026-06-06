@@ -15,6 +15,7 @@ import {
   createTransactionColumns,
   renderBudgetTemplateText,
 } from '../../utils/budgetTemplate';
+import { budgetStatusLabels } from '../../config/appConfig';
 
 interface BudgetDocumentPreviewProps {
   selectedBudget: BudgetDetail | null;
@@ -70,39 +71,39 @@ export function BudgetDocumentPreview({
   const budgetTitle =
     selectedBudget && template
       ? renderBudgetTemplateText(template.titleTemplate, selectedBudget)
-      : (template?.titleTemplate ?? 'No budget selected');
+      : (template?.titleTemplate ?? '未选择预算');
   const budgetSubtitle =
     selectedBudget && template
       ? renderBudgetTemplateText(template.subtitleTemplate, selectedBudget)
-      : 'Create or select a budget';
+      : '创建或选择一个预算';
   const budgetDateText = selectedBudget
-    ? `Date: ${selectedBudget.startDate} to ${selectedBudget.endDate}`
-    : 'Date: -';
+    ? `日期：${selectedBudget.startDate} 至 ${selectedBudget.endDate}`
+    : '日期：-';
 
   return (
     <main className="document-workbench">
       <div className="toolbar-row">
         <Space wrap>
-          <Button icon={<CalendarRange size={16} />}>Period</Button>
+          <Button icon={<CalendarRange size={16} />}>周期</Button>
           <Segmented
             disabled
             value={selectedBudget?.visibility ?? 'private'}
             options={[
-              { label: 'Private', value: 'private' },
-              { label: 'Workspace', value: 'workspace' },
-              { label: 'Custom', value: 'custom' },
+              { label: '私有', value: 'private' },
+              { label: '工作区', value: 'workspace' },
+              { label: '自定义', value: 'custom' },
             ]}
           />
         </Space>
         <Space wrap>
           {selectedBudget ? (
-            <Tag color={selectedBudget.status === 'active' ? 'green' : 'default'}>
-              {selectedBudget.status}
+            <Tag color={selectedBudget.status === 'active' ? 'blue' : 'default'}>
+              {budgetStatusLabels[selectedBudget.status]}
             </Tag>
           ) : null}
-          <Tag color="green">manual rates</Tag>
-          <Tag>BOCHK rates</Tag>
-          <Tag>Mastercard rates</Tag>
+          <Tag color="blue">手动汇率</Tag>
+          <Tag>BOCHK 汇率</Tag>
+          <Tag>Mastercard 汇率</Tag>
         </Space>
       </div>
 
@@ -117,17 +118,17 @@ export function BudgetDocumentPreview({
           <Alert
             type="error"
             showIcon
-            message={templateError ? 'Template API unavailable' : 'Budget API unavailable'}
+            message={templateError ? '模板接口不可用' : '预算接口不可用'}
             description={templateError ?? budgetError}
           />
         </div>
       ) : isBudgetLoading ? (
         <div className="state-panel">
-          <Empty description="Loading budgets..." />
+          <Empty description="正在加载预算..." />
         </div>
       ) : selectedBudget === null ? (
         <div className="state-panel">
-          <Empty description="No budget selected" />
+          <Empty description="未选择预算" />
         </div>
       ) : (
         <section className="budget-document-preview">
@@ -144,7 +145,7 @@ export function BudgetDocumentPreview({
                   type="text"
                   onClick={entry.openBudgetItemCreateModal}
                 >
-                  Add
+                  添加
                 </Button>
               ) : null}
             </div>
@@ -154,7 +155,7 @@ export function BudgetDocumentPreview({
               columns={budgetColumns}
               dataSource={selectedBudget.items}
               loading={isTemplateLoading || isBudgetDetailLoading}
-              locale={{ emptyText: <Empty description="No budget items" /> }}
+              locale={{ emptyText: <Empty description="暂无预算项" /> }}
               pagination={false}
               rowKey="id"
               size="small"
@@ -172,7 +173,7 @@ export function BudgetDocumentPreview({
                   type="text"
                   onClick={entry.openTransactionCreateModal}
                 >
-                  Add
+                  添加
                 </Button>
               ) : null}
             </div>
@@ -182,7 +183,7 @@ export function BudgetDocumentPreview({
               columns={transactionColumns}
               dataSource={selectedBudget.transactions}
               loading={isTemplateLoading || isBudgetDetailLoading}
-              locale={{ emptyText: <Empty description="No transactions" /> }}
+              locale={{ emptyText: <Empty description="暂无交易" /> }}
               pagination={false}
               rowKey="id"
               size="small"
@@ -213,7 +214,7 @@ function appendBudgetItemActions(
       width: 72,
       render: (_: unknown, row: BudgetItem) => (
         <Space size={2}>
-          <Tooltip title="Edit">
+          <Tooltip title="编辑">
             <Button
               icon={<Pencil size={14} />}
               size="small"
@@ -222,12 +223,12 @@ function appendBudgetItemActions(
             />
           </Tooltip>
           <Popconfirm
-            title="Delete this highlight?"
-            okText="Delete"
+            title="删除这个预算项？"
+            okText="删除"
             okButtonProps={{ danger: true }}
             onConfirm={() => entry.handleBudgetItemDelete(row.id)}
           >
-            <Tooltip title="Delete">
+            <Tooltip title="删除">
               <Button
                 danger
                 icon={<Trash2 size={14} />}
@@ -261,7 +262,7 @@ function appendTransactionActions(
       width: 72,
       render: (_: unknown, row: Transaction) => (
         <Space size={2}>
-          <Tooltip title="Edit">
+          <Tooltip title="编辑">
             <Button
               icon={<Pencil size={14} />}
               size="small"
@@ -270,12 +271,12 @@ function appendTransactionActions(
             />
           </Tooltip>
           <Popconfirm
-            title="Delete this transaction?"
-            okText="Delete"
+            title="删除这条交易？"
+            okText="删除"
             okButtonProps={{ danger: true }}
             onConfirm={() => entry.handleTransactionDelete(row.id)}
           >
-            <Tooltip title="Delete">
+            <Tooltip title="删除">
               <Button
                 danger
                 icon={<Trash2 size={14} />}

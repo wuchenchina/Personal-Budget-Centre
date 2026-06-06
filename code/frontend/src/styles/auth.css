@@ -16,7 +16,7 @@
   margin: auto;
   padding: 24px;
   background: #fff;
-  border: 1px solid #dfe4dd;
+  border: 1px solid #f0f0f0;
   border-radius: 8px;
 }
 
@@ -24,12 +24,26 @@
   flex: 1;
 }
 
-.auth-pro-form .ant-pro-form-login-container {
+.auth-shell .ant-pro-form-login-container {
+  justify-content: center;
   min-height: calc(100vh - 64px);
+  padding-bottom: 72px;
 }
 
-.auth-pro-form .ant-pro-form-login-main {
+.auth-shell .ant-pro-form-login-desc {
+  margin-bottom: 28px;
+}
+
+.auth-shell .ant-pro-form-login-main {
   width: 368px;
+}
+
+.auth-shell .ant-form-item {
+  margin-bottom: 18px;
+}
+
+.auth-shell .ant-pro-form-login-main .ant-pro-form-login-other {
+  margin-top: 0;
 }
 
 .auth-pro-logo {
@@ -37,8 +51,8 @@
   width: 44px;
   height: 44px;
   place-items: center;
-  color: #e5fff4;
-  background: #2f7d68;
+  color: #fff;
+  background: #1677ff;
   border-radius: 8px;
 }
 
@@ -54,21 +68,21 @@
   width: 40px;
   height: 40px;
   place-items: center;
-  color: #d9f2e8;
-  background: #2f7d68;
+  color: #fff;
+  background: #1677ff;
   border-radius: 8px;
 }
 
 .auth-brand h1 {
   margin: 0;
-  color: #1f2723;
+  color: #1f1f1f;
   font-size: 20px;
   line-height: 1.2;
 }
 
 .auth-brand p {
   margin: 4px 0 0;
-  color: #6d746f;
+  color: #8c8c8c;
   font-size: 13px;
 }
 
@@ -76,8 +90,28 @@
   margin-bottom: 16px;
 }
 
+.auth-mode-tabs {
+  margin-bottom: 18px;
+}
+
+.auth-mode-tabs .ant-tabs-nav {
+  margin-bottom: 0;
+}
+
+.auth-login-methods {
+  margin-bottom: 18px;
+}
+
 .auth-passkey-button {
-  margin-top: 8px;
+  height: 42px;
+  margin-bottom: 14px;
+  background: #fff;
+}
+
+.auth-login-divider {
+  margin: 0;
+  color: #8c8c8c;
+  font-size: 12px;
 }
 
 .password-strength {

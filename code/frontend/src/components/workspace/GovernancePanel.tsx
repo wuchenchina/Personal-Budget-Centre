@@ -9,7 +9,7 @@ import {
   Users,
   WalletCards,
 } from 'lucide-react';
-import { assignableWorkspaceRoleOptions, roleColors } from '../../config/appConfig';
+import { assignableWorkspaceRoleOptions, roleColors, roleLabels } from '../../config/appConfig';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import type { WorkspaceMember } from '../../types/auth';
 import type { WorkspaceRole } from '../../types/budget';
@@ -19,6 +19,7 @@ import type { WorkgroupController } from '../../hooks/useWorkgroupController';
 import { OperationsSections } from './OperationsSections';
 
 interface GovernancePanelProps {
+  activeKey: string;
   budget: BudgetController;
   workspace: WorkspaceController;
   workgroup: WorkgroupController;
@@ -29,6 +30,7 @@ interface GovernancePanelProps {
 }
 
 export function GovernancePanel({
+  activeKey,
   budget,
   workspace,
   workgroup,
@@ -37,30 +39,46 @@ export function GovernancePanel({
   canWriteBudgets,
   canManageWorkspaceMembers,
 }: GovernancePanelProps) {
+  const showAll = activeKey === 'dashboard';
+  const showWorkspace = showAll || activeKey === 'workspace';
+  const showOperations = showAll || ['currencies', 'security', 'exports'].includes(activeKey);
+
   return (
     <aside className="governance-panel">
-      <BudgetSideSection
-        budget={budget}
-        activeWorkspaceId={workspace.activeWorkspaceId}
-        canWriteBudgets={canWriteBudgets}
-      />
-      <WorkspaceSideSection workspace={workspace} />
-      <MemberSideSection
-        workspace={workspace}
-        currentUserId={currentUserId}
-        canManageWorkspaceMembers={canManageWorkspaceMembers}
-      />
-      <WorkgroupSideSection workgroup={workgroup} activeWorkspaceId={workspace.activeWorkspaceId} />
-      <PermissionSideSection />
-      <OperationsSections
-        operations={operations}
-        selectedBudget={budget.selectedBudget}
-        activeWorkspaceId={workspace.activeWorkspaceId}
-        workspaceMembers={workspace.workspaceMembers}
-        workgroups={workgroup.workgroups}
-        canWriteBudgets={canWriteBudgets}
-        canManageBudgetShares={canManageWorkspaceMembers}
-      />
+      {showAll ? (
+        <BudgetSideSection
+          budget={budget}
+          activeWorkspaceId={workspace.activeWorkspaceId}
+          canWriteBudgets={canWriteBudgets}
+        />
+      ) : null}
+      {showWorkspace ? (
+        <>
+          <WorkspaceSideSection workspace={workspace} />
+          <MemberSideSection
+            workspace={workspace}
+            currentUserId={currentUserId}
+            canManageWorkspaceMembers={canManageWorkspaceMembers}
+          />
+          <WorkgroupSideSection
+            workgroup={workgroup}
+            activeWorkspaceId={workspace.activeWorkspaceId}
+          />
+          <PermissionSideSection />
+        </>
+      ) : null}
+      {showOperations ? (
+        <OperationsSections
+          activeKey={activeKey}
+          operations={operations}
+          selectedBudget={budget.selectedBudget}
+          activeWorkspaceId={workspace.activeWorkspaceId}
+          workspaceMembers={workspace.workspaceMembers}
+          workgroups={workgroup.workgroups}
+          canWriteBudgets={canWriteBudgets}
+          canManageBudgetShares={canManageWorkspaceMembers}
+        />
+      ) : null}
     </aside>
   );
 }
@@ -79,7 +97,7 @@ function BudgetSideSection({
       <div className="side-title side-title-row">
         <span className="side-title-label">
           <WalletCards size={16} />
-          <span>Budgets</span>
+          <span>预算</span>
         </span>
         {canWriteBudgets ? (
           <Button
@@ -88,7 +106,7 @@ function BudgetSideSection({
             onClick={budget.openBudgetModal}
             size="small"
           >
-            New
+            新建
           </Button>
         ) : null}
       </div>
@@ -97,9 +115,9 @@ function BudgetSideSection({
       ) : null}
       <div className="budget-list">
         {budget.isBudgetLoading ? (
-          <div className="empty-line">Loading budgets...</div>
+          <div className="empty-line">正在加载预算...</div>
         ) : budget.budgets.length === 0 ? (
-          <div className="empty-line">No budgets created.</div>
+          <div className="empty-line">暂无预算。</div>
         ) : (
           budget.budgets.map((item) => (
             <div
@@ -117,26 +135,27 @@ function BudgetSideSection({
               >
                 <span>{item.title}</span>
                 <small>
-                  {item.startDate} to {item.endDate}
+                  {item.startDate} 至 {item.endDate}
                 </small>
               </button>
               {canWriteBudgets ? (
                 <Space size={4}>
                   <Button
-                    aria-label={`Edit ${item.title}`}
+                    aria-label={`编辑 ${item.title}`}
                     icon={<Pencil size={13} />}
                     onClick={() => budget.openBudgetEditModal(item)}
                     size="small"
                   />
                   <Popconfirm
-                    title="Delete budget"
-                    description="This removes the budget and its rows."
-                    okText="Delete"
+                    title="删除预算"
+                    description="这会删除预算及其明细。"
+                    okText="删除"
+                    cancelText="取消"
                     okButtonProps={{ danger: true }}
                     onConfirm={() => budget.handleBudgetDelete(item.id)}
                   >
                     <Button
-                      aria-label={`Delete ${item.title}`}
+                      aria-label={`删除 ${item.title}`}
                       danger
                       icon={<Trash2 size={13} />}
                       loading={budget.deletingBudgetId === item.id}
@@ -159,10 +178,10 @@ function WorkspaceSideSection({ workspace }: { workspace: WorkspaceController })
       <div className="side-title side-title-row">
         <span className="side-title-label">
           <LayoutDashboard size={16} />
-          <span>Workspaces</span>
+          <span>工作区</span>
         </span>
         <Button icon={<Plus size={14} />} onClick={workspace.openWorkspaceModal} size="small">
-          New
+          新建
         </Button>
       </div>
       {workspace.workspaceError ? (
@@ -170,9 +189,9 @@ function WorkspaceSideSection({ workspace }: { workspace: WorkspaceController })
       ) : (
         <div className="workspace-list">
           {workspace.isWorkspaceLoading ? (
-            <div className="empty-line">Loading workspaces...</div>
+            <div className="empty-line">正在加载工作区...</div>
           ) : workspace.workspaces.length === 0 ? (
-            <div className="empty-line">No workspace access found.</div>
+            <div className="empty-line">暂无可访问工作区。</div>
           ) : (
             workspace.workspaces.map((item) => (
               <div
@@ -184,7 +203,7 @@ function WorkspaceSideSection({ workspace }: { workspace: WorkspaceController })
                 key={item.id}
               >
                 <span>{item.name}</span>
-                <Tag color={roleColors[item.role]}>{item.role}</Tag>
+                <Tag color={roleColors[item.role]}>{roleLabels[item.role]}</Tag>
               </div>
             ))
           )}
@@ -208,7 +227,7 @@ function MemberSideSection({
       <div className="side-title side-title-row">
         <span className="side-title-label">
           <UserRound size={16} />
-          <span>Members</span>
+          <span>成员</span>
         </span>
         {canManageWorkspaceMembers ? (
           <Button
@@ -217,7 +236,7 @@ function MemberSideSection({
             onClick={workspace.openWorkspaceMemberModal}
             size="small"
           >
-            Add
+            添加
           </Button>
         ) : null}
       </div>
@@ -231,9 +250,9 @@ function MemberSideSection({
       ) : null}
       <div className="member-list">
         {workspace.isWorkspaceMemberLoading ? (
-          <div className="empty-line">Loading members...</div>
+          <div className="empty-line">正在加载成员...</div>
         ) : workspace.workspaceMembers.length === 0 ? (
-          <div className="empty-line">No active members.</div>
+          <div className="empty-line">暂无成员。</div>
         ) : (
           workspace.workspaceMembers.map((member) => (
             <MemberRow
@@ -273,7 +292,7 @@ function MemberRow({
       {canManageThisMember ? (
         <Space size={4} wrap={false}>
           <Select<WorkspaceRole>
-            aria-label={`Role for ${member.displayName}`}
+            aria-label={`${member.displayName} 的角色`}
             className="member-role-select"
             disabled={
               workspace.updatingMemberUserId === member.userId ||
@@ -286,14 +305,15 @@ function MemberRow({
             onChange={(role) => workspace.handleWorkspaceMemberRoleChange(member, role)}
           />
           <Popconfirm
-            title="Remove member"
-            description="This also removes their workgroup membership in this workspace."
-            okText="Remove"
+            title="移除成员"
+            description="这也会移除此成员在当前工作区的工作组关系。"
+            okText="移除"
+            cancelText="取消"
             okButtonProps={{ danger: true }}
             onConfirm={() => workspace.handleWorkspaceMemberDelete(member)}
           >
             <Button
-              aria-label={`Remove ${member.displayName}`}
+              aria-label={`移除 ${member.displayName}`}
               danger
               icon={<Trash2 size={13} />}
               loading={workspace.deletingMemberUserId === member.userId}
@@ -302,7 +322,7 @@ function MemberRow({
           </Popconfirm>
         </Space>
       ) : (
-        <Tag color={roleColors[member.role]}>{member.role}</Tag>
+        <Tag color={roleColors[member.role]}>{roleLabels[member.role]}</Tag>
       )}
     </div>
   );
@@ -320,7 +340,7 @@ function WorkgroupSideSection({
       <div className="side-title side-title-row">
         <span className="side-title-label">
           <Users size={16} />
-          <span>Workgroups</span>
+          <span>工作组</span>
         </span>
         <Button
           disabled={activeWorkspaceId === null}
@@ -328,7 +348,7 @@ function WorkgroupSideSection({
           onClick={() => workgroup.openWorkgroupModal()}
           size="small"
         >
-          New
+          新建
         </Button>
       </div>
       {workgroup.workgroupError ? (
@@ -336,34 +356,35 @@ function WorkgroupSideSection({
       ) : (
         <div className="workgroup-list">
           {workgroup.isWorkgroupLoading ? (
-            <div className="empty-line">Loading workgroups...</div>
+            <div className="empty-line">正在加载工作组...</div>
           ) : workgroup.workgroups.length === 0 ? (
-            <div className="empty-line">No workgroups created.</div>
+            <div className="empty-line">暂无工作组。</div>
           ) : (
             workgroup.workgroups.map((item) => (
               <div className="workgroup-list-item" key={item.id}>
                 <div className="workgroup-list-main">
                   <span>{item.name}</span>
                   <small>
-                    {item.memberCount} members{item.description ? ` - ${item.description}` : ''}
+                    {item.memberCount} 位成员{item.description ? ` - ${item.description}` : ''}
                   </small>
                 </div>
                 <Space size={4}>
                   <Button
-                    aria-label={`Edit ${item.name}`}
+                    aria-label={`编辑 ${item.name}`}
                     icon={<Pencil size={13} />}
                     onClick={() => workgroup.openWorkgroupModal(item)}
                     size="small"
                   />
                   <Popconfirm
-                    title="Delete workgroup"
-                    description="This removes the group and its membership records."
-                    okText="Delete"
+                    title="删除工作组"
+                    description="这会删除工作组及其成员关系。"
+                    okText="删除"
+                    cancelText="取消"
                     okButtonProps={{ danger: true }}
                     onConfirm={() => workgroup.handleWorkgroupDelete(item.id)}
                   >
                     <Button
-                      aria-label={`Delete ${item.name}`}
+                      aria-label={`删除 ${item.name}`}
                       danger
                       icon={<Trash2 size={13} />}
                       loading={workgroup.deletingWorkgroupId === item.id}
@@ -385,13 +406,13 @@ function PermissionSideSection() {
     <div className="side-section">
       <div className="side-title">
         <ShieldCheck size={16} />
-        <span>Permissions</span>
+        <span>权限</span>
       </div>
       <Space wrap>
-        <Tag color={roleColors.owner}>owner</Tag>
-        <Tag color={roleColors.admin}>admin</Tag>
-        <Tag color={roleColors.editor}>editor</Tag>
-        <Tag color={roleColors.auditor}>auditor</Tag>
+        <Tag color={roleColors.owner}>{roleLabels.owner}</Tag>
+        <Tag color={roleColors.admin}>{roleLabels.admin}</Tag>
+        <Tag color={roleColors.editor}>{roleLabels.editor}</Tag>
+        <Tag color={roleColors.auditor}>{roleLabels.auditor}</Tag>
       </Space>
     </div>
   );

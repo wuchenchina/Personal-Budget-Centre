@@ -36,7 +36,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
   const openBudgetItemCreateModal = () => {
     if (options.selectedBudget === null) {
-      setEntryError('Select a budget before adding highlights.');
+      setEntryError('请先选择预算，再添加预算项。');
 
       return;
     }
@@ -78,7 +78,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
   const handleBudgetItemSave = async () => {
     if (options.selectedBudget === null && editingBudgetItem === null) {
-      setEntryError('Select a budget before adding highlights.');
+      setEntryError('请先选择预算，再添加预算项。');
 
       return;
     }
@@ -132,7 +132,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       options.replaceBudgetDetail(await deleteBudgetItem(id));
     } catch (error: unknown) {
-      setEntryError(error instanceof Error ? error.message : 'Failed to delete budget item.');
+      setEntryError(error instanceof Error ? error.message : '删除预算项失败。');
     } finally {
       setDeletingBudgetItemId(null);
     }
@@ -140,7 +140,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
   const openTransactionCreateModal = () => {
     if (options.selectedBudget === null) {
-      setEntryError('Select a budget before adding transactions.');
+      setEntryError('请先选择预算，再添加交易。');
 
       return;
     }
@@ -182,7 +182,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
   const handleTransactionSave = async () => {
     if (options.selectedBudget === null && editingTransaction === null) {
-      setEntryError('Select a budget before adding transactions.');
+      setEntryError('请先选择预算，再添加交易。');
 
       return;
     }
@@ -233,7 +233,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       options.replaceBudgetDetail(await deleteTransaction(id));
     } catch (error: unknown) {
-      setEntryError(error instanceof Error ? error.message : 'Failed to delete transaction.');
+      setEntryError(error instanceof Error ? error.message : '删除交易失败。');
     } finally {
       setDeletingTransactionId(null);
     }

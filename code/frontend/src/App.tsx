@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ConfigProvider } from 'antd';
+import { AdminPanel } from './components/admin/AdminPanel';
 import { AuthLoadingScreen } from './components/auth/AuthLoadingScreen';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { BudgetCreateModal } from './components/budget/BudgetCreateModal';
@@ -14,6 +15,7 @@ import { WorkspaceCreateModal } from './components/workspace/WorkspaceCreateModa
 import { WorkspaceMemberModal } from './components/workspace/WorkspaceMemberModal';
 import { appTheme } from './config/appConfig';
 import { useAuthController } from './hooks/useAuthController';
+import { useAdminController } from './hooks/useAdminController';
 import { useBudgetController } from './hooks/useBudgetController';
 import { useBudgetEntryController } from './hooks/useBudgetEntryController';
 import { useOperationsController } from './hooks/useOperationsController';
@@ -52,6 +54,7 @@ function App() {
     selectedBudget: budget.selectedBudget,
     session: auth.session,
   });
+  const admin = useAdminController(auth.session?.user.isAdmin === true && activeKey === 'admin');
 
   if (auth.isSessionLoading) {
     return (
@@ -68,6 +71,7 @@ function App() {
           form={auth.authForm}
           mode={auth.authMode}
           error={auth.authError}
+          notice={auth.authNotice}
           isSubmitting={auth.isAuthSubmitting}
           watchedPassword={auth.watchedPassword}
           onFinish={auth.handleAuthFinish}
@@ -79,6 +83,68 @@ function App() {
   }
 
   const currentUserId = auth.session.user.id;
+  const budgetMetrics = (
+    <BudgetMetrics
+      selectedBudget={budget.selectedBudget}
+      baseCurrency={baseCurrency}
+      loading={budget.isBudgetDetailLoading}
+    />
+  );
+  const budgetPreview = (
+    <BudgetDocumentPreview
+      selectedBudget={budget.selectedBudget}
+      template={template.template}
+      templateError={template.templateError}
+      budgetError={budget.budgetError}
+      baseCurrency={baseCurrency}
+      canWriteBudgets={canWriteBudgets}
+      entry={budgetEntry}
+      isBudgetLoading={budget.isBudgetLoading}
+      isBudgetDetailLoading={budget.isBudgetDetailLoading}
+      isTemplateLoading={template.isTemplateLoading}
+    />
+  );
+  const governancePanel = (
+    <GovernancePanel
+      activeKey={activeKey}
+      budget={budget}
+      workspace={workspace}
+      workgroup={workgroup}
+      operations={operations}
+      currentUserId={currentUserId}
+      canWriteBudgets={canWriteBudgets}
+      canManageWorkspaceMembers={canManageWorkspaceMembers}
+    />
+  );
+
+  const renderMainContent = () => {
+    if (activeKey === 'budgets') {
+      return (
+        <div className="view-stack">
+          {budgetMetrics}
+          {budgetPreview}
+        </div>
+      );
+    }
+
+    if (['workspace', 'currencies', 'security', 'exports'].includes(activeKey)) {
+      return <div className="workspace-grid workspace-grid-panel-only">{governancePanel}</div>;
+    }
+
+    if (activeKey === 'admin' && auth.session?.user.isAdmin) {
+      return <AdminPanel controller={admin} currentUserId={currentUserId} />;
+    }
+
+    return (
+      <>
+        {budgetMetrics}
+        <div className="workspace-grid">
+          {budgetPreview}
+          {governancePanel}
+        </div>
+      </>
+    );
+  };
 
   return (
     <ConfigProvider theme={appTheme}>
@@ -90,6 +156,7 @@ function App() {
         workspaceOptions={workspace.workspaceOptions}
         activeWorkspaceId={workspace.activeWorkspaceId}
         canWriteBudgets={canWriteBudgets}
+        isAdmin={auth.session.user.isAdmin}
         isWorkspaceLoading={workspace.isWorkspaceLoading}
         isWorkspaceSwitching={workspace.isWorkspaceSwitching}
         isAuthSubmitting={auth.isAuthSubmitting}
@@ -98,35 +165,7 @@ function App() {
         onNewBudget={budget.openBudgetModal}
         onLogout={auth.handleLogout}
       >
-        <BudgetMetrics
-          selectedBudget={budget.selectedBudget}
-          baseCurrency={baseCurrency}
-          loading={budget.isBudgetDetailLoading}
-        />
-
-        <div className="workspace-grid">
-          <BudgetDocumentPreview
-            selectedBudget={budget.selectedBudget}
-            template={template.template}
-            templateError={template.templateError}
-            budgetError={budget.budgetError}
-            baseCurrency={baseCurrency}
-            canWriteBudgets={canWriteBudgets}
-            entry={budgetEntry}
-            isBudgetLoading={budget.isBudgetLoading}
-            isBudgetDetailLoading={budget.isBudgetDetailLoading}
-            isTemplateLoading={template.isTemplateLoading}
-          />
-          <GovernancePanel
-            budget={budget}
-            workspace={workspace}
-            workgroup={workgroup}
-            operations={operations}
-            currentUserId={currentUserId}
-            canWriteBudgets={canWriteBudgets}
-            canManageWorkspaceMembers={canManageWorkspaceMembers}
-          />
-        </div>
+        {renderMainContent()}
       </AppShell>
 
       <BudgetCreateModal

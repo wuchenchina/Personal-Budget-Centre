@@ -87,7 +87,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setOperationsError(error instanceof Error ? error.message : 'Failed to load currencies.');
+          setOperationsError(error instanceof Error ? error.message : '加载货币失败。');
         }
       })
       .finally(() => {
@@ -104,7 +104,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setOperationsError(error instanceof Error ? error.message : 'Failed to load passkeys.');
+          setOperationsError(error instanceof Error ? error.message : '加载通行密钥失败。');
         }
       })
       .finally(() => {
@@ -136,7 +136,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setOperationsError(error instanceof Error ? error.message : 'Failed to load categories.');
+          setOperationsError(error instanceof Error ? error.message : '加载分类失败。');
         }
       })
       .finally(() => {
@@ -173,7 +173,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
       .catch((error: unknown) => {
         if (isMounted) {
           setOperationsError(
-            error instanceof Error ? error.message : 'Failed to load reconciliation.',
+            error instanceof Error ? error.message : '加载对账结果失败。',
           );
         }
       })
@@ -191,7 +191,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setOperationsError(error instanceof Error ? error.message : 'Failed to load exports.');
+          setOperationsError(error instanceof Error ? error.message : '加载导出记录失败。');
         }
       })
       .finally(() => {
@@ -209,7 +209,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         })
         .catch((error: unknown) => {
           if (isMounted) {
-            setOperationsError(error instanceof Error ? error.message : 'Failed to load budget shares.');
+            setOperationsError(error instanceof Error ? error.message : '加载共享规则失败。');
           }
         })
         .finally(() => {
@@ -253,7 +253,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     defaultCurrency?: CurrencyCode | null;
   }) => {
     if (activeWorkspaceId === null) {
-      setOperationsError('Workspace is required before saving categories.');
+      setOperationsError('请先选择工作区，再保存分类。');
 
       return;
     }
@@ -273,7 +273,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
       setCategories(nextCategories);
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : 'Failed to save category.');
+      setOperationsError(error instanceof Error ? error.message : '保存分类失败。');
     } finally {
       setIsCategorySaving(false);
     }
@@ -286,7 +286,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     try {
       setCategories(await deleteBudgetCategory(id));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : 'Failed to delete category.');
+      setOperationsError(error instanceof Error ? error.message : '删除分类失败。');
     } finally {
       setIsCategorySaving(false);
     }
@@ -294,7 +294,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
   const saveAlias = async (categoryId: number, alias: string) => {
     if (activeWorkspaceId === null) {
-      setOperationsError('Workspace is required before saving aliases.');
+      setOperationsError('请先选择工作区，再保存别名。');
 
       return;
     }
@@ -311,7 +311,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         }),
       );
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : 'Failed to save alias.');
+      setOperationsError(error instanceof Error ? error.message : '保存别名失败。');
     } finally {
       setIsCategorySaving(false);
     }
@@ -324,7 +324,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     try {
       setCategories(await deleteCategoryAlias(id));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : 'Failed to delete alias.');
+      setOperationsError(error instanceof Error ? error.message : '删除别名失败。');
     } finally {
       setIsCategorySaving(false);
     }
@@ -332,7 +332,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
   const createExport = async (format: BudgetExportFormat) => {
     if (selectedBudget === null) {
-      setOperationsError('Select a budget before exporting.');
+      setOperationsError('请先选择预算，再导出。');
 
       return;
     }
@@ -344,7 +344,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
       const nextExport = await createBudgetExport(selectedBudget.id, format);
       setExports((currentExports) => [nextExport, ...currentExports]);
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : 'Failed to create export.');
+      setOperationsError(error instanceof Error ? error.message : '创建导出失败。');
     } finally {
       setCreatingExportFormat(null);
     }
@@ -364,7 +364,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     expiresAt?: string | null;
   }) => {
     if (selectedBudget === null) {
-      setOperationsError('Select a budget before managing shares.');
+      setOperationsError('请先选择预算，再管理共享。');
 
       return;
     }
@@ -393,7 +393,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
             });
       setShares(nextShares);
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : 'Failed to save share.');
+      setOperationsError(error instanceof Error ? error.message : '保存共享规则失败。');
     } finally {
       setIsShareSaving(false);
     }
@@ -406,7 +406,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     try {
       setShares(await deleteBudgetShare(id));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : 'Failed to delete share.');
+      setOperationsError(error instanceof Error ? error.message : '删除共享规则失败。');
     } finally {
       setIsShareSaving(false);
     }
@@ -421,7 +421,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
       const credential = await createPasskeyCredential(options);
       setPasskeys(await verifyPasskeyRegistration(credential, deviceName));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : 'Failed to register passkey.');
+      setOperationsError(error instanceof Error ? error.message : '注册通行密钥失败。');
     } finally {
       setIsPasskeyRegistering(false);
     }
@@ -434,7 +434,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     try {
       setPasskeys(await updatePasskeyCredential(id, deviceName));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : 'Failed to update passkey.');
+      setOperationsError(error instanceof Error ? error.message : '更新通行密钥失败。');
     } finally {
       setIsPasskeyLoading(false);
     }
@@ -447,7 +447,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     try {
       setPasskeys(await deletePasskeyCredential(id));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : 'Failed to delete passkey.');
+      setOperationsError(error instanceof Error ? error.message : '删除通行密钥失败。');
     } finally {
       setIsPasskeyLoading(false);
     }

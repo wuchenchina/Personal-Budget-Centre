@@ -15,6 +15,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
   const [authForm] = Form.useForm<AuthFormValues>();
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [isSessionLoading, setIsSessionLoading] = useState(true);
@@ -48,25 +49,45 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
   const handleAuthFinish = async (values: AuthFormValues) => {
     setIsAuthSubmitting(true);
     setAuthError(null);
+    setAuthNotice(null);
 
     try {
-      const nextSession =
-        authMode === 'register'
-          ? await register({
-              displayName: values.displayName?.trim() ?? '',
-              email: values.email.trim(),
-              password: values.password,
-              defaultCurrency: toCurrencyCode(values.defaultCurrency),
-            })
-          : await login({
-              email: values.email.trim(),
-              password: values.password,
-            });
+      if (authMode === 'register') {
+        const result = await register({
+          identifier: values.email?.trim() ?? '',
+          username: values.username?.trim() ?? '',
+          displayName: values.displayName?.trim() ?? '',
+          email: values.email?.trim() ?? '',
+          password: values.password,
+          defaultCurrency: toCurrencyCode(values.defaultCurrency),
+        });
+
+        if ('requiresEmailVerification' in result) {
+          setAuthMode('login');
+          setAuthNotice(`验证邮件已发送至 ${result.email}，请验证后再登录。`);
+          authForm.setFieldsValue({
+            identifier: result.email,
+            email: result.email,
+            password: '',
+            confirmPassword: '',
+          });
+          return;
+        }
+
+        setSession(result);
+        setAuthError(null);
+        return;
+      }
+
+      const nextSession = await login({
+        identifier: values.identifier?.trim() ?? '',
+        password: values.password,
+      });
 
       setSession(nextSession);
       setAuthError(null);
     } catch (error: unknown) {
-      setAuthError(error instanceof Error ? error.message : 'Authentication failed.');
+      setAuthError(error instanceof Error ? error.message : '认证失败。');
     } finally {
       setIsAuthSubmitting(false);
     }
@@ -75,9 +96,10 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
   const handlePasskeyLogin = async () => {
     setIsAuthSubmitting(true);
     setAuthError(null);
+    setAuthNotice(null);
 
     try {
-      const email = authForm.getFieldValue('email');
+      const email = authForm.getFieldValue('identifier') ?? authForm.getFieldValue('email');
       const passkeyOptions = await getPasskeyLoginOptions(
         typeof email === 'string' ? email : undefined,
       );
@@ -87,7 +109,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
       setSession(nextSession);
       setAuthError(null);
     } catch (error: unknown) {
-      setAuthError(error instanceof Error ? error.message : 'Passkey login failed.');
+      setAuthError(error instanceof Error ? error.message : '通行密钥登录失败。');
     } finally {
       setIsAuthSubmitting(false);
     }
@@ -100,7 +122,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
       await logout();
       setAuthError(null);
     } catch (error: unknown) {
-      setAuthError(error instanceof Error ? error.message : 'Logout failed.');
+      setAuthError(error instanceof Error ? error.message : '退出登录失败。');
     } finally {
       setSession(null);
       setAuthMode('login');
@@ -112,6 +134,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
   const switchAuthMode = (mode: AuthMode) => {
     setAuthMode(mode);
     setAuthError(null);
+    setAuthNotice(null);
     authForm.resetFields();
     authForm.setFieldValue('defaultCurrency', 'CNY');
   };
@@ -120,6 +143,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
     authForm,
     authMode,
     authError,
+    authNotice,
     session,
     setSession,
     isAuthSubmitting,

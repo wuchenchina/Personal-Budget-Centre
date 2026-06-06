@@ -13,16 +13,33 @@ CREATE TABLE IF NOT EXISTS currencies (
 CREATE TABLE IF NOT EXISTS users (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   email VARCHAR(255) NOT NULL,
+  username VARCHAR(80) NULL,
   password_hash VARCHAR(255) NULL,
   display_name VARCHAR(120) NOT NULL,
   default_currency_id BIGINT UNSIGNED NULL,
   timezone VARCHAR(80) NOT NULL DEFAULT 'Asia/Shanghai',
   locale VARCHAR(32) NOT NULL DEFAULT 'zh-Hant',
   status ENUM('active', 'disabled', 'pending') NOT NULL DEFAULT 'active',
+  is_admin TINYINT(1) NOT NULL DEFAULT 0,
+  email_verified_at DATETIME NULL,
+  email_verification_sent_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_users_email (email),
+  UNIQUE KEY uq_users_username (username),
   CONSTRAINT fk_users_default_currency FOREIGN KEY (default_currency_id) REFERENCES currencies(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_email_verification_tokens_hash (token_hash),
+  KEY idx_email_verification_tokens_user (user_id),
+  CONSTRAINT fk_email_verification_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS user_sessions (
