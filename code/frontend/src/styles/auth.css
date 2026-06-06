@@ -1,0 +1,99 @@
+.auth-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow: auto;
+  padding: 32px 0;
+  background-color: #f6f8fb;
+  background-image: url("https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/V-_oS6r-i7wAAAAAAAAAAAAAFl94AQBr");
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.auth-loading-panel {
+  width: min(100%, 420px);
+  margin: auto;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #dfe4dd;
+  border-radius: 8px;
+}
+
+.auth-pro-form {
+  flex: 1;
+}
+
+.auth-pro-form .ant-pro-form-login-container {
+  min-height: calc(100vh - 64px);
+}
+
+.auth-pro-form .ant-pro-form-login-main {
+  width: 368px;
+}
+
+.auth-pro-logo {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  color: #e5fff4;
+  background: #2f7d68;
+  border-radius: 8px;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.auth-mark {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: #d9f2e8;
+  background: #2f7d68;
+  border-radius: 8px;
+}
+
+.auth-brand h1 {
+  margin: 0;
+  color: #1f2723;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.auth-brand p {
+  margin: 4px 0 0;
+  color: #6d746f;
+  font-size: 13px;
+}
+
+.auth-error {
+  margin-bottom: 16px;
+}
+
+.password-strength {
+  margin: -12px 0 14px;
+  font-size: 12px;
+}
+
+.password-strength span {
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.password-strength-poor {
+  color: #cf1322;
+}
+
+.password-strength-pass {
+  color: #ad6800;
+}
+
+.password-strength-ok {
+  color: #237804;
+}

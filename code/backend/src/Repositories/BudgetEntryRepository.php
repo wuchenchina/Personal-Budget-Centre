@@ -1,0 +1,168 @@
+<?php
+
+declare(strict_types=1);
+
+namespace BudgetCentre\Repositories;
+
+use PDO;
+
+final readonly class BudgetEntryRepository
+{
+    public function __construct(private PDO $pdo)
+    {
+    }
+
+    public function createItem(array $item): int
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            INSERT INTO budget_items (
+              budget_id,
+              category_id,
+              label,
+              budget_currency_id,
+              budget_amount_original,
+              budget_rate_to_base,
+              budget_amount_base,
+              estimated_currency_id,
+              estimated_amount_original,
+              estimated_rate_to_base,
+              estimated_amount_base,
+              variance_amount_base,
+              sort_order
+            ) VALUES (
+              :budget_id,
+              :category_id,
+              :label,
+              :budget_currency_id,
+              :budget_amount_original,
+              :budget_rate_to_base,
+              :budget_amount_base,
+              :estimated_currency_id,
+              :estimated_amount_original,
+              :estimated_rate_to_base,
+              :estimated_amount_base,
+              :variance_amount_base,
+              :sort_order
+            )
+            SQL
+        );
+        $statement->execute($item);
+
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    public function updateItem(int $id, array $item): void
+    {
+        unset($item['budget_id']);
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            UPDATE budget_items
+            SET
+              category_id = :category_id,
+              label = :label,
+              budget_currency_id = :budget_currency_id,
+              budget_amount_original = :budget_amount_original,
+              budget_rate_to_base = :budget_rate_to_base,
+              budget_amount_base = :budget_amount_base,
+              estimated_currency_id = :estimated_currency_id,
+              estimated_amount_original = :estimated_amount_original,
+              estimated_rate_to_base = :estimated_rate_to_base,
+              estimated_amount_base = :estimated_amount_base,
+              variance_amount_base = :variance_amount_base,
+              sort_order = :sort_order
+            WHERE id = :id
+            SQL
+        );
+        $statement->execute(['id' => $id, ...$item]);
+    }
+
+    public function deleteItem(int $id): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM budget_items WHERE id = :id');
+        $statement->execute(['id' => $id]);
+    }
+
+    public function budgetIdForItem(int $id): ?int
+    {
+        return $this->budgetIdForTable('budget_items', $id);
+    }
+
+    public function createTransaction(array $transaction): int
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            INSERT INTO budget_transactions (
+              budget_id,
+              category_id,
+              transaction_date,
+              details,
+              currency_id,
+              amount_original,
+              rate_to_base,
+              amount_base,
+              remark,
+              sort_order
+            ) VALUES (
+              :budget_id,
+              :category_id,
+              :transaction_date,
+              :details,
+              :currency_id,
+              :amount_original,
+              :rate_to_base,
+              :amount_base,
+              :remark,
+              :sort_order
+            )
+            SQL
+        );
+        $statement->execute($transaction);
+
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    public function updateTransaction(int $id, array $transaction): void
+    {
+        unset($transaction['budget_id']);
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            UPDATE budget_transactions
+            SET
+              category_id = :category_id,
+              transaction_date = :transaction_date,
+              details = :details,
+              currency_id = :currency_id,
+              amount_original = :amount_original,
+              rate_to_base = :rate_to_base,
+              amount_base = :amount_base,
+              remark = :remark,
+              sort_order = :sort_order
+            WHERE id = :id
+            SQL
+        );
+        $statement->execute(['id' => $id, ...$transaction]);
+    }
+
+    public function deleteTransaction(int $id): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM budget_transactions WHERE id = :id');
+        $statement->execute(['id' => $id]);
+    }
+
+    public function budgetIdForTransaction(int $id): ?int
+    {
+        return $this->budgetIdForTable('budget_transactions', $id);
+    }
+
+    private function budgetIdForTable(string $table, int $id): ?int
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT budget_id FROM {$table} WHERE id = :id LIMIT 1"
+        );
+        $statement->execute(['id' => $id]);
+        $budgetId = $statement->fetchColumn();
+
+        return $budgetId === false ? null : (int) $budgetId;
+    }
+}

@@ -1,0 +1,9 @@
+@import url('https://fonts.api.axchen.top/TimesNewRoman/index.css');
+@import url('https://fonts.api.axchen.top/SF-Mono/index.css');
+@import url('https://fonts.api.axchen.top/TCSongti/index.css');
+
+:root {
+  --font-title: 'TimesNewRoman', serif;
+  --font-mono: 'SF-Mono', monospace;
+  --font-cjk: 'TCSongti', serif;
+}
