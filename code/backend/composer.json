@@ -19,6 +19,8 @@
     }
   },
   "scripts": {
-    "check": "find src public -name '*.php' -print0 | xargs -0 -n1 php -l"
+    "check": "find src public bin -name '*.php' -print0 | xargs -0 -n1 php -l",
+    "db:init": "php bin/init-database.php --yes",
+    "db:init:dry-run": "php bin/init-database.php --dry-run"
   }
 }

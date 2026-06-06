@@ -1,10 +1,11 @@
 import type { ThemeConfig } from 'antd';
-import type { CurrencyCode, WorkspaceRole } from '../types/budget';
+import type { BudgetShareRole, CurrencyCode, WorkspaceRole } from '../types/budget';
 
 export const iconSize = 16;
 
 export const supportedCurrencyCodes: CurrencyCode[] = [
   'CNY',
+  'CNH',
   'HKD',
   'USD',
   'EUR',
@@ -12,6 +13,17 @@ export const supportedCurrencyCodes: CurrencyCode[] = [
   'JPY',
   'TWD',
   'MOP',
+  'AUD',
+  'NZD',
+  'CAD',
+  'CHF',
+  'DKK',
+  'NOK',
+  'SEK',
+  'SGD',
+  'THB',
+  'BND',
+  'ZAR',
 ];
 
 export const roleColors: Record<WorkspaceRole, string> = {
@@ -35,6 +47,12 @@ export const workspaceTypeOptions = [
 
 export const assignableWorkspaceRoleOptions = [
   { label: 'Admin', value: 'admin' },
+  { label: 'Editor', value: 'editor' },
+  { label: 'Viewer', value: 'viewer' },
+  { label: 'Auditor', value: 'auditor' },
+];
+
+export const budgetShareRoleOptions: Array<{ label: string; value: BudgetShareRole }> = [
   { label: 'Editor', value: 'editor' },
   { label: 'Viewer', value: 'viewer' },
   { label: 'Auditor', value: 'auditor' },

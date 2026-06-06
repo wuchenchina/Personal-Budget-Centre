@@ -7,6 +7,12 @@ import {
   listBudgetCategories,
   updateBudgetCategory,
 } from '../api/budgetCategories';
+import {
+  createBudgetShare,
+  deleteBudgetShare,
+  listBudgetShares,
+  updateBudgetShare,
+} from '../api/budgetShares';
 import { createBudgetExport, exportDownloadUrl, listBudgetExports } from '../api/exports';
 import {
   deletePasskeyCredential,
@@ -24,6 +30,9 @@ import type {
   BudgetExport,
   BudgetExportFormat,
   BudgetReconciliationRow,
+  BudgetShare,
+  BudgetSharePrincipalType,
+  BudgetShareRole,
   Currency,
   CurrencyCode,
 } from '../types/budget';
@@ -33,6 +42,7 @@ interface UseOperationsControllerOptions {
   activeWorkspaceId: number | null;
   selectedBudget: BudgetDetail | null;
   session: AuthSession | null;
+  canManageBudgetShares: boolean;
 }
 
 export function useOperationsController(options: UseOperationsControllerOptions) {
@@ -40,16 +50,19 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [reconciliation, setReconciliation] = useState<BudgetReconciliationRow[]>([]);
   const [exports, setExports] = useState<BudgetExport[]>([]);
+  const [shares, setShares] = useState<BudgetShare[]>([]);
   const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
   const [operationsError, setOperationsError] = useState<string | null>(null);
   const [isReferenceLoading, setIsReferenceLoading] = useState(false);
   const [isCategorySaving, setIsCategorySaving] = useState(false);
   const [isReconciliationLoading, setIsReconciliationLoading] = useState(false);
   const [isExportLoading, setIsExportLoading] = useState(false);
+  const [isShareLoading, setIsShareLoading] = useState(false);
+  const [isShareSaving, setIsShareSaving] = useState(false);
   const [creatingExportFormat, setCreatingExportFormat] = useState<BudgetExportFormat | null>(null);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
   const [isPasskeyRegistering, setIsPasskeyRegistering] = useState(false);
-  const { activeWorkspaceId, selectedBudget, session } = options;
+  const { activeWorkspaceId, canManageBudgetShares, selectedBudget, session } = options;
 
   useEffect(() => {
     if (session === null) {
@@ -141,6 +154,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     if (selectedBudget === null) {
       setReconciliation([]);
       setExports([]);
+      setShares([]);
 
       return;
     }
@@ -148,6 +162,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     let isMounted = true;
     setIsReconciliationLoading(true);
     setIsExportLoading(true);
+    setIsShareLoading(canManageBudgetShares);
 
     getBudgetReconciliation(selectedBudget.id)
       .then((rows) => {
@@ -185,10 +200,32 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         }
       });
 
+    if (canManageBudgetShares) {
+      listBudgetShares(selectedBudget.id)
+        .then((items) => {
+          if (isMounted) {
+            setShares(items);
+          }
+        })
+        .catch((error: unknown) => {
+          if (isMounted) {
+            setOperationsError(error instanceof Error ? error.message : 'Failed to load budget shares.');
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsShareLoading(false);
+          }
+        });
+    } else {
+      setShares([]);
+      setIsShareLoading(false);
+    }
+
     return () => {
       isMounted = false;
     };
-  }, [selectedBudget]);
+  }, [canManageBudgetShares, selectedBudget]);
 
   const categoryOptions = useMemo(
     () =>
@@ -317,6 +354,64 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     window.open(exportDownloadUrl(item), '_blank', 'noopener,noreferrer');
   };
 
+  const saveShare = async (input: {
+    id?: number;
+    principalType?: BudgetSharePrincipalType;
+    principalId?: number;
+    role: BudgetShareRole;
+    canExport: boolean;
+    canReshare: boolean;
+    expiresAt?: string | null;
+  }) => {
+    if (selectedBudget === null) {
+      setOperationsError('Select a budget before managing shares.');
+
+      return;
+    }
+
+    setIsShareSaving(true);
+    setOperationsError(null);
+
+    try {
+      const nextShares =
+        input.id === undefined
+          ? await createBudgetShare({
+              budgetId: selectedBudget.id,
+              principalType: input.principalType ?? 'user',
+              principalId: input.principalId ?? 0,
+              role: input.role,
+              canExport: input.canExport,
+              canReshare: input.canReshare,
+              expiresAt: input.expiresAt ?? null,
+            })
+          : await updateBudgetShare({
+              id: input.id,
+              role: input.role,
+              canExport: input.canExport,
+              canReshare: input.canReshare,
+              expiresAt: input.expiresAt ?? null,
+            });
+      setShares(nextShares);
+    } catch (error: unknown) {
+      setOperationsError(error instanceof Error ? error.message : 'Failed to save share.');
+    } finally {
+      setIsShareSaving(false);
+    }
+  };
+
+  const removeShare = async (id: number) => {
+    setIsShareSaving(true);
+    setOperationsError(null);
+
+    try {
+      setShares(await deleteBudgetShare(id));
+    } catch (error: unknown) {
+      setOperationsError(error instanceof Error ? error.message : 'Failed to delete share.');
+    } finally {
+      setIsShareSaving(false);
+    }
+  };
+
   const registerPasskey = async (deviceName?: string) => {
     setIsPasskeyRegistering(true);
     setOperationsError(null);
@@ -365,12 +460,15 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     currencyOptions,
     reconciliation,
     exports,
+    shares,
     passkeys,
     operationsError,
     isReferenceLoading,
     isCategorySaving,
     isReconciliationLoading,
     isExportLoading,
+    isShareLoading,
+    isShareSaving,
     creatingExportFormat,
     isPasskeyLoading,
     isPasskeyRegistering,
@@ -380,6 +478,8 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     removeAlias,
     createExport,
     downloadExport,
+    saveShare,
+    removeShare,
     registerPasskey,
     renamePasskey,
     removePasskey,

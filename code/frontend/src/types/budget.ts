@@ -1,4 +1,24 @@
-export type CurrencyCode = 'CNY' | 'HKD' | 'USD' | 'EUR' | 'GBP' | 'JPY' | 'TWD' | 'MOP';
+export type CurrencyCode =
+  | 'CNY'
+  | 'CNH'
+  | 'HKD'
+  | 'USD'
+  | 'EUR'
+  | 'GBP'
+  | 'JPY'
+  | 'TWD'
+  | 'MOP'
+  | 'AUD'
+  | 'NZD'
+  | 'CAD'
+  | 'CHF'
+  | 'DKK'
+  | 'NOK'
+  | 'SEK'
+  | 'SGD'
+  | 'THB'
+  | 'BND'
+  | 'ZAR';
 
 export type BudgetStatus = 'draft' | 'active' | 'closed' | 'archived';
 
@@ -7,6 +27,10 @@ export type Visibility = 'private' | 'workspace' | 'custom';
 export type PrincipalType = 'user' | 'workgroup' | 'workspace';
 
 export type WorkspaceRole = 'owner' | 'admin' | 'editor' | 'viewer' | 'auditor';
+
+export type BudgetShareRole = 'owner' | 'editor' | 'viewer' | 'auditor';
+
+export type BudgetSharePrincipalType = PrincipalType;
 
 export interface Money {
   currency: CurrencyCode;
@@ -32,6 +56,23 @@ export interface ShareGrant {
   principalName: string;
   role: WorkspaceRole;
   canExport: boolean;
+}
+
+export interface BudgetShare {
+  id: number;
+  budgetId: number;
+  principalType: BudgetSharePrincipalType;
+  principalId: number;
+  principalName: string;
+  principalEmail: string | null;
+  role: BudgetShareRole;
+  canExport: boolean;
+  canReshare: boolean;
+  expiresAt: string | null;
+  createdByUserId: number;
+  createdByName: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface BudgetItem {
@@ -70,11 +111,22 @@ export interface Transaction {
 }
 
 export interface CurrencyRate {
+  id: number;
+  workspaceId: number | null;
   from: CurrencyCode;
   to: CurrencyCode;
   rate: number;
-  source: 'manual' | 'budget_default' | 'future_live_provider';
+  source: 'manual' | 'budget_default' | 'bochk' | 'mastercard';
+  sourceName: string | null;
+  sourceUrl: string | null;
+  providerRateType: 'manual' | 'mid' | 'card';
+  providerSellRate: number | null;
+  providerBuyRate: number | null;
+  providerUpdatedAt: string | null;
+  fetchedAt: string | null;
+  note: string | null;
   rateDate: string;
+  createdAt: string;
 }
 
 export interface Currency {

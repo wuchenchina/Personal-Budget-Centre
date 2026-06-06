@@ -9,6 +9,7 @@ import {
   updateBudgetItem,
   updateTransaction,
 } from '../api/budgetEntries';
+import type { SaveBudgetItemPayload, SaveTransactionPayload } from '../api/budgetEntries';
 import type { BudgetDetail, BudgetItem, CurrencyCode, Transaction } from '../types/budget';
 import type { BudgetItemFormValues, TransactionFormValues } from '../types/forms';
 
@@ -45,9 +46,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     budgetItemForm.resetFields();
     budgetItemForm.setFieldsValue({
       budgetCurrency: entryCurrency,
-      budgetRate: 1,
       estimatedCurrency: entryCurrency,
-      estimatedRate: 1,
       sortOrder: options.selectedBudget.items.length + 1,
     });
     setIsBudgetItemModalOpen(true);
@@ -89,17 +88,21 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       setIsBudgetItemSaving(true);
       setEntryError(null);
 
-      const payload = {
+      const payload: SaveBudgetItemPayload = {
         categoryId: values.categoryId,
         label: values.label.trim(),
         budgetCurrency: values.budgetCurrency,
         budgetAmount: values.budgetAmount,
-        budgetRate: values.budgetRate ?? 1,
         estimatedCurrency: values.estimatedCurrency,
         estimatedAmount: values.estimatedAmount,
-        estimatedRate: values.estimatedRate ?? 1,
         sortOrder: values.sortOrder ?? 0,
       };
+      if (values.budgetRate !== undefined) {
+        payload.budgetRate = values.budgetRate;
+      }
+      if (values.estimatedRate !== undefined) {
+        payload.estimatedRate = values.estimatedRate;
+      }
       const savedBudget =
         editingBudgetItem === null
           ? await createBudgetItem({
@@ -148,7 +151,6 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     transactionForm.setFieldsValue({
       transactionDate: dayjs(),
       currency: entryCurrency,
-      rate: 1,
       sortOrder: options.selectedBudget.transactions.length + 1,
     });
     setIsTransactionModalOpen(true);
@@ -190,16 +192,18 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       setIsTransactionSaving(true);
       setEntryError(null);
 
-      const payload = {
+      const payload: SaveTransactionPayload = {
         categoryId: values.categoryId,
         transactionDate: values.transactionDate?.format('YYYY-MM-DD') ?? null,
         details: values.details.trim(),
         currency: values.currency,
         amount: values.amount,
-        rate: values.rate ?? 1,
         remark: values.remark?.trim() || null,
         sortOrder: values.sortOrder ?? 0,
       };
+      if (values.rate !== undefined) {
+        payload.rate = values.rate;
+      }
       const savedBudget =
         editingTransaction === null
           ? await createTransaction({

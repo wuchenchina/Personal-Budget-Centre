@@ -2,3 +2,4 @@ code/frontend/node_modules/
 code/frontend/dist/
 code/backend/vendor/
 code/backend/storage/
+.playwright-mcp

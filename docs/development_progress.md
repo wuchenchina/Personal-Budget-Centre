@@ -1,4 +1,6 @@
 [x] 建立開發進度清單
+[x] 建立根目錄 README.md
+[x] 建立後續開發標準文檔
 [x] 解析 DOCX 預算模板
 [x] 識別模板標題、副標題、兩張表格
 [x] 識別模板字體、字號、表格背景色、欄寬、對齊方式
@@ -52,6 +54,8 @@
 [x] 建立 `002_seed_currencies.sql`
 [x] 建立 `003_seed_template.sql`
 [x] 建立 `004_views.sql`
+[x] 建立資料庫初始化腳本
+[x] 資料庫初始化腳本不包含建立 database
 [x] SQL 包含 users
 [x] SQL 包含 sessions
 [x] SQL 包含 webauthn_credentials
@@ -135,7 +139,7 @@
 [x] Workgroup service 接入 PermissionGuard
 [x] Budget service 接入 PermissionGuard
 [x] Budget entry service 接入 PermissionGuard
-[ ] Budget share API
+[x] Budget share API
 [x] Budget list API 初版
 [x] Budget detail API 初版
 [x] Budget create API 初版
@@ -166,10 +170,11 @@
 [x] Transaction Breakdown 讀寫
 [x] Category alias mapping
 [x] Currency API
-[ ] Manual exchange rate API
-[ ] Transaction currency conversion
-[ ] Live exchange rate provider
-[ ] HSBC/BOCHK exchange rate provider
+[x] Manual exchange rate API
+[x] Transaction currency conversion
+[x] Live exchange rate provider
+[x] BOCHK exchange rate provider
+[x] Mastercard exchange rate provider
 [x] Reconciliation API
 [x] 前端顯示分類差異
 [x] 前端顯示交易總額差異
@@ -211,8 +216,18 @@
 [x] 安全基礎接入後重新執行 `composer validate --strict`
 [x] 安全基礎接入後重新執行 PHP syntax check
 [x] 安全基礎接入後確認單檔低於 500 行
+[x] 匯率 API 接入後重新執行 `yarn build`
+[x] 匯率 API 接入後重新執行 `composer validate --strict`
+[x] 匯率 API 接入後重新執行 PHP syntax check
+[x] 建立根目錄 `deploy.sh`
+[x] deploy 腳本使用 `bc.tool.axchen.top`
+[x] deploy 腳本上載後初始化既有 MySQL database
+[x] 資料庫初始化腳本 dry-run 驗證通過
+[x] deploy 腳本 bash 語法檢查通過
+[x] deploy/init 腳本接入後重新執行 `composer validate --strict`
+[x] deploy/init 腳本接入後重新執行 PHP syntax check
 [ ] 正式資料庫環境 API 測試
 [ ] Browser preview
-[ ] 確認 Ant Design 版本是否維持 `antd@6.4.3`
+[x] 確認 Ant Design 版本維持 `antd@6.4.3`
 [ ] 處理 Vite build chunk size warning
 [ ] 本地 dev server 尚未啟動

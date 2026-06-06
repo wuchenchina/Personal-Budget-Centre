@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace BudgetCentre\Auth;
 
 use BudgetCentre\Repositories\BudgetRepository;
+use BudgetCentre\Repositories\BudgetShareRepository;
 use BudgetCentre\Repositories\WorkgroupRepository;
+use BudgetCentre\Repositories\WorkspaceRepository;
 use PDO;
 
 final readonly class PermissionGuard
@@ -33,11 +35,60 @@ final readonly class PermissionGuard
         int $userId,
         array $allowedRoles = [],
     ): string {
-        return $this->requireWorkspaceRole(
-            $this->workspaceIdForBudget($budgetId),
+        $access = $this->budgetAccess($budgetId, $userId);
+        $role = $access['role'];
+        if ($role === null) {
+            throw new AuthException('FORBIDDEN', 'Budget access is required.', 403);
+        }
+
+        if ($allowedRoles !== [] && !in_array($role, $allowedRoles, true)) {
+            throw new AuthException('FORBIDDEN', 'You do not have permission for this budget.', 403);
+        }
+
+        return $role;
+    }
+
+    public function requireBudgetExport(int $budgetId, int $userId): void
+    {
+        $access = $this->budgetAccess($budgetId, $userId);
+        $role = $access['role'];
+        if ($role === null) {
+            throw new AuthException('FORBIDDEN', 'Budget access is required.', 403);
+        }
+
+        if (in_array($role, self::WRITE_ROLES, true)) {
+            return;
+        }
+
+        $share = $access['share'];
+        if ($share !== null && (bool) $share['canExport']) {
+            return;
+        }
+
+        throw new AuthException('FORBIDDEN', 'You do not have permission to export this budget.', 403);
+    }
+
+    private function budgetAccess(int $budgetId, int $userId): array
+    {
+        $budget = (new BudgetRepository($this->pdo))->accessBasics($budgetId);
+        if ($budget === null) {
+            throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
+        }
+
+        $workspaceId = (int) $budget['workspaceId'];
+        $workspaceRole = (new WorkspaceRepository($this->pdo))->roleForUser($workspaceId, $userId);
+        $share = (new BudgetShareRepository($this->pdo))->effectiveForUser(
+            $budgetId,
+            $workspaceId,
             $userId,
-            $allowedRoles,
         );
+
+        return [
+            'budget' => $budget,
+            'role' => $this->effectiveBudgetRole($budget, $userId, $workspaceRole, $share),
+            'share' => $share,
+            'workspaceRole' => $workspaceRole,
+        ];
     }
 
     public function requireWorkgroupRole(
@@ -68,5 +119,42 @@ final readonly class PermissionGuard
     public function canReadPrivateBudgets(string $role): bool
     {
         return in_array($role, self::PRIVATE_READ_ROLES, true);
+    }
+
+    private function effectiveBudgetRole(
+        array $budget,
+        int $userId,
+        ?string $workspaceRole,
+        ?array $share,
+    ): ?string {
+        if ($workspaceRole === 'owner' || $workspaceRole === 'admin') {
+            return $workspaceRole;
+        }
+
+        if (
+            (int) $budget['userId'] === $userId
+            || (int) $budget['ownerUserId'] === $userId
+            || (int) $budget['createdByUserId'] === $userId
+        ) {
+            return 'owner';
+        }
+
+        if (
+            $budget['visibility'] === 'workspace'
+            && $workspaceRole !== null
+            && in_array($workspaceRole, self::WRITE_ROLES, true)
+        ) {
+            return $workspaceRole;
+        }
+
+        if ($share !== null) {
+            return (string) $share['role'];
+        }
+
+        if ($budget['visibility'] === 'workspace' && $workspaceRole !== null) {
+            return $workspaceRole;
+        }
+
+        return null;
     }
 }

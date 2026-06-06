@@ -101,7 +101,8 @@ export function BudgetDocumentPreview({
             </Tag>
           ) : null}
           <Tag color="green">manual rates</Tag>
-          <Tag>live rates later</Tag>
+          <Tag>BOCHK rates</Tag>
+          <Tag>Mastercard rates</Tag>
         </Space>
       </div>
 

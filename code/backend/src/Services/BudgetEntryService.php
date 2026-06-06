@@ -28,9 +28,10 @@ final readonly class BudgetEntryService
         $session = $this->authenticator->authenticatedSession($request);
         $budgetId = $this->budgetIdFromInput($input);
         $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
+        $budget = $this->budgetCurrencyBasics($budgetId);
 
         (new BudgetEntryRepository($this->pdo))->createItem(
-            $this->itemPayload($input, $budgetId, $workspaceId),
+            $this->itemPayload($input, $budgetId, $workspaceId, $budget),
         );
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
@@ -47,7 +48,12 @@ final readonly class BudgetEntryService
         }
 
         $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
-        $repository->updateItem($id, $this->itemPayload($input, $budgetId, $workspaceId));
+        $repository->updateItem($id, $this->itemPayload(
+            $input,
+            $budgetId,
+            $workspaceId,
+            $this->budgetCurrencyBasics($budgetId),
+        ));
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
@@ -73,9 +79,10 @@ final readonly class BudgetEntryService
         $session = $this->authenticator->authenticatedSession($request);
         $budgetId = $this->budgetIdFromInput($input);
         $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
+        $budget = $this->budgetCurrencyBasics($budgetId);
 
         (new BudgetEntryRepository($this->pdo))->createTransaction(
-            $this->transactionPayload($input, $budgetId, $workspaceId),
+            $this->transactionPayload($input, $budgetId, $workspaceId, $budget),
         );
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
@@ -92,7 +99,12 @@ final readonly class BudgetEntryService
         }
 
         $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
-        $repository->updateTransaction($id, $this->transactionPayload($input, $budgetId, $workspaceId));
+        $repository->updateTransaction($id, $this->transactionPayload(
+            $input,
+            $budgetId,
+            $workspaceId,
+            $this->budgetCurrencyBasics($budgetId),
+        ));
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
@@ -113,13 +125,11 @@ final readonly class BudgetEntryService
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
 
-    private function itemPayload(array $input, int $budgetId, int $workspaceId): array
+    private function itemPayload(array $input, int $budgetId, int $workspaceId, array $budget): array
     {
         $label = Input::string($input['label'] ?? null);
         $budgetAmount = $this->number($input['budgetAmount'] ?? $input['budget_amount'] ?? null);
-        $budgetRate = $this->number($input['budgetRate'] ?? $input['budget_rate'] ?? null) ?? 1.0;
         $estimatedAmount = $this->number($input['estimatedAmount'] ?? $input['estimated_amount'] ?? null);
-        $estimatedRate = $this->number($input['estimatedRate'] ?? $input['estimated_rate'] ?? null) ?? 1.0;
 
         if ($label === null || strlen($label) > 180) {
             throw new AuthException('VALIDATION_ERROR', 'Item label is required and must be 180 characters or less.', 422);
@@ -129,6 +139,23 @@ final readonly class BudgetEntryService
             throw new AuthException('VALIDATION_ERROR', 'Budget and estimated amounts are required.', 422);
         }
 
+        $budgetCurrencyId = $this->currencyId($input['budgetCurrency'] ?? $input['budget_currency'] ?? null);
+        $estimatedCurrencyId = $this->currencyId($input['estimatedCurrency'] ?? $input['estimated_currency'] ?? null);
+        $rateDate = Input::date($input['rateDate'] ?? $input['rate_date'] ?? null) ?? $budget['startDate'];
+        $budgetRate = $this->rateToBase(
+            $workspaceId,
+            $budgetCurrencyId,
+            $budget,
+            $rateDate,
+            $this->rateInput($input, ['budgetRate', 'budget_rate'], 'Budget rate'),
+        );
+        $estimatedRate = $this->rateToBase(
+            $workspaceId,
+            $estimatedCurrencyId,
+            $budget,
+            $rateDate,
+            $this->rateInput($input, ['estimatedRate', 'estimated_rate'], 'Estimated rate'),
+        );
         $budgetBase = $budgetAmount * $budgetRate;
         $estimatedBase = $estimatedAmount * $estimatedRate;
 
@@ -136,11 +163,11 @@ final readonly class BudgetEntryService
             'budget_id' => $budgetId,
             'category_id' => $this->categoryId($workspaceId, $input, $label),
             'label' => $label,
-            'budget_currency_id' => $this->currencyId($input['budgetCurrency'] ?? $input['budget_currency'] ?? null),
+            'budget_currency_id' => $budgetCurrencyId,
             'budget_amount_original' => $budgetAmount,
             'budget_rate_to_base' => $budgetRate,
             'budget_amount_base' => $budgetBase,
-            'estimated_currency_id' => $this->currencyId($input['estimatedCurrency'] ?? $input['estimated_currency'] ?? null),
+            'estimated_currency_id' => $estimatedCurrencyId,
             'estimated_amount_original' => $estimatedAmount,
             'estimated_rate_to_base' => $estimatedRate,
             'estimated_amount_base' => $estimatedBase,
@@ -149,11 +176,10 @@ final readonly class BudgetEntryService
         ];
     }
 
-    private function transactionPayload(array $input, int $budgetId, int $workspaceId): array
+    private function transactionPayload(array $input, int $budgetId, int $workspaceId, array $budget): array
     {
         $details = Input::string($input['details'] ?? null);
         $amount = $this->number($input['amount'] ?? null);
-        $rate = $this->number($input['rate'] ?? null) ?? 1.0;
 
         if ($details === null || strlen($details) > 500) {
             throw new AuthException('VALIDATION_ERROR', 'Transaction details are required and must be 500 characters or less.', 422);
@@ -163,12 +189,23 @@ final readonly class BudgetEntryService
             throw new AuthException('VALIDATION_ERROR', 'Transaction amount is required.', 422);
         }
 
+        $currencyId = $this->currencyId($input['currency'] ?? null);
+        $transactionDate = Input::date($input['transactionDate'] ?? $input['transaction_date'] ?? null);
+        $rateDate = Input::date($input['rateDate'] ?? $input['rate_date'] ?? null) ?? $transactionDate;
+        $rate = $this->rateToBase(
+            $workspaceId,
+            $currencyId,
+            $budget,
+            $rateDate,
+            $this->rateInput($input, ['rate'], 'Transaction rate'),
+        );
+
         return [
             'budget_id' => $budgetId,
             'category_id' => $this->categoryId($workspaceId, $input, $details),
-            'transaction_date' => Input::date($input['transactionDate'] ?? $input['transaction_date'] ?? null),
+            'transaction_date' => $transactionDate,
             'details' => $details,
-            'currency_id' => $this->currencyId($input['currency'] ?? null),
+            'currency_id' => $currencyId,
             'amount_original' => $amount,
             'rate_to_base' => $rate,
             'amount_base' => $amount * $rate,
@@ -181,7 +218,7 @@ final readonly class BudgetEntryService
     {
         $permissions = $this->permissions();
         $workspaceId = $permissions->workspaceIdForBudget($budgetId);
-        $permissions->requireWorkspaceRole($workspaceId, $userId, PermissionGuard::WRITE_ROLES);
+        $permissions->requireBudgetRole($budgetId, $userId, PermissionGuard::WRITE_ROLES);
 
         return $workspaceId;
     }
@@ -194,6 +231,12 @@ final readonly class BudgetEntryService
     private function budgetDetail(int $budgetId, int $userId): array
     {
         return (new BudgetRepository($this->pdo))->findForUser($budgetId, $userId, true)
+            ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
+    }
+
+    private function budgetCurrencyBasics(int $budgetId): array
+    {
+        return (new BudgetRepository($this->pdo))->currencyBasics($budgetId)
             ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
     }
 
@@ -229,6 +272,45 @@ final readonly class BudgetEntryService
             $categoryId,
             $text,
         );
+    }
+
+    private function rateToBase(
+        int $workspaceId,
+        int $currencyId,
+        array $budget,
+        ?string $rateDate,
+        ?float $explicitRate,
+    ): float {
+        if ($explicitRate !== null) {
+            return $explicitRate;
+        }
+
+        $conversion = (new ExchangeRateService($this->pdo, $this->authenticator))->resolveRate(
+            $workspaceId,
+            $currencyId,
+            (int) $budget['baseCurrencyId'],
+            $rateDate,
+        );
+
+        return (float) $conversion['rate'];
+    }
+
+    private function rateInput(array $input, array $keys, string $label): ?float
+    {
+        foreach ($keys as $key) {
+            if (!array_key_exists($key, $input) || $input[$key] === null || $input[$key] === '') {
+                continue;
+            }
+
+            $rate = $this->number($input[$key]);
+            if ($rate === null || $rate <= 0.0) {
+                throw new AuthException('VALIDATION_ERROR', "{$label} must be greater than 0.", 422);
+            }
+
+            return $rate;
+        }
+
+        return null;
     }
 
     private function number(mixed $value): ?float

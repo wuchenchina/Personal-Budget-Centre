@@ -22,6 +22,8 @@ use BudgetCentre\Services\BudgetEntryService;
 use BudgetCentre\Services\BudgetExportService;
 use BudgetCentre\Services\BudgetReconciliationService;
 use BudgetCentre\Services\BudgetService;
+use BudgetCentre\Services\BudgetShareService;
+use BudgetCentre\Services\ExchangeRateService;
 use BudgetCentre\Services\PasskeyService;
 use BudgetCentre\Services\ReferenceDataService;
 use BudgetCentre\Services\WorkspaceService;
@@ -77,7 +79,16 @@ final class App
             ['POST', '/api/budget-transactions'] => $this->budgetTransactionCreate($request),
             ['PATCH', '/api/budget-transactions'] => $this->budgetTransactionUpdate($request),
             ['DELETE', '/api/budget-transactions'] => $this->budgetTransactionDelete($request),
+            ['GET', '/api/budget-shares'] => $this->budgetShareList($request),
+            ['POST', '/api/budget-shares'] => $this->budgetShareCreate($request),
+            ['PATCH', '/api/budget-shares'] => $this->budgetShareUpdate($request),
+            ['DELETE', '/api/budget-shares'] => $this->budgetShareDelete($request),
             ['GET', '/api/currencies'] => $this->currencyList($request),
+            ['GET', '/api/exchange-rates'] => $this->exchangeRateList($request),
+            ['POST', '/api/exchange-rates'] => $this->exchangeRateCreate($request),
+            ['POST', '/api/exchange-rates/convert'] => $this->exchangeRateConvert($request),
+            ['POST', '/api/exchange-rates/bochk/refresh'] => $this->exchangeRateBochkRefresh($request),
+            ['POST', '/api/exchange-rates/mastercard/refresh'] => $this->exchangeRateMastercardRefresh($request),
             ['GET', '/api/budget-categories'] => $this->categoryList($request),
             ['POST', '/api/budget-categories'] => $this->categoryCreate($request),
             ['PATCH', '/api/budget-categories'] => $this->categoryUpdate($request),
@@ -351,11 +362,93 @@ final class App
         );
     }
 
+    private function budgetShareList(Request $request): JsonResponse
+    {
+        return $this->budgetShareResponse(
+            fn (BudgetShareService $share): JsonResponse => JsonResponse::ok([
+                'shares' => $share->shares($request),
+            ]),
+        );
+    }
+
+    private function budgetShareCreate(Request $request): JsonResponse
+    {
+        return $this->budgetShareResponse(
+            fn (BudgetShareService $share): JsonResponse => JsonResponse::ok(
+                $share->createShare($request->json(), $request),
+                201,
+            ),
+        );
+    }
+
+    private function budgetShareUpdate(Request $request): JsonResponse
+    {
+        return $this->budgetShareResponse(
+            fn (BudgetShareService $share): JsonResponse => JsonResponse::ok(
+                $share->updateShare($request->json(), $request),
+            ),
+        );
+    }
+
+    private function budgetShareDelete(Request $request): JsonResponse
+    {
+        return $this->budgetShareResponse(
+            fn (BudgetShareService $share): JsonResponse => JsonResponse::ok(
+                $share->deleteShare($request->json(), $request),
+            ),
+        );
+    }
+
     private function currencyList(Request $request): JsonResponse
     {
         return $this->referenceResponse(
             fn (ReferenceDataService $reference): JsonResponse => JsonResponse::ok([
                 'currencies' => $reference->currencies($request),
+            ]),
+        );
+    }
+
+    private function exchangeRateList(Request $request): JsonResponse
+    {
+        return $this->exchangeRateResponse(
+            fn (ExchangeRateService $exchangeRate): JsonResponse => JsonResponse::ok([
+                'rates' => $exchangeRate->rates($request),
+            ]),
+        );
+    }
+
+    private function exchangeRateCreate(Request $request): JsonResponse
+    {
+        return $this->exchangeRateResponse(
+            fn (ExchangeRateService $exchangeRate): JsonResponse => JsonResponse::ok([
+                'rate' => $exchangeRate->createManualRate($request->json(), $request),
+            ], 201),
+        );
+    }
+
+    private function exchangeRateConvert(Request $request): JsonResponse
+    {
+        return $this->exchangeRateResponse(
+            fn (ExchangeRateService $exchangeRate): JsonResponse => JsonResponse::ok([
+                'conversion' => $exchangeRate->convert($request->json(), $request),
+            ]),
+        );
+    }
+
+    private function exchangeRateBochkRefresh(Request $request): JsonResponse
+    {
+        return $this->exchangeRateResponse(
+            fn (ExchangeRateService $exchangeRate): JsonResponse => JsonResponse::ok([
+                'provider' => $exchangeRate->refreshBochk($request->json(), $request),
+            ]),
+        );
+    }
+
+    private function exchangeRateMastercardRefresh(Request $request): JsonResponse
+    {
+        return $this->exchangeRateResponse(
+            fn (ExchangeRateService $exchangeRate): JsonResponse => JsonResponse::ok([
+                'provider' => $exchangeRate->refreshMastercard($request->json(), $request),
             ]),
         );
     }
@@ -561,11 +654,29 @@ final class App
         );
     }
 
+    private function budgetShareResponse(callable $callback): JsonResponse
+    {
+        return $this->serviceResponse(
+            fn (PDO $pdo, SessionAuthenticator $authenticator): BudgetShareService =>
+                new BudgetShareService($pdo, $authenticator),
+            $callback,
+        );
+    }
+
     private function referenceResponse(callable $callback): JsonResponse
     {
         return $this->serviceResponse(
             fn (PDO $pdo, SessionAuthenticator $authenticator): ReferenceDataService =>
                 new ReferenceDataService($pdo, $authenticator),
+            $callback,
+        );
+    }
+
+    private function exchangeRateResponse(callable $callback): JsonResponse
+    {
+        return $this->serviceResponse(
+            fn (PDO $pdo, SessionAuthenticator $authenticator): ExchangeRateService =>
+                new ExchangeRateService($pdo, $authenticator),
             $callback,
         );
     }

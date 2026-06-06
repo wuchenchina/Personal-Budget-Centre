@@ -37,7 +37,7 @@ final readonly class BudgetExportService
             throw new AuthException('VALIDATION_ERROR', 'budgetId query parameter is required.', 422);
         }
 
-        $this->permissions()->requireBudgetRole($budgetId, (int) $session['user_id']);
+        $this->permissions()->requireBudgetExport($budgetId, (int) $session['user_id']);
 
         return (new BudgetExportRepository($this->pdo))->listForBudget($budgetId);
     }
@@ -51,7 +51,7 @@ final readonly class BudgetExportService
             throw new AuthException('VALIDATION_ERROR', 'Budget id and export format are required.', 422);
         }
 
-        $this->permissions()->requireBudgetRole($budgetId, (int) $session['user_id']);
+        $this->permissions()->requireBudgetExport($budgetId, (int) $session['user_id']);
         $budget = (new BudgetRepository($this->pdo))->findForUser($budgetId, (int) $session['user_id'], true)
             ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
 
@@ -92,7 +92,7 @@ final readonly class BudgetExportService
 
         $export = (new BudgetExportRepository($this->pdo))->find($id)
             ?? throw new AuthException('EXPORT_NOT_FOUND', 'Export was not found.', 404);
-        $this->permissions()->requireBudgetRole((int) $export['budgetId'], (int) $session['user_id']);
+        $this->permissions()->requireBudgetExport((int) $export['budgetId'], (int) $session['user_id']);
 
         return new FileResponse(
             $this->absolutePath((string) $export['filePath']),

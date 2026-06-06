@@ -34,6 +34,14 @@ database/004_views.sql
 
 `003_seed_template.sql` 只寫入模板結構和樣式，不寫入任何個人預算內容。
 
+也可以使用後端初始化腳本，腳本只初始化既有 database，不會建立 database：
+
+```bash
+cd backend
+composer db:init:dry-run
+composer db:init
+```
+
 ## 前端
 
 前端使用 TypeScript。
@@ -83,6 +91,17 @@ WEBAUTHN_ORIGIN=https://your-budget-frontend.example.com
 
 Passkey / WebAuthn 正式環境必須使用 HTTPS。
 
+## 部署
+
+專案根目錄提供部署腳本：
+
+```bash
+./deploy.sh
+```
+
+腳本會 build 前端、檢查後端、上載到伺服器、生成遠端後端 `.env`，並初始化既有 MySQL database。
+它不包含 `CREATE DATABASE`。
+
 ## 目前階段
 
 已完成：
@@ -102,4 +121,3 @@ Passkey / WebAuthn 正式環境必須使用 HTTPS。
 - Workspace scoped budget CRUD。
 - Budget editor 寫入資料庫。
 - DOCX/PDF 真實匯出。
-

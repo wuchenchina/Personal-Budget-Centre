@@ -192,6 +192,33 @@
   width: 108px;
 }
 
+.share-create-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr) minmax(0, 0.9fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.share-row-controls,
+.share-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.share-row-controls {
+  justify-content: space-between;
+}
+
+.share-row-controls .ant-select {
+  min-width: 112px;
+}
+
+.share-toggle-row {
+  flex-wrap: wrap;
+}
+
 .reconciliation-grid {
   display: grid;
   gap: 4px;

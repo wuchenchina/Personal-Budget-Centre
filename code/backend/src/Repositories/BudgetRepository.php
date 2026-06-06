@@ -53,10 +53,31 @@ final readonly class BudgetRepository
             WHERE b.workspace_id = :workspace_id
               AND (
                 :include_private = 1
-                OR b.visibility <> 'private'
+                OR b.visibility = 'workspace'
                 OR b.user_id = :user_id
                 OR b.owner_user_id = :owner_user_id
                 OR b.created_by_user_id = :creator_user_id
+                OR EXISTS (
+                  SELECT 1
+                  FROM budget_shares bs
+                  LEFT JOIN workgroups share_wg
+                    ON bs.principal_type = 'workgroup'
+                    AND share_wg.id = bs.principal_id
+                  LEFT JOIN workgroup_members share_wgm
+                    ON share_wgm.workgroup_id = share_wg.id
+                    AND share_wgm.user_id = :share_user_id
+                  WHERE bs.budget_id = b.id
+                    AND (bs.expires_at IS NULL OR bs.expires_at > UTC_TIMESTAMP())
+                    AND (
+                      (bs.principal_type = 'workspace' AND bs.principal_id = b.workspace_id)
+                      OR (bs.principal_type = 'user' AND bs.principal_id = :share_direct_user_id)
+                      OR (
+                        bs.principal_type = 'workgroup'
+                        AND share_wg.workspace_id = b.workspace_id
+                        AND share_wgm.user_id IS NOT NULL
+                      )
+                    )
+                )
               )
             ORDER BY b.start_date DESC, b.updated_at DESC, b.id DESC
             SQL
@@ -66,6 +87,8 @@ final readonly class BudgetRepository
             'user_id' => $userId,
             'owner_user_id' => $userId,
             'creator_user_id' => $userId,
+            'share_user_id' => $userId,
+            'share_direct_user_id' => $userId,
             'include_private' => $includePrivate ? 1 : 0,
         ]);
 
@@ -187,10 +210,31 @@ final readonly class BudgetRepository
             WHERE b.id = :budget_id
               AND (
                 :include_private = 1
-                OR b.visibility <> 'private'
+                OR b.visibility = 'workspace'
                 OR b.user_id = :user_id
                 OR b.owner_user_id = :owner_user_id
                 OR b.created_by_user_id = :creator_user_id
+                OR EXISTS (
+                  SELECT 1
+                  FROM budget_shares bs
+                  LEFT JOIN workgroups share_wg
+                    ON bs.principal_type = 'workgroup'
+                    AND share_wg.id = bs.principal_id
+                  LEFT JOIN workgroup_members share_wgm
+                    ON share_wgm.workgroup_id = share_wg.id
+                    AND share_wgm.user_id = :share_user_id
+                  WHERE bs.budget_id = b.id
+                    AND (bs.expires_at IS NULL OR bs.expires_at > UTC_TIMESTAMP())
+                    AND (
+                      (bs.principal_type = 'workspace' AND bs.principal_id = b.workspace_id)
+                      OR (bs.principal_type = 'user' AND bs.principal_id = :share_direct_user_id)
+                      OR (
+                        bs.principal_type = 'workgroup'
+                        AND share_wg.workspace_id = b.workspace_id
+                        AND share_wgm.user_id IS NOT NULL
+                      )
+                    )
+                )
               )
             LIMIT 1
             SQL
@@ -200,6 +244,8 @@ final readonly class BudgetRepository
             'user_id' => $userId,
             'owner_user_id' => $userId,
             'creator_user_id' => $userId,
+            'share_user_id' => $userId,
+            'share_direct_user_id' => $userId,
             'include_private' => $includePrivate ? 1 : 0,
         ]);
         $row = $statement->fetch();
@@ -224,6 +270,71 @@ final readonly class BudgetRepository
         $workspaceId = $statement->fetchColumn();
 
         return $workspaceId === false ? null : (int) $workspaceId;
+    }
+
+    public function accessBasics(int $budgetId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT
+              id,
+              workspace_id,
+              user_id,
+              owner_user_id,
+              created_by_user_id,
+              visibility
+            FROM budgets
+            WHERE id = :budget_id
+            LIMIT 1
+            SQL
+        );
+        $statement->execute(['budget_id' => $budgetId]);
+        $row = $statement->fetch();
+
+        if ($row === false) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $row['id'],
+            'workspaceId' => (int) $row['workspace_id'],
+            'userId' => (int) $row['user_id'],
+            'ownerUserId' => (int) $row['owner_user_id'],
+            'createdByUserId' => (int) $row['created_by_user_id'],
+            'visibility' => $row['visibility'],
+        ];
+    }
+
+    public function currencyBasics(int $budgetId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT
+              b.id,
+              b.workspace_id,
+              b.start_date,
+              b.base_currency_id,
+              base.code AS base_currency
+            FROM budgets b
+            INNER JOIN currencies base ON base.id = b.base_currency_id
+            WHERE b.id = :budget_id
+            LIMIT 1
+            SQL
+        );
+        $statement->execute(['budget_id' => $budgetId]);
+        $row = $statement->fetch();
+
+        if ($row === false) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $row['id'],
+            'workspaceId' => (int) $row['workspace_id'],
+            'startDate' => $row['start_date'],
+            'baseCurrencyId' => (int) $row['base_currency_id'],
+            'baseCurrency' => $row['base_currency'],
+        ];
     }
 
     public function update(

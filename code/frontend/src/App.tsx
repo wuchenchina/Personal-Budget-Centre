@@ -42,8 +42,13 @@ function App() {
     replaceBudgetDetail: budget.replaceBudgetDetail,
   });
   const workgroup = useWorkgroupController(workspace.activeWorkspaceId);
+  const workspaceRole = workspace.workspaceRole;
+  const canManageWorkspaceMembers = workspaceRole === 'owner' || workspaceRole === 'admin';
+  const canWriteBudgets =
+    workspaceRole === 'owner' || workspaceRole === 'admin' || workspaceRole === 'editor';
   const operations = useOperationsController({
     activeWorkspaceId: workspace.activeWorkspaceId,
+    canManageBudgetShares: canManageWorkspaceMembers,
     selectedBudget: budget.selectedBudget,
     session: auth.session,
   });
@@ -73,11 +78,7 @@ function App() {
     );
   }
 
-  const workspaceRole = workspace.workspaceRole;
   const currentUserId = auth.session.user.id;
-  const canManageWorkspaceMembers = workspaceRole === 'owner' || workspaceRole === 'admin';
-  const canWriteBudgets =
-    workspaceRole === 'owner' || workspaceRole === 'admin' || workspaceRole === 'editor';
 
   return (
     <ConfigProvider theme={appTheme}>

@@ -55,7 +55,11 @@ export function GovernancePanel({
       <OperationsSections
         operations={operations}
         selectedBudget={budget.selectedBudget}
+        activeWorkspaceId={workspace.activeWorkspaceId}
+        workspaceMembers={workspace.workspaceMembers}
+        workgroups={workgroup.workgroups}
         canWriteBudgets={canWriteBudgets}
+        canManageBudgetShares={canManageWorkspaceMembers}
       />
     </aside>
   );

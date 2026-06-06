@@ -23,6 +23,17 @@ final readonly class CurrencyRepository
         return $id === false ? null : (int) $id;
     }
 
+    public function findCodeById(int $id): ?string
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT code FROM currencies WHERE id = :id AND is_enabled = 1 LIMIT 1'
+        );
+        $statement->execute(['id' => $id]);
+        $code = $statement->fetchColumn();
+
+        return $code === false ? null : (string) $code;
+    }
+
     public function listEnabled(): array
     {
         $statement = $this->pdo->query(
