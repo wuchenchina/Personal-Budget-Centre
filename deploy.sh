@@ -88,7 +88,7 @@ EOF
 }
 
 remote_composer_install() {
-  remote_exec "cd '${REMOTE_PATH}/backend' && \
+  local command="cd '${REMOTE_PATH}/backend' && \
     mkdir -p vendor/composer && \
     http_proxy='${REMOTE_HTTP_PROXY}' \
     https_proxy='${REMOTE_HTTPS_PROXY}' \
@@ -96,6 +96,11 @@ remote_composer_install() {
     HTTPS_PROXY='${REMOTE_HTTPS_PROXY}' \
     COMPOSER_ALLOW_SUPERUSER=1 \
     composer install --no-dev --optimize-autoloader --no-interaction"
+
+  if ! remote_exec "${command}"; then
+    echo "[remote] Composer install failed once. Retrying..."
+    remote_exec "${command}"
+  fi
 }
 
 remote_root_status() {
@@ -103,7 +108,11 @@ remote_root_status() {
 }
 
 remote_clear_root() {
-  remote_exec "mkdir -p '${REMOTE_PATH}' && find '${REMOTE_PATH}' -mindepth 1 -maxdepth 1 -exec rm -rf {} +"
+  remote_exec "mkdir -p '${REMOTE_PATH}' && \
+    if command -v chattr >/dev/null 2>&1; then \
+      find '${REMOTE_PATH}' -name '.user.ini' -exec chattr -i {} + 2>/dev/null || true; \
+    fi && \
+    find '${REMOTE_PATH}' -mindepth 1 -maxdepth 1 -exec rm -rf {} +"
 }
 
 require_command ssh

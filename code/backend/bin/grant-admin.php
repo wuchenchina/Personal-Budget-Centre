@@ -27,10 +27,16 @@ if (($email === null && $username === null) || ($email !== null && $username !==
 }
 
 $isAdmin = isset($options['revoke']) ? 0 : 1;
+$assignments = ['is_admin = :is_admin'];
+if (isset($options['verify-email'])) {
+    $assignments[] = 'email_verified_at = CURRENT_TIMESTAMP';
+    $assignments[] = "status = 'active'";
+}
+
 $pdo = ConnectionFactory::make();
 $sql = $email !== null
-    ? 'UPDATE users SET is_admin = :is_admin WHERE email = :identifier'
-    : 'UPDATE users SET is_admin = :is_admin WHERE username = :identifier';
+    ? 'UPDATE users SET ' . implode(', ', $assignments) . ' WHERE email = :identifier'
+    : 'UPDATE users SET ' . implode(', ', $assignments) . ' WHERE username = :identifier';
 $statement = $pdo->prepare($sql);
 $statement->execute([
     'is_admin' => $isAdmin,
@@ -55,6 +61,11 @@ function options(array $argv): array
 
         if ($argument === '--revoke') {
             $options['revoke'] = true;
+            continue;
+        }
+
+        if ($argument === '--verify-email') {
+            $options['verify-email'] = true;
             continue;
         }
 
@@ -85,6 +96,7 @@ function help(): void
 Usage:
   php bin/grant-admin.php --email=user@example.com --yes
   php bin/grant-admin.php --username=admin --yes
+  php bin/grant-admin.php --email=user@example.com --verify-email --yes
   php bin/grant-admin.php --email=user@example.com --revoke --yes
 
 This script updates users.is_admin in the configured database.

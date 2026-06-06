@@ -8,7 +8,7 @@ SET @column_exists := (
 SET @sql := IF(
   @column_exists = 0,
   'ALTER TABLE users ADD COLUMN is_admin TINYINT(1) NOT NULL DEFAULT 0 AFTER status',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE stmt FROM @sql;
 EXECUTE stmt;

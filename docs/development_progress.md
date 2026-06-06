@@ -230,6 +230,12 @@
 [x] deploy fresh 模式需明確確認域名
 [x] deploy fresh 模式會先清遠端根目錄
 [x] deploy fresh 模式會先 reset 既有 MySQL objects
+[x] deploy fresh 清理前會處理寶塔 `.user.ini` immutable
+[x] deploy Composer install 增加一次 retry
+[x] 修復 SQL migration no-op result set 問題
+[x] 焕新部署正式站完成
+[x] 正式站 `/api/health` 返回 200
+[x] 正式站首頁返回 200
 [x] 新增資料庫 reset dry-run/yes 腳本
 [x] 新增 Nginx 偽靜態配置片段
 [x] 修復雲端 `putenv()` 被禁用導致的 API fatal error
@@ -257,6 +263,7 @@
 [x] 新增 admin 驗證郵件重發
 [x] 新增 admin 權限授予/撤銷 API
 [x] 新增 admin bootstrap CLI `bin/grant-admin.php`
+[x] admin bootstrap CLI 支援 `--verify-email`
 [x] 前端新增 admin 後台導航入口
 [x] 前端新增 admin 用戶管理表格
 [x] 前端 admin 後台僅 `isAdmin` 用戶可見

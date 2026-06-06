@@ -8,7 +8,7 @@ SET @column_exists := (
 SET @sql := IF(
   @column_exists = 0,
   'ALTER TABLE users ADD COLUMN username VARCHAR(80) NULL AFTER email',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
@@ -24,7 +24,7 @@ SET @column_exists := (
 SET @sql := IF(
   @column_exists = 0,
   'ALTER TABLE users ADD COLUMN email_verified_at DATETIME NULL AFTER status',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
@@ -40,7 +40,7 @@ SET @column_exists := (
 SET @sql := IF(
   @column_exists = 0,
   'ALTER TABLE users ADD COLUMN email_verification_sent_at DATETIME NULL AFTER email_verified_at',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
@@ -56,7 +56,7 @@ SET @index_exists := (
 SET @sql := IF(
   @index_exists = 0,
   'ALTER TABLE users ADD UNIQUE KEY uq_users_username (username)',
-  'SELECT 1'
+  'DO 0'
 );
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
