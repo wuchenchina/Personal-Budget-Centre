@@ -43,6 +43,7 @@ CODE_ROOT="${PROJECT_ROOT}/code"
 FRONTEND_DIR="${CODE_ROOT}/frontend"
 BACKEND_DIR="${CODE_ROOT}/backend"
 DATABASE_DIR="${CODE_ROOT}/database"
+FONT_DIR="${CODE_ROOT}/font"
 REMOTE="${SERVER_USER}@${SERVER_IP}"
 SSH_OPTS=(
   -i "${SERVER_SSH_KEY}"
@@ -183,7 +184,7 @@ if [[ "${DEPLOY_MODE}" == "fresh" ]]; then
 fi
 
 echo "[remote] Preparing ${REMOTE_PATH}"
-remote_exec "mkdir -p '${REMOTE_PATH}/backend' '${REMOTE_PATH}/database' '${REMOTE_PATH}/backend/storage/exports'"
+remote_exec "mkdir -p '${REMOTE_PATH}/backend' '${REMOTE_PATH}/database' '${REMOTE_PATH}/font' '${REMOTE_PATH}/backend/storage/exports'"
 
 echo "[upload] frontend/dist -> ${REMOTE_PATH}"
 rsync -az --info=stats2 --human-readable \
@@ -205,6 +206,12 @@ rsync -az --delete --info=stats2 --human-readable \
   -e "${RSYNC_SSH}" \
   "${DATABASE_DIR}/" \
   "${REMOTE}:${REMOTE_PATH}/database/"
+
+echo "[upload] font -> ${REMOTE_PATH}/font"
+rsync -az --delete --info=stats2 --human-readable \
+  -e "${RSYNC_SSH}" \
+  "${FONT_DIR}/" \
+  "${REMOTE}:${REMOTE_PATH}/font/"
 
 echo "[remote] Writing backend .env for ${DOMAIN}"
 write_remote_env

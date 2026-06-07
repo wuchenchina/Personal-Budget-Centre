@@ -5,7 +5,6 @@ import {
   KeyRound,
   LayoutDashboard,
   LogOut,
-  Plus,
   RefreshCcw,
   Share2,
   ShieldCheck,
@@ -27,7 +26,6 @@ interface AppShellProps {
   workspaceRole: WorkspaceRole | undefined;
   workspaceOptions: { label: string; value: number }[];
   activeWorkspaceId: number | null;
-  canWriteBudgets: boolean;
   isAdmin: boolean;
   isWorkspaceLoading: boolean;
   isWorkspaceSwitching: boolean;
@@ -35,7 +33,6 @@ interface AppShellProps {
   children: ReactNode;
   onNavigate: (key: string) => void;
   onWorkspaceSwitch: (workspaceId: number) => void;
-  onNewBudget: () => void;
   onLogout: () => void;
 }
 
@@ -46,7 +43,6 @@ export function AppShell({
   workspaceRole,
   workspaceOptions,
   activeWorkspaceId,
-  canWriteBudgets,
   isAdmin,
   isWorkspaceLoading,
   isWorkspaceSwitching,
@@ -54,7 +50,6 @@ export function AppShell({
   children,
   onNavigate,
   onWorkspaceSwitch,
-  onNewBudget,
   onLogout,
 }: AppShellProps) {
   const menuItems: MenuProps['items'] = [
@@ -119,23 +114,6 @@ export function AppShell({
               <UserRound size={15} />
               {session.user.displayName}
             </span>
-            <Button
-              disabled={activeWorkspaceId === null}
-              icon={<Share2 size={16} />}
-              size="small"
-              onClick={() => onNavigate('sharing')}
-            >
-              共享
-            </Button>
-            <Button
-              type="primary"
-              disabled={activeWorkspaceId === null || !canWriteBudgets}
-              icon={<Plus size={16} />}
-              size="small"
-              onClick={onNewBudget}
-            >
-              新建预算项目
-            </Button>
             <Button
               icon={<LogOut size={16} />}
               loading={isAuthSubmitting}

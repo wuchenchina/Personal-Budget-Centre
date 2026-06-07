@@ -337,14 +337,12 @@ function App() {
             workspaceRole={workspaceRole}
             workspaceOptions={workspace.workspaceOptions}
             activeWorkspaceId={workspace.activeWorkspaceId}
-            canWriteBudgets={canWriteBudgets}
             isAdmin={auth.session.user.isAdmin}
             isWorkspaceLoading={workspace.isWorkspaceLoading}
             isWorkspaceSwitching={workspace.isWorkspaceSwitching}
             isAuthSubmitting={auth.isAuthSubmitting}
             onNavigate={handleNavigate}
             onWorkspaceSwitch={workspace.handleWorkspaceSwitch}
-            onNewBudget={budget.openBudgetModal}
             onLogout={auth.handleLogout}
           >
             {renderMainContent()}

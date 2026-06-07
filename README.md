@@ -116,6 +116,7 @@ SKIP_DB_INIT=1 ./deploy.sh migrate
 - 以 `bc.tool.axchen.top` 建置前端
 - 上載 `frontend/dist`
 - 上載 backend 與 database SQL
+- 上載 PDF 匯出字體到 `/www/wwwroot/bc.tool.axchen.top/font`
 - 在遠端生成 backend `.env`
 - 遠端執行 `composer install --no-dev --optimize-autoloader`
 - 按部署模式決定是否初始化既有 MySQL database
