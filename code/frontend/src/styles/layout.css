@@ -12,8 +12,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 72px;
-  padding: 0 20px;
+  height: 64px;
+  padding: 0 16px;
   color: #1f1f1f;
 }
 
@@ -64,24 +64,57 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 14px;
   height: auto;
-  min-height: 72px;
-  padding: 14px 24px;
+  min-height: 64px;
+  padding: 8px 18px;
   background: #ffffff;
   border-bottom: 1px solid #f0f0f0;
+  line-height: normal;
 }
 
-.app-header h3 {
-  margin: 0;
+.header-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .workspace-heading {
-  min-width: 240px;
+  display: grid;
+  min-width: 150px;
+  gap: 2px;
+}
+
+.workspace-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #1f1f1f;
+  font-size: 16px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-kicker {
+  color: #8c8c8c;
+  font-size: 12px;
 }
 
 .workspace-switcher {
-  width: min(100%, 320px);
-  margin-top: 8px;
+  width: min(100%, 240px);
+}
+
+.workspace-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: max-content;
+}
+
+.header-actions {
+  justify-content: flex-end;
 }
 
 .user-chip {
@@ -99,22 +132,32 @@
 }
 
 .app-content {
-  padding: 22px;
+  min-width: 0;
+  padding: 18px;
 }
 
 .workspace-grid {
   display: grid;
+  align-items: start;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 18px;
 }
 
 .workspace-grid-panel-only {
-  grid-template-columns: minmax(0, 760px);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .view-stack {
   display: grid;
   gap: 18px;
+  width: 100%;
+}
+
+.standalone-budget-editor {
+  min-width: 0;
+  min-height: 100vh;
+  padding: 18px;
+  background: #f5f5f5;
 }
 
 .form-full-width {

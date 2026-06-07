@@ -1,5 +1,10 @@
 import { apiGet, apiPatch, apiPost } from './http';
-import type { AdminUser, AdminUserListResult, AdminUserUpdatePayload } from '../types/admin';
+import type {
+  AdminEnvironmentCheck,
+  AdminUser,
+  AdminUserListResult,
+  AdminUserUpdatePayload,
+} from '../types/admin';
 import type { UserStatus } from '../types/auth';
 
 export interface AdminUserListParams {
@@ -33,5 +38,11 @@ export function resendAdminEmailVerification(
   return apiPost<{ sent: boolean; email: string; alreadyVerified: boolean }>(
     '/api/admin/users/email-verification',
     { id },
+  );
+}
+
+export function getAdminEnvironment(): Promise<AdminEnvironmentCheck> {
+  return apiGet<{ environment: AdminEnvironmentCheck }>('/api/admin/environment').then(
+    ({ environment }) => environment,
   );
 }

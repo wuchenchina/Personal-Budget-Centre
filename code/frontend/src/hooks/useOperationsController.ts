@@ -14,6 +14,7 @@ import {
   updateBudgetShare,
 } from '../api/budgetShares';
 import { createBudgetExport, exportDownloadUrl, listBudgetExports } from '../api/exports';
+import { refreshBochkRates, refreshMastercardRates } from '../api/exchangeRates';
 import {
   deletePasskeyCredential,
   getPasskeyRegistrationOptions,
@@ -61,6 +62,9 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   const [isShareLoading, setIsShareLoading] = useState(false);
   const [isShareSaving, setIsShareSaving] = useState(false);
   const [creatingExportFormat, setCreatingExportFormat] = useState<BudgetExportFormat | null>(null);
+  const [refreshingExchangeRateSource, setRefreshingExchangeRateSource] = useState<
+    'bochk' | 'mastercard' | null
+  >(null);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
   const [isPasskeyRegistering, setIsPasskeyRegistering] = useState(false);
   const { activeWorkspaceId, canManageBudgetShares, selectedBudget, session } = options;
@@ -404,6 +408,47 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     window.open(exportDownloadUrl(item), '_blank', 'noopener,noreferrer');
   };
 
+  const refreshBochk = async () => {
+    if (activeWorkspaceId === null) {
+      setOperationsError('请先选择工作区，再刷新 BOCHK 汇率。');
+
+      return;
+    }
+
+    setRefreshingExchangeRateSource('bochk');
+    setOperationsError(null);
+
+    try {
+      await refreshBochkRates(activeWorkspaceId);
+    } catch (error: unknown) {
+      setOperationsError(error instanceof Error ? error.message : '刷新 BOCHK 汇率失败。');
+    } finally {
+      setRefreshingExchangeRateSource(null);
+    }
+  };
+
+  const refreshMastercard = async () => {
+    if (activeWorkspaceId === null) {
+      setOperationsError('请先选择工作区，再刷新 Mastercard 汇率。');
+
+      return;
+    }
+
+    setRefreshingExchangeRateSource('mastercard');
+    setOperationsError(null);
+
+    try {
+      await refreshMastercardRates({
+        workspaceId: activeWorkspaceId,
+        toCurrency: selectedBudget?.baseCurrency,
+      });
+    } catch (error: unknown) {
+      setOperationsError(error instanceof Error ? error.message : '刷新 Mastercard 汇率失败。');
+    } finally {
+      setRefreshingExchangeRateSource(null);
+    }
+  };
+
   const saveShare = async (input: {
     id?: number;
     principalType?: BudgetSharePrincipalType;
@@ -521,6 +566,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     isShareLoading,
     isShareSaving,
     creatingExportFormat,
+    refreshingExchangeRateSource,
     isPasskeyLoading,
     isPasskeyRegistering,
     saveCategory,
@@ -529,6 +575,8 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     removeAlias,
     createExport,
     downloadExport,
+    refreshBochk,
+    refreshMastercard,
     saveShare,
     removeShare,
     registerPasskey,

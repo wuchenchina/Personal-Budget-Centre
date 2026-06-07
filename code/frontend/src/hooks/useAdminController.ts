@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
+  getAdminEnvironment,
   listAdminUsers,
   resendAdminEmailVerification,
   updateAdminUser,
   type AdminUserListParams,
 } from '../api/admin';
-import type { AdminUser, AdminUserUpdatePayload } from '../types/admin';
+import type { AdminEnvironmentCheck, AdminUser, AdminUserUpdatePayload } from '../types/admin';
 import type { UserStatus } from '../types/auth';
 
 export function useAdminController(enabled: boolean) {
@@ -17,6 +18,8 @@ export function useAdminController(enabled: boolean) {
   const [pageSize, setPageSize] = useState(30);
   const [loading, setLoading] = useState(false);
   const [savingUserId, setSavingUserId] = useState<number | null>(null);
+  const [environment, setEnvironment] = useState<AdminEnvironmentCheck | null>(null);
+  const [isEnvironmentLoading, setIsEnvironmentLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -107,6 +110,22 @@ export function useAdminController(enabled: boolean) {
     setPage(1);
   };
 
+  const checkEnvironment = async () => {
+    setIsEnvironmentLoading(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const result = await getAdminEnvironment();
+      setEnvironment(result);
+      setNotice(result.ok ? '环境检查通过。' : '环境检查发现需要处理的项目。');
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : '环境检查失败。');
+    } finally {
+      setIsEnvironmentLoading(false);
+    }
+  };
+
   return {
     users,
     total,
@@ -116,6 +135,8 @@ export function useAdminController(enabled: boolean) {
     pageSize,
     loading,
     savingUserId,
+    environment,
+    isEnvironmentLoading,
     error,
     notice,
     applySearch,
@@ -124,6 +145,7 @@ export function useAdminController(enabled: boolean) {
     setPageSize,
     updateUser,
     resendVerification,
+    checkEnvironment,
   };
 }
 

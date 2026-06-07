@@ -25,6 +25,17 @@ export function BudgetItemModal({
   onCancel,
   onOk,
 }: BudgetItemModalProps) {
+  const handleCategoryChange = (categoryId: number | null | undefined) => {
+    if (categoryId === null || categoryId === undefined || form.getFieldValue('label')) {
+      return;
+    }
+
+    const selectedOption = categoryOptions.find((option) => option.value === categoryId);
+    if (selectedOption !== undefined) {
+      form.setFieldValue('label', selectedOption.label);
+    }
+  };
+
   return (
     <Modal
       destroyOnClose
@@ -44,18 +55,25 @@ export function BudgetItemModal({
         requiredMark={false}
       >
         <Form.Item
-          label="名称"
+          label="分类名称"
           name="label"
           rules={[
-            { required: true, message: '请输入预算项名称。' },
-            { max: 180, message: '预算项名称不能超过 180 个字符。' },
+            { required: true, message: '请输入分类名称。' },
+            { max: 180, message: '分类名称不能超过 180 个字符。' },
           ]}
         >
           <Input autoComplete="off" />
         </Form.Item>
 
-        <Form.Item label="分类" name="categoryId">
-          <Select allowClear options={categoryOptions} placeholder="可选分类" />
+        <Form.Item label="已有分类" name="categoryId">
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            options={categoryOptions}
+            placeholder="可选分类"
+            onChange={handleCategoryChange}
+          />
         </Form.Item>
 
         <div className="modal-form-grid">

@@ -128,6 +128,24 @@ Web server 仍需配置：
 Route /api/* to /www/wwwroot/bc.tool.axchen.top/backend/public/index.php
 ```
 
+匯出檔案預設寫入：
+
+```text
+/www/wwwroot/bc.tool.axchen.top/backend/storage/exports
+```
+
+若寶塔面板或 PHP-FPM 使用者無法寫入 backend 目錄，可在 backend `.env` 設定可寫目錄：
+
+```text
+EXPORT_STORAGE_DIR=/www/wwwroot/bc.tool.axchen.top/storage/exports
+```
+
+目錄需授權給實際執行 PHP-FPM 的使用者。後台「环境检查」會檢查匯出目錄是否存在、是否可寫，以及常用 PHP extension 是否已啟用。寶塔面板常見需確認的 extension 包含：
+
+```text
+pdo_mysql, mbstring, dom, xml, xmlwriter, zip, zlib, curl, openssl, fileinfo, gd
+```
+
 寶塔/Nginx 伪静态可直接參考：
 
 ```text
@@ -177,7 +195,7 @@ php bin/grant-admin.php --email=user@example.com --revoke --yes
 
 這個 CLI 只更新既有使用者，不建立 database，也不建立使用者。`fresh` 部署會重置資料庫，因此 admin 帳號也需要重新註冊並重新授權。
 
-登入 admin 後，左側側邊欄會出現「后台」。目前後台支援搜尋與篩選使用者、啟用/停用帳號、標記郵箱已驗證、重發驗證郵件、授予/撤銷 admin。系統禁止 admin 停用自己或撤銷自己的 admin 權限。
+登入 admin 後，左側側邊欄會出現「后台」。目前後台支援搜尋與篩選使用者、啟用/停用帳號、標記郵箱已驗證、重發驗證郵件、授予/撤銷 admin，以及檢查 PHP extension 與匯出 storage 權限。系統禁止 admin 停用自己或撤銷自己的 admin 權限。
 
 ## 郵箱驗證
 

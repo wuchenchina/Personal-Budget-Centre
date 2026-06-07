@@ -31,7 +31,7 @@ final readonly class BudgetEntryService
         $budget = $this->budgetCurrencyBasics($budgetId);
 
         (new BudgetEntryRepository($this->pdo))->createItem(
-            $this->itemPayload($input, $budgetId, $workspaceId, $budget),
+            $this->itemPayload($input, $budgetId, $workspaceId, (int) $session['user_id'], $budget),
         );
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
@@ -52,6 +52,7 @@ final readonly class BudgetEntryService
             $input,
             $budgetId,
             $workspaceId,
+            (int) $session['user_id'],
             $this->budgetCurrencyBasics($budgetId),
         ));
 
@@ -125,7 +126,13 @@ final readonly class BudgetEntryService
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
 
-    private function itemPayload(array $input, int $budgetId, int $workspaceId, array $budget): array
+    private function itemPayload(
+        array $input,
+        int $budgetId,
+        int $workspaceId,
+        int $userId,
+        array $budget,
+    ): array
     {
         $label = Input::string($input['label'] ?? null);
         $budgetAmount = $this->number($input['budgetAmount'] ?? $input['budget_amount'] ?? null);
@@ -141,7 +148,7 @@ final readonly class BudgetEntryService
 
         $budgetCurrencyId = $this->currencyId($input['budgetCurrency'] ?? $input['budget_currency'] ?? null);
         $estimatedCurrencyId = $this->currencyId($input['estimatedCurrency'] ?? $input['estimated_currency'] ?? null);
-        $rateDate = Input::date($input['rateDate'] ?? $input['rate_date'] ?? null) ?? $budget['startDate'];
+        $rateDate = Input::date($input['rateDate'] ?? $input['rate_date'] ?? null);
         $budgetRate = $this->rateToBase(
             $workspaceId,
             $budgetCurrencyId,
@@ -161,7 +168,7 @@ final readonly class BudgetEntryService
 
         return [
             'budget_id' => $budgetId,
-            'category_id' => $this->categoryId($workspaceId, $input, $label),
+            'category_id' => $this->budgetItemCategoryId($workspaceId, $userId, $input, $label),
             'label' => $label,
             'budget_currency_id' => $budgetCurrencyId,
             'budget_amount_original' => $budgetAmount,
@@ -272,6 +279,21 @@ final readonly class BudgetEntryService
             $categoryId,
             $text,
         );
+    }
+
+    private function budgetItemCategoryId(
+        int $workspaceId,
+        int $userId,
+        array $input,
+        string $label,
+    ): int {
+        $categoryId = Input::positiveInt($input['categoryId'] ?? $input['category_id'] ?? null);
+        $categories = new BudgetCategoryRepository($this->pdo);
+        if ($categoryId !== null && $categories->workspaceIdForCategory($categoryId) === $workspaceId) {
+            return $categoryId;
+        }
+
+        return $categories->findOrCreateForName($workspaceId, $userId, $label);
     }
 
     private function rateToBase(

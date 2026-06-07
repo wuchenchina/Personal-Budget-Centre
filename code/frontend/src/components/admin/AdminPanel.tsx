@@ -1,7 +1,7 @@
-import { Alert, Button, Input, Popconfirm, Select, Space, Switch, Table, Tag } from 'antd';
+import { Alert, Button, Descriptions, Input, Popconfirm, Select, Space, Switch, Table, Tag } from 'antd';
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
-import { Mail, RefreshCcw, ShieldCheck, UserCog } from 'lucide-react';
+import { Mail, RefreshCcw, ServerCog, ShieldCheck, UserCog } from 'lucide-react';
 import { userStatusColors, userStatusLabels } from '../../config/appConfig';
 import type { AdminController } from '../../hooks/useAdminController';
 import type { AdminUser } from '../../types/admin';
@@ -159,6 +159,13 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
             value={controller.status}
             onChange={controller.applyStatus}
           />
+          <Button
+            icon={<ServerCog size={14} />}
+            loading={controller.isEnvironmentLoading}
+            onClick={() => void controller.checkEnvironment()}
+          >
+            环境检查
+          </Button>
         </Space>
       </div>
 
@@ -167,6 +174,9 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
       ) : null}
       {controller.notice ? (
         <Alert className="admin-alert" type="success" showIcon message={controller.notice} />
+      ) : null}
+      {controller.environment ? (
+        <EnvironmentCheckSummary environment={controller.environment} />
       ) : null}
 
       <Table<AdminUser>
@@ -191,6 +201,87 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
         size="small"
       />
     </section>
+  );
+}
+
+function EnvironmentCheckSummary({
+  environment,
+}: {
+  environment: AdminController['environment'];
+}) {
+  if (environment === null) {
+    return null;
+  }
+
+  const missingExtensions = environment.extensions.filter((extension) => !extension.loaded);
+  const descriptionItems = [
+    {
+      key: 'php',
+      label: 'PHP',
+      children: environment.phpVersion,
+    },
+    {
+      key: 'ok',
+      label: '整体状态',
+      children: (
+        <Tag color={environment.ok ? 'blue' : 'orange'}>
+          {environment.ok ? '通过' : '需处理'}
+        </Tag>
+      ),
+    },
+    {
+      key: 'extensions',
+      label: '缺失扩展',
+      span: 2,
+      children:
+        missingExtensions.length === 0 ? (
+          <Tag color="blue">无</Tag>
+        ) : (
+          <Space wrap>
+            {missingExtensions.map((extension) => (
+              <Tag color="red" key={extension.name}>{extension.name}</Tag>
+            ))}
+          </Space>
+        ),
+    },
+    {
+      key: 'path',
+      label: '导出目录',
+      span: 2,
+      children: <span className="admin-path">{environment.exportStorage.path}</span>,
+    },
+    {
+      key: 'writable',
+      label: '目录可写',
+      children: (
+        <Tag color={environment.exportStorage.writable ? 'blue' : 'red'}>
+          {environment.exportStorage.writable ? '是' : '否'}
+        </Tag>
+      ),
+    },
+    {
+      key: 'parentWritable',
+      label: '父目录可写',
+      children: (
+        <Tag color={environment.exportStorage.parentWritable ? 'blue' : 'orange'}>
+          {environment.exportStorage.parentWritable ? '是' : '否'}
+        </Tag>
+      ),
+    },
+  ];
+
+  return (
+    <div className="admin-environment">
+      <Descriptions bordered size="small" column={2} items={descriptionItems} />
+      {environment.recommendations.length > 0 ? (
+        <Alert
+          className="admin-alert admin-environment-alert"
+          type="warning"
+          showIcon
+          message={environment.recommendations.join(' ')}
+        />
+      ) : null}
+    </div>
   );
 }
 

@@ -86,7 +86,10 @@ manual > mastercard > bochk > budget_default
 
 - Markdown、DOCX、PDF 匯出都應通過 `BudgetExportService`。
 - 匯出檔案寫入 backend storage，不寫入前端。
+- 匯出 storage 可透過 `EXPORT_STORAGE_DIR` 指定；未指定時使用 `backend/storage/exports`。
+- 匯出前需檢查 storage 目錄可建立且可寫，錯誤需回傳 JSON，不得讓 PHP warning 污染 API response。
 - 匯出權限必須通過 `PermissionGuard::requireBudgetExport`。
+- Admin 環境檢查需能回報 PHP extension 與匯出 storage 權限狀態。
 
 ## Passkey 標準
 

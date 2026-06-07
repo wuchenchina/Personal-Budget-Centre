@@ -39,7 +39,7 @@ export function GovernancePanel({
   canManageWorkspaceMembers,
 }: GovernancePanelProps) {
   const showWorkspace = activeKey === 'workspace';
-  const showOperations = ['categories', 'exports', 'reconciliation', 'security', 'sharing'].includes(
+  const showOperations = ['categories', 'reconciliation', 'security', 'sharing'].includes(
     activeKey,
   );
 

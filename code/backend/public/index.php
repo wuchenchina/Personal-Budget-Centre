@@ -9,9 +9,20 @@ use BudgetCentre\Support\Env;
 
 require dirname(__DIR__) . '/src/bootstrap.php';
 
+ini_set('display_errors', '0');
+ob_start();
+
 try {
-    (new App())->handle(Request::fromGlobals())->send();
+    $response = (new App())->handle(Request::fromGlobals());
+    if (ob_get_level() > 0) {
+        ob_clean();
+    }
+    $response->send();
 } catch (Throwable $exception) {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
     JsonResponse::error(
         'INTERNAL_SERVER_ERROR',
         'Unexpected server error.',

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BudgetCentre\Repositories;
 
 use PDO;
+use PDOException;
 
 final readonly class BudgetCategoryRepository
 {
@@ -200,6 +201,46 @@ final readonly class BudgetCategoryRepository
         $aliasId = $statement->fetchColumn();
 
         return $aliasId === false ? null : (int) $aliasId;
+    }
+
+    public function findOrCreateForName(int $workspaceId, int $userId, string $name): int
+    {
+        $normalizedName = trim($name);
+        $existingId = $this->findIdByName($workspaceId, $normalizedName);
+        if ($existingId !== null) {
+            return $existingId;
+        }
+
+        try {
+            return $this->create($workspaceId, $userId, $normalizedName, null, 0);
+        } catch (PDOException $exception) {
+            $existingId = $this->findIdByName($workspaceId, $normalizedName);
+            if ($existingId !== null) {
+                return $existingId;
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function findIdByName(int $workspaceId, string $name): ?int
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT id
+            FROM budget_categories
+            WHERE workspace_id = :workspace_id
+              AND LOWER(name) = :name
+            LIMIT 1
+            SQL
+        );
+        $statement->execute([
+            'workspace_id' => $workspaceId,
+            'name' => mb_strtolower(trim($name)),
+        ]);
+        $id = $statement->fetchColumn();
+
+        return $id === false ? null : (int) $id;
     }
 
     private function aliasesForWorkspace(int $workspaceId): array

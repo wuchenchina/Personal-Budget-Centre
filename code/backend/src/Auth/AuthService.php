@@ -227,16 +227,18 @@ final readonly class AuthService
         $this->sessionManager->clearCookie();
     }
 
-    public function me(Request $request): array
+    public function me(Request $request): ?array
     {
         $token = $this->authenticator->sessionTokenFromRequest($request);
         if ($token === null) {
-            throw new AuthException('UNAUTHENTICATED', 'Authentication is required.', 401);
+            return null;
         }
 
         $session = $this->authenticator->activeSession($request);
         if ($session === null) {
-            throw new AuthException('UNAUTHENTICATED', 'Authentication is required.', 401);
+            $this->sessionManager->clearCookie();
+
+            return null;
         }
 
         return [

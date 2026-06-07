@@ -32,6 +32,16 @@
     flex-direction: column;
   }
 
+  .header-main,
+  .budget-export-strip {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workspace-meta {
+    min-width: 0;
+  }
+
   .app-content {
     padding: 14px;
   }
@@ -62,5 +72,10 @@
   .toolbar-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .budget-export-history {
+    justify-content: flex-start;
+    width: 100%;
   }
 }

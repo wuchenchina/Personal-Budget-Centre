@@ -31,6 +31,55 @@
   border-bottom: 1px solid #f0f0f0;
 }
 
+.budget-export-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 9px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.budget-export-actions,
+.budget-export-label,
+.budget-export-history {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.budget-export-actions {
+  gap: 10px;
+}
+
+.budget-export-label {
+  gap: 6px;
+  color: #1f1f1f;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.budget-export-history {
+  justify-content: flex-end;
+  gap: 4px;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.budget-export-history .ant-btn {
+  max-width: 180px;
+}
+
+.budget-export-history .ant-btn > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .state-panel {
   padding: 18px;
 }
@@ -177,6 +226,7 @@
 .project-library {
   display: grid;
   gap: 18px;
+  width: 100%;
 }
 
 .project-hero,

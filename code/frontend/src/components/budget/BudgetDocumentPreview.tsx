@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
 import { Alert, Button, Empty, Popconfirm, Segmented, Space, Table, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
-import { CalendarRange, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarRange, Download, FileText, Pencil, Plus, RefreshCcw, Trash2 } from 'lucide-react';
 import type { BudgetEntryController } from '../../hooks/useBudgetEntryController';
+import type { OperationsController } from '../../hooks/useOperationsController';
 import type {
   BudgetDetail,
+  BudgetExportFormat,
   BudgetItem,
   BudgetTemplateDefinition,
   CurrencyCode,
@@ -29,7 +31,14 @@ interface BudgetDocumentPreviewProps {
   isBudgetDetailLoading: boolean;
   isTemplateLoading: boolean;
   onEditBudget?: () => void;
+  operations: OperationsController;
 }
+
+const exportFormats: Array<{ label: string; value: BudgetExportFormat }> = [
+  { label: 'Markdown', value: 'markdown' },
+  { label: 'DOCX', value: 'docx' },
+  { label: 'PDF', value: 'pdf' },
+];
 
 export function BudgetDocumentPreview({
   selectedBudget,
@@ -43,6 +52,7 @@ export function BudgetDocumentPreview({
   isBudgetDetailLoading,
   isTemplateLoading,
   onEditBudget,
+  operations,
 }: BudgetDocumentPreviewProps) {
   const budgetHighlights = template?.sections.find(
     (section) => section.key === 'budget_highlights',
@@ -109,11 +119,74 @@ export function BudgetDocumentPreview({
               {budgetStatusLabels[selectedBudget.status]}
             </Tag>
           ) : null}
-          <Tag color="blue">手动汇率</Tag>
-          <Tag>BOCHK 汇率</Tag>
-          <Tag>Mastercard 汇率</Tag>
+          <Button
+            icon={<RefreshCcw size={13} />}
+            loading={operations.refreshingExchangeRateSource === 'bochk'}
+            size="small"
+            onClick={() => void operations.refreshBochk()}
+          >
+            BOCHK 汇率
+          </Button>
+          <Button
+            icon={<RefreshCcw size={13} />}
+            loading={operations.refreshingExchangeRateSource === 'mastercard'}
+            size="small"
+            onClick={() => void operations.refreshMastercard()}
+          >
+            Mastercard 汇率
+          </Button>
         </Space>
       </div>
+
+      <div className="budget-export-strip">
+        <div className="budget-export-actions">
+          <span className="budget-export-label">
+            <FileText size={15} />
+            导出
+          </span>
+          <Space size={6} wrap>
+            {exportFormats.map((format) => (
+              <Button
+                disabled={selectedBudget === null}
+                icon={<Download size={13} />}
+                key={format.value}
+                loading={operations.creatingExportFormat === format.value}
+                size="small"
+                onClick={() => operations.createExport(format.value)}
+              >
+                {format.label}
+              </Button>
+            ))}
+          </Space>
+        </div>
+        <div className="budget-export-history">
+          {selectedBudget === null ? (
+            <span>未选择预算</span>
+          ) : operations.isExportLoading ? (
+            <span>正在加载导出记录...</span>
+          ) : operations.exports.length === 0 ? (
+            <span>暂无导出记录</span>
+          ) : (
+            operations.exports.slice(0, 3).map((item) => (
+              <Button
+                icon={<Download size={13} />}
+                key={item.id}
+                size="small"
+                type="text"
+                onClick={() => operations.downloadExport(item)}
+              >
+                {item.fileName}
+              </Button>
+            ))
+          )}
+        </div>
+      </div>
+
+      {operations.operationsError ? (
+        <div className="state-panel state-panel-compact">
+          <Alert type="error" showIcon message={operations.operationsError} />
+        </div>
+      ) : null}
 
       {entry.entryError ? (
         <div className="state-panel state-panel-compact">

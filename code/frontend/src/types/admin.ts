@@ -30,3 +30,21 @@ export interface AdminUserUpdatePayload {
   isAdmin?: boolean;
   emailVerified?: boolean;
 }
+
+export interface AdminEnvironmentCheck {
+  phpVersion: string;
+  ok: boolean;
+  extensions: Array<{
+    name: string;
+    loaded: boolean;
+  }>;
+  exportStorage: {
+    path: string;
+    configured: boolean;
+    exists: boolean;
+    writable: boolean;
+    parentPath: string;
+    parentWritable: boolean;
+  };
+  recommendations: string[];
+}

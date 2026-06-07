@@ -135,6 +135,13 @@ final readonly class AdminUserService
         return $auth->resendEmailVerificationForUserId($userId);
     }
 
+    public function environment(Request $request): array
+    {
+        $this->requireAdmin($request);
+
+        return (new SystemCheckService())->environment();
+    }
+
     private function requireAdmin(Request $request): array
     {
         $session = $this->authenticator->authenticatedSession($request);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ConfigProvider } from 'antd';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { AuthLoadingScreen } from './components/auth/AuthLoadingScreen';
@@ -72,8 +72,29 @@ function App() {
     selectedBudget: budget.selectedBudget,
     session: auth.session,
   });
+  const entryCategoryOptions = useMemo(() => {
+    const optionMap = new Map<number, { label: string; value: number }>();
+
+    operations.categoryOptions.forEach((option) => {
+      optionMap.set(option.value, option);
+    });
+
+    budget.selectedBudget?.items.forEach((item) => {
+      if (item.categoryId !== null && item.category !== null) {
+        optionMap.set(item.categoryId, {
+          label: item.category,
+          value: item.categoryId,
+        });
+      }
+    });
+
+    return Array.from(optionMap.values()).sort((left, right) =>
+      left.label.localeCompare(right.label),
+    );
+  }, [budget.selectedBudget?.items, operations.categoryOptions]);
   const admin = useAdminController(auth.session?.user.isAdmin === true && activeKey === 'admin');
   const isEmailVerificationRoute = window.location.pathname === '/email/verify';
+  const isStandaloneBudgetEditor = initialBudgetProjectId !== null;
 
   if (isEmailVerificationRoute) {
     return (
@@ -143,6 +164,7 @@ function App() {
       baseCurrency={baseCurrency}
       canWriteBudgets={canWriteBudgets}
       entry={budgetEntry}
+      operations={operations}
       isBudgetLoading={budget.isBudgetLoading}
       isBudgetDetailLoading={budget.isBudgetDetailLoading}
       isTemplateLoading={template.isTemplateLoading}
@@ -160,6 +182,76 @@ function App() {
       canWriteBudgets={canWriteBudgets}
       canManageWorkspaceMembers={canManageWorkspaceMembers}
     />
+  );
+  const modals = (
+    <>
+      <BudgetCreateModal
+        form={budget.budgetForm}
+        open={budget.isBudgetModalOpen}
+        isEditing={budget.editingBudgetId !== null}
+        error={budget.budgetError}
+        confirmLoading={budget.isBudgetSaving}
+        onCancel={() => {
+          budget.setIsBudgetModalOpen(false);
+          budget.budgetForm.resetFields();
+        }}
+        onOk={budget.handleBudgetSave}
+      />
+      <BudgetItemModal
+        form={budgetEntry.budgetItemForm}
+        editingItem={budgetEntry.editingBudgetItem}
+        open={budgetEntry.isBudgetItemModalOpen}
+        error={budgetEntry.entryError}
+        categoryOptions={entryCategoryOptions}
+        confirmLoading={budgetEntry.isBudgetItemSaving}
+        onCancel={budgetEntry.closeBudgetItemModal}
+        onOk={budgetEntry.handleBudgetItemSave}
+      />
+      <TransactionModal
+        form={budgetEntry.transactionForm}
+        editingTransaction={budgetEntry.editingTransaction}
+        open={budgetEntry.isTransactionModalOpen}
+        error={budgetEntry.entryError}
+        categoryOptions={entryCategoryOptions}
+        confirmLoading={budgetEntry.isTransactionSaving}
+        onCancel={budgetEntry.closeTransactionModal}
+        onOk={budgetEntry.handleTransactionSave}
+      />
+      <WorkspaceCreateModal
+        form={workspace.workspaceForm}
+        open={workspace.isWorkspaceModalOpen}
+        baseCurrency={baseCurrency}
+        confirmLoading={workspace.isWorkspaceCreating}
+        onCancel={() => {
+          workspace.setIsWorkspaceModalOpen(false);
+          workspace.workspaceForm.resetFields();
+        }}
+        onOk={workspace.handleWorkspaceCreate}
+      />
+      <WorkspaceMemberModal
+        form={workspace.workspaceMemberForm}
+        open={workspace.isWorkspaceMemberModalOpen}
+        error={workspace.workspaceMemberError}
+        confirmLoading={workspace.isWorkspaceMemberSaving}
+        onCancel={() => {
+          workspace.setIsWorkspaceMemberModalOpen(false);
+          workspace.workspaceMemberForm.resetFields();
+        }}
+        onOk={workspace.handleWorkspaceMemberAdd}
+      />
+      <WorkgroupModal
+        form={workgroup.workgroupForm}
+        editingWorkgroup={workgroup.editingWorkgroup}
+        open={workgroup.isWorkgroupModalOpen}
+        confirmLoading={workgroup.isWorkgroupSaving}
+        onCancel={() => {
+          workgroup.setIsWorkgroupModalOpen(false);
+          workgroup.setEditingWorkgroup(null);
+          workgroup.workgroupForm.resetFields();
+        }}
+        onOk={workgroup.handleWorkgroupSave}
+      />
+    </>
   );
 
   const renderMainContent = () => {
@@ -203,7 +295,7 @@ function App() {
     }
 
     if (
-      ['workspace', 'categories', 'security', 'exports', 'reconciliation', 'sharing'].includes(
+      ['workspace', 'categories', 'security', 'reconciliation', 'sharing'].includes(
         activeKey,
       )
     ) {
@@ -230,92 +322,41 @@ function App() {
 
   return (
     <ConfigProvider theme={appTheme}>
-      <AppShell
-        activeKey={activeKey}
-        session={auth.session}
-        workspaces={workspace.workspaces}
-        workspaceRole={workspaceRole}
-        workspaceOptions={workspace.workspaceOptions}
-        activeWorkspaceId={workspace.activeWorkspaceId}
-        canWriteBudgets={canWriteBudgets}
-        isAdmin={auth.session.user.isAdmin}
-        isWorkspaceLoading={workspace.isWorkspaceLoading}
-        isWorkspaceSwitching={workspace.isWorkspaceSwitching}
-        isAuthSubmitting={auth.isAuthSubmitting}
-        onNavigate={handleNavigate}
-        onWorkspaceSwitch={workspace.handleWorkspaceSwitch}
-        onNewBudget={budget.openBudgetModal}
-        onLogout={auth.handleLogout}
-      >
-        {renderMainContent()}
-      </AppShell>
+      {isStandaloneBudgetEditor ? (
+        <>
+          <main className="standalone-budget-editor">
+            <div className="view-stack">
+              {budgetMetrics}
+              {budgetPreview}
+            </div>
+          </main>
+          {modals}
+        </>
+      ) : (
+        <>
+          <AppShell
+            activeKey={activeKey}
+            session={auth.session}
+            workspaces={workspace.workspaces}
+            workspaceRole={workspaceRole}
+            workspaceOptions={workspace.workspaceOptions}
+            activeWorkspaceId={workspace.activeWorkspaceId}
+            canWriteBudgets={canWriteBudgets}
+            isAdmin={auth.session.user.isAdmin}
+            isWorkspaceLoading={workspace.isWorkspaceLoading}
+            isWorkspaceSwitching={workspace.isWorkspaceSwitching}
+            isAuthSubmitting={auth.isAuthSubmitting}
+            onNavigate={handleNavigate}
+            onWorkspaceSwitch={workspace.handleWorkspaceSwitch}
+            onNewBudget={budget.openBudgetModal}
+            onLogout={auth.handleLogout}
+          >
+            {renderMainContent()}
+          </AppShell>
 
-      <BudgetCreateModal
-        form={budget.budgetForm}
-        open={budget.isBudgetModalOpen}
-        isEditing={budget.editingBudgetId !== null}
-        error={budget.budgetError}
-        confirmLoading={budget.isBudgetSaving}
-        onCancel={() => {
-          budget.setIsBudgetModalOpen(false);
-          budget.budgetForm.resetFields();
-        }}
-        onOk={budget.handleBudgetSave}
-      />
-      <BudgetItemModal
-        form={budgetEntry.budgetItemForm}
-        editingItem={budgetEntry.editingBudgetItem}
-        open={budgetEntry.isBudgetItemModalOpen}
-        error={budgetEntry.entryError}
-        categoryOptions={operations.categoryOptions}
-        confirmLoading={budgetEntry.isBudgetItemSaving}
-        onCancel={budgetEntry.closeBudgetItemModal}
-        onOk={budgetEntry.handleBudgetItemSave}
-      />
-      <TransactionModal
-        form={budgetEntry.transactionForm}
-        editingTransaction={budgetEntry.editingTransaction}
-        open={budgetEntry.isTransactionModalOpen}
-        error={budgetEntry.entryError}
-        categoryOptions={operations.categoryOptions}
-        confirmLoading={budgetEntry.isTransactionSaving}
-        onCancel={budgetEntry.closeTransactionModal}
-        onOk={budgetEntry.handleTransactionSave}
-      />
-      <WorkspaceCreateModal
-        form={workspace.workspaceForm}
-        open={workspace.isWorkspaceModalOpen}
-        baseCurrency={baseCurrency}
-        confirmLoading={workspace.isWorkspaceCreating}
-        onCancel={() => {
-          workspace.setIsWorkspaceModalOpen(false);
-          workspace.workspaceForm.resetFields();
-        }}
-        onOk={workspace.handleWorkspaceCreate}
-      />
-      <WorkspaceMemberModal
-        form={workspace.workspaceMemberForm}
-        open={workspace.isWorkspaceMemberModalOpen}
-        error={workspace.workspaceMemberError}
-        confirmLoading={workspace.isWorkspaceMemberSaving}
-        onCancel={() => {
-          workspace.setIsWorkspaceMemberModalOpen(false);
-          workspace.workspaceMemberForm.resetFields();
-        }}
-        onOk={workspace.handleWorkspaceMemberAdd}
-      />
-      <WorkgroupModal
-        form={workgroup.workgroupForm}
-        editingWorkgroup={workgroup.editingWorkgroup}
-        open={workgroup.isWorkgroupModalOpen}
-        confirmLoading={workgroup.isWorkgroupSaving}
-        onCancel={() => {
-          workgroup.setIsWorkgroupModalOpen(false);
-          workgroup.setEditingWorkgroup(null);
-          workgroup.workgroupForm.resetFields();
-        }}
-        onOk={workgroup.handleWorkgroupSave}
-      />
+          {modals}
+        </>
+      )}
     </ConfigProvider>
   );
 }

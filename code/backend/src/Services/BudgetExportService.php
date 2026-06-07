@@ -11,13 +11,14 @@ use BudgetCentre\Http\FileResponse;
 use BudgetCentre\Http\Request;
 use BudgetCentre\Repositories\BudgetExportRepository;
 use BudgetCentre\Repositories\BudgetRepository;
+use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
 use Mpdf\Mpdf;
 use PDO;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\SimpleType\JcTable;
-use RuntimeException;
+use Throwable;
 
 final readonly class BudgetExportService
 {
@@ -59,11 +60,22 @@ final readonly class BudgetExportService
         $path = $this->storagePath($fileName);
         $this->ensureStorageDirectory(dirname($path));
 
-        match ($format) {
-            'markdown' => file_put_contents($path, $this->markdown($budget)),
-            'docx' => $this->writeDocx($budget, $path),
-            'pdf' => $this->writePdf($budget, $path),
-        };
+        try {
+            match ($format) {
+                'markdown' => $this->writeMarkdown($budget, $path),
+                'docx' => $this->writeDocx($budget, $path),
+                'pdf' => $this->writePdf($budget, $path),
+            };
+        } catch (AuthException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            throw new AuthException(
+                'EXPORT_FAILED',
+                'Export file could not be created. Check PHP extensions and export storage permissions.',
+                500,
+                ['detail' => Env::string('APP_ENV') === 'local' ? $exception->getMessage() : null],
+            );
+        }
 
         if (!is_file($path)) {
             throw new AuthException('EXPORT_FAILED', 'Export file could not be created.', 500);
@@ -99,6 +111,18 @@ final readonly class BudgetExportService
             (string) $export['fileName'],
             $this->contentType((string) $export['format']),
         );
+    }
+
+    private function writeMarkdown(array $budget, string $path): void
+    {
+        if (file_put_contents($path, $this->markdown($budget)) === false) {
+            throw new AuthException(
+                'EXPORT_STORAGE_UNWRITABLE',
+                'Export storage is not writable. Set EXPORT_STORAGE_DIR or grant write permission.',
+                500,
+                ['path' => $path],
+            );
+        }
     }
 
     private function markdown(array $budget): string
@@ -231,7 +255,16 @@ final readonly class BudgetExportService
 
     private function storagePath(string $fileName): string
     {
-        return dirname(__DIR__, 2) . '/storage/exports/' . $fileName;
+        return $this->storageRoot() . '/' . ltrim($fileName, '/');
+    }
+
+    private function storageRoot(): string
+    {
+        return rtrim(
+            Env::string('EXPORT_STORAGE_DIR', dirname(__DIR__, 2) . '/storage/exports')
+                ?? dirname(__DIR__, 2) . '/storage/exports',
+            '/',
+        );
     }
 
     private function relativePath(string $path): string
@@ -248,8 +281,22 @@ final readonly class BudgetExportService
 
     private function ensureStorageDirectory(string $directory): void
     {
-        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new RuntimeException('Unable to create export storage directory.');
+        if (!is_dir($directory) && !@mkdir($directory, 0775, true) && !is_dir($directory)) {
+            throw new AuthException(
+                'EXPORT_STORAGE_UNWRITABLE',
+                'Export storage directory could not be created. Set EXPORT_STORAGE_DIR or grant write permission.',
+                500,
+                ['directory' => $directory],
+            );
+        }
+
+        if (!is_writable($directory)) {
+            throw new AuthException(
+                'EXPORT_STORAGE_UNWRITABLE',
+                'Export storage directory is not writable. Set EXPORT_STORAGE_DIR or grant write permission.',
+                500,
+                ['directory' => $directory],
+            );
         }
     }
 

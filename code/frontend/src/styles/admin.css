@@ -33,6 +33,18 @@
   margin-bottom: 12px;
 }
 
+.admin-environment {
+  margin-bottom: 16px;
+}
+
+.admin-environment-alert {
+  margin-top: 10px;
+}
+
+.admin-path {
+  overflow-wrap: anywhere;
+}
+
 .admin-user-cell {
   display: grid;
   min-width: 0;

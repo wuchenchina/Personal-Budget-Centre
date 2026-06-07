@@ -1,6 +1,10 @@
 import { apiGet, apiPost, clearCsrfToken } from './http';
 import type { AuthSession, LoginPayload, RegisterPayload, RegisterResult } from '../types/auth';
 
+interface CurrentSessionResult {
+  session: AuthSession | null;
+}
+
 export interface EmailVerificationResult {
   verified: boolean;
   alreadyVerified: boolean;
@@ -8,8 +12,8 @@ export interface EmailVerificationResult {
   username: string | null;
 }
 
-export function getCurrentSession(): Promise<AuthSession> {
-  return apiGet<AuthSession>('/api/auth/me');
+export function getCurrentSession(): Promise<AuthSession | null> {
+  return apiGet<CurrentSessionResult>('/api/auth/me').then((result) => result.session);
 }
 
 export function login(payload: LoginPayload): Promise<AuthSession> {

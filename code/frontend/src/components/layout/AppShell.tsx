@@ -1,9 +1,7 @@
 import type { ReactNode } from 'react';
-import { Button, Layout, Menu, Select, Space, Tag, Typography } from 'antd';
+import { Button, Layout, Menu, Select, Space, Tag } from 'antd';
 import type { MenuProps } from 'antd';
 import {
-  Download,
-  FileText,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -21,7 +19,6 @@ import type { AuthSession, AuthWorkspace } from '../../types/auth';
 import type { WorkspaceRole } from '../../types/budget';
 
 const { Header, Sider, Content } = Layout;
-const { Title, Text } = Typography;
 
 interface AppShellProps {
   activeKey: string;
@@ -68,7 +65,6 @@ export function AppShell({
     { key: 'categories', icon: <Tags size={iconSize} />, label: '分类' },
     { key: 'workspace', icon: <Users size={iconSize} />, label: '协作工作区' },
     { key: 'security', icon: <KeyRound size={iconSize} />, label: '安全' },
-    { key: 'exports', icon: <Download size={iconSize} />, label: '导出' },
   ];
   if (isAdmin) {
     menuItems.push({ key: 'admin', icon: <ShieldCheck size={iconSize} />, label: '后台' });
@@ -76,7 +72,7 @@ export function AppShell({
 
   return (
     <Layout className="app-shell">
-      <Sider className="app-sidebar" width={264}>
+      <Sider className="app-sidebar" width={232}>
         <div className="brand-lockup">
           <div className="brand-mark">
             <WalletCards size={20} />
@@ -89,7 +85,7 @@ export function AppShell({
         <Menu
           className="app-menu"
           mode="inline"
-          selectedKeys={[activeKey]}
+          selectedKeys={[activeKey === 'budget-editor' ? 'budgets' : activeKey]}
           items={menuItems}
           onClick={({ key }) => onNavigate(key)}
         />
@@ -97,9 +93,11 @@ export function AppShell({
 
       <Layout>
         <Header className="app-header">
-          <div className="workspace-heading">
-            <Text type="secondary">工作区</Text>
-            <Title level={3}>{session.workspace?.name ?? '个人财务'}</Title>
+          <div className="header-main">
+            <div className="workspace-heading">
+              <span className="workspace-kicker">工作区</span>
+              <strong>{session.workspace?.name ?? '个人财务'}</strong>
+            </div>
             <Select
               aria-label="切换工作区"
               className="workspace-switcher"
@@ -112,16 +110,16 @@ export function AppShell({
               value={activeWorkspaceId ?? undefined}
               onChange={onWorkspaceSwitch}
             />
+            <div className="workspace-meta">
+              <Tag>{workspaces.length} 个工作区</Tag>
+              {workspaceRole ? (
+                <Tag color={roleColors[workspaceRole]}>{roleLabels[workspaceRole]}</Tag>
+              ) : (
+                <Tag>无工作区</Tag>
+              )}
+            </div>
           </div>
-          <Space wrap>
-            <Tag>
-              {workspaces.length} 个工作区
-            </Tag>
-            {workspaceRole ? (
-              <Tag color={roleColors[workspaceRole]}>{roleLabels[workspaceRole]}</Tag>
-            ) : (
-              <Tag>无工作区</Tag>
-            )}
+          <Space className="header-actions" wrap>
             <span className="user-chip">
               <UserRound size={15} />
               {session.user.displayName}
@@ -129,22 +127,26 @@ export function AppShell({
             <Button
               disabled={activeWorkspaceId === null}
               icon={<Share2 size={16} />}
+              size="small"
               onClick={() => onNavigate('sharing')}
             >
               共享
-            </Button>
-            <Button icon={<FileText size={16} />} onClick={() => onNavigate('exports')}>
-              导出
             </Button>
             <Button
               type="primary"
               disabled={activeWorkspaceId === null || !canWriteBudgets}
               icon={<Plus size={16} />}
+              size="small"
               onClick={onNewBudget}
             >
               新建预算项目
             </Button>
-            <Button icon={<LogOut size={16} />} loading={isAuthSubmitting} onClick={onLogout}>
+            <Button
+              icon={<LogOut size={16} />}
+              loading={isAuthSubmitting}
+              size="small"
+              onClick={onLogout}
+            >
               退出
             </Button>
           </Space>

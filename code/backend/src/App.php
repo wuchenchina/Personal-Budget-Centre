@@ -27,6 +27,7 @@ use BudgetCentre\Services\AdminUserService;
 use BudgetCentre\Services\ExchangeRateService;
 use BudgetCentre\Services\PasskeyService;
 use BudgetCentre\Services\ReferenceDataService;
+use BudgetCentre\Services\SystemCheckService;
 use BudgetCentre\Services\WorkspaceService;
 use BudgetCentre\Services\WorkgroupService;
 use BudgetCentre\Support\Env;
@@ -107,6 +108,7 @@ final class App
             ['GET', '/api/admin/users'] => $this->adminUserList($request),
             ['PATCH', '/api/admin/users'] => $this->adminUserUpdate($request),
             ['POST', '/api/admin/users/email-verification'] => $this->adminUserEmailVerification($request),
+            ['GET', '/api/admin/environment'] => $this->adminEnvironment($request),
             ['GET', '/api/templates/personal-living-budget'] => $this->templateResponse('personal_living_budget'),
             ['GET', '/api/auth/passkey/register/options'] => $this->passkeyRegistrationOptions($request),
             ['POST', '/api/auth/passkey/register/verify'] => $this->passkeyRegistrationVerify($request),
@@ -180,7 +182,9 @@ final class App
     private function authMe(Request $request): JsonResponse
     {
         return $this->authResponse(
-            fn (AuthService $auth): JsonResponse => JsonResponse::ok($auth->me($request)),
+            fn (AuthService $auth): JsonResponse => JsonResponse::ok([
+                'session' => $auth->me($request),
+            ]),
         );
     }
 
@@ -657,6 +661,15 @@ final class App
         );
     }
 
+    private function adminEnvironment(Request $request): JsonResponse
+    {
+        return $this->adminResponse(
+            fn (AdminUserService $admin): JsonResponse => JsonResponse::ok([
+                'environment' => $admin->environment($request),
+            ]),
+        );
+    }
+
     private function authResponse(callable $callback): JsonResponse
     {
         try {
@@ -829,8 +842,8 @@ final class App
 
         if ($exception instanceof RuntimeException) {
             return JsonResponse::error(
-                'MAIL_DELIVERY_FAILED',
-                'Email delivery failed. Please try again later.',
+            'MAIL_DELIVERY_FAILED',
+            'Email delivery failed. Please try again later.',
                 503,
                 ['detail' => Env::string('APP_ENV') === 'local' ? $exception->getMessage() : null],
             );

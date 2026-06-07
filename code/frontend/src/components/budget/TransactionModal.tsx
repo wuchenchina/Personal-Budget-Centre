@@ -55,7 +55,13 @@ export function TransactionModal({
         </Form.Item>
 
         <Form.Item label="分类" name="categoryId">
-          <Select allowClear options={categoryOptions} placeholder="可选分类" />
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            options={categoryOptions}
+            placeholder="可选分类"
+          />
         </Form.Item>
 
         <div className="modal-form-grid">
