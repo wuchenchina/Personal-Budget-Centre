@@ -104,6 +104,8 @@ composer db:init
 
 部署腳本會為本次遠端長任務標記唯一 token；若本地以 `Ctrl+C` 中斷，會嘗試停止同 token 的遠端 composer / migration / reset / init 任務，避免遠端在本地退出後繼續改動。
 
+部署輸出會按步驟顯示進度、耗時與失敗階段；若終端不支援色彩或需要純文字輸出，可使用 `NO_COLOR=1 ./deploy.sh sync`。
+
 部署前會檢查遠端根目錄是否為空；`fresh` 模式在清資料庫前會先跑一次 reset dry-run，方便確認即將清理的資料庫 objects。
 
 可用的輔助參數：

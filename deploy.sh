@@ -46,6 +46,10 @@ DATABASE_DIR="${CODE_ROOT}/database"
 FONT_DIR="${CODE_ROOT}/font"
 REMOTE="${SERVER_USER}@${SERVER_IP}"
 REMOTE_DEPLOY_TOKEN="budgetcentre-deploy-$(date +%Y%m%d%H%M%S)-$$"
+DEPLOY_STARTED_AT="$(date +%s)"
+CURRENT_STEP="bootstrap"
+STEP_INDEX=0
+TOTAL_STEPS=0
 SSH_OPTS=(
   -i "${SERVER_SSH_KEY}"
   -p "${SERVER_PORT}"
@@ -53,6 +57,114 @@ SSH_OPTS=(
   -o StrictHostKeyChecking=accept-new
 )
 RSYNC_SSH="ssh -i ${SERVER_SSH_KEY} -p ${SERVER_PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+
+if [[ -t 1 && "${NO_COLOR:-0}" != "1" ]]; then
+  C_RESET=$'\033[0m'
+  C_BOLD=$'\033[1m'
+  C_DIM=$'\033[2m'
+  C_RED=$'\033[31m'
+  C_GREEN=$'\033[32m'
+  C_YELLOW=$'\033[33m'
+  C_BLUE=$'\033[34m'
+  C_CYAN=$'\033[36m'
+else
+  C_RESET=""
+  C_BOLD=""
+  C_DIM=""
+  C_RED=""
+  C_GREEN=""
+  C_YELLOW=""
+  C_BLUE=""
+  C_CYAN=""
+fi
+
+elapsed_since() {
+  local started_at="$1"
+  local finished_at
+  finished_at="$(date +%s)"
+  printf '%ss' "$((finished_at - started_at))"
+}
+
+print_banner() {
+  cat <<EOF
+
+${C_BOLD}${C_CYAN}BudgetCentre Deploy${C_RESET}
+${C_DIM}────────────────────────────────────────${C_RESET}
+Mode        ${DEPLOY_COMMAND:-sync}
+Domain      ${APP_URL}
+Remote      ${REMOTE}:${REMOTE_PATH}
+Database    ${DB_NAME}
+DB action   $(db_action_label)
+Token       ${REMOTE_DEPLOY_TOKEN}
+${C_DIM}────────────────────────────────────────${C_RESET}
+EOF
+}
+
+db_action_label() {
+  if [[ "${DEPLOY_MODE}" == "fresh" ]]; then
+    printf 'fresh reset + init'
+  elif [[ "${RUN_DB_MIGRATE}" == "1" ]]; then
+    printf 'non-destructive migration'
+  else
+    printf 'none'
+  fi
+}
+
+log_info() {
+  printf '%s\n' "${C_DIM}›${C_RESET} $*"
+}
+
+log_hint() {
+  printf '%s\n' "${C_DIM}›${C_RESET} $*" >&2
+}
+
+log_warn() {
+  printf '%s\n' "${C_YELLOW}!${C_RESET} $*" >&2
+}
+
+log_error() {
+  printf '%s\n' "${C_RED}✖${C_RESET} $*" >&2
+}
+
+run_step() {
+  local title="$1"
+  shift
+  STEP_INDEX=$((STEP_INDEX + 1))
+  CURRENT_STEP="${title}"
+  local started_at
+  started_at="$(date +%s)"
+
+  printf '\n%s [%02d/%02d] %s%s\n' "${C_BLUE}◆${C_RESET}" "${STEP_INDEX}" "${TOTAL_STEPS}" "${C_BOLD}" "${title}${C_RESET}"
+  if "$@"; then
+    printf '%s %s %s%s\n' "${C_GREEN}✓${C_RESET}" "${title}" "${C_DIM}" "($(elapsed_since "${started_at}"))${C_RESET}"
+  else
+    local status=$?
+    printf '%s %s %s%s\n' "${C_RED}✖${C_RESET}" "${title}" "${C_DIM}" "failed after $(elapsed_since "${started_at}")${C_RESET}" >&2
+    return "${status}"
+  fi
+}
+
+finish_deploy() {
+  local status=$?
+  trap - EXIT
+  if [[ "${status}" -eq 0 ]]; then
+    printf '\n%s Deploy finished in %s\n' "${C_GREEN}✓${C_RESET}" "$(elapsed_since "${DEPLOY_STARTED_AT}")"
+    return 0
+  fi
+
+  if [[ "${status}" -ne 130 ]]; then
+    log_error "Deploy failed during: ${CURRENT_STEP}"
+    if [[ "${CURRENT_STEP}" == "preflight" ]]; then
+      log_hint "Fix the command or mode shown above, then run deploy again."
+    else
+      log_hint "Re-run the same command after fixing the error above. Use SKIP_BUILD=1 only if the frontend build is already current."
+    fi
+  fi
+
+  return "${status}"
+}
+
+trap finish_deploy EXIT
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -74,7 +186,7 @@ remote_exec_tracked() {
 
 cleanup_remote_deploy() {
   echo
-  echo "[remote] Interrupt received. Stopping remote deploy tasks for ${REMOTE_DEPLOY_TOKEN}"
+  log_warn "Interrupt received. Stopping remote deploy tasks for ${REMOTE_DEPLOY_TOKEN}"
   remote_exec "pkill -TERM -f '${REMOTE_DEPLOY_TOKEN}' 2>/dev/null || true" || true
 }
 
@@ -122,7 +234,7 @@ remote_composer_install() {
     composer install --no-dev --optimize-autoloader --no-interaction"
 
   if ! remote_exec_tracked "${command}"; then
-    echo "[remote] Composer install failed once. Retrying..."
+    log_warn "Remote Composer install failed once. Retrying..."
     remote_exec_tracked "${command}"
   fi
 }
@@ -153,10 +265,47 @@ remote_fix_permissions() {
     find '${REMOTE_PATH}/backend/bin' -type f -name '*.php' -exec chmod 755 {} +"
 }
 
+build_frontend() {
+  cd "${FRONTEND_DIR}"
+  VITE_API_BASE_URL="${VITE_API_BASE_URL}" yarn build
+}
+
+validate_backend() {
+  cd "${BACKEND_DIR}"
+  composer validate --strict
+  composer check
+  composer db:init:dry-run
+}
+
+inspect_remote_root() {
+  local status
+  status="$(remote_root_status)"
+  log_info "Root status: ${status}"
+}
+
+calculate_total_steps() {
+  local total=10
+  if [[ "${SKIP_BUILD:-0}" != "1" ]]; then
+    total=$((total + 1))
+  fi
+
+  if [[ "${DEPLOY_MODE}" == "fresh" ]]; then
+    total=$((total + 4))
+    if [[ "${SKIP_DB_INIT:-0}" == "1" ]]; then
+      total=$((total - 1))
+    fi
+  elif [[ "${RUN_DB_MIGRATE}" == "1" && "${SKIP_DB_INIT:-0}" != "1" ]]; then
+    total=$((total + 1))
+  fi
+
+  TOTAL_STEPS="${total}"
+}
+
 require_command ssh
 require_command rsync
 require_command composer
 require_command yarn
+CURRENT_STEP="preflight"
 
 case "${DEPLOY_COMMAND}" in
   "")
@@ -201,41 +350,32 @@ if [[ "${DEPLOY_MODE}" == "fresh" && "${CONFIRM_FRESH_DEPLOY}" != "${DOMAIN}" ]]
   exit 1
 fi
 
+calculate_total_steps
+print_banner
+
 if [[ "${SKIP_BUILD:-0}" != "1" ]]; then
-  echo "[local] Building frontend for ${DOMAIN}"
-  (
-    cd "${FRONTEND_DIR}"
-    VITE_API_BASE_URL="${VITE_API_BASE_URL}" yarn build
-  )
+  run_step "Build frontend" build_frontend
+else
+  log_warn "Skipping frontend build because SKIP_BUILD=1"
 fi
 
-echo "[local] Validating backend"
-(
-  cd "${BACKEND_DIR}"
-  composer validate --strict
-  composer check
-  composer db:init:dry-run
-)
+run_step "Validate backend" validate_backend
 
-echo "[remote] Root status: $(remote_root_status)"
+run_step "Inspect remote root" inspect_remote_root
 
 if [[ "${DEPLOY_MODE}" == "fresh" ]]; then
-  echo "[remote] Fresh deploy requested. Clearing ${REMOTE_PATH}"
-  remote_clear_root
+  run_step "Clear remote root" remote_clear_root
   RUN_DB_MIGRATE="0"
 fi
 
-echo "[remote] Preparing ${REMOTE_PATH}"
-remote_exec_tracked "mkdir -p '${REMOTE_PATH}/backend' '${REMOTE_PATH}/database' '${REMOTE_PATH}/font' '${REMOTE_PATH}/backend/storage/exports'"
+run_step "Prepare remote directories" remote_exec_tracked "mkdir -p '${REMOTE_PATH}/backend' '${REMOTE_PATH}/database' '${REMOTE_PATH}/font' '${REMOTE_PATH}/backend/storage/exports'"
 
-echo "[upload] frontend/dist -> ${REMOTE_PATH}"
-rsync -az --info=stats2 --human-readable \
+run_step "Upload frontend" rsync -az --info=stats2 --human-readable \
   -e "${RSYNC_SSH}" \
   "${FRONTEND_DIR}/dist/" \
   "${REMOTE}:${REMOTE_PATH}/"
 
-echo "[upload] backend -> ${REMOTE_PATH}/backend"
-rsync -az --delete --info=stats2 --human-readable \
+run_step "Upload backend" rsync -az --delete --info=stats2 --human-readable \
   -e "${RSYNC_SSH}" \
   --exclude '.env' \
   --exclude 'vendor/' \
@@ -243,47 +383,37 @@ rsync -az --delete --info=stats2 --human-readable \
   "${BACKEND_DIR}/" \
   "${REMOTE}:${REMOTE_PATH}/backend/"
 
-echo "[upload] database -> ${REMOTE_PATH}/database"
-rsync -az --delete --info=stats2 --human-readable \
+run_step "Upload database SQL" rsync -az --delete --info=stats2 --human-readable \
   -e "${RSYNC_SSH}" \
   "${DATABASE_DIR}/" \
   "${REMOTE}:${REMOTE_PATH}/database/"
 
-echo "[upload] font -> ${REMOTE_PATH}/font"
-rsync -az --delete --info=stats2 --human-readable \
+run_step "Upload fonts" rsync -az --delete --info=stats2 --human-readable \
   -e "${RSYNC_SSH}" \
   "${FONT_DIR}/" \
   "${REMOTE}:${REMOTE_PATH}/font/"
 
-echo "[remote] Writing backend .env for ${DOMAIN}"
-write_remote_env
-
-echo "[remote] Installing backend dependencies"
-remote_composer_install
-
-echo "[remote] Fixing uploaded file permissions"
-remote_fix_permissions
+run_step "Write backend environment" write_remote_env
+run_step "Install backend dependencies" remote_composer_install
+run_step "Fix remote permissions" remote_fix_permissions
 
 if [[ "${DEPLOY_MODE}" == "fresh" ]]; then
-  echo "[remote] Fresh deploy requested. Checking database before reset"
-  remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/reset-database.php --dry-run"
-  echo "[remote] Clearing existing MySQL objects in ${DB_NAME}"
-  remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/reset-database.php --yes"
+  run_step "Preview database reset" remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/reset-database.php --dry-run"
+  run_step "Reset database objects" remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/reset-database.php --yes"
 fi
 
 if [[ "${DEPLOY_MODE}" == "fresh" && "${SKIP_DB_INIT:-0}" != "1" ]]; then
-  echo "[remote] Fresh deploy requested. Initializing empty MySQL database ${DB_NAME}"
-  remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/init-database.php --yes"
+  run_step "Initialize empty database" remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/init-database.php --yes"
 elif [[ "${RUN_DB_MIGRATE}" == "1" && "${SKIP_DB_INIT:-0}" != "1" ]]; then
-  echo "[remote] Running non-destructive MySQL migrations for ${DB_NAME}"
-  remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/init-database.php --yes --migrations-only"
+  run_step "Run non-destructive migrations" remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/init-database.php --yes --migrations-only"
 else
-  echo "[remote] Skipping database changes for sync deploy"
+  log_warn "Skipping database changes for sync deploy"
 fi
 
 cat <<EOF
 
-Deploy finished.
+${C_BOLD}Deploy summary${C_RESET}
+${C_DIM}────────────────────────────────────────${C_RESET}
 
 Domain:
   ${APP_URL}

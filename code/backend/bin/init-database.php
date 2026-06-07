@@ -40,7 +40,7 @@ try {
     $pdo = ConnectionFactory::make();
     foreach ($plan as $file => $statements) {
         foreach ($statements as $statement) {
-            $pdo->exec($statement);
+            executeSqlStatement($pdo, $statement);
         }
         printf("[ok] %s (%d statements)\n", basename($file), count($statements));
     }
@@ -232,6 +232,18 @@ function appendStatement(array &$statements, string $statement): void
     if ($trimmed !== '') {
         $statements[] = $trimmed;
     }
+}
+
+function executeSqlStatement(PDO $pdo, string $sql): void
+{
+    $statement = $pdo->prepare($sql);
+    $statement->execute();
+
+    do {
+        $statement->fetchAll(PDO::FETCH_ASSOC);
+    } while ($statement->nextRowset());
+
+    $statement->closeCursor();
 }
 
 function printPlan(array $plan, bool $dryRun, bool $migrationsOnly): void
