@@ -157,6 +157,29 @@ export function signatureLabelForConfig(config: BudgetSignatureConfig): string {
   return parts.join(' ');
 }
 
+export function signatureRoleForDisplay(config: BudgetSignatureConfig, value: string): string {
+  const language = normalizeLabelLanguage(config.labelLanguage);
+  const trimmed = value.trim();
+  const defaultRole: Record<BudgetSignatureLabelLanguage, string> = {
+    en: 'Confirmed by',
+    sc: '确认人',
+    tc: '確認人',
+  };
+  if (trimmed === '') {
+    return defaultRole[language];
+  }
+
+  const legacyRoleLabels: Record<BudgetSignatureLabelLanguage, string[]> = {
+    en: ['Confirmation Signature', 'Confirmation / Signature', 'Participant', 'Signer / Confirmer'],
+    sc: ['确认签署', '确认 / 签署', '签核/确认人'],
+    tc: ['確認簽署', '確認 / 簽署', '簽核/確認人'],
+  };
+
+  return legacyRoleLabels[language].includes(trimmed) || trimmed === signatureLabelForConfig(config)
+    ? defaultRole[language]
+    : trimmed;
+}
+
 export function signatureTitleForLanguage(language: BudgetSignatureLabelLanguage): string {
   const labels = signatureLabelText[language];
 

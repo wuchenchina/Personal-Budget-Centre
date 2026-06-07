@@ -149,7 +149,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         title: signatureTitleForLanguage(language),
         labelLanguage: language,
         rows: [
-          { ...createSignatureRow('manual'), roleLabel: translateCurrent('signatureParticipant') },
+          { ...createSignatureRow('manual'), roleLabel: translateCurrent('defaultSignatureRole') },
         ],
       },
     });

@@ -14,9 +14,6 @@ use BudgetCentre\Repositories\BudgetRepository;
 use BudgetCentre\Repositories\BudgetTemplateRepository;
 use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
-use Mpdf\Config\ConfigVariables;
-use Mpdf\Config\FontVariables;
-use Mpdf\Mpdf;
 use PDO;
 use Throwable;
 
@@ -56,7 +53,8 @@ final readonly class BudgetExportService
         $budget = (new BudgetRepository($this->pdo))->findForUser($budgetId, (int) $session['user_id'], true)
             ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
 
-        $fileName = $this->fileName($budget, $format);
+        $repository = new BudgetExportRepository($this->pdo);
+        $fileName = $this->fileName($budget, $format, $this->nextExportVersion($budgetId, $repository));
         $path = $this->storagePath($fileName);
         $this->ensureStorageDirectory(dirname($path));
 
@@ -79,7 +77,6 @@ final readonly class BudgetExportService
             throw new AuthException('EXPORT_FAILED', 'Export file could not be created.', 500);
         }
 
-        $repository = new BudgetExportRepository($this->pdo);
         $exportId = $repository->create(
             $budgetId,
             (int) $session['user_id'],
@@ -116,438 +113,7 @@ final readonly class BudgetExportService
         $tempDir = $this->storagePath('tmp');
         $this->ensureStorageDirectory($tempDir);
 
-        $mpdf = new Mpdf($this->pdfConfig($tempDir));
-        $mpdf->WriteHTML($this->pdfHtml($budget, $this->templateForBudget($budget)));
-        $mpdf->Output($path, 'F');
-    }
-
-    private function pdfConfig(string $tempDir): array
-    {
-        $configDefaults = (new ConfigVariables())->getDefaults();
-        $fontDefaults = (new FontVariables())->getDefaults();
-        $fontDir = dirname(__DIR__, 3) . '/font';
-
-        return [
-            'mode' => 'utf-8',
-            'format' => 'A4',
-            'tempDir' => $tempDir,
-            'fontDir' => array_merge($configDefaults['fontDir'], [$fontDir]),
-            'fontdata' => array_merge($fontDefaults['fontdata'], [
-                'timesnewroman' => [
-                    'R' => 'Times New Roman.ttf',
-                    'B' => 'Times New Roman Bold.ttf',
-                    'I' => 'Times New Roman Italic.ttf',
-                    'BI' => 'Times New Roman Bold Italic.ttf',
-                ],
-                'sf-mono' => [
-                    'R' => 'SF-Mono-Regular.ttf',
-                    'B' => 'SF-Mono-Bold.ttf',
-                    'I' => 'SF-Mono-RegularItalic.ttf',
-                    'BI' => 'SF-Mono-BoldItalic.ttf',
-                ],
-                'sf-mono-light' => [
-                    'R' => 'SF-Mono-Light.ttf',
-                    'I' => 'SF-Mono-LightItalic.ttf',
-                ],
-                'tcsongti' => [
-                    'R' => 'Songti-TC-Regular.ttf',
-                    'B' => 'Songti-TC-Bold.ttf',
-                ],
-            ]),
-            'backupSubsFont' => ['tcsongti'],
-            'default_font' => 'sf-mono',
-            'autoScriptToLang' => false,
-            'autoLangToFont' => false,
-            'useSubstitutions' => true,
-        ];
-    }
-
-    private function pdfHtml(array $budget, array $template): string
-    {
-        $title = $this->escapeHtml((string) $budget['title']);
-        $subtitle = trim((string) $budget['ownerName']);
-        $subtitleHtml = $subtitle === ''
-            ? ''
-            : '<div class="subtitle">' . $this->escapeHtml($subtitle) . '</div>';
-        $periodText = $this->periodText($budget);
-        $sections = $this->sectionsByKey($template);
-        $budgetSection = $sections['budget_highlights'] ?? [
-            'title' => 'Budget Highlights',
-            'columns' => [
-                ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'dataType' => 'text'],
-                ['key' => 'budget', 'label' => 'Budget', 'align' => 'right', 'dataType' => 'money'],
-                ['key' => 'estimated_actuals', 'label' => 'Estimated Actuals', 'align' => 'right', 'dataType' => 'money'],
-                ['key' => 'variance', 'label' => 'Variance', 'align' => 'right', 'dataType' => 'money'],
-            ],
-        ];
-        $transactionSection = $sections['transaction_breakdown'] ?? [
-            'title' => 'Transaction Breakdown',
-            'columns' => [
-                ['key' => 'transaction_details', 'label' => 'Transaction Details', 'align' => 'left', 'dataType' => 'text'],
-                ['key' => 'category', 'label' => 'Category', 'align' => 'right', 'dataType' => 'text'],
-                ['key' => 'amount', 'label' => 'Amount', 'align' => 'right', 'dataType' => 'money'],
-                ['key' => 'remark', 'label' => 'Remark', 'align' => 'right', 'dataType' => 'text'],
-            ],
-        ];
-        $items = array_map(
-            function (array $item) use ($budget): array {
-                $effective = $this->effectiveItemAmounts($item, is_array($budget['transactions'] ?? null) ? $budget['transactions'] : []);
-
-                return [
-                    $this->itemLabelWithInstallment($item),
-                    $this->templateMoney((string) $item['budget']['currency'], $effective['budgetOriginal']),
-                    $this->templateMoney((string) $item['estimatedActuals']['currency'], $effective['estimatedOriginal']),
-                    $this->templateMoney((string) $budget['baseCurrency'], $effective['varianceBase']),
-                ];
-            },
-            $budget['items'],
-        );
-        $transactions = array_map(
-            fn (array $transaction): array => [
-                $transaction['details'],
-                $transaction['category'] ?? '',
-                $this->templateMoney((string) $transaction['currency'], (float) $transaction['amountOriginal']),
-                $transaction['remark'] ?? '',
-            ],
-            $budget['transactions'],
-        );
-        $summaryRow = [
-            'Total',
-            $this->templateMoney((string) $budget['baseCurrency'], $this->effectiveTotal($budget, 'budgetBase'), true),
-            $this->templateMoney((string) $budget['baseCurrency'], $this->effectiveTotal($budget, 'estimatedBase'), true),
-            $this->templateMoney((string) $budget['baseCurrency'], $this->effectiveTotal($budget, 'varianceBase'), true),
-        ];
-
-        return '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-            . '<style>'
-            . '@page{margin:29mm 29mm 22mm;}'
-            . 'body{font-family:"SF-Mono",TCSongti,monospace;color:#000;font-size:7.5pt;}'
-            . '.title{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 4mm;}'
-            . '.title sup{font-size:7pt;line-height:0;vertical-align:super;}'
-            . '.subtitle{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 7mm;}'
-            . '.template-section{width:100%;margin-top:5mm;}'
-            . '.template-section + .template-section{margin-top:7mm;}'
-            . '.template-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0;}'
-            . '.template-table th,.template-table td{border:0;padding:0.15mm 1.9mm;vertical-align:top;}'
-            . '.section-band td{background:#a4a4a4;border:0.2mm solid #7e7e7e;font-family:"SF-Mono",TCSongti,monospace;font-size:10.5pt;font-weight:400;line-height:1.15;padding-top:0.45mm;padding-bottom:0.45mm;}'
-            . '.date-line{border-top:0.2mm solid #7e7e7e;padding:0.15mm 1.9mm;text-decoration:underline;line-height:1.25;font-family:"SF-Mono-Light",TCSongti,monospace;}'
-            . '.column-table th{background:#d7d7d7;font-family:"SF-Mono",TCSongti,monospace;font-size:7.5pt;font-weight:400;line-height:1.25;text-align:left;}'
-            . '.column-table .header-left{border-right:0.2mm solid #7e7e7e;}'
-            . '.column-table .header-middle{border-left:0.2mm solid #7e7e7e;border-right:0.2mm solid #7e7e7e;}'
-            . '.column-table .header-last{border-left:0.2mm solid #7e7e7e;}'
-            . '.body-table td,.summary-table td{line-height:1.6;}'
-            . '.summary-table td{background:#d7d7d7;}'
-            . '.align-right{text-align:right;}'
-            . '.align-center{text-align:center;}'
-            . '.nowrap{white-space:nowrap;}'
-            . '.empty{text-align:center;color:#595959;}'
-            . '.signature-section{width:100%;margin-top:8mm;font-family:"SF-Mono",TCSongti,monospace;}'
-            . '.signature-title{background:#d7d7d7;border:0.2mm solid #111;font-size:8pt;padding:1.2mm 1.9mm;}'
-            . '.signature-section-right{width:50%;margin-left:auto;}'
-            . '.signature-table{width:100%;border-collapse:collapse;table-layout:fixed;border-left:0.2mm solid #111;}'
-            . '.signature-table td{width:50%;height:33mm;border-right:0.2mm solid #111;border-bottom:0.2mm solid #111;vertical-align:top;padding:1.8mm;font-size:7.5pt;}'
-            . '.signature-role{font-size:8pt;font-weight:bold;margin-bottom:1.2mm;}'
-            . '.signature-line{min-height:4mm;}'
-            . '.signature-box{height:16mm;margin-top:1.8mm;border:0.2mm solid #8c8c8c;background:#fbfbfb;color:#777;font-size:6.8pt;padding:1.2mm;position:relative;}'
-            . '.signature-box:after{content:"";display:block;margin-top:8mm;border-top:0.2mm solid #cfcfcf;}'
-            . '.signature-date{margin-top:1.5mm;border-top:0.2mm solid #bfbfbf;padding-top:1mm;}'
-            . '</style></head><body>'
-            . '<div class="title">' . $title . '</div>'
-            . $subtitleHtml
-            . $this->templateTable($budgetSection, $periodText, $items, $summaryRow, 'No budget items')
-            . $this->templateTable($transactionSection, $periodText, $transactions, null, 'No transactions')
-            . $this->signatureSection($budget)
-            . '</body></html>';
-    }
-
-    private function templateTable(
-        array $section,
-        string $periodText,
-        array $rows,
-        ?array $summaryRow,
-        string $emptyText,
-    ): string {
-        $columns = $section['columns'] ?? [];
-        $colspan = max(1, count($columns));
-        $colgroup = $this->colgroupHtml($columns);
-        $dateLine = $periodText === ''
-            ? ''
-            : '<div class="date-line">Date: ' . $this->escapeHtml($periodText) . '</div>';
-        $html = '<div class="template-section">'
-            . '<table class="template-table section-band"><tbody><tr><td>'
-            . $this->escapeHtml((string) ($section['title'] ?? ''))
-            . '</td></tr></tbody></table>'
-            . $dateLine
-            . '<table class="template-table column-table">' . $colgroup . '<tbody><tr>';
-
-        foreach ($columns as $index => $column) {
-            $html .= '<th class="' . trim($this->headerBorderClass($index, count($columns)) . ' ' . $this->columnClass($column)) . '"'
-                . $this->cellWidthStyle($column)
-                . '>'
-                . $this->escapeHtml((string) $column['label'])
-                . '</th>';
-        }
-        $html .= '</tr></tbody></table>'
-            . '<table class="template-table body-table">' . $colgroup . '<tbody>';
-
-        if ($rows === []) {
-            $html .= '<tr><td class="empty" colspan="' . $colspan . '">' . $this->escapeHtml($emptyText) . '</td></tr>';
-        }
-
-        foreach ($rows as $row) {
-            $html .= '<tr>';
-            foreach ($row as $index => $cell) {
-                $column = $columns[$index] ?? [];
-                $html .= '<td class="' . $this->columnClass($column) . '"'
-                    . $this->cellWidthStyle($column)
-                    . '>'
-                    . $this->templateCellText((string) $cell)
-                    . '</td>';
-            }
-            $html .= '</tr>';
-        }
-        $html .= '</tbody></table>';
-
-        if ($summaryRow !== null) {
-            $html .= '<table class="template-table summary-table">' . $colgroup . '<tbody><tr>';
-            foreach ($summaryRow as $index => $cell) {
-                $column = $columns[$index] ?? [];
-                $html .= '<td class="' . $this->columnClass($column) . '"'
-                    . $this->cellWidthStyle($column)
-                    . '>'
-                    . $this->templateCellText((string) $cell)
-                    . '</td>';
-            }
-            $html .= '</tr></tbody></table>';
-        }
-
-        return $html . '</div>';
-    }
-
-    private function colgroupHtml(array $columns): string
-    {
-        $html = '<colgroup>';
-        foreach ($columns as $column) {
-            $html .= '<col' . $this->cellWidthStyle($column) . '>';
-        }
-
-        return $html . '</colgroup>';
-    }
-
-    private function templateCellText(string $value): string
-    {
-        return nl2br($this->escapeHtml($value), false);
-    }
-
-    private function itemLabelWithInstallment(array $item): string
-    {
-        $label = (string) ($item['category'] ?? $item['label']);
-        $config = $item['installmentConfig'] ?? null;
-        if (!is_array($config) || ($config['enabled'] ?? false) !== true) {
-            return $label;
-        }
-
-        $months = is_int($config['months'] ?? null) ? $config['months'] : null;
-        $paidMonths = is_int($config['paidMonths'] ?? null) ? $config['paidMonths'] : 0;
-        $monthlyAmount = is_numeric($config['monthlyAmount'] ?? null)
-            ? (float) $config['monthlyAmount']
-            : null;
-
-        if ($months === null || $monthlyAmount === null) {
-            return $label;
-        }
-
-        $remaining = max(0, $months - max(0, min($paidMonths, $months)));
-
-        return $label
-            . "\nInstallment: "
-            . $this->templateMoney((string) $item['budget']['currency'], $monthlyAmount)
-            . ' / month, '
-            . max(0, min($paidMonths, $months))
-            . '/'
-            . $months
-            . ' paid, '
-            . $remaining
-            . ' remaining';
-    }
-
-    private function signatureSection(array $budget): string
-    {
-        $config = $budget['signatureConfig'] ?? null;
-        if (!is_array($config) || ($config['enabled'] ?? false) !== true || !is_array($config['rows'] ?? null) || $config['rows'] === []) {
-            return '';
-        }
-
-        $title = is_string($config['title'] ?? null) && trim($config['title']) !== ''
-            ? trim($config['title'])
-            : 'Confirmation Signature';
-        $sectionClass = ($config['sectionAlign'] ?? null) === 'right'
-            ? 'signature-section signature-section-right'
-            : 'signature-section';
-        $html = '<div class="' . $sectionClass . '">'
-            . '<div class="signature-title">' . $this->escapeHtml($title) . '</div>'
-            . '<table class="signature-table"><tbody>';
-        foreach (array_chunk($config['rows'], 2) as $rowPair) {
-            $html .= '<tr>';
-            foreach ($rowPair as $row) {
-                $html .= $this->signatureCell(is_array($row) ? $row : [], $config);
-            }
-            if (count($rowPair) === 1) {
-                $html .= '<td></td>';
-            }
-            $html .= '</tr>';
-        }
-
-        return $html . '</tbody></table></div>';
-    }
-
-    private function effectiveItemAmounts(array $item, array $transactions): array
-    {
-        $budgetOriginal = (float) ($item['budget']['amountOriginal'] ?? 0);
-        $budgetBase = (float) ($item['budget']['amountBase'] ?? 0);
-        if ($budgetOriginal !== 0.0 || $budgetBase !== 0.0) {
-            return [
-                'budgetOriginal' => $budgetOriginal,
-                'budgetBase' => $budgetBase,
-                'estimatedOriginal' => (float) ($item['estimatedActuals']['amountOriginal'] ?? 0),
-                'estimatedBase' => (float) ($item['estimatedActuals']['amountBase'] ?? 0),
-                'varianceBase' => (float) ($item['varianceBase'] ?? 0),
-            ];
-        }
-
-        $categoryId = $item['categoryId'] ?? null;
-        $matches = array_values(array_filter($transactions, static function (array $transaction) use ($categoryId): bool {
-            return ($transaction['categoryId'] ?? null) === $categoryId;
-        }));
-        if ($matches === []) {
-            return [
-                'budgetOriginal' => $budgetOriginal,
-                'budgetBase' => $budgetBase,
-                'estimatedOriginal' => (float) ($item['estimatedActuals']['amountOriginal'] ?? 0),
-                'estimatedBase' => (float) ($item['estimatedActuals']['amountBase'] ?? 0),
-                'varianceBase' => (float) ($item['varianceBase'] ?? 0),
-            ];
-        }
-
-        $budgetCurrency = (string) ($item['budget']['currency'] ?? '');
-        $sameCurrency = array_reduce(
-            $matches,
-            static fn (bool $carry, array $transaction): bool => $carry && (string) ($transaction['currency'] ?? '') === $budgetCurrency,
-            true,
-        );
-        $originalTotal = $sameCurrency
-            ? array_reduce($matches, static fn (float $total, array $transaction): float => $total + (float) ($transaction['amountOriginal'] ?? 0), 0.0)
-            : $budgetOriginal;
-        $baseTotal = array_reduce($matches, static fn (float $total, array $transaction): float => $total + (float) ($transaction['amountBase'] ?? 0), 0.0);
-
-        return [
-            'budgetOriginal' => round($originalTotal, 2),
-            'budgetBase' => round($baseTotal, 2),
-            'estimatedOriginal' => $sameCurrency ? round($originalTotal, 2) : (float) ($item['estimatedActuals']['amountOriginal'] ?? 0),
-            'estimatedBase' => round($baseTotal, 2),
-            'varianceBase' => 0.0,
-        ];
-    }
-
-    private function effectiveTotal(array $budget, string $key): float
-    {
-        $items = is_array($budget['items'] ?? null) ? $budget['items'] : [];
-        $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
-
-        return array_reduce(
-            $items,
-            fn (float $total, array $item): float => $total + $this->effectiveItemAmounts($item, $transactions)[$key],
-            0.0,
-        );
-    }
-
-    private function signatureCell(array $row, array $config): string
-    {
-        $html = '<td>';
-        if (($row['showRole'] ?? true) !== false && trim((string) ($row['roleLabel'] ?? '')) !== '') {
-            $html .= '<div class="signature-role">' . $this->escapeHtml((string) $row['roleLabel']) . '</div>';
-        }
-        if (($row['showName'] ?? true) !== false && trim((string) ($row['displayName'] ?? '')) !== '') {
-            $html .= '<div class="signature-line">' . $this->escapeHtml((string) $row['displayName']) . '</div>';
-        }
-        if (($row['showPosition'] ?? false) === true && trim((string) ($row['position'] ?? '')) !== '') {
-            $html .= '<div class="signature-line">' . $this->escapeHtml((string) $row['position']) . '</div>';
-        }
-        if (($row['showEmail'] ?? false) === true && trim((string) ($row['email'] ?? '')) !== '') {
-            $html .= '<div class="signature-line">' . $this->escapeHtml((string) $row['email']) . '</div>';
-        }
-        if (($row['showSignature'] ?? true) !== false) {
-            $html .= '<div class="signature-box">' . $this->escapeHtml($this->signatureLabel($config)) . '</div>';
-        }
-        if (($row['showDateTime'] ?? true) !== false) {
-            $html .= '<div class="signature-date">Date &amp; Time: '
-                . $this->escapeHtml($this->signatureDateTime((string) ($row['signedAt'] ?? '')))
-                . '</div>';
-        }
-
-        return $html . '</td>';
-    }
-
-    private function signatureLabel(array $config): string
-    {
-        $language = in_array($config['labelLanguage'] ?? null, ['en', 'sc', 'tc'], true)
-            ? $config['labelLanguage']
-            : 'en';
-        $labels = [
-            'en' => ['confirmation' => 'Confirmation', 'signature' => 'Signature'],
-            'sc' => ['confirmation' => '确认', 'signature' => '签署'],
-            'tc' => ['confirmation' => '確認', 'signature' => '簽署'],
-        ][$language];
-        $mode = in_array($config['labelMode'] ?? null, ['confirmation_signature', 'confirmation', 'signature'], true)
-            ? $config['labelMode']
-            : 'confirmation_signature';
-        $parts = $mode === 'confirmation_signature'
-            ? [$labels['confirmation'], $labels['signature']]
-            : [$labels[$mode]];
-        if (count($parts) === 1) {
-            return $parts[0];
-        }
-
-        return ($config['labelSeparator'] ?? null) === 'slash'
-            ? implode(' / ', $parts)
-            : implode(' ', $parts);
-    }
-
-    private function signatureDateTime(string $value): string
-    {
-        $trimmed = trim($value);
-
-        return $trimmed === '' ? date('Y-m-d H:i:s') : $trimmed;
-    }
-
-    private function cellWidthStyle(array $column): string
-    {
-        $width = max(1, min(100, (float) ($column['widthPercent'] ?? 25)));
-
-        return ' style="width:' . $width . '%"';
-    }
-
-    private function headerBorderClass(int $index, int $total): string
-    {
-        if ($index === 0) {
-            return $total === 1 ? '' : 'header-left';
-        }
-
-        return $index === $total - 1 ? 'header-last' : 'header-middle';
-    }
-
-    private function columnClass(array $column): string
-    {
-        $classes = match ((string) ($column['align'] ?? 'left')) {
-            'right' => ['align-right'],
-            'center' => ['align-center'],
-            default => [],
-        };
-        if (($column['dataType'] ?? null) === 'money') {
-            $classes[] = 'nowrap';
-        }
-
-        return implode(' ', $classes);
+        (new BudgetPdfRenderer())->write($budget, $this->templateForBudget($budget), $path, $tempDir);
     }
 
     private function templateForBudget(array $budget): array
@@ -564,140 +130,29 @@ final readonly class BudgetExportService
         ];
     }
 
-    private function sectionsByKey(array $template): array
-    {
-        $sections = [];
-        foreach (($template['sections'] ?? []) as $section) {
-            if (isset($section['key']) && is_string($section['key'])) {
-                $sections[$section['key']] = $section;
-            }
-        }
-
-        return $sections;
-    }
-
-    private function renderTemplateText(string $templateText, array $budget): string
-    {
-        $start = $this->parseDate((string) $budget['startDate']);
-        $end = $this->parseDate((string) $budget['endDate']);
-        $replacements = [
-            '{{budget_title}}' => (string) $budget['title'],
-            '{{owner_name}}' => (string) $budget['ownerName'],
-            '{{period_start}}' => (string) $budget['startDate'],
-            '{{period_end}}' => (string) $budget['endDate'],
-            '{{period_start_title}}' => $start === null
-                ? (string) $budget['startDate']
-                : $this->titleDate($start),
-            '{{period_end_title}}' => $end === null
-                ? (string) $budget['endDate']
-                : $this->titleDate($end),
-            '{{year}}' => $start === null ? '' : $start->format('Y'),
-        ];
-
-        return str_replace(array_keys($replacements), array_values($replacements), $templateText);
-    }
-
-    private function renderTitleTemplateHtml(string $templateText, array $budget): string
-    {
-        $start = $this->parseDate((string) $budget['startDate']);
-        $end = $this->parseDate((string) $budget['endDate']);
-        $replacements = [
-            '{{budget_title}}' => $this->escapeHtml((string) $budget['title']),
-            '{{owner_name}}' => $this->escapeHtml((string) $budget['ownerName']),
-            '{{period_start}}' => $this->escapeHtml((string) $budget['startDate']),
-            '{{period_end}}' => $this->escapeHtml((string) $budget['endDate']),
-            '{{period_start_title}}' => $start === null
-                ? $this->escapeHtml((string) $budget['startDate'])
-                : $this->titleDateHtml($start),
-            '{{period_end_title}}' => $end === null
-                ? $this->escapeHtml((string) $budget['endDate'])
-                : $this->titleDateHtml($end),
-            '{{year}}' => $start === null ? '' : $start->format('Y'),
-        ];
-
-        return str_replace(
-            array_keys($replacements),
-            array_values($replacements),
-            $this->escapeHtml($templateText),
-        );
-    }
-
-    private function periodText(array $budget): string
-    {
-        $start = $this->parseDate((string) $budget['startDate']);
-        $end = $this->parseDate((string) $budget['endDate']);
-        if ($start === null && $end === null) {
-            return '';
-        }
-
-        return ($start === null ? (string) $budget['startDate'] : $this->periodDate($start))
-            . ' to '
-            . ($end === null ? (string) $budget['endDate'] : $this->periodDate($end));
-    }
-
-    private function titleDate(\DateTimeImmutable $date): string
-    {
-        $day = (int) $date->format('j');
-
-        return $day . $this->ordinalSuffix($day) . ' ' . $date->format('F');
-    }
-
-    private function titleDateHtml(\DateTimeImmutable $date): string
-    {
-        $day = (int) $date->format('j');
-
-        return $day . '<sup>' . $this->ordinalSuffix($day) . '</sup> ' . $this->escapeHtml($date->format('F'));
-    }
-
-    private function periodDate(\DateTimeImmutable $date): string
-    {
-        return $date->format('j F, Y');
-    }
-
-    private function ordinalSuffix(int $day): string
-    {
-        if ($day % 100 >= 11 && $day % 100 <= 13) {
-            return 'th';
-        }
-
-        return match ($day % 10) {
-            1 => 'st',
-            2 => 'nd',
-            3 => 'rd',
-            default => 'th',
-        };
-    }
-
-    private function parseDate(string $date): ?\DateTimeImmutable
-    {
-        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
-
-        return $parsed === false ? null : $parsed;
-    }
-
-    private function templateMoney(string $currency, float $amount, bool $trimWhole = false): string
-    {
-        if (abs($amount) < 0.005) {
-            return $currency . '0';
-        }
-
-        if ($trimWhole && abs($amount - round($amount)) < 0.005) {
-            return $currency . (string) (int) round($amount);
-        }
-
-        return $currency . number_format($amount, 2, '.', '');
-    }
-
     private function permissions(): PermissionGuard
     {
         return new PermissionGuard($this->pdo, $this->authenticator);
     }
 
-    private function fileName(array $budget, string $format): string
+    private function fileName(array $budget, string $format, int $version): string
     {
         $slug = preg_replace('/[^a-z0-9]+/i', '-', strtolower((string) $budget['title'])) ?: 'budget';
 
-        return trim($slug, '-') . '-' . date('Ymd-His') . '.' . $format;
+        return 'v' . $version . '-' . trim($slug, '-') . '-' . date('Ymd-His') . '.' . $format;
+    }
+
+    private function nextExportVersion(int $budgetId, BudgetExportRepository $repository): int
+    {
+        $maxVersion = 0;
+        foreach ($repository->listForBudget($budgetId) as $export) {
+            $fileName = (string) ($export['fileName'] ?? '');
+            if (preg_match('/^v(\d+)-/i', $fileName, $matches) === 1) {
+                $maxVersion = max($maxVersion, (int) $matches[1]);
+            }
+        }
+
+        return $maxVersion + 1;
     }
 
     private function storagePath(string $fileName): string
@@ -755,11 +210,6 @@ final readonly class BudgetExportService
             'pdf' => 'application/pdf',
             default => 'application/octet-stream',
         };
-    }
-
-    private function escapeHtml(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
 }

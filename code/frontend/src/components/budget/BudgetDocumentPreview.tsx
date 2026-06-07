@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import type { KeyboardEvent } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Button,
   Empty,
+  Input,
   InputNumber,
   Popconfirm,
   Segmented,
@@ -13,8 +15,17 @@ import {
   Typography,
 } from 'antd';
 import type { TableProps } from 'antd';
-import type { TextProps } from 'antd/es/typography/Text';
-import { CalendarRange, Download, FileText, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
+import {
+  CalendarRange,
+  Check,
+  Download,
+  FileText,
+  Pencil,
+  Plus,
+  Share2,
+  Trash2,
+  X,
+} from 'lucide-react';
 import type { BudgetEntryController } from '../../hooks/useBudgetEntryController';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import {
@@ -39,7 +50,7 @@ import {
   formatBudgetMoney,
 } from '../../utils/budgetTemplate';
 import { formatBudgetPeriod } from '../../utils/budgetPeriod';
-import { signatureLabelForConfig } from '../../utils/budgetSignature';
+import { signatureLabelForConfig, signatureRoleForDisplay } from '../../utils/budgetSignature';
 
 interface BudgetDocumentPreviewProps {
   selectedBudget: BudgetDetail | null;
@@ -232,6 +243,11 @@ export function BudgetDocumentPreview({
         <section className="budget-document-preview">
           <BudgetEditableHeader
             canEdit={canInlineEditHeader}
+            labels={{
+              cancel: t('cancel'),
+              edit: t('edit'),
+              save: t('save'),
+            }}
             ownerName={budgetSubtitle}
             saving={isBudgetSaving}
             title={budgetTitle}
@@ -308,7 +324,13 @@ export function BudgetDocumentPreview({
           <BudgetSignatureSection
             config={selectedBudget.signatureConfig}
             fallbackTitle={t('signatureSectionTitle')}
-            labels={{ dateTime: t('dateTime') }}
+            labels={{
+              capacity: t('capacity'),
+              dateTime: t('dateTime'),
+              email: t('email'),
+              participant: t('signatureParticipant'),
+              position: t('position'),
+            }}
           />
         </section>
       )}
@@ -318,61 +340,188 @@ export function BudgetDocumentPreview({
 
 function BudgetEditableHeader({
   canEdit,
+  labels,
   ownerName,
   saving,
   title,
   onSave,
 }: {
   canEdit: boolean;
+  labels: {
+    cancel: string;
+    edit: string;
+    save: string;
+  };
   ownerName: string;
   saving: boolean;
   title: string;
   onSave?: (values: { title?: string; ownerName?: string }) => Promise<void>;
 }) {
-  const editableTrigger: Array<'icon' | 'text'> = ['icon', 'text'];
-  const titleEditable =
-    canEdit && onSave !== undefined
-      ? {
-          autoSize: { maxRows: 2, minRows: 1 },
-          maxLength: 255,
-          text: title,
-          tooltip: false,
-          triggerType: editableTrigger,
-          onChange: (value: string) => {
-            void onSave({ title: value });
-          },
-        } satisfies TextProps['editable']
-      : false;
-  const ownerEditable =
-    canEdit && onSave !== undefined
-      ? {
-          autoSize: { maxRows: 2, minRows: 1 },
-          maxLength: 160,
-          text: ownerName,
-          tooltip: false,
-          triggerType: editableTrigger,
-          onChange: (value: string) => {
-            void onSave({ ownerName: value });
-          },
-        } satisfies TextProps['editable']
-      : false;
+  const [editingField, setEditingField] = useState<'title' | 'ownerName' | null>(null);
+  const [titleDraft, setTitleDraft] = useState(title);
+  const [ownerNameDraft, setOwnerNameDraft] = useState(ownerName);
+
+  const startEditing = (field: 'title' | 'ownerName') => {
+    if (!canEdit || saving) {
+      return;
+    }
+
+    if (field === 'title') {
+      setTitleDraft(title);
+    } else {
+      setOwnerNameDraft(ownerName);
+    }
+    setEditingField(field);
+  };
+  const cancelEditing = () => {
+    setTitleDraft(title);
+    setOwnerNameDraft(ownerName);
+    setEditingField(null);
+  };
+  const saveField = async (field: 'title' | 'ownerName') => {
+    if (onSave === undefined || saving) {
+      return;
+    }
+
+    const value = field === 'title' ? titleDraft : ownerNameDraft;
+    if (field === 'title' && value.trim() === '') {
+      return;
+    }
+
+    await onSave(field === 'title' ? { title: value } : { ownerName: value });
+    setEditingField(null);
+  };
+  const handleEditorKeyDown = (field: 'title' | 'ownerName') => (
+    event: KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelEditing();
+
+      return;
+    }
+    if (event.key !== 'Enter' || event.altKey || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    void saveField(field);
+  };
+  const renderEditActions = (field: 'title' | 'ownerName') => (
+    <Space size={2} className="budget-document-edit-actions">
+      <Tooltip title={labels.save}>
+        <Button
+          icon={<Check size={13} />}
+          loading={saving}
+          size="small"
+          type="text"
+          onClick={() => {
+            void saveField(field);
+          }}
+        />
+      </Tooltip>
+      <Tooltip title={labels.cancel}>
+        <Button
+          disabled={saving}
+          icon={<X size={13} />}
+          size="small"
+          type="text"
+          onClick={cancelEditing}
+        />
+      </Tooltip>
+    </Space>
+  );
 
   return (
     <div className="budget-document-heading" aria-busy={saving}>
-      <Typography.Title
-        className="budget-document-title"
-        editable={titleEditable}
-        level={1}
-      >
-        {title}
-      </Typography.Title>
+      {editingField === 'title' ? (
+        <div className="budget-document-editor-row budget-document-title-editor-row">
+          <Input.TextArea
+            autoFocus
+            autoSize={{ maxRows: 4, minRows: 1 }}
+            className="budget-document-title-editor"
+            maxLength={255}
+            value={titleDraft}
+            variant="borderless"
+            onChange={(event) => setTitleDraft(event.target.value)}
+            onKeyDown={handleEditorKeyDown('title')}
+          />
+          {renderEditActions('title')}
+        </div>
+      ) : (
+        <Typography.Title className="budget-document-title" level={1}>
+          <span
+            className="budget-document-text"
+            role={canEdit ? 'button' : undefined}
+            tabIndex={canEdit ? 0 : undefined}
+            onClick={() => startEditing('title')}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                startEditing('title');
+              }
+            }}
+          >
+            {title}
+          </span>
+          {canEdit ? (
+            <Tooltip title={labels.edit}>
+              <Button
+                icon={<Pencil size={13} />}
+                size="small"
+                type="text"
+                onClick={() => startEditing('title')}
+              />
+            </Tooltip>
+          ) : null}
+        </Typography.Title>
+      )}
       {ownerName || canEdit ? (
-        <Typography.Paragraph
-          className="budget-document-subtitle"
-          editable={ownerEditable}
-        >
-          {ownerName || ' '}
-        </Typography.Paragraph>
+        editingField === 'ownerName' ? (
+          <div className="budget-document-editor-row budget-document-subtitle-editor-row">
+            <Input.TextArea
+              autoFocus
+              autoSize={{ maxRows: 2, minRows: 1 }}
+              className="budget-document-subtitle-editor"
+              maxLength={160}
+              value={ownerNameDraft}
+              variant="borderless"
+              onChange={(event) => setOwnerNameDraft(event.target.value)}
+              onKeyDown={handleEditorKeyDown('ownerName')}
+            />
+            {renderEditActions('ownerName')}
+          </div>
+        ) : (
+          <Typography.Paragraph className="budget-document-subtitle">
+            <span
+              className="budget-document-text"
+              role={canEdit ? 'button' : undefined}
+              tabIndex={canEdit ? 0 : undefined}
+              onClick={() => startEditing('ownerName')}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  startEditing('ownerName');
+                }
+              }}
+            >
+              {ownerName || ' '}
+            </span>
+            {canEdit ? (
+              <Tooltip title={labels.edit}>
+                <Button
+                  icon={<Pencil size={13} />}
+                  size="small"
+                  type="text"
+                  onClick={() => startEditing('ownerName')}
+                />
+              </Tooltip>
+            ) : null}
+          </Typography.Paragraph>
+        )
       ) : null}
     </div>
   );
@@ -386,15 +535,27 @@ function BudgetSignatureSection({
   config: BudgetSignatureConfig;
   fallbackTitle: string;
   labels: {
+    capacity: string;
     dateTime: string;
+    email: string;
+    participant: string;
+    position: string;
   };
 }) {
   if (!config.enabled || config.rows.length === 0) {
     return null;
   }
 
+  const isSingleFullWidth = config.rows.length === 1 && config.sectionAlign !== 'right';
+
   return (
-    <div className={`budget-signature-section budget-signature-section-${config.sectionAlign}`}>
+    <div
+      className={[
+        'budget-signature-section',
+        `budget-signature-section-${config.sectionAlign}`,
+        isSingleFullWidth ? 'budget-signature-section-single' : '',
+      ].filter(Boolean).join(' ')}
+    >
       <div className="budget-signature-title">{config.title || fallbackTitle}</div>
       <div className="budget-signature-grid">
         {config.rows.map((row) => (
@@ -470,11 +631,14 @@ function InlineMoneyCell({
   value: number;
   onCommit: (value: number) => void;
 }) {
-  const [draftValue, setDraftValue] = useState<number | null>(value);
-
-  useEffect(() => {
-    setDraftValue(value);
-  }, [value]);
+  const [draftState, setDraftState] = useState<{ sourceValue: number; draftValue: number | null }>({
+    sourceValue: value,
+    draftValue: value,
+  });
+  const draftValue = draftState.sourceValue === value ? draftState.draftValue : value;
+  const setDraftValue = (nextValue: number | null) => {
+    setDraftState({ sourceValue: value, draftValue: nextValue });
+  };
 
   if (!editable) {
     return formatBudgetMoney(currency, value);
@@ -519,37 +683,56 @@ function BudgetSignatureCard({
 }: {
   config: BudgetSignatureConfig;
   labels: {
+    capacity: string;
     dateTime: string;
+    email: string;
+    participant: string;
+    position: string;
   };
   row: BudgetSignatureRow;
 }) {
   const signatureLabel = signatureLabelForConfig(config);
   const dateTimeText = row.signedAt ?? currentDateTimeText();
+  const metaRows = [
+    row.showName && row.displayName
+      ? { label: labels.participant, value: row.displayName }
+      : null,
+    row.showRole && row.roleLabel
+      ? { label: labels.capacity, value: signatureRoleForDisplay(config, row.roleLabel) }
+      : null,
+    row.showPosition && row.position
+      ? { label: labels.position, value: row.position }
+      : null,
+    row.showEmail && row.email
+      ? { label: labels.email, value: row.email }
+      : null,
+    row.showDateTime
+      ? { label: labels.dateTime, value: dateTimeText }
+      : null,
+  ].filter((item): item is { label: string; value: string } => item !== null);
 
   return (
     <div className="budget-signature-card">
-      {row.showRole && row.roleLabel ? (
-        <div className="budget-signature-role">{row.roleLabel}</div>
-      ) : null}
-      {row.showName && row.displayName ? (
-        <div className="budget-signature-line">{row.displayName}</div>
-      ) : null}
-      {row.showPosition && row.position ? (
-        <div className="budget-signature-line">{row.position}</div>
-      ) : null}
-      {row.showEmail && row.email ? (
-        <div className="budget-signature-line">{row.email}</div>
-      ) : null}
-      {row.showSignature ? (
-        <div className="budget-signature-box">
-          <span>{signatureLabel}</span>
-        </div>
-      ) : null}
-      {row.showDateTime ? (
-        <div className="budget-signature-date">
-          {labels.dateTime}: {dateTimeText}
-        </div>
-      ) : null}
+      <div className="budget-signature-info">
+        {metaRows.map((item) => (
+          <div className="budget-signature-meta" key={item.label}>
+            <span className="budget-signature-meta-label">{item.label}</span>
+            <span className="budget-signature-meta-value">{item.value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="budget-signature-sign">
+        {row.showSignature ? (
+          <div className="budget-signature-box">
+            <span className="budget-signature-security">BUDGETCENTRE CONFIRMATION CONTROL</span>
+            <span className="budget-signature-box-space">
+              <span className="budget-signature-watermark">CONFIRMATION</span>
+            </span>
+            <span className="budget-signature-rule" />
+            <span className="budget-signature-box-label">{signatureLabel}</span>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
