@@ -61,6 +61,8 @@ final class App
             ['POST', '/api/auth/login'] => $this->authLogin($request),
             ['POST', '/api/auth/logout'] => $this->authLogout($request),
             ['GET', '/api/auth/me'] => $this->authMe($request),
+            ['PATCH', '/api/auth/profile'] => $this->authProfileUpdate($request),
+            ['PATCH', '/api/auth/password'] => $this->authPasswordUpdate($request),
             ['GET', '/api/auth/email/verify'] => $this->authEmailVerify($request),
             ['POST', '/api/auth/email/resend'] => $this->authEmailResend($request),
             ['GET', '/api/workspaces'] => $this->workspaceList($request),
@@ -185,6 +187,24 @@ final class App
             fn (AuthService $auth): JsonResponse => JsonResponse::ok([
                 'session' => $auth->me($request),
             ]),
+        );
+    }
+
+    private function authProfileUpdate(Request $request): JsonResponse
+    {
+        return $this->authResponse(
+            fn (AuthService $auth): JsonResponse => JsonResponse::ok(
+                $auth->updateProfile($request->json(), $request),
+            ),
+        );
+    }
+
+    private function authPasswordUpdate(Request $request): JsonResponse
+    {
+        return $this->authResponse(
+            fn (AuthService $auth): JsonResponse => JsonResponse::ok(
+                $auth->updatePassword($request->json(), $request),
+            ),
         );
     }
 

@@ -61,7 +61,9 @@
   .project-overview-grid,
   .project-card-grid,
   .project-list-grid,
-  .project-money-row {
+  .project-money-row,
+  .profile-form-grid,
+  .profile-security-grid {
     grid-template-columns: 1fr;
   }
 

@@ -410,6 +410,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     id?: number;
     principalType?: BudgetSharePrincipalType;
     principalId?: number;
+    principalIdentifier?: string;
     role: BudgetShareRole;
     canExport: boolean;
     canReshare: boolean;
@@ -430,7 +431,8 @@ export function useOperationsController(options: UseOperationsControllerOptions)
           ? await createBudgetShare({
               budgetId: selectedBudget.id,
               principalType: input.principalType ?? 'user',
-              principalId: input.principalId ?? 0,
+              principalId: input.principalId,
+              principalIdentifier: input.principalIdentifier,
               role: input.role,
               canExport: input.canExport,
               canReshare: input.canReshare,

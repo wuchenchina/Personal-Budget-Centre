@@ -24,15 +24,10 @@ export interface WorkspaceMemberFormValues {
   role: WorkspaceRole;
 }
 
-export interface WorkgroupFormValues {
-  name: string;
-  description?: string;
-}
-
 export interface BudgetFormValues {
   title: string;
-  ownerName: string;
-  dateRange: [Dayjs, Dayjs];
+  ownerName?: string;
+  dateRange?: [Dayjs, Dayjs] | null;
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
   visibility: Visibility;
@@ -44,11 +39,12 @@ export interface BudgetItemFormValues {
   categoryId?: number;
   label: string;
   budgetCurrency: CurrencyCode;
-  budgetAmount: number;
+  budgetAmount?: number;
   budgetRate?: number;
   estimatedCurrency: CurrencyCode;
-  estimatedAmount: number;
+  estimatedAmount?: number;
   estimatedRate?: number;
+  bankFee?: number;
   sortOrder?: number;
 }
 
@@ -61,4 +57,15 @@ export interface TransactionFormValues {
   rate?: number;
   remark?: string;
   sortOrder?: number;
+}
+
+export interface ProfileFormValues {
+  displayName: string;
+  email: string;
+}
+
+export interface PasswordFormValues {
+  currentPassword: string;
+  password: string;
+  confirmPassword: string;
 }

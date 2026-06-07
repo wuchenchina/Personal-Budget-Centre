@@ -258,6 +258,86 @@ final readonly class AuthService
         ];
     }
 
+    public function updateProfile(array $input, Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $userId = (int) $session['user_id'];
+        $email = Input::normalizedEmail($input['email'] ?? null);
+        $displayName = Input::string($input['displayName'] ?? $input['display_name'] ?? null);
+
+        if ($email === null) {
+            throw new AuthException('VALIDATION_ERROR', 'A valid email is required.', 422);
+        }
+
+        if ($displayName === null || strlen($displayName) > 120) {
+            throw new AuthException(
+                'VALIDATION_ERROR',
+                'Display name is required and must be 120 characters or less.',
+                422,
+            );
+        }
+
+        $users = new UserRepository($this->pdo);
+        $currentUser = $users->findWithPasswordById($userId)
+            ?? throw new AuthException('USER_NOT_FOUND', 'User was not found.', 404);
+        $existingUser = $users->findByEmail($email);
+        if ($existingUser !== null && (int) $existingUser['id'] !== $userId) {
+            throw new AuthException('EMAIL_ALREADY_EXISTS', 'Email is already registered.', 409);
+        }
+
+        $emailChanged = strtolower((string) $currentUser['email']) !== $email;
+        $verificationToken = null;
+
+        $this->pdo->beginTransaction();
+        try {
+            $users->updateProfile($userId, $email, $displayName, $emailChanged);
+            if ($emailChanged) {
+                $verificationToken = $this->createEmailVerificationToken($userId);
+            }
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+
+        if ($verificationToken !== null) {
+            $this->sendVerificationEmail($email, $displayName, $verificationToken);
+        }
+
+        return [
+            'session' => $this->me($request),
+            'emailVerificationSent' => $emailChanged,
+        ];
+    }
+
+    public function updatePassword(array $input, Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $currentPassword = Input::string($input['currentPassword'] ?? $input['current_password'] ?? null);
+        $newPassword = Input::string($input['password'] ?? $input['newPassword'] ?? $input['new_password'] ?? null);
+
+        if ($currentPassword === null || $newPassword === null) {
+            throw new AuthException('VALIDATION_ERROR', 'Current password and new password are required.', 422);
+        }
+
+        if (strlen($newPassword) < 10) {
+            throw new AuthException('VALIDATION_ERROR', 'Password must be at least 10 characters.', 422);
+        }
+
+        $users = new UserRepository($this->pdo);
+        $user = $users->findWithPasswordById((int) $session['user_id'])
+            ?? throw new AuthException('USER_NOT_FOUND', 'User was not found.', 404);
+        if (!is_string($user['password_hash']) || !password_verify($currentPassword, $user['password_hash'])) {
+            throw new AuthException('INVALID_CREDENTIALS', 'Current password is incorrect.', 401);
+        }
+
+        $users->updatePasswordHash((int) $session['user_id'], password_hash($newPassword, PASSWORD_DEFAULT));
+
+        return [
+            'changed' => true,
+        ];
+    }
+
     private function createSession(int $userId, Request $request, ?int $currentWorkspaceId = null): array
     {
         $token = $this->sessionManager->newToken();

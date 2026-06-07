@@ -2,6 +2,7 @@ import { Button, Empty, Space, Tag } from 'antd';
 import { ArrowRight, BriefcaseBusiness, CalendarRange, Plus } from 'lucide-react';
 import { budgetStatusLabels } from '../../config/appConfig';
 import type { BudgetDetail, BudgetStatus, BudgetSummary, CurrencyCode } from '../../types/budget';
+import { formatBudgetPeriod } from '../../utils/budgetPeriod';
 import { formatMoney } from '../../utils/currency';
 
 interface BudgetProjectDashboardProps {
@@ -51,6 +52,7 @@ export function BudgetProjectDashboard({
     { budget: 0, estimated: 0, variance: 0, transactions: 0 },
   );
   const recentProjects = budgets.slice(0, 4);
+  const activeProjectPeriod = activeProject ? formatBudgetPeriod(activeProject) : null;
 
   return (
     <div className="project-dashboard">
@@ -102,12 +104,12 @@ export function BudgetProjectDashboard({
             <Empty description="还没有预算项目" />
           ) : (
             <>
-              <div className="project-period">
-                <CalendarRange size={16} />
-                <span>
-                  {activeProject.startDate} 至 {activeProject.endDate}
-                </span>
-              </div>
+              {activeProjectPeriod ? (
+                <div className="project-period">
+                  <CalendarRange size={16} />
+                  <span>{activeProjectPeriod}</span>
+                </div>
+              ) : null}
               <div className="project-money-row">
                 <MetricMini
                   label="预算"
@@ -177,25 +179,27 @@ export function BudgetProjectDashboard({
           <Empty description="暂无预算项目" />
         ) : (
           <div className="project-card-grid">
-            {recentProjects.map((project) => (
-              <button
-                className="project-card"
-                key={project.id}
-                type="button"
-                onClick={() => onOpenProject(project.id)}
-              >
-                <span>{project.title}</span>
-                <small>
-                  {project.startDate} 至 {project.endDate}
-                </small>
-                <strong>
-                  {formatMoney({
-                    currency: project.baseCurrency,
-                    amount: project.totals.totalVarianceBase,
-                  })}
-                </strong>
-              </button>
-            ))}
+            {recentProjects.map((project) => {
+              const projectPeriod = formatBudgetPeriod(project);
+
+              return (
+                <button
+                  className="project-card"
+                  key={project.id}
+                  type="button"
+                  onClick={() => onOpenProject(project.id)}
+                >
+                  <span>{project.title}</span>
+                  {projectPeriod ? <small>{projectPeriod}</small> : null}
+                  <strong>
+                    {formatMoney({
+                      currency: project.baseCurrency,
+                      amount: project.totals.totalVarianceBase,
+                    })}
+                  </strong>
+                </button>
+              );
+            })}
           </div>
         )}
       </section>

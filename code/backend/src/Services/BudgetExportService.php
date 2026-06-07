@@ -164,14 +164,11 @@ final readonly class BudgetExportService
 
     private function pdfHtml(array $budget, array $template): string
     {
-        $title = $this->renderTitleTemplateHtml(
-            (string) ($template['titleTemplate'] ?? 'Personal Budget of {{period_start_title}} to {{period_end_title}}'),
-            $budget,
-        );
-        $subtitle = $this->renderTemplateText(
-            (string) ($template['subtitleTemplate'] ?? '({{year}} {{owner_name}})'),
-            $budget,
-        );
+        $title = $this->escapeHtml((string) $budget['title']);
+        $subtitle = trim((string) $budget['ownerName']);
+        $subtitleHtml = $subtitle === ''
+            ? ''
+            : '<div class="subtitle">' . $this->escapeHtml($subtitle) . '</div>';
         $periodText = $this->periodText($budget);
         $sections = $this->sectionsByKey($template);
         $budgetSection = $sections['budget_highlights'] ?? [
@@ -242,7 +239,7 @@ final readonly class BudgetExportService
             . '.empty{text-align:center;color:#595959;}'
             . '</style></head><body>'
             . '<div class="title">' . $title . '</div>'
-            . '<div class="subtitle">' . $this->escapeHtml($subtitle) . '</div>'
+            . $subtitleHtml
             . $this->templateTable($budgetSection, $periodText, $items, $summaryRow, 'No budget items')
             . $this->templateTable($transactionSection, $periodText, $transactions, null, 'No transactions')
             . '</body></html>';
@@ -258,11 +255,14 @@ final readonly class BudgetExportService
         $columns = $section['columns'] ?? [];
         $colspan = max(1, count($columns));
         $colgroup = $this->colgroupHtml($columns);
+        $dateLine = $periodText === ''
+            ? ''
+            : '<div class="date-line">Date: ' . $this->escapeHtml($periodText) . '</div>';
         $html = '<div class="template-section">'
             . '<table class="template-table section-band"><tbody><tr><td>'
             . $this->escapeHtml((string) ($section['title'] ?? ''))
             . '</td></tr></tbody></table>'
-            . '<div class="date-line">Date: ' . $this->escapeHtml($periodText) . '</div>'
+            . $dateLine
             . '<table class="template-table column-table">' . $colgroup . '<tbody><tr>';
 
         foreach ($columns as $index => $column) {
@@ -357,8 +357,8 @@ final readonly class BudgetExportService
             : null;
 
         return $template ?? [
-            'titleTemplate' => 'Personal Budget of {{period_start_title}} to {{period_end_title}}',
-            'subtitleTemplate' => '({{year}} {{owner_name}})',
+            'titleTemplate' => '{{budget_title}}',
+            'subtitleTemplate' => '{{owner_name}}',
             'sections' => [],
         ];
     }
@@ -380,6 +380,7 @@ final readonly class BudgetExportService
         $start = $this->parseDate((string) $budget['startDate']);
         $end = $this->parseDate((string) $budget['endDate']);
         $replacements = [
+            '{{budget_title}}' => (string) $budget['title'],
             '{{owner_name}}' => (string) $budget['ownerName'],
             '{{period_start}}' => (string) $budget['startDate'],
             '{{period_end}}' => (string) $budget['endDate'],
@@ -400,6 +401,7 @@ final readonly class BudgetExportService
         $start = $this->parseDate((string) $budget['startDate']);
         $end = $this->parseDate((string) $budget['endDate']);
         $replacements = [
+            '{{budget_title}}' => $this->escapeHtml((string) $budget['title']),
             '{{owner_name}}' => $this->escapeHtml((string) $budget['ownerName']),
             '{{period_start}}' => $this->escapeHtml((string) $budget['startDate']),
             '{{period_end}}' => $this->escapeHtml((string) $budget['endDate']),
@@ -423,6 +425,9 @@ final readonly class BudgetExportService
     {
         $start = $this->parseDate((string) $budget['startDate']);
         $end = $this->parseDate((string) $budget['endDate']);
+        if ($start === null && $end === null) {
+            return '';
+        }
 
         return ($start === null ? (string) $budget['startDate'] : $this->periodDate($start))
             . ' to '

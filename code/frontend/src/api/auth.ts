@@ -1,4 +1,4 @@
-import { apiGet, apiPost, clearCsrfToken } from './http';
+import { apiGet, apiPatch, apiPost, clearCsrfToken } from './http';
 import type { AuthSession, LoginPayload, RegisterPayload, RegisterResult } from '../types/auth';
 
 interface CurrentSessionResult {
@@ -10,6 +10,21 @@ export interface EmailVerificationResult {
   alreadyVerified: boolean;
   email: string;
   username: string | null;
+}
+
+export interface UpdateProfilePayload {
+  displayName: string;
+  email: string;
+}
+
+export interface UpdateProfileResult {
+  session: AuthSession;
+  emailVerificationSent: boolean;
+}
+
+export interface UpdatePasswordPayload {
+  currentPassword: string;
+  password: string;
 }
 
 export function getCurrentSession(): Promise<AuthSession | null> {
@@ -32,6 +47,14 @@ export function verifyEmailToken(token: string): Promise<EmailVerificationResult
   return apiGet<EmailVerificationResult>(
     `/api/auth/email/verify?token=${encodeURIComponent(token)}`,
   );
+}
+
+export function updateProfile(payload: UpdateProfilePayload): Promise<UpdateProfileResult> {
+  return apiPatch<UpdateProfileResult>('/api/auth/profile', payload);
+}
+
+export function updatePassword(payload: UpdatePasswordPayload): Promise<{ changed: true }> {
+  return apiPatch<{ changed: true }>('/api/auth/password', payload);
 }
 
 export function logout(): Promise<Record<string, never>> {

@@ -155,6 +155,25 @@ final readonly class BudgetEntryRepository
         return $this->budgetIdForTable('budget_transactions', $id);
     }
 
+    public function transactionTotalBaseForCategory(int $budgetId, ?int $categoryId): float
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COALESCE(SUM(amount_base), 0)
+            FROM budget_transactions
+            WHERE budget_id = :budget_id
+              AND category_id <=> :category_id
+            SQL
+        );
+        $statement->execute([
+            'budget_id' => $budgetId,
+            'category_id' => $categoryId,
+        ]);
+        $amount = $statement->fetchColumn();
+
+        return $amount === false ? 0.0 : (float) $amount;
+    }
+
     private function budgetIdForTable(string $table, int $id): ?int
     {
         $statement = $this->pdo->prepare(

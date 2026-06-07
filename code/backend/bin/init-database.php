@@ -17,6 +17,7 @@ $defaultSqlFiles = [
     $codeRoot . '/database/004_views.sql',
     $codeRoot . '/database/005_auth_email_verification.sql',
     $codeRoot . '/database/006_admin_users.sql',
+    $codeRoot . '/database/007_optional_budget_period.sql',
 ];
 $options = options($argv);
 

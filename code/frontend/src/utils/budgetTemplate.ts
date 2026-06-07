@@ -85,15 +85,16 @@ export function toCurrencyCode(value: string | undefined): CurrencyCode {
 }
 
 export function renderBudgetTemplateText(templateText: string, budget: BudgetDetail): string {
-  const start = dayjs(budget.startDate);
-  const end = dayjs(budget.endDate);
+  const start = budget.startDate === null ? null : dayjs(budget.startDate);
+  const end = budget.endDate === null ? null : dayjs(budget.endDate);
   const replacements: Record<string, string> = {
+    '{{budget_title}}': budget.title,
     '{{owner_name}}': budget.ownerName,
-    '{{period_start}}': budget.startDate,
-    '{{period_end}}': budget.endDate,
-    '{{period_start_title}}': start.isValid() ? start.format('MMMM D, YYYY') : budget.startDate,
-    '{{period_end_title}}': end.isValid() ? end.format('MMMM D, YYYY') : budget.endDate,
-    '{{year}}': start.isValid() ? start.format('YYYY') : '',
+    '{{period_start}}': budget.startDate ?? '',
+    '{{period_end}}': budget.endDate ?? '',
+    '{{period_start_title}}': start?.isValid() ? start.format('MMMM D, YYYY') : budget.startDate ?? '',
+    '{{period_end_title}}': end?.isValid() ? end.format('MMMM D, YYYY') : budget.endDate ?? '',
+    '{{year}}': start?.isValid() ? start.format('YYYY') : '',
   };
 
   return Object.entries(replacements).reduce(

@@ -142,12 +142,9 @@ final readonly class BudgetEntryService
             throw new AuthException('VALIDATION_ERROR', 'Item label is required and must be 180 characters or less.', 422);
         }
 
-        if ($budgetAmount === null || $estimatedAmount === null) {
-            throw new AuthException('VALIDATION_ERROR', 'Budget and estimated amounts are required.', 422);
-        }
-
         $budgetCurrencyId = $this->currencyId($input['budgetCurrency'] ?? $input['budget_currency'] ?? null);
         $estimatedCurrencyId = $this->currencyId($input['estimatedCurrency'] ?? $input['estimated_currency'] ?? null);
+        $categoryId = $this->budgetItemCategoryId($workspaceId, $userId, $input, $label);
         $rateDate = Input::date($input['rateDate'] ?? $input['rate_date'] ?? null);
         $budgetRate = $this->rateToBase(
             $workspaceId,
@@ -163,12 +160,27 @@ final readonly class BudgetEntryService
             $rateDate,
             $this->rateInput($input, ['estimatedRate', 'estimated_rate'], 'Estimated rate'),
         );
-        $budgetBase = $budgetAmount * $budgetRate;
-        $estimatedBase = $estimatedAmount * $estimatedRate;
+
+        if ($budgetAmount === null) {
+            $transactionTotalBase = (new BudgetEntryRepository($this->pdo))
+                ->transactionTotalBaseForCategory($budgetId, $categoryId);
+            $budgetBase = $transactionTotalBase;
+            $estimatedBase = $transactionTotalBase;
+            $budgetAmount = $this->originalAmountFromBase($budgetBase, $budgetRate);
+            $estimatedAmount = $this->originalAmountFromBase($estimatedBase, $estimatedRate);
+        } else {
+            $budgetBase = $budgetAmount * $budgetRate;
+            if ($estimatedAmount === null) {
+                $estimatedBase = $budgetBase;
+                $estimatedAmount = $this->originalAmountFromBase($estimatedBase, $estimatedRate);
+            } else {
+                $estimatedBase = $estimatedAmount * $estimatedRate;
+            }
+        }
 
         return [
             'budget_id' => $budgetId,
-            'category_id' => $this->budgetItemCategoryId($workspaceId, $userId, $input, $label),
+            'category_id' => $categoryId,
             'label' => $label,
             'budget_currency_id' => $budgetCurrencyId,
             'budget_amount_original' => $budgetAmount,
@@ -333,6 +345,15 @@ final readonly class BudgetEntryService
         }
 
         return null;
+    }
+
+    private function originalAmountFromBase(float $amountBase, float $rateToBase): float
+    {
+        if ($rateToBase <= 0.0) {
+            return 0.0;
+        }
+
+        return $amountBase / $rateToBase;
     }
 
     private function number(mixed $value): ?float

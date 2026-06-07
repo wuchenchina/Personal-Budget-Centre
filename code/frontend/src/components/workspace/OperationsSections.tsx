@@ -1,11 +1,9 @@
 import { Alert } from 'antd';
-import type { Workgroup } from '../../api/workgroups';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import type { WorkspaceMember } from '../../types/auth';
 import type { BudgetDetail } from '../../types/budget';
 import { CategorySideSection } from './CategorySideSection';
 import { ExchangeRateSideSection } from './ExchangeRateSideSection';
-import { PasskeySideSection } from './PasskeySideSection';
 import { ShareSideSection } from './ShareSideSection';
 
 interface OperationsSectionsProps {
@@ -14,7 +12,6 @@ interface OperationsSectionsProps {
   selectedBudget: BudgetDetail | null;
   activeWorkspaceId: number | null;
   workspaceMembers: WorkspaceMember[];
-  workgroups: Workgroup[];
   canWriteBudgets: boolean;
   canManageBudgetShares: boolean;
 }
@@ -25,13 +22,11 @@ export function OperationsSections({
   selectedBudget,
   activeWorkspaceId,
   workspaceMembers,
-  workgroups,
   canWriteBudgets,
   canManageBudgetShares,
 }: OperationsSectionsProps) {
   const showCategories = activeKey === 'categories';
   const showRates = activeKey === 'rates';
-  const showSecurity = activeKey === 'security';
   const showSharing = activeKey === 'sharing';
 
   return (
@@ -47,7 +42,6 @@ export function OperationsSections({
           selectedBudget={selectedBudget}
           activeWorkspaceId={activeWorkspaceId}
           workspaceMembers={workspaceMembers}
-          workgroups={workgroups}
           canManageBudgetShares={canManageBudgetShares}
         />
       ) : null}
@@ -60,7 +54,6 @@ export function OperationsSections({
           operations={operations}
         />
       ) : null}
-      {showSecurity ? <PasskeySideSection operations={operations} /> : null}
     </>
   );
 }

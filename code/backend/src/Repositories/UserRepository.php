@@ -96,6 +96,32 @@ final readonly class UserRepository
         return $row === false ? null : $row;
     }
 
+    public function findWithPasswordById(int $id): ?array
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT
+              id,
+              email,
+              username,
+              password_hash,
+              display_name,
+              timezone,
+              locale,
+              status,
+              is_admin,
+              email_verified_at
+            FROM users
+            WHERE id = :id
+            LIMIT 1
+            SQL
+        );
+        $statement->execute(['id' => $id]);
+        $row = $statement->fetch();
+
+        return $row === false ? null : $row;
+    }
+
     public function create(
         string $email,
         string $username,
@@ -153,6 +179,46 @@ final readonly class UserRepository
             SQL
         );
         $statement->execute(['id' => $userId]);
+    }
+
+    public function updateProfile(
+        int $userId,
+        string $email,
+        string $displayName,
+        bool $emailChanged,
+    ): void {
+        $emailVerifiedSql = $emailChanged ? 'email_verified_at = NULL,' : '';
+        $statement = $this->pdo->prepare(
+            <<<SQL
+            UPDATE users
+            SET email = :email,
+                display_name = :display_name,
+                {$emailVerifiedSql}
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id
+            SQL
+        );
+        $statement->execute([
+            'email' => $email,
+            'display_name' => $displayName,
+            'id' => $userId,
+        ]);
+    }
+
+    public function updatePasswordHash(int $userId, string $passwordHash): void
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            UPDATE users
+            SET password_hash = :password_hash,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id
+            SQL
+        );
+        $statement->execute([
+            'password_hash' => $passwordHash,
+            'id' => $userId,
+        ]);
     }
 
     public function findAdminMailTargetById(int $id): ?array

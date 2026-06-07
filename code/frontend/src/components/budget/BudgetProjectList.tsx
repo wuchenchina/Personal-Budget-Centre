@@ -3,6 +3,7 @@ import { Button, Empty, Input, Segmented, Space, Tag } from 'antd';
 import { CalendarRange, ExternalLink, Pencil, Plus, Search } from 'lucide-react';
 import { budgetStatusLabels } from '../../config/appConfig';
 import type { BudgetStatus, BudgetSummary } from '../../types/budget';
+import { formatBudgetPeriod } from '../../utils/budgetPeriod';
 import { formatMoney } from '../../utils/currency';
 
 type ProjectFilter = 'all' | BudgetStatus;
@@ -66,7 +67,7 @@ export function BudgetProjectList({
         <div>
           <Tag color="blue">Project Library</Tag>
           <h1>预算项目库</h1>
-          <p>预算项目独立存在；需要协作时，再通过共享规则关联到工作区、工作组或用户。</p>
+          <p>预算项目独立存在；需要协作时，再通过共享规则关联到工作区或用户。</p>
         </div>
         {canWriteBudgets ? (
           <Button type="primary" icon={<Plus size={16} />} onClick={onNewProject}>
@@ -101,73 +102,79 @@ export function BudgetProjectList({
         </div>
       ) : (
         <div className="project-list-grid">
-          {filteredBudgets.map((budget) => (
-            <article
-              className={
-                budget.id === selectedBudgetId
-                  ? 'project-list-card project-list-card-active'
-                  : 'project-list-card'
-              }
-              key={budget.id}
-            >
-              <div className="project-list-card-main">
-                <div>
-                  <Tag color={statusColors[budget.status]}>{budgetStatusLabels[budget.status]}</Tag>
-                  <h2>{budget.title}</h2>
-                  <p>{budget.ownerName}</p>
-                </div>
-                <div className="project-period">
-                  <CalendarRange size={15} />
-                  <span>
-                    {budget.startDate} 至 {budget.endDate}
-                  </span>
-                </div>
-              </div>
+          {filteredBudgets.map((budget) => {
+            const budgetPeriod = formatBudgetPeriod(budget);
 
-              <div className="project-money-row">
-                <ProjectAmount
-                  label="预算"
-                  value={formatMoney({
-                    currency: budget.baseCurrency,
-                    amount: budget.totals.totalBudgetBase,
-                  })}
-                />
-                <ProjectAmount
-                  label="预估实际"
-                  value={formatMoney({
-                    currency: budget.baseCurrency,
-                    amount: budget.totals.totalEstimatedBase,
-                  })}
-                />
-                <ProjectAmount
-                  label="差异"
-                  value={formatMoney({
-                    currency: budget.baseCurrency,
-                    amount: budget.totals.totalVarianceBase,
-                  })}
-                />
-              </div>
+            return (
+              <article
+                className={
+                  budget.id === selectedBudgetId
+                    ? 'project-list-card project-list-card-active'
+                    : 'project-list-card'
+                }
+                key={budget.id}
+              >
+                <div className="project-list-card-main">
+                  <div>
+                    <Tag color={statusColors[budget.status]}>
+                      {budgetStatusLabels[budget.status]}
+                    </Tag>
+                    <h2>{budget.title}</h2>
+                    <p>{budget.ownerName}</p>
+                  </div>
+                  {budgetPeriod ? (
+                    <div className="project-period">
+                      <CalendarRange size={15} />
+                      <span>{budgetPeriod}</span>
+                    </div>
+                  ) : null}
+                </div>
 
-              <Space wrap>
-                <Button
-                  type="primary"
-                  icon={<ExternalLink size={15} />}
-                  onClick={() => onOpenProject(budget.id)}
-                >
-                  新标签页编辑
-                </Button>
-                <Button onClick={() => onSelectProject(budget.id)}>设为当前</Button>
-                {canWriteBudgets ? (
+                <div className="project-money-row">
+                  <ProjectAmount
+                    label="预算"
+                    value={formatMoney({
+                      currency: budget.baseCurrency,
+                      amount: budget.totals.totalBudgetBase,
+                    })}
+                  />
+                  <ProjectAmount
+                    label="预估实际"
+                    value={formatMoney({
+                      currency: budget.baseCurrency,
+                      amount: budget.totals.totalEstimatedBase,
+                    })}
+                  />
+                  <ProjectAmount
+                    label="差异"
+                    value={formatMoney({
+                      currency: budget.baseCurrency,
+                      amount: budget.totals.totalVarianceBase,
+                    })}
+                  />
+                </div>
+
+                <Space wrap>
                   <Button
-                    icon={<Pencil size={15} />}
-                    onClick={() => onEditProjectInfo(budget)}
+                    type="primary"
+                    icon={<ExternalLink size={15} />}
+                    onClick={() => onOpenProject(budget.id)}
                   >
-                    项目信息
+                    新标签页编辑
                   </Button>
-                ) : null}
-              </Space>
-            </article>
-          ))}
+                  <Button onClick={() => onSelectProject(budget.id)}>设为当前</Button>
+                  {canWriteBudgets ? (
+                    <Button
+                      icon={<Pencil size={15} />}
+                      onClick={() => onEditProjectInfo(budget)}
+                    >
+                      项目信息
+                    </Button>
+                  ) : null}
+                </Space>
+              </article>
+            );
+          })}
         </div>
       )}
     </div>

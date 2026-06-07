@@ -27,8 +27,8 @@ VALUES (
     'columnHeaderBg', '#D7D7D7'
   ),
   JSON_OBJECT(
-    'titleTemplate', 'Personal Budget of {{period_start_title}} to {{period_end_title}}',
-    'subtitleTemplate', '({{year}} {{owner_name}})',
+    'titleTemplate', '{{budget_title}}',
+    'subtitleTemplate', '{{owner_name}}',
     'sections', JSON_ARRAY(
       JSON_OBJECT(
         'key', 'budget_highlights',

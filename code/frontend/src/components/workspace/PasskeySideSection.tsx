@@ -4,7 +4,15 @@ import { Check, KeyRound, Pencil, ShieldCheck, Trash2, X } from 'lucide-react';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import type { PasskeyCredential } from '../../types/auth';
 
-export function PasskeySideSection({ operations }: { operations: OperationsController }) {
+interface PasskeySideSectionProps {
+  operations: OperationsController;
+  compactTitle?: boolean;
+}
+
+export function PasskeySideSection({
+  operations,
+  compactTitle = false,
+}: PasskeySideSectionProps) {
   const [deviceName, setDeviceName] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -35,12 +43,14 @@ export function PasskeySideSection({ operations }: { operations: OperationsContr
 
   return (
     <div className="side-section">
-      <div className="side-title side-title-row">
-        <span className="side-title-label">
-          <KeyRound size={16} />
-          <span>通行密钥</span>
-        </span>
-      </div>
+      {compactTitle ? null : (
+        <div className="side-title side-title-row">
+          <span className="side-title-label">
+            <KeyRound size={16} />
+            <span>通行密钥</span>
+          </span>
+        </div>
+      )}
       <div className="passkey-register-row">
         <Input
           allowClear

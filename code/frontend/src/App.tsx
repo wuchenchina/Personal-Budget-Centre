@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ConfigProvider } from 'antd';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { AuthLoadingScreen } from './components/auth/AuthLoadingScreen';
@@ -12,8 +12,8 @@ import { BudgetProjectDashboard } from './components/budget/BudgetProjectDashboa
 import { BudgetProjectList } from './components/budget/BudgetProjectList';
 import { TransactionModal } from './components/budget/TransactionModal';
 import { AppShell } from './components/layout/AppShell';
+import { ProfilePage } from './components/profile/ProfilePage';
 import { GovernancePanel } from './components/workspace/GovernancePanel';
-import { WorkgroupModal } from './components/workspace/WorkgroupModal';
 import { WorkspaceCreateModal } from './components/workspace/WorkspaceCreateModal';
 import { WorkspaceMemberModal } from './components/workspace/WorkspaceMemberModal';
 import { appTheme } from './config/appConfig';
@@ -23,12 +23,25 @@ import { useBudgetController } from './hooks/useBudgetController';
 import { useBudgetEntryController } from './hooks/useBudgetEntryController';
 import { useOperationsController } from './hooks/useOperationsController';
 import { useTemplateController } from './hooks/useTemplateController';
-import { useWorkgroupController } from './hooks/useWorkgroupController';
 import { useWorkspaceController } from './hooks/useWorkspaceController';
 import './App.css';
 
-function budgetProjectIdFromHash(hash: string): number | null {
-  const match = hash.match(/^#\/budgets\/(\d+)$/);
+interface AppRoute {
+  activeKey: string;
+  budgetId: number | null;
+}
+
+const navigationPaths: Record<string, string> = {
+  dashboard: '/',
+  budgets: '/budgets',
+  categories: '/categories',
+  rates: '/rates',
+  profile: '/profile',
+  admin: '/admin',
+};
+
+function budgetProjectIdFromPath(pathname: string): number | null {
+  const match = pathname.match(/^\/budgets\/(\d+)\/?$/);
   if (match === null) {
     return null;
   }
@@ -38,13 +51,66 @@ function budgetProjectIdFromHash(hash: string): number | null {
   return Number.isInteger(budgetId) && budgetId > 0 ? budgetId : null;
 }
 
+function routeFromPath(pathname: string): AppRoute {
+  const budgetId = budgetProjectIdFromPath(pathname);
+  if (budgetId !== null) {
+    return { activeKey: 'budget-editor', budgetId };
+  }
+
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  const matchedEntry = Object.entries(navigationPaths).find(([, path]) => path === normalizedPath);
+
+  return {
+    activeKey: matchedEntry?.[0] ?? 'dashboard',
+    budgetId: null,
+  };
+}
+
+function initialRouteFromLocation(): AppRoute {
+  const legacyBudgetId = window.location.hash.match(/^#\/budgets\/(\d+)$/)?.[1];
+  if (legacyBudgetId !== undefined) {
+    const nextPath = `/budgets/${legacyBudgetId}`;
+    window.history.replaceState(null, '', nextPath);
+
+    return { activeKey: 'budget-editor', budgetId: Number(legacyBudgetId) };
+  }
+
+  return routeFromPath(window.location.pathname);
+}
+
 function App() {
-  const initialBudgetProjectId = budgetProjectIdFromHash(window.location.hash);
-  const [activeKey, setActiveKey] = useState(
-    initialBudgetProjectId === null ? 'dashboard' : 'budget-editor',
-  );
+  const [route, setRoute] = useState(initialRouteFromLocation);
+  const activeKey = route.activeKey;
+  const initialBudgetProjectId = route.budgetId;
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setRoute(routeFromPath(window.location.pathname));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const navigateToPath = (path: string, replace = false) => {
+    if (window.location.pathname === path && window.location.hash === '') {
+      setRoute(routeFromPath(path));
+
+      return;
+    }
+
+    if (replace) {
+      window.history.replaceState(null, '', path);
+    } else {
+      window.history.pushState(null, '', path);
+    }
+    setRoute(routeFromPath(path));
+  };
   const auth = useAuthController({
-    onLogout: () => setActiveKey('dashboard'),
+    onLogout: () => navigateToPath('/', true),
   });
   const workspace = useWorkspaceController(auth.session, auth.setSession);
   const template = useTemplateController(auth.session);
@@ -54,14 +120,13 @@ function App() {
     baseCurrency,
     initialBudgetId: initialBudgetProjectId,
     session: auth.session,
-    onCreated: () => setActiveKey('budgets'),
+    onCreated: () => navigateToPath('/budgets'),
   });
   const budgetEntry = useBudgetEntryController({
     baseCurrency,
     selectedBudget: budget.selectedBudget,
     replaceBudgetDetail: budget.replaceBudgetDetail,
   });
-  const workgroup = useWorkgroupController(workspace.activeWorkspaceId);
   const workspaceRole = workspace.workspaceRole;
   const canManageWorkspaceMembers = workspaceRole === 'owner' || workspaceRole === 'admin';
   const canWriteBudgets =
@@ -94,7 +159,7 @@ function App() {
   }, [budget.selectedBudget?.items, operations.categoryOptions]);
   const admin = useAdminController(auth.session?.user.isAdmin === true && activeKey === 'admin');
   const isEmailVerificationRoute = window.location.pathname === '/email/verify';
-  const isStandaloneBudgetEditor = initialBudgetProjectId !== null;
+  const isStandaloneBudgetEditor = route.budgetId !== null;
 
   if (isEmailVerificationRoute) {
     return (
@@ -130,16 +195,14 @@ function App() {
     );
   }
 
-  const currentUserId = auth.session.user.id;
+  const session = auth.session;
+  const currentUserId = session.user.id;
   const handleNavigate = (key: string) => {
-    if (key !== 'budget-editor' && window.location.hash.startsWith('#/budgets/')) {
-      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
-    }
-
-    setActiveKey(key);
+    navigateToPath(navigationPaths[key] ?? '/');
   };
+  const handleProfileOpen = () => navigateToPath('/profile');
   const openBudgetProjectInNewTab = (budgetId: number) => {
-    const url = `${window.location.origin}${window.location.pathname}${window.location.search}#/budgets/${budgetId}`;
+    const url = `${window.location.origin}/budgets/${budgetId}`;
 
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -176,12 +239,20 @@ function App() {
       activeKey={activeKey}
       budget={budget}
       workspace={workspace}
-      workgroup={workgroup}
       operations={operations}
       currentUserId={currentUserId}
       canWriteBudgets={canWriteBudgets}
       canManageWorkspaceMembers={canManageWorkspaceMembers}
     />
+  );
+  const budgetEditorContent = (
+    <div className="workspace-grid budget-editor-grid">
+      <div className="view-stack">
+        {budgetMetrics}
+        {budgetPreview}
+      </div>
+      {governancePanel}
+    </div>
   );
   const modals = (
     <>
@@ -239,18 +310,6 @@ function App() {
         }}
         onOk={workspace.handleWorkspaceMemberAdd}
       />
-      <WorkgroupModal
-        form={workgroup.workgroupForm}
-        editingWorkgroup={workgroup.editingWorkgroup}
-        open={workgroup.isWorkgroupModalOpen}
-        confirmLoading={workgroup.isWorkgroupSaving}
-        onCancel={() => {
-          workgroup.setIsWorkgroupModalOpen(false);
-          workgroup.setEditingWorkgroup(null);
-          workgroup.workgroupForm.resetFields();
-        }}
-        onOk={workgroup.handleWorkgroupSave}
-      />
     </>
   );
 
@@ -286,19 +345,24 @@ function App() {
     }
 
     if (activeKey === 'budget-editor') {
-      return (
-        <div className="view-stack">
-          {budgetMetrics}
-          {budgetPreview}
-        </div>
-      );
+      return budgetEditorContent;
     }
 
-    if (['workspace', 'categories', 'rates', 'security', 'sharing'].includes(activeKey)) {
+    if (['categories', 'rates'].includes(activeKey)) {
       return <div className="workspace-grid workspace-grid-panel-only">{governancePanel}</div>;
     }
 
-    if (activeKey === 'admin' && auth.session?.user.isAdmin) {
+    if (activeKey === 'profile') {
+      return (
+        <ProfilePage
+          session={session}
+          operations={operations}
+          onSessionUpdate={auth.setSession}
+        />
+      );
+    }
+
+    if (activeKey === 'admin' && session.user.isAdmin) {
       return <AdminPanel controller={admin} currentUserId={currentUserId} />;
     }
 
@@ -321,10 +385,7 @@ function App() {
       {isStandaloneBudgetEditor ? (
         <>
           <main className="standalone-budget-editor">
-            <div className="view-stack">
-              {budgetMetrics}
-              {budgetPreview}
-            </div>
+            {budgetEditorContent}
           </main>
           {modals}
         </>
@@ -332,17 +393,18 @@ function App() {
         <>
           <AppShell
             activeKey={activeKey}
-            session={auth.session}
+            session={session}
             workspaces={workspace.workspaces}
             workspaceRole={workspaceRole}
             workspaceOptions={workspace.workspaceOptions}
             activeWorkspaceId={workspace.activeWorkspaceId}
-            isAdmin={auth.session.user.isAdmin}
+            isAdmin={session.user.isAdmin}
             isWorkspaceLoading={workspace.isWorkspaceLoading}
             isWorkspaceSwitching={workspace.isWorkspaceSwitching}
             isAuthSubmitting={auth.isAuthSubmitting}
             onNavigate={handleNavigate}
             onWorkspaceSwitch={workspace.handleWorkspaceSwitch}
+            onProfile={handleProfileOpen}
             onLogout={auth.handleLogout}
           >
             {renderMainContent()}

@@ -120,12 +120,10 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
   const openBudgetModal = () => {
     setBudgetError(null);
     budgetForm.resetFields();
-    const periodStart = dayjs().startOf('month');
-    const periodEnd = dayjs().endOf('month');
     budgetForm.setFieldsValue({
-      title: `个人预算 ${periodStart.format('YYYY-MM')}`,
+      title: '',
       ownerName: session?.user.displayName ?? '',
-      dateRange: [periodStart, periodEnd],
+      dateRange: null,
       baseCurrency,
       displayCurrency: baseCurrency,
       visibility: 'private',
@@ -142,7 +140,10 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     budgetForm.setFieldsValue({
       title: budget.title,
       ownerName: budget.ownerName,
-      dateRange: [dayjs(budget.startDate), dayjs(budget.endDate)],
+      dateRange:
+        budget.startDate && budget.endDate
+          ? [dayjs(budget.startDate), dayjs(budget.endDate)]
+          : null,
       baseCurrency: budget.baseCurrency,
       displayCurrency: budget.displayCurrency,
       visibility: budget.visibility,
@@ -167,9 +168,9 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       const payload = {
         workspaceId: activeWorkspaceId,
         title: values.title.trim(),
-        ownerName: values.ownerName.trim(),
-        startDate: values.dateRange[0].format('YYYY-MM-DD'),
-        endDate: values.dateRange[1].format('YYYY-MM-DD'),
+        ownerName: values.ownerName?.trim() ?? '',
+        startDate: values.dateRange?.[0]?.format('YYYY-MM-DD') ?? null,
+        endDate: values.dateRange?.[1]?.format('YYYY-MM-DD') ?? null,
         baseCurrency: values.baseCurrency,
         displayCurrency: values.displayCurrency,
         visibility: values.visibility,

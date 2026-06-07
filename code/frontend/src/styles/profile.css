@@ -1,0 +1,25 @@
+.profile-page {
+  display: grid;
+  gap: 16px;
+}
+
+.profile-section {
+  min-width: 0;
+}
+
+.profile-form-grid,
+.profile-security-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.profile-form-grid,
+.profile-security-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-passkey-section > .side-section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

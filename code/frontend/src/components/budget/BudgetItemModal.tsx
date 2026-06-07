@@ -65,13 +65,13 @@ export function BudgetItemModal({
           <Input autoComplete="off" />
         </Form.Item>
 
-        <Form.Item label="已有分类" name="categoryId">
+        <Form.Item label="预设分类" name="categoryId">
           <Select
             allowClear
             showSearch
             optionFilterProp="label"
             options={categoryOptions}
-            placeholder="可选分类"
+            placeholder="选择预设分类"
             onChange={handleCategoryChange}
           />
         </Form.Item>
@@ -87,7 +87,7 @@ export function BudgetItemModal({
           <Form.Item
             label="预算金额"
             name="budgetAmount"
-            rules={[{ required: true, message: '请输入预算金额。' }]}
+            rules={[{ type: 'number', min: 0, message: '预算金额不能小于 0。' }]}
           >
             <InputNumber className="form-full-width" precision={2} step={100} />
           </Form.Item>
@@ -95,18 +95,21 @@ export function BudgetItemModal({
 
         <div className="modal-form-grid">
           <Form.Item
-            label="预算兑基准汇率"
-            name="budgetRate"
-            rules={[{ type: 'number', min: 0, message: '汇率不能小于 0。' }]}
-          >
-            <InputNumber className="form-full-width" precision={6} step={0.01} />
-          </Form.Item>
-          <Form.Item
             label="排序"
             name="sortOrder"
             rules={[{ type: 'number', min: 0, message: '排序不能小于 0。' }]}
           >
             <InputNumber className="form-full-width" precision={0} step={1} />
+          </Form.Item>
+          <Form.Item
+            label="Bank Fee (%)"
+            name="bankFee"
+            rules={[
+              { type: 'number', min: 0, message: 'Bank Fee 不能小于 0。' },
+              { type: 'number', max: 100, message: 'Bank Fee 不能超过 100%。' },
+            ]}
+          >
+            <InputNumber className="form-full-width" precision={2} step={0.1} />
           </Form.Item>
         </div>
 
@@ -121,19 +124,11 @@ export function BudgetItemModal({
           <Form.Item
             label="预计金额"
             name="estimatedAmount"
-            rules={[{ required: true, message: '请输入预计金额。' }]}
+            rules={[{ type: 'number', min: 0, message: '预计金额不能小于 0。' }]}
           >
             <InputNumber className="form-full-width" precision={2} step={100} />
           </Form.Item>
         </div>
-
-        <Form.Item
-          label="预计兑基准汇率"
-          name="estimatedRate"
-          rules={[{ type: 'number', min: 0, message: '汇率不能小于 0。' }]}
-        >
-          <InputNumber className="form-full-width" precision={6} step={0.01} />
-        </Form.Item>
       </Form>
     </Modal>
   );

@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Button, Checkbox, Popconfirm, Select, Tag } from 'antd';
+import { Button, Checkbox, Input, Popconfirm, Select, Tag } from 'antd';
 import { Plus, Share2, Trash2 } from 'lucide-react';
-import type { Workgroup } from '../../api/workgroups';
 import {
   budgetShareRoleLabels,
   budgetShareRoleOptions,
@@ -19,8 +18,14 @@ import type {
 
 const principalTypeOptions: Array<{ label: string; value: BudgetSharePrincipalType }> = [
   { label: principalTypeLabels.user, value: 'user' },
-  { label: principalTypeLabels.workgroup, value: 'workgroup' },
   { label: principalTypeLabels.workspace, value: 'workspace' },
+];
+
+type UserShareTargetMode = 'member' | 'identifier';
+
+const userShareTargetOptions: Array<{ label: string; value: UserShareTargetMode }> = [
+  { label: '成员', value: 'member' },
+  { label: '其他使用者', value: 'identifier' },
 ];
 
 interface ShareSideSectionProps {
@@ -28,7 +33,6 @@ interface ShareSideSectionProps {
   selectedBudget: BudgetDetail | null;
   activeWorkspaceId: number | null;
   workspaceMembers: WorkspaceMember[];
-  workgroups: Workgroup[];
   canManageBudgetShares: boolean;
 }
 
@@ -37,11 +41,12 @@ export function ShareSideSection({
   selectedBudget,
   activeWorkspaceId,
   workspaceMembers,
-  workgroups,
   canManageBudgetShares,
 }: ShareSideSectionProps) {
   const [principalType, setPrincipalType] = useState<BudgetSharePrincipalType>('user');
+  const [userTargetMode, setUserTargetMode] = useState<UserShareTargetMode>('member');
   const [principalId, setPrincipalId] = useState<number | undefined>();
+  const [principalIdentifier, setPrincipalIdentifier] = useState('');
   const [role, setRole] = useState<BudgetShareRole>('viewer');
   const [canExport, setCanExport] = useState(false);
   const [canReshare, setCanReshare] = useState(false);
@@ -50,25 +55,24 @@ export function ShareSideSection({
     return null;
   }
 
-  const principalOptions =
-    principalType === 'user'
-      ? workspaceMembers.map((member) => ({
-          label: `${member.displayName} (${member.email})`,
-          value: member.userId,
-        }))
-      : principalType === 'workgroup'
-        ? workgroups.map((group) => ({
-            label: `${group.name} (${group.memberCount})`,
-            value: group.id,
-          }))
-        : [
-            {
-              label: '所有工作区成员',
-              value: activeWorkspaceId ?? 0,
-            },
-          ];
+  const memberOptions = workspaceMembers.map((member) => ({
+    label: `${member.displayName} (${member.email})`,
+    value: member.userId,
+  }));
+  const principalOptions = [
+    {
+      label: '所有工作区成员',
+      value: activeWorkspaceId ?? 0,
+    },
+  ];
   const nextPrincipalId = principalType === 'workspace' ? activeWorkspaceId ?? undefined : principalId;
-  const canCreate = selectedBudget !== null && nextPrincipalId !== undefined && nextPrincipalId > 0;
+  const normalizedPrincipalIdentifier = principalIdentifier.trim();
+  const isIdentifierShare = principalType === 'user' && userTargetMode === 'identifier';
+  const canCreate =
+    selectedBudget !== null &&
+    (isIdentifierShare
+      ? normalizedPrincipalIdentifier.length > 0
+      : nextPrincipalId !== undefined && nextPrincipalId > 0);
 
   const handleCreate = () => {
     if (!canCreate) {
@@ -77,12 +81,14 @@ export function ShareSideSection({
 
     void operations.saveShare({
       principalType,
-      principalId: nextPrincipalId,
+      principalId: isIdentifierShare ? undefined : nextPrincipalId,
+      principalIdentifier: isIdentifierShare ? normalizedPrincipalIdentifier : undefined,
       role,
       canExport,
       canReshare,
     });
     setPrincipalId(undefined);
+    setPrincipalIdentifier('');
     setRole('viewer');
     setCanExport(false);
     setCanReshare(false);
@@ -98,24 +104,56 @@ export function ShareSideSection({
         <div className="empty-line">选择一个预算后管理共享。</div>
       ) : (
         <>
-          <div className="share-create-grid">
+          <div
+            className={
+              principalType === 'user'
+                ? 'share-create-grid share-create-grid-user'
+                : 'share-create-grid'
+            }
+          >
             <Select<BudgetSharePrincipalType>
               options={principalTypeOptions}
               size="small"
               value={principalType}
               onChange={(value) => {
                 setPrincipalType(value);
+                setUserTargetMode('member');
                 setPrincipalId(undefined);
+                setPrincipalIdentifier('');
               }}
             />
-            <Select<number>
-              disabled={principalType === 'workspace'}
-              options={principalOptions}
-              placeholder="共享对象"
-              size="small"
-              value={nextPrincipalId}
-              onChange={setPrincipalId}
-            />
+            {principalType === 'user' ? (
+              <Select<UserShareTargetMode>
+                options={userShareTargetOptions}
+                size="small"
+                value={userTargetMode}
+                onChange={(value) => {
+                  setUserTargetMode(value);
+                  setPrincipalId(undefined);
+                  setPrincipalIdentifier('');
+                }}
+              />
+            ) : null}
+            {principalType === 'user' && userTargetMode === 'identifier' ? (
+              <Input
+                allowClear
+                placeholder="用户名或邮箱"
+                size="small"
+                value={principalIdentifier}
+                onChange={(event) => setPrincipalIdentifier(event.target.value)}
+              />
+            ) : (
+              <Select<number>
+                disabled={principalType === 'workspace'}
+                options={principalType === 'user' ? memberOptions : principalOptions}
+                optionFilterProp="label"
+                placeholder={principalType === 'user' ? '选择成员' : '共享对象'}
+                showSearch
+                size="small"
+                value={nextPrincipalId}
+                onChange={setPrincipalId}
+              />
+            )}
             <Select<BudgetShareRole>
               options={budgetShareRoleOptions}
               size="small"

@@ -1,12 +1,10 @@
 import { Alert, Button, Popconfirm, Select, Space, Tag } from 'antd';
 import {
   LayoutDashboard,
-  Pencil,
   Plus,
   ShieldCheck,
   Trash2,
   UserRound,
-  Users,
 } from 'lucide-react';
 import { assignableWorkspaceRoleOptions, roleColors, roleLabels } from '../../config/appConfig';
 import type { OperationsController } from '../../hooks/useOperationsController';
@@ -14,14 +12,12 @@ import type { WorkspaceMember } from '../../types/auth';
 import type { WorkspaceRole } from '../../types/budget';
 import type { BudgetController } from '../../hooks/useBudgetController';
 import type { WorkspaceController } from '../../hooks/useWorkspaceController';
-import type { WorkgroupController } from '../../hooks/useWorkgroupController';
 import { OperationsSections } from './OperationsSections';
 
 interface GovernancePanelProps {
   activeKey: string;
   budget: BudgetController;
   workspace: WorkspaceController;
-  workgroup: WorkgroupController;
   operations: OperationsController;
   currentUserId: number | null;
   canWriteBudgets: boolean;
@@ -32,28 +28,32 @@ export function GovernancePanel({
   activeKey,
   budget,
   workspace,
-  workgroup,
   operations,
   currentUserId,
   canWriteBudgets,
   canManageWorkspaceMembers,
 }: GovernancePanelProps) {
-  const showWorkspace = activeKey === 'workspace';
-  const showOperations = ['categories', 'rates', 'security', 'sharing'].includes(activeKey);
+  const showBudgetCollaboration = activeKey === 'budget-editor';
+  const showOperations = ['categories', 'rates'].includes(activeKey);
 
   return (
     <aside className="governance-panel">
-      {showWorkspace ? (
+      {showBudgetCollaboration ? (
         <>
+          <OperationsSections
+            activeKey="sharing"
+            operations={operations}
+            selectedBudget={budget.selectedBudget}
+            activeWorkspaceId={workspace.activeWorkspaceId}
+            workspaceMembers={workspace.workspaceMembers}
+            canWriteBudgets={canWriteBudgets}
+            canManageBudgetShares={canManageWorkspaceMembers}
+          />
           <WorkspaceSideSection workspace={workspace} />
           <MemberSideSection
             workspace={workspace}
             currentUserId={currentUserId}
             canManageWorkspaceMembers={canManageWorkspaceMembers}
-          />
-          <WorkgroupSideSection
-            workgroup={workgroup}
-            activeWorkspaceId={workspace.activeWorkspaceId}
           />
           <PermissionSideSection />
         </>
@@ -65,7 +65,6 @@ export function GovernancePanel({
           selectedBudget={budget.selectedBudget}
           activeWorkspaceId={workspace.activeWorkspaceId}
           workspaceMembers={workspace.workspaceMembers}
-          workgroups={workgroup.workgroups}
           canWriteBudgets={canWriteBudgets}
           canManageBudgetShares={canManageWorkspaceMembers}
         />
@@ -208,7 +207,7 @@ function MemberRow({
           />
           <Popconfirm
             title="移除成员"
-            description="这也会移除此成员在当前工作区的工作组关系。"
+            description="这会移除此成员在当前工作区的访问权限。"
             okText="移除"
             cancelText="取消"
             okButtonProps={{ danger: true }}
@@ -225,79 +224,6 @@ function MemberRow({
         </Space>
       ) : (
         <Tag color={roleColors[member.role]}>{roleLabels[member.role]}</Tag>
-      )}
-    </div>
-  );
-}
-
-function WorkgroupSideSection({
-  workgroup,
-  activeWorkspaceId,
-}: {
-  workgroup: WorkgroupController;
-  activeWorkspaceId: number | null;
-}) {
-  return (
-    <div className="side-section">
-      <div className="side-title side-title-row">
-        <span className="side-title-label">
-          <Users size={16} />
-          <span>工作组</span>
-        </span>
-        <Button
-          disabled={activeWorkspaceId === null}
-          icon={<Plus size={14} />}
-          onClick={() => workgroup.openWorkgroupModal()}
-          size="small"
-        >
-          新建
-        </Button>
-      </div>
-      {workgroup.workgroupError ? (
-        <Alert type="error" showIcon message={workgroup.workgroupError} />
-      ) : (
-        <div className="workgroup-list">
-          {workgroup.isWorkgroupLoading ? (
-            <div className="empty-line">正在加载工作组...</div>
-          ) : workgroup.workgroups.length === 0 ? (
-            <div className="empty-line">暂无工作组。</div>
-          ) : (
-            workgroup.workgroups.map((item) => (
-              <div className="workgroup-list-item" key={item.id}>
-                <div className="workgroup-list-main">
-                  <span>{item.name}</span>
-                  <small>
-                    {item.memberCount} 位成员{item.description ? ` - ${item.description}` : ''}
-                  </small>
-                </div>
-                <Space size={4}>
-                  <Button
-                    aria-label={`编辑 ${item.name}`}
-                    icon={<Pencil size={13} />}
-                    onClick={() => workgroup.openWorkgroupModal(item)}
-                    size="small"
-                  />
-                  <Popconfirm
-                    title="删除工作组"
-                    description="这会删除工作组及其成员关系。"
-                    okText="删除"
-                    cancelText="取消"
-                    okButtonProps={{ danger: true }}
-                    onConfirm={() => workgroup.handleWorkgroupDelete(item.id)}
-                  >
-                    <Button
-                      aria-label={`删除 ${item.name}`}
-                      danger
-                      icon={<Trash2 size={13} />}
-                      loading={workgroup.deletingWorkgroupId === item.id}
-                      size="small"
-                    />
-                  </Popconfirm>
-                </Space>
-              </div>
-            ))
-          )}
-        </div>
       )}
     </div>
   );

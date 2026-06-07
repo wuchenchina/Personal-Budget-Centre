@@ -19,8 +19,8 @@ export interface CreateBudgetPayload {
   workspaceId: number;
   title: string;
   ownerName: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
   visibility: Visibility;

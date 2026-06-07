@@ -52,21 +52,17 @@ export function BudgetCreateModal({
           <Input autoComplete="off" />
         </Form.Item>
         <Form.Item
-          label="负责人"
+          label="显示名称"
           name="ownerName"
-          rules={[
-            { required: true, message: '请输入负责人。' },
-            { max: 160, message: '负责人不能超过 160 个字符。' },
-          ]}
+          rules={[{ max: 160, message: '显示名称不能超过 160 个字符。' }]}
         >
           <Input autoComplete="name" />
         </Form.Item>
         <Form.Item
           label="周期"
           name="dateRange"
-          rules={[{ required: true, message: '请选择预算周期。' }]}
         >
-          <RangePicker className="form-full-width" />
+          <RangePicker allowClear className="form-full-width" />
         </Form.Item>
         <Form.Item
           label="基准货币"

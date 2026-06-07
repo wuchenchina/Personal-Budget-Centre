@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Alert, Button, Empty, Popconfirm, Segmented, Space, Table, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
-import { CalendarRange, Download, FileText, Pencil, Plus, RefreshCcw, Trash2 } from 'lucide-react';
+import { CalendarRange, Download, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { BudgetEntryController } from '../../hooks/useBudgetEntryController';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import type {
@@ -15,9 +15,9 @@ import {
   createBudgetItemColumns,
   createTransactionColumns,
   formatBudgetMoney,
-  renderBudgetTemplateText,
 } from '../../utils/budgetTemplate';
 import { budgetStatusLabels } from '../../config/appConfig';
+import { formatBudgetPeriod } from '../../utils/budgetPeriod';
 
 interface BudgetDocumentPreviewProps {
   selectedBudget: BudgetDetail | null;
@@ -74,17 +74,9 @@ export function BudgetDocumentPreview({
       ),
     [canWriteBudgets, entry, transactionBreakdown],
   );
-  const budgetTitle =
-    selectedBudget && template
-      ? renderBudgetTemplateText(template.titleTemplate, selectedBudget)
-      : (template?.titleTemplate ?? '未选择预算');
-  const budgetSubtitle =
-    selectedBudget && template
-      ? renderBudgetTemplateText(template.subtitleTemplate, selectedBudget)
-      : '创建或选择一个预算';
-  const budgetDateText = selectedBudget
-    ? `日期：${selectedBudget.startDate} 至 ${selectedBudget.endDate}`
-    : '日期：-';
+  const budgetTitle = selectedBudget?.title ?? '未选择预算';
+  const budgetSubtitle = selectedBudget?.ownerName.trim() ?? '';
+  const budgetDateText = selectedBudget ? formatBudgetPeriod(selectedBudget) : null;
 
   return (
     <main className="document-workbench">
@@ -113,14 +105,6 @@ export function BudgetDocumentPreview({
               {budgetStatusLabels[selectedBudget.status]}
             </Tag>
           ) : null}
-          <Button
-            icon={<RefreshCcw size={13} />}
-            loading={operations.refreshingExchangeRateSource === 'bochk'}
-            size="small"
-            onClick={() => void operations.refreshBochk()}
-          >
-            BOCHK 汇率
-          </Button>
         </Space>
       </div>
 
@@ -174,7 +158,7 @@ export function BudgetDocumentPreview({
       ) : (
         <section className="budget-document-preview">
           <h1>{budgetTitle}</h1>
-          <p>{budgetSubtitle}</p>
+          {budgetSubtitle ? <p>{budgetSubtitle}</p> : null}
 
           <div className="budget-table-frame">
             <div className="budget-section-title budget-section-title-row">
@@ -190,7 +174,9 @@ export function BudgetDocumentPreview({
                 </Button>
               ) : null}
             </div>
-            <div className="budget-section-date">{budgetDateText}</div>
+            {budgetDateText ? (
+              <div className="budget-section-date">日期：{budgetDateText}</div>
+            ) : null}
             <Table<BudgetItem>
               bordered
               columns={budgetColumns}
@@ -219,7 +205,9 @@ export function BudgetDocumentPreview({
                 </Button>
               ) : null}
             </div>
-            <div className="budget-section-date">{budgetDateText}</div>
+            {budgetDateText ? (
+              <div className="budget-section-date">日期：{budgetDateText}</div>
+            ) : null}
             <Table<Transaction>
               bordered
               columns={transactionColumns}

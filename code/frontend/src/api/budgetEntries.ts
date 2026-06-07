@@ -9,10 +9,10 @@ export interface SaveBudgetItemPayload {
   categoryId?: number;
   label: string;
   budgetCurrency: CurrencyCode;
-  budgetAmount: number;
+  budgetAmount?: number;
   budgetRate?: number;
   estimatedCurrency: CurrencyCode;
-  estimatedAmount: number;
+  estimatedAmount?: number;
   estimatedRate?: number;
   sortOrder?: number;
 }

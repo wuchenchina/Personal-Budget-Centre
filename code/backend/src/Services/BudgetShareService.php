@@ -9,6 +9,7 @@ use BudgetCentre\Auth\PermissionGuard;
 use BudgetCentre\Auth\SessionAuthenticator;
 use BudgetCentre\Http\Request;
 use BudgetCentre\Repositories\BudgetShareRepository;
+use BudgetCentre\Repositories\UserRepository;
 use BudgetCentre\Repositories\WorkgroupRepository;
 use BudgetCentre\Repositories\WorkspaceMemberRepository;
 use BudgetCentre\Support\Input;
@@ -116,6 +117,9 @@ final readonly class BudgetShareService
     {
         $principalType = Input::string($input['principalType'] ?? $input['principal_type'] ?? null);
         $principalId = Input::positiveInt($input['principalId'] ?? $input['principal_id'] ?? null);
+        $principalIdentifier = Input::string(
+            $input['principalIdentifier'] ?? $input['principal_identifier'] ?? $input['identifier'] ?? null,
+        );
         $role = Input::string($input['role'] ?? null) ?? 'viewer';
 
         if ($principalType === null || !in_array($principalType, self::PRINCIPAL_TYPES, true)) {
@@ -123,7 +127,12 @@ final readonly class BudgetShareService
         }
 
         $this->validateRole($role);
-        $principalId = $this->validatedPrincipalId($principalType, $principalId, $workspaceId);
+        $principalId = $this->validatedPrincipalId(
+            $principalType,
+            $principalId,
+            $workspaceId,
+            $principalIdentifier,
+        );
 
         return [
             'principalType' => $principalType,
@@ -135,7 +144,12 @@ final readonly class BudgetShareService
         ];
     }
 
-    private function validatedPrincipalId(string $principalType, ?int $principalId, int $workspaceId): int
+    private function validatedPrincipalId(
+        string $principalType,
+        ?int $principalId,
+        int $workspaceId,
+        ?string $principalIdentifier,
+    ): int
     {
         if ($principalType === 'workspace') {
             if ($principalId !== null && $principalId !== $workspaceId) {
@@ -145,16 +159,29 @@ final readonly class BudgetShareService
             return $workspaceId;
         }
 
-        if ($principalId === null) {
-            throw new AuthException('VALIDATION_ERROR', 'Principal id is required.', 422);
-        }
-
         if ($principalType === 'user') {
-            if ((new WorkspaceMemberRepository($this->pdo))->find($workspaceId, $principalId) === null) {
-                throw new AuthException('PRINCIPAL_NOT_FOUND', 'User is not an active workspace member.', 404);
+            if ($principalId !== null) {
+                if ((new WorkspaceMemberRepository($this->pdo))->find($workspaceId, $principalId) === null) {
+                    throw new AuthException('PRINCIPAL_NOT_FOUND', 'User is not an active workspace member.', 404);
+                }
+
+                return $principalId;
             }
 
-            return $principalId;
+            if ($principalIdentifier === null) {
+                throw new AuthException('VALIDATION_ERROR', 'User id, username, or email is required.', 422);
+            }
+
+            $user = (new UserRepository($this->pdo))->findByIdentifier($principalIdentifier);
+            if ($user === null || $user['status'] !== 'active') {
+                throw new AuthException('PRINCIPAL_NOT_FOUND', 'User was not found or is not active.', 404);
+            }
+
+            return (int) $user['id'];
+        }
+
+        if ($principalId === null) {
+            throw new AuthException('VALIDATION_ERROR', 'Principal id is required.', 422);
         }
 
         $groupWorkspaceId = (new WorkgroupRepository($this->pdo))->workspaceIdForWorkgroup($principalId);

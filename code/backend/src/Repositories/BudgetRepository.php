@@ -79,7 +79,7 @@ final readonly class BudgetRepository
                     )
                 )
               )
-            ORDER BY b.start_date DESC, b.updated_at DESC, b.id DESC
+            ORDER BY b.start_date IS NULL ASC, b.start_date DESC, b.updated_at DESC, b.id DESC
             SQL
         );
         $statement->execute([
@@ -106,8 +106,8 @@ final readonly class BudgetRepository
         ?int $templateId,
         string $title,
         string $ownerName,
-        string $startDate,
-        string $endDate,
+        ?string $startDate,
+        ?string $endDate,
         int $baseCurrencyId,
         int $displayCurrencyId,
         string $visibility,
@@ -341,8 +341,8 @@ final readonly class BudgetRepository
         int $budgetId,
         string $title,
         string $ownerName,
-        string $startDate,
-        string $endDate,
+        ?string $startDate,
+        ?string $endDate,
         int $baseCurrencyId,
         int $displayCurrencyId,
         string $visibility,

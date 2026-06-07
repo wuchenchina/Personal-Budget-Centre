@@ -12,7 +12,8 @@ interface BudgetShareListResponse {
 export interface CreateBudgetSharePayload {
   budgetId: number;
   principalType: BudgetSharePrincipalType;
-  principalId: number;
+  principalId?: number;
+  principalIdentifier?: string;
   role: BudgetShareRole;
   canExport: boolean;
   canReshare: boolean;

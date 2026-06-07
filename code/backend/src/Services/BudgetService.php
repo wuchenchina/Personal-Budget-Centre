@@ -50,10 +50,9 @@ final readonly class BudgetService
         $session = $this->authenticator->authenticatedSession($request);
         $workspaceId = Input::positiveInt($input['workspaceId'] ?? $input['workspace_id'] ?? null);
         $title = Input::string($input['title'] ?? null);
-        $ownerName = Input::string($input['ownerName'] ?? $input['owner_name'] ?? null)
-            ?? (string) $session['display_name'];
-        $startDate = Input::date($input['startDate'] ?? $input['start_date'] ?? null);
-        $endDate = Input::date($input['endDate'] ?? $input['end_date'] ?? null);
+        $ownerName = $this->ownerNameFromInput($input, (string) $session['display_name']);
+        $startDate = $this->optionalDateFromInput($input, 'startDate', 'start_date');
+        $endDate = $this->optionalDateFromInput($input, 'endDate', 'end_date');
         $baseCurrencyCode = strtoupper(
             Input::string($input['baseCurrency'] ?? $input['base_currency'] ?? null) ?? 'CNY',
         );
@@ -215,10 +214,9 @@ final readonly class BudgetService
     private function validatedBudgetPayload(array $input, string $defaultOwnerName): array
     {
         $title = Input::string($input['title'] ?? null);
-        $ownerName = Input::string($input['ownerName'] ?? $input['owner_name'] ?? null)
-            ?? $defaultOwnerName;
-        $startDate = Input::date($input['startDate'] ?? $input['start_date'] ?? null);
-        $endDate = Input::date($input['endDate'] ?? $input['end_date'] ?? null);
+        $ownerName = $this->ownerNameFromInput($input, $defaultOwnerName);
+        $startDate = $this->optionalDateFromInput($input, 'startDate', 'start_date');
+        $endDate = $this->optionalDateFromInput($input, 'endDate', 'end_date');
         $baseCurrencyCode = strtoupper(
             Input::string($input['baseCurrency'] ?? $input['base_currency'] ?? null) ?? 'CNY',
         );
@@ -247,7 +245,7 @@ final readonly class BudgetService
 
     private function validateBudgetInput(
         ?string $title,
-        ?string $ownerName,
+        string $ownerName,
         ?string $startDate,
         ?string $endDate,
         string $visibility,
@@ -258,15 +256,15 @@ final readonly class BudgetService
             throw new AuthException('VALIDATION_ERROR', 'Budget title is required and must be 255 characters or less.', 422);
         }
 
-        if ($ownerName === null || strlen($ownerName) > 160) {
-            throw new AuthException('VALIDATION_ERROR', 'Owner name is required and must be 160 characters or less.', 422);
+        if (strlen($ownerName) > 160) {
+            throw new AuthException('VALIDATION_ERROR', 'Owner name must be 160 characters or less.', 422);
         }
 
-        if ($startDate === null || $endDate === null) {
-            throw new AuthException('VALIDATION_ERROR', 'Start date and end date must use YYYY-MM-DD.', 422);
+        if (($startDate === null) !== ($endDate === null)) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget period must include both start date and end date.', 422);
         }
 
-        if ($startDate > $endDate) {
+        if ($startDate !== null && $endDate !== null && $startDate > $endDate) {
             throw new AuthException('VALIDATION_ERROR', 'Start date must be before or equal to end date.', 422);
         }
 
@@ -281,5 +279,40 @@ final readonly class BudgetService
         if ($note !== null && strlen($note) > 20000) {
             throw new AuthException('VALIDATION_ERROR', 'Budget note must be 20000 characters or less.', 422);
         }
+    }
+
+    private function ownerNameFromInput(array $input, string $defaultOwnerName): string
+    {
+        foreach (['ownerName', 'owner_name'] as $key) {
+            if (!array_key_exists($key, $input)) {
+                continue;
+            }
+
+            return is_string($input[$key]) ? trim($input[$key]) : '';
+        }
+
+        return $defaultOwnerName;
+    }
+
+    private function optionalDateFromInput(array $input, string $camelKey, string $snakeKey): ?string
+    {
+        foreach ([$camelKey, $snakeKey] as $key) {
+            if (!array_key_exists($key, $input)) {
+                continue;
+            }
+
+            if ($input[$key] === null || $input[$key] === '') {
+                return null;
+            }
+
+            $date = Input::date($input[$key]);
+            if ($date === null) {
+                throw new AuthException('VALIDATION_ERROR', 'Budget period dates must use YYYY-MM-DD.', 422);
+            }
+
+            return $date;
+        }
+
+        return null;
     }
 }

@@ -117,6 +117,14 @@ remote_clear_root() {
     find '${REMOTE_PATH}' -mindepth 1 -maxdepth 1 -exec rm -rf {} +"
 }
 
+remote_fix_permissions() {
+  remote_exec "find '${REMOTE_PATH}' -type d -exec chmod 755 {} + && \
+    find '${REMOTE_PATH}' -type f -exec chmod 644 {} + && \
+    chmod -R 775 '${REMOTE_PATH}/backend/storage' && \
+    chmod 640 '${REMOTE_PATH}/backend/.env' && \
+    find '${REMOTE_PATH}/backend/bin' -type f -name '*.php' -exec chmod 755 {} +"
+}
+
 require_command ssh
 require_command rsync
 require_command composer
@@ -218,6 +226,9 @@ write_remote_env
 
 echo "[remote] Installing backend dependencies"
 remote_composer_install
+
+echo "[remote] Fixing uploaded file permissions"
+remote_fix_permissions
 
 if [[ "${DEPLOY_MODE}" == "fresh" ]]; then
   echo "[remote] Fresh deploy requested. Checking database before reset"

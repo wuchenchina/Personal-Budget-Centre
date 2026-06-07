@@ -10,6 +10,7 @@ import {
   updateTransaction,
 } from '../api/budgetEntries';
 import type { SaveBudgetItemPayload, SaveTransactionPayload } from '../api/budgetEntries';
+import { convertCurrency } from '../api/exchangeRates';
 import type { BudgetDetail, BudgetItem, CurrencyCode, Transaction } from '../types/budget';
 import type { BudgetItemFormValues, TransactionFormValues } from '../types/forms';
 
@@ -61,10 +62,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       label: item.label,
       budgetCurrency: item.budget.currency,
       budgetAmount: item.budget.amountOriginal,
-      budgetRate: item.budget.rateToBase,
       estimatedCurrency: item.estimatedActuals.currency,
       estimatedAmount: item.estimatedActuals.amountOriginal,
-      estimatedRate: item.estimatedActuals.rateToBase,
       sortOrder: item.sortOrder,
     });
     setIsBudgetItemModalOpen(true);
@@ -87,22 +86,17 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       const values = await budgetItemForm.validateFields();
       setIsBudgetItemSaving(true);
       setEntryError(null);
+      const amounts = await completeBudgetItemAmounts(values);
 
       const payload: SaveBudgetItemPayload = {
         categoryId: values.categoryId,
         label: values.label.trim(),
         budgetCurrency: values.budgetCurrency,
-        budgetAmount: values.budgetAmount,
+        budgetAmount: amounts.budgetAmount,
         estimatedCurrency: values.estimatedCurrency,
-        estimatedAmount: values.estimatedAmount,
+        estimatedAmount: amounts.estimatedAmount,
         sortOrder: values.sortOrder ?? 0,
       };
-      if (values.budgetRate !== undefined) {
-        payload.budgetRate = values.budgetRate;
-      }
-      if (values.estimatedRate !== undefined) {
-        payload.estimatedRate = values.estimatedRate;
-      }
       const savedBudget =
         editingBudgetItem === null
           ? await createBudgetItem({
@@ -123,6 +117,38 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     } finally {
       setIsBudgetItemSaving(false);
     }
+  };
+
+  const completeBudgetItemAmounts = async (values: BudgetItemFormValues) => {
+    const budgetAmount = normalizedAmount(values.budgetAmount);
+    const estimatedAmount = normalizedAmount(values.estimatedAmount);
+
+    if (budgetAmount === null) {
+      return {
+        budgetAmount: undefined,
+        estimatedAmount: estimatedAmount ?? undefined,
+      };
+    }
+
+    if (budgetAmount !== null && estimatedAmount !== null) {
+      return { budgetAmount, estimatedAmount };
+    }
+
+    if (options.selectedBudget === null) {
+      throw new Error('请先选择预算，再保存预算项。');
+    }
+
+    const bankFeeMultiplier = 1 + (normalizedBankFee(values.bankFee) ?? 0) / 100;
+    return {
+      budgetAmount,
+      estimatedAmount: await convertedAmount({
+        workspaceId: options.selectedBudget.workspaceId,
+        fromCurrency: values.budgetCurrency,
+        toCurrency: values.estimatedCurrency,
+        amount: budgetAmount,
+        multiplier: bankFeeMultiplier,
+      }),
+    };
   };
 
   const handleBudgetItemDelete = async (id: number) => {
@@ -262,6 +288,43 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     handleTransactionSave,
     handleTransactionDelete,
   };
+}
+
+function normalizedAmount(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function normalizedBankFee(value: number | null | undefined): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  return value;
+}
+
+async function convertedAmount(input: {
+  workspaceId: number;
+  fromCurrency: CurrencyCode;
+  toCurrency: CurrencyCode;
+  amount: number;
+  multiplier: number;
+}): Promise<number> {
+  if (input.fromCurrency === input.toCurrency) {
+    return roundMoney(input.amount);
+  }
+
+  const conversion = await convertCurrency({
+    workspaceId: input.workspaceId,
+    fromCurrency: input.fromCurrency,
+    toCurrency: input.toCurrency,
+    amount: input.amount,
+  });
+
+  return roundMoney(conversion.convertedAmount * input.multiplier);
+}
+
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export type BudgetEntryController = ReturnType<typeof useBudgetEntryController>;

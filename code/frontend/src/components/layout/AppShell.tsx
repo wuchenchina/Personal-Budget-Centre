@@ -2,15 +2,12 @@ import type { ReactNode } from 'react';
 import { Button, Layout, Menu, Select, Space, Tag } from 'antd';
 import type { MenuProps } from 'antd';
 import {
-  KeyRound,
   LayoutDashboard,
   LogOut,
   RefreshCcw,
-  Share2,
   ShieldCheck,
   Tags,
   UserRound,
-  Users,
   WalletCards,
 } from 'lucide-react';
 import { iconSize, roleColors, roleLabels } from '../../config/appConfig';
@@ -33,6 +30,7 @@ interface AppShellProps {
   children: ReactNode;
   onNavigate: (key: string) => void;
   onWorkspaceSwitch: (workspaceId: number) => void;
+  onProfile: () => void;
   onLogout: () => void;
 }
 
@@ -50,16 +48,14 @@ export function AppShell({
   children,
   onNavigate,
   onWorkspaceSwitch,
+  onProfile,
   onLogout,
 }: AppShellProps) {
   const menuItems: MenuProps['items'] = [
     { key: 'dashboard', icon: <LayoutDashboard size={iconSize} />, label: '仪表盘' },
     { key: 'budgets', icon: <WalletCards size={iconSize} />, label: '预算项目' },
-    { key: 'sharing', icon: <Share2 size={iconSize} />, label: '共享' },
     { key: 'categories', icon: <Tags size={iconSize} />, label: '分类' },
     { key: 'rates', icon: <RefreshCcw size={iconSize} />, label: '汇率' },
-    { key: 'workspace', icon: <Users size={iconSize} />, label: '协作工作区' },
-    { key: 'security', icon: <KeyRound size={iconSize} />, label: '安全' },
   ];
   if (isAdmin) {
     menuItems.push({ key: 'admin', icon: <ShieldCheck size={iconSize} />, label: '后台' });
@@ -110,10 +106,14 @@ export function AppShell({
             </div>
           </div>
           <Space className="header-actions" wrap>
-            <span className="user-chip">
-              <UserRound size={15} />
+            <Button
+              className="user-name-button"
+              icon={<UserRound size={15} />}
+              type="text"
+              onClick={onProfile}
+            >
               {session.user.displayName}
-            </span>
+            </Button>
             <Button
               icon={<LogOut size={16} />}
               loading={isAuthSubmitting}

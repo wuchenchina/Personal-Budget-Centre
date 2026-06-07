@@ -241,8 +241,8 @@ final readonly class ExchangeRateRepository
               er.rate_date DESC,
               CASE er.source
                 WHEN 'manual' THEN 0
-                WHEN 'mastercard' THEN 1
-                WHEN 'bochk' THEN 2
+                WHEN 'bochk' THEN 1
+                WHEN 'mastercard' THEN 2
                 WHEN 'budget_default' THEN 3
                 ELSE 4
               END,

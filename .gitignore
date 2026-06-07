@@ -3,3 +3,4 @@ code/frontend/dist/
 code/backend/vendor/
 code/backend/storage/
 .playwright-mcp
+.DS_Store

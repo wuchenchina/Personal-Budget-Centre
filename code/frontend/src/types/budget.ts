@@ -223,8 +223,8 @@ export interface BudgetSummary {
   workspaceId: number;
   title: string;
   ownerName: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
   visibility: Visibility;
@@ -246,8 +246,8 @@ export interface BudgetDocument {
   title: string;
   titleTemplate: string;
   ownerName: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
   status: BudgetStatus;

@@ -43,15 +43,13 @@
 }
 
 .workspace-list,
-.member-list,
-.workgroup-list {
+.member-list {
   display: grid;
   gap: 8px;
 }
 
 .workspace-list-item,
-.member-list-item,
-.workgroup-list-item {
+.member-list-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -85,43 +83,33 @@
   padding: 8px 9px;
 }
 
-.member-list-main,
-.workgroup-list-main {
+.member-list-main {
   display: grid;
   min-width: 0;
   gap: 2px;
 }
 
 .member-list-main span,
-.member-list-main small,
-.workgroup-list-main span,
-.workgroup-list-main small {
+.member-list-main small {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.member-list-main span,
-.workgroup-list-main span {
+.member-list-main span {
   color: #1f1f1f;
   font-size: 13px;
   font-weight: 600;
 }
 
-.member-list-main small,
-.workgroup-list-main small {
+.member-list-main small {
   color: #8c8c8c;
   font-size: 12px;
 }
 
 .member-role-select {
   width: 92px;
-}
-
-.workgroup-list-item {
-  min-height: 44px;
-  padding: 8px 9px;
 }
 
 .operation-list {
@@ -198,6 +186,10 @@
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr) minmax(0, 0.9fr);
   gap: 6px;
   margin-bottom: 8px;
+}
+
+.share-create-grid-user {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 0.9fr);
 }
 
 .share-row-controls,
