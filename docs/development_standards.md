@@ -61,6 +61,14 @@ code/database/004_views.sql
 php code/backend/bin/init-database.php --dry-run
 ```
 
+- 既有資料庫部署更新只跑 migration-only：
+
+```bash
+cd code/backend
+composer db:migrate:dry-run
+composer db:migrate
+```
+
 - 正式初始化既有 database：
 
 ```bash
@@ -107,6 +115,9 @@ manual > mastercard > bochk > budget_default
 ```
 
 - 部署腳本可以生成遠端 backend `.env`，但不得建立 MySQL database。
+- `./deploy.sh sync` 不得執行資料庫初始化、reset 或 migration；資料庫變更必須用 `./deploy.sh migrate`，且只能跑 non-destructive migration-only。
+- 只有 `./deploy.sh fresh` 能 reset database objects，且必須有明確確認。
+- 部署腳本需在本地 `Ctrl+C` / TERM 時嘗試停止本次 token 標記的遠端長任務，不得讓遠端 composer、reset、init 或 migration 孤兒化繼續執行。
 - Web server 需把 `/api/*` rewrite 到：
 
 ```text
@@ -130,6 +141,7 @@ cd code/backend && composer validate --strict
 cd code/backend && composer check
 cd code/frontend && yarn build
 php code/backend/bin/init-database.php --dry-run
+php code/backend/bin/init-database.php --dry-run --migrations-only
 bash -n deploy.sh
 ```
 

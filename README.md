@@ -95,10 +95,14 @@ composer db:init
 | --- | --- | --- | --- | --- |
 | `./deploy.sh` | 日常增量更新 | 否 | 否 | 否 |
 | `./deploy.sh sync` | 同上，明確指定增量模式 | 否 | 否 | 否 |
-| `./deploy.sh migrate` | 增量更新並套用資料表、seed、view SQL | 否 | 否 | 是 |
+| `./deploy.sh migrate` | 增量更新並套用非破壞性 migration/view SQL | 否 | 否 | 是 |
 | `./deploy.sh fresh` | 焕新部署 | 是 | 是 | 是 |
 
 `fresh` 是破壞性操作，會清空 `/www/wwwroot/bc.tool.axchen.top` 內既有檔案，並 reset 既有 MySQL database objects，再重新初始化資料表、seed 與 views。它不會建立 database，本專案假設 database 已在面板或 MySQL 內預先建立。
+
+`sync` 模式只同步檔案、寫入 backend `.env` 並安裝依賴，不會執行任何資料庫初始化或 migration；即使誤帶 `RUN_DB_INIT=1` 也會直接拒絕，以避免同步部署清理或覆蓋使用者預算資料。需要資料庫更新時請使用 `./deploy.sh migrate`，它只執行 `code/database` 中的非破壞性 migration/view SQL；完整初始化只允許在已確認的 `fresh` 模式中執行。
+
+部署腳本會為本次遠端長任務標記唯一 token；若本地以 `Ctrl+C` 中斷，會嘗試停止同 token 的遠端 composer / migration / reset / init 任務，避免遠端在本地退出後繼續改動。
 
 部署前會檢查遠端根目錄是否為空；`fresh` 模式在清資料庫前會先跑一次 reset dry-run，方便確認即將清理的資料庫 objects。
 
@@ -119,7 +123,7 @@ SKIP_DB_INIT=1 ./deploy.sh migrate
 - 上載 PDF 匯出字體到 `/www/wwwroot/bc.tool.axchen.top/font`
 - 在遠端生成 backend `.env`
 - 遠端執行 `composer install --no-dev --optimize-autoloader`
-- 按部署模式決定是否初始化既有 MySQL database
+- 按部署模式決定是否跳過、migrate 或 fresh 初始化既有 MySQL database
 
 部署腳本不建立 database。
 

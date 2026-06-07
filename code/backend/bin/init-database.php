@@ -10,15 +10,7 @@ use BudgetCentre\Support\Env;
 require dirname(__DIR__) . '/src/bootstrap.php';
 
 $codeRoot = dirname(__DIR__, 2);
-$defaultSqlFiles = [
-    $codeRoot . '/database/001_schema.sql',
-    $codeRoot . '/database/002_seed_currencies.sql',
-    $codeRoot . '/database/003_seed_template.sql',
-    $codeRoot . '/database/004_views.sql',
-    $codeRoot . '/database/005_auth_email_verification.sql',
-    $codeRoot . '/database/006_admin_users.sql',
-    $codeRoot . '/database/007_optional_budget_period.sql',
-];
+$defaultSqlFiles = defaultSqlFiles($codeRoot);
 $options = options($argv);
 
 if (isset($options['help'])) {
@@ -26,7 +18,8 @@ if (isset($options['help'])) {
     exit(0);
 }
 
-$sqlFiles = selectedFiles($options, $defaultSqlFiles);
+$migrationsOnly = isset($options['migrations-only']);
+$sqlFiles = selectedFiles($options, $defaultSqlFiles, $migrationsOnly);
 $dryRun = isset($options['dry-run']);
 $confirmed = isset($options['yes']) || $dryRun;
 
@@ -36,8 +29,8 @@ if (!$confirmed) {
 }
 
 try {
-    $plan = preparePlan($sqlFiles);
-    printPlan($plan, $dryRun);
+    $plan = preparePlan($sqlFiles, $migrationsOnly);
+    printPlan($plan, $dryRun, $migrationsOnly);
 
     if ($dryRun) {
         exit(0);
@@ -83,6 +76,11 @@ function options(array $argv): array
             continue;
         }
 
+        if ($argument === '--migrations-only') {
+            $options['migrations-only'] = true;
+            continue;
+        }
+
         if (str_starts_with($argument, '--file=')) {
             $options['files'][] = substr($argument, strlen('--file='));
             continue;
@@ -94,19 +92,42 @@ function options(array $argv): array
     return $options;
 }
 
-function selectedFiles(array $options, array $defaultSqlFiles): array
+function defaultSqlFiles(string $codeRoot): array
 {
-    if (!isset($options['files'])) {
+    $files = glob($codeRoot . '/database/*.sql');
+    if ($files === false || $files === []) {
+        throw new RuntimeException('No SQL files found in code/database.');
+    }
+
+    sort($files, SORT_NATURAL);
+
+    return $files;
+}
+
+function selectedFiles(array $options, array $defaultSqlFiles, bool $migrationsOnly): array
+{
+    if (isset($options['files'])) {
+        return array_map(
+            static fn (string $file): string => realpath($file) ?: $file,
+            $options['files'],
+        );
+    }
+
+    if (!$migrationsOnly) {
         return $defaultSqlFiles;
     }
 
-    return array_map(
-        static fn (string $file): string => realpath($file) ?: $file,
-        $options['files'],
-    );
+    return array_values(array_filter(
+        $defaultSqlFiles,
+        static fn (string $file): bool => !in_array(basename($file), [
+            '001_schema.sql',
+            '002_seed_currencies.sql',
+            '003_seed_template.sql',
+        ], true),
+    ));
 }
 
-function preparePlan(array $sqlFiles): array
+function preparePlan(array $sqlFiles, bool $migrationsOnly): array
 {
     $plan = [];
     foreach ($sqlFiles as $file) {
@@ -120,6 +141,9 @@ function preparePlan(array $sqlFiles): array
         }
 
         assertNoDatabaseLifecycleSql($sql, $file);
+        if ($migrationsOnly) {
+            assertNonDestructiveMigrationSql($sql, $file);
+        }
         $plan[$file] = splitSqlStatements($sql);
     }
 
@@ -130,6 +154,23 @@ function assertNoDatabaseLifecycleSql(string $sql, string $file): void
 {
     if (preg_match('/\b(CREATE|DROP)\s+DATABASE\b|\bUSE\s+[`"\']?[a-z0-9_]/i', $sql) === 1) {
         throw new RuntimeException("Database lifecycle statement is not allowed in {$file}");
+    }
+}
+
+function assertNonDestructiveMigrationSql(string $sql, string $file): void
+{
+    if (preg_match('/\bTRUNCATE\s+(TABLE\s+)?[`"\']?[a-z0-9_]/i', $sql) === 1
+        || preg_match('/\bDELETE\s+FROM\s+[`"\']?[a-z0-9_]/i', $sql) === 1
+    ) {
+        throw new RuntimeException("Data destructive statement is not allowed in migrations-only mode: {$file}");
+    }
+
+    if (preg_match('/\bDROP\s+(TABLE|VIEW|DATABASE)\b/i', $sql) === 1) {
+        throw new RuntimeException("Object destructive statement is not allowed in migrations-only mode: {$file}");
+    }
+
+    if (preg_match('/\bALTER\s+TABLE\b[^;]*\bDROP\s+(COLUMN|INDEX|KEY|CONSTRAINT)\b/is', $sql) === 1) {
+        throw new RuntimeException("Destructive ALTER TABLE is not allowed in migrations-only mode: {$file}");
     }
 }
 
@@ -193,9 +234,10 @@ function appendStatement(array &$statements, string $statement): void
     }
 }
 
-function printPlan(array $plan, bool $dryRun): void
+function printPlan(array $plan, bool $dryRun, bool $migrationsOnly): void
 {
-    echo $dryRun ? "Database initialization dry run:\n" : "Database initialization:\n";
+    $mode = $migrationsOnly ? 'migration' : 'initialization';
+    echo $dryRun ? "Database {$mode} dry run:\n" : "Database {$mode}:\n";
     foreach ($plan as $file => $statements) {
         printf("- %s: %d statements\n", basename($file), count($statements));
     }
@@ -207,10 +249,13 @@ function help(): void
 Usage:
   php bin/init-database.php --yes
   php bin/init-database.php --dry-run
+  php bin/init-database.php --yes --migrations-only
+  php bin/init-database.php --dry-run --migrations-only
   php bin/init-database.php --yes --file=/path/to/file.sql
 
 This script initializes tables, seed data, and views in the existing DB_NAME.
 It never creates or selects a database and refuses CREATE/DROP DATABASE or USE statements.
+Use --migrations-only for deploy-time, non-destructive updates to an existing database.
 
 TEXT;
 }

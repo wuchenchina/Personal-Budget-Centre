@@ -17,7 +17,7 @@ VITE_API_BASE_URL="${API_URL}"
 REMOTE_HTTP_PROXY="http://10.0.0.1:7890"
 REMOTE_HTTPS_PROXY="http://10.0.0.1:7890"
 DEPLOY_MODE="${DEPLOY_MODE:-sync}"
-RUN_DB_INIT="${RUN_DB_INIT:-0}"
+RUN_DB_MIGRATE=0
 CONFIRM_FRESH_DEPLOY="${CONFIRM_FRESH_DEPLOY:-}"
 DEPLOY_COMMAND="${1:-}"
 
@@ -45,6 +45,7 @@ BACKEND_DIR="${CODE_ROOT}/backend"
 DATABASE_DIR="${CODE_ROOT}/database"
 FONT_DIR="${CODE_ROOT}/font"
 REMOTE="${SERVER_USER}@${SERVER_IP}"
+REMOTE_DEPLOY_TOKEN="budgetcentre-deploy-$(date +%Y%m%d%H%M%S)-$$"
 SSH_OPTS=(
   -i "${SERVER_SSH_KEY}"
   -p "${SERVER_PORT}"
@@ -63,6 +64,27 @@ require_command() {
 remote_exec() {
   ssh "${SSH_OPTS[@]}" "${REMOTE}" "$@"
 }
+
+remote_exec_tracked() {
+  local command="$1"
+  local quoted_command
+  quoted_command="$(printf '%q' "${command}")"
+  remote_exec "BUDGETCENTRE_DEPLOY_TOKEN='${REMOTE_DEPLOY_TOKEN}' exec -a '${REMOTE_DEPLOY_TOKEN}' bash -lc ${quoted_command}"
+}
+
+cleanup_remote_deploy() {
+  echo
+  echo "[remote] Interrupt received. Stopping remote deploy tasks for ${REMOTE_DEPLOY_TOKEN}"
+  remote_exec "pkill -TERM -f '${REMOTE_DEPLOY_TOKEN}' 2>/dev/null || true" || true
+}
+
+handle_interrupt() {
+  trap - INT TERM
+  cleanup_remote_deploy
+  exit 130
+}
+
+trap handle_interrupt INT TERM
 
 write_remote_env() {
   ssh "${SSH_OPTS[@]}" "${REMOTE}" "cat > '${REMOTE_PATH}/backend/.env'" <<EOF
@@ -99,9 +121,9 @@ remote_composer_install() {
     COMPOSER_ALLOW_SUPERUSER=1 \
     composer install --no-dev --optimize-autoloader --no-interaction"
 
-  if ! remote_exec "${command}"; then
+  if ! remote_exec_tracked "${command}"; then
     echo "[remote] Composer install failed once. Retrying..."
-    remote_exec "${command}"
+    remote_exec_tracked "${command}"
   fi
 }
 
@@ -110,7 +132,7 @@ remote_root_status() {
 }
 
 remote_clear_root() {
-  remote_exec "mkdir -p '${REMOTE_PATH}' && \
+  remote_exec_tracked "mkdir -p '${REMOTE_PATH}' && \
     if command -v chattr >/dev/null 2>&1; then \
       find '${REMOTE_PATH}' -name '.user.ini' -exec chattr -i {} + 2>/dev/null || true; \
     fi && \
@@ -118,7 +140,7 @@ remote_clear_root() {
 }
 
 remote_fix_permissions() {
-  remote_exec "find '${REMOTE_PATH}' -type d -exec chmod 755 {} + && \
+  remote_exec_tracked "find '${REMOTE_PATH}' -type d -exec chmod 755 {} + && \
     find '${REMOTE_PATH}' -type f -exec chmod 644 {} + && \
     chmod -R 775 '${REMOTE_PATH}/backend/storage' && \
     if id -u www >/dev/null 2>&1; then \
@@ -144,7 +166,7 @@ case "${DEPLOY_COMMAND}" in
     ;;
   "migrate")
     DEPLOY_MODE="sync"
-    RUN_DB_INIT="1"
+    RUN_DB_MIGRATE="1"
     ;;
   "fresh")
     DEPLOY_MODE="fresh"
@@ -164,6 +186,12 @@ fi
 
 if [[ "${DEPLOY_MODE}" != "sync" && "${DEPLOY_MODE}" != "fresh" ]]; then
   echo "Invalid DEPLOY_MODE: ${DEPLOY_MODE}. Use sync or fresh." >&2
+  exit 1
+fi
+
+if [[ "${DEPLOY_MODE}" == "sync" && "${DEPLOY_COMMAND}" != "migrate" && "${RUN_DB_INIT:-0}" == "1" ]]; then
+  echo "Refusing RUN_DB_INIT=1 during sync deploy." >&2
+  echo "Use './deploy.sh migrate' for non-destructive database migrations, or './deploy.sh fresh' for a confirmed reset." >&2
   exit 1
 fi
 
@@ -194,11 +222,11 @@ echo "[remote] Root status: $(remote_root_status)"
 if [[ "${DEPLOY_MODE}" == "fresh" ]]; then
   echo "[remote] Fresh deploy requested. Clearing ${REMOTE_PATH}"
   remote_clear_root
-  RUN_DB_INIT="1"
+  RUN_DB_MIGRATE="0"
 fi
 
 echo "[remote] Preparing ${REMOTE_PATH}"
-remote_exec "mkdir -p '${REMOTE_PATH}/backend' '${REMOTE_PATH}/database' '${REMOTE_PATH}/font' '${REMOTE_PATH}/backend/storage/exports'"
+remote_exec_tracked "mkdir -p '${REMOTE_PATH}/backend' '${REMOTE_PATH}/database' '${REMOTE_PATH}/font' '${REMOTE_PATH}/backend/storage/exports'"
 
 echo "[upload] frontend/dist -> ${REMOTE_PATH}"
 rsync -az --info=stats2 --human-readable \
@@ -238,16 +266,19 @@ remote_fix_permissions
 
 if [[ "${DEPLOY_MODE}" == "fresh" ]]; then
   echo "[remote] Fresh deploy requested. Checking database before reset"
-  remote_exec "cd '${REMOTE_PATH}/backend' && php bin/reset-database.php --dry-run"
+  remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/reset-database.php --dry-run"
   echo "[remote] Clearing existing MySQL objects in ${DB_NAME}"
-  remote_exec "cd '${REMOTE_PATH}/backend' && php bin/reset-database.php --yes"
+  remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/reset-database.php --yes"
 fi
 
-if [[ "${RUN_DB_INIT}" == "1" && "${SKIP_DB_INIT:-0}" != "1" ]]; then
-  echo "[remote] Initializing existing MySQL database ${DB_NAME}"
-  remote_exec "cd '${REMOTE_PATH}/backend' && php bin/init-database.php --yes"
+if [[ "${DEPLOY_MODE}" == "fresh" && "${SKIP_DB_INIT:-0}" != "1" ]]; then
+  echo "[remote] Fresh deploy requested. Initializing empty MySQL database ${DB_NAME}"
+  remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/init-database.php --yes"
+elif [[ "${RUN_DB_MIGRATE}" == "1" && "${SKIP_DB_INIT:-0}" != "1" ]]; then
+  echo "[remote] Running non-destructive MySQL migrations for ${DB_NAME}"
+  remote_exec_tracked "cd '${REMOTE_PATH}/backend' && php bin/init-database.php --yes --migrations-only"
 else
-  echo "[remote] Skipping database initialization for sync deploy"
+  echo "[remote] Skipping database changes for sync deploy"
 fi
 
 cat <<EOF
@@ -267,6 +298,6 @@ Fresh mode clears the remote root path and resets existing MySQL objects before 
 Deployment mode:
   ${DEPLOY_MODE}
 
-Database initialization:
-  ${RUN_DB_INIT}
+Database migration:
+  ${RUN_DB_MIGRATE}
 EOF
