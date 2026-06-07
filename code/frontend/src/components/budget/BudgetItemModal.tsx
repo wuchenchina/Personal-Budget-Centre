@@ -1,4 +1,4 @@
-import { Alert, Form, Input, InputNumber, Modal, Select } from 'antd';
+import { Alert, Form, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import { currencyOptions } from '../../config/appConfig';
 import type { BudgetItem } from '../../types/budget';
@@ -26,7 +26,7 @@ export function BudgetItemModal({
   onOk,
 }: BudgetItemModalProps) {
   const handleCategoryChange = (categoryId: number | null | undefined) => {
-    if (categoryId === null || categoryId === undefined || form.getFieldValue('label')) {
+    if (categoryId === null || categoryId === undefined) {
       return;
     }
 
@@ -54,20 +54,16 @@ export function BudgetItemModal({
         name="budget-centre-budget-item"
         requiredMark={false}
       >
-        <Form.Item
-          label="分类名称"
-          name="label"
-          rules={[
-            { required: true, message: '请输入分类名称。' },
-            { max: 180, message: '分类名称不能超过 180 个字符。' },
-          ]}
-        >
-          <Input autoComplete="off" />
+        <Form.Item hidden name="label">
+          <input type="hidden" />
         </Form.Item>
 
-        <Form.Item label="预设分类" name="categoryId">
+        <Form.Item
+          label="预设分类"
+          name="categoryId"
+          rules={[{ required: true, message: '请选择预设分类。' }]}
+        >
           <Select
-            allowClear
             showSearch
             optionFilterProp="label"
             options={categoryOptions}

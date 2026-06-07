@@ -32,7 +32,10 @@ final readonly class BudgetCategoryService
 
         $this->permissions()->requireWorkspaceRole($workspaceId, (int) $session['user_id']);
 
-        return (new BudgetCategoryRepository($this->pdo))->listForWorkspace($workspaceId);
+        $repository = new BudgetCategoryRepository($this->pdo);
+        $repository->ensurePresetCategories($workspaceId, (int) $session['user_id']);
+
+        return $repository->listForWorkspace($workspaceId);
     }
 
     public function createCategory(array $input, Request $request): array

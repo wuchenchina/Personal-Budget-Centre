@@ -1,70 +1,19 @@
-import { useState } from 'react';
-import { Button, Input, Popconfirm, Select, Space, Tag } from 'antd';
-import { Plus, Tags, Trash2 } from 'lucide-react';
+import { Tag } from 'antd';
+import { Tags } from 'lucide-react';
 import type { OperationsController } from '../../hooks/useOperationsController';
-import type { BudgetCategory, CurrencyCode } from '../../types/budget';
+import type { BudgetCategory } from '../../types/budget';
 
 interface CategorySideSectionProps {
   operations: OperationsController;
-  canWriteBudgets: boolean;
 }
 
-export function CategorySideSection({
-  operations,
-  canWriteBudgets,
-}: CategorySideSectionProps) {
-  const [categoryName, setCategoryName] = useState('');
-  const [defaultCurrency, setDefaultCurrency] = useState<CurrencyCode | undefined>();
-
-  const handleCreate = () => {
-    if (!categoryName.trim()) {
-      return;
-    }
-
-    void operations.saveCategory({
-      name: categoryName,
-      defaultCurrency: defaultCurrency ?? null,
-    });
-    setCategoryName('');
-    setDefaultCurrency(undefined);
-  };
-
+export function CategorySideSection({ operations }: CategorySideSectionProps) {
   return (
     <div className="side-section">
       <div className="side-title">
         <Tags size={16} />
-        <span>分类</span>
+        <span>预设分类</span>
       </div>
-      {canWriteBudgets ? (
-        <Space.Compact className="side-compact-row" block>
-          <Input
-            allowClear
-            disabled={operations.isCategorySaving}
-            placeholder="新分类"
-            size="small"
-            value={categoryName}
-            onChange={(event) => setCategoryName(event.target.value)}
-            onPressEnter={handleCreate}
-          />
-          <Select<CurrencyCode>
-            allowClear
-            className="side-currency-select"
-            disabled={operations.isCategorySaving}
-            options={operations.currencyOptions}
-            placeholder="货币"
-            size="small"
-            value={defaultCurrency}
-            onChange={setDefaultCurrency}
-          />
-          <Button
-            disabled={!categoryName.trim()}
-            icon={<Plus size={13} />}
-            loading={operations.isCategorySaving}
-            size="small"
-            onClick={handleCreate}
-          />
-        </Space.Compact>
-      ) : null}
       <div className="operation-list">
         {operations.isCategoryLoading ? (
           <div className="empty-line">正在加载分类...</div>
@@ -75,8 +24,6 @@ export function CategorySideSection({
             <CategoryRow
               key={category.id}
               category={category}
-              operations={operations}
-              canWriteBudgets={canWriteBudgets}
             />
           ))
         )}
@@ -87,81 +34,21 @@ export function CategorySideSection({
 
 function CategoryRow({
   category,
-  operations,
-  canWriteBudgets,
 }: {
   category: BudgetCategory;
-  operations: OperationsController;
-  canWriteBudgets: boolean;
 }) {
-  const [alias, setAlias] = useState('');
-
-  const handleAliasCreate = () => {
-    if (!alias.trim()) {
-      return;
-    }
-
-    void operations.saveAlias(category.id, alias);
-    setAlias('');
-  };
-
   return (
     <div className="operation-list-item">
       <div className="operation-list-main">
         <span>{category.name}</span>
         <small>{category.defaultCurrency ? `默认货币 ${category.defaultCurrency}` : '无默认货币'}</small>
       </div>
-      {canWriteBudgets ? (
-        <Popconfirm
-          title="删除分类"
-          description="已有预算行会保留数据，但会失去此分类关联。"
-          okText="删除"
-          cancelText="取消"
-          okButtonProps={{ danger: true }}
-          onConfirm={() => operations.removeCategory(category.id)}
-        >
-          <Button
-            danger
-            icon={<Trash2 size={13} />}
-            loading={operations.isCategorySaving}
-            size="small"
-          />
-        </Popconfirm>
-      ) : null}
       <div className="alias-row">
+        <Tag color="blue">Preset</Tag>
         {category.aliases.map((item) => (
-          <Tag
-            closeIcon={canWriteBudgets}
-            key={item.id}
-            onClose={(event) => {
-              event.preventDefault();
-              void operations.removeAlias(item.id);
-            }}
-          >
-            {item.alias}
-          </Tag>
+          <Tag key={item.id}>{item.alias}</Tag>
         ))}
       </div>
-      {canWriteBudgets ? (
-        <Space.Compact className="side-compact-row" block>
-          <Input
-            allowClear
-            disabled={operations.isCategorySaving}
-            placeholder="别名"
-            size="small"
-            value={alias}
-            onChange={(event) => setAlias(event.target.value)}
-            onPressEnter={handleAliasCreate}
-          />
-          <Button
-            disabled={!alias.trim()}
-            icon={<Plus size={13} />}
-            loading={operations.isCategorySaving}
-            size="small"
-            onClick={handleAliasCreate}
-          />
-        </Space.Compact>
-      ) : null}
     </div>
   );
 }

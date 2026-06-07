@@ -35,6 +35,7 @@ const apiErrorMessages: Record<string, string> = {
   MISSING_SEED_DATA: '基础数据缺失，请先初始化数据库。',
   NOT_FOUND: '接口不存在。',
   PERMISSION_DENIED: '当前账号没有权限执行此操作。',
+  SERVER_ERROR: '服务器暂时无法完成请求，请稍后再试。',
   TEMPLATE_NOT_FOUND: '预算模板缺失，请先初始化模板数据。',
   UNAUTHENTICATED: '请先登录。',
   USER_NOT_FOUND: '用户不存在或已被删除。',
@@ -69,12 +70,21 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     headers['X-CSRF-Token'] = csrfToken;
   }
 
-  const response = await fetch(apiUrl(path), {
-    method,
-    credentials: 'include',
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), {
+      method,
+      credentials: 'include',
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+  } catch (error: unknown) {
+    if (error instanceof TypeError) {
+      throw new Error('无法连接服务器，请确认正在使用 https:// 访问，或稍后重试。');
+    }
+
+    throw error;
+  }
 
   const responseText = await response.text();
   const payload = parseApiResponse<T>(responseText, response.status);

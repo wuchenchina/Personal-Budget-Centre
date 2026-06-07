@@ -25,6 +25,7 @@ export interface WorkspaceMemberFormValues {
 }
 
 export interface BudgetFormValues {
+  workspaceId: number;
   title: string;
   ownerName?: string;
   ownerNameHidden?: boolean;
@@ -62,7 +63,11 @@ export interface TransactionFormValues {
 
 export interface ProfileFormValues {
   displayName: string;
+}
+
+export interface EmailChangeFormValues {
   email: string;
+  confirmEmail: string;
 }
 
 export interface PasswordFormValues {

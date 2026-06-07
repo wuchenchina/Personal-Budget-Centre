@@ -17,6 +17,7 @@ import { GovernancePanel } from './components/workspace/GovernancePanel';
 import { ShareSideSection } from './components/workspace/ShareSideSection';
 import { WorkspaceCreateModal } from './components/workspace/WorkspaceCreateModal';
 import { WorkspaceMemberModal } from './components/workspace/WorkspaceMemberModal';
+import { WorkspacePage } from './components/workspace/WorkspacePage';
 import { appTheme } from './config/appConfig';
 import { useAuthController } from './hooks/useAuthController';
 import { useAdminController } from './hooks/useAdminController';
@@ -25,6 +26,8 @@ import { useBudgetEntryController } from './hooks/useBudgetEntryController';
 import { useOperationsController } from './hooks/useOperationsController';
 import { useTemplateController } from './hooks/useTemplateController';
 import { useWorkspaceController } from './hooks/useWorkspaceController';
+import type { AppLanguage } from './i18n';
+import { antdLocales, normalizeLanguage } from './i18n';
 import './App.css';
 
 interface AppRoute {
@@ -34,6 +37,7 @@ interface AppRoute {
 
 const navigationPaths: Record<string, string> = {
   dashboard: '/',
+  workspace: '/workspaces',
   budgets: '/budgets',
   categories: '/categories',
   rates: '/rates',
@@ -79,8 +83,15 @@ function initialRouteFromLocation(): AppRoute {
   return routeFromPath(window.location.pathname);
 }
 
+function initialLanguage(): AppLanguage {
+  return normalizeLanguage(
+    window.localStorage.getItem('budgetCentre.language') ?? window.navigator.language,
+  );
+}
+
 function App() {
   const [route, setRoute] = useState(initialRouteFromLocation);
+  const [language, setLanguage] = useState<AppLanguage>(initialLanguage);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const activeKey = route.activeKey;
   const initialBudgetProjectId = route.budgetId;
@@ -96,6 +107,12 @@ function App() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('budgetCentre.language', language);
+    document.documentElement.lang =
+      language === 'en' ? 'en' : language === 'sc' ? 'zh-Hans' : 'zh-Hant';
+  }, [language]);
 
   const navigateToPath = (path: string, replace = false) => {
     if (window.location.pathname === path && window.location.hash === '') {
@@ -123,6 +140,7 @@ function App() {
     initialBudgetId: initialBudgetProjectId,
     session: auth.session,
     onCreated: () => navigateToPath('/budgets'),
+    onWorkspaceSelected: workspace.handleWorkspaceSwitch,
   });
   const budgetEntry = useBudgetEntryController({
     baseCurrency,
@@ -165,7 +183,7 @@ function App() {
 
   if (isEmailVerificationRoute) {
     return (
-      <ConfigProvider theme={appTheme}>
+      <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
         <EmailVerificationScreen />
       </ConfigProvider>
     );
@@ -173,7 +191,7 @@ function App() {
 
   if (auth.isSessionLoading) {
     return (
-      <ConfigProvider theme={appTheme}>
+      <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
         <AuthLoadingScreen />
       </ConfigProvider>
     );
@@ -181,7 +199,7 @@ function App() {
 
   if (auth.session === null) {
     return (
-      <ConfigProvider theme={appTheme}>
+      <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
         <AuthScreen
           form={auth.authForm}
           mode={auth.authMode}
@@ -244,7 +262,6 @@ function App() {
       workspace={workspace}
       operations={operations}
       currentUserId={currentUserId}
-      canWriteBudgets={canWriteBudgets}
       canManageWorkspaceMembers={canManageWorkspaceMembers}
     />
   );
@@ -261,6 +278,7 @@ function App() {
         open={budget.isBudgetModalOpen}
         isEditing={budget.editingBudgetId !== null}
         error={budget.budgetError}
+        workspaceOptions={workspace.workspaceOptions}
         confirmLoading={budget.isBudgetSaving}
         onCancel={() => {
           budget.setIsBudgetModalOpen(false);
@@ -342,14 +360,21 @@ function App() {
           budgets={budget.budgets}
           selectedBudget={budget.selectedBudget}
           baseCurrency={baseCurrency}
-          workspace={workspace}
-          currentUserId={currentUserId}
           canWriteBudgets={canWriteBudgets}
-          canManageWorkspaceMembers={canManageWorkspaceMembers}
           loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
           onNavigate={handleNavigate}
           onNewProject={budget.openBudgetModal}
           onOpenProject={openBudgetProjectInNewTab}
+        />
+      );
+    }
+
+    if (activeKey === 'workspace') {
+      return (
+        <WorkspacePage
+          workspace={workspace}
+          currentUserId={currentUserId}
+          canManageWorkspaceMembers={canManageWorkspaceMembers}
         />
       );
     }
@@ -396,10 +421,7 @@ function App() {
         budgets={budget.budgets}
         selectedBudget={budget.selectedBudget}
         baseCurrency={baseCurrency}
-        workspace={workspace}
-        currentUserId={currentUserId}
         canWriteBudgets={canWriteBudgets}
-        canManageWorkspaceMembers={canManageWorkspaceMembers}
         loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
         onNavigate={handleNavigate}
         onNewProject={budget.openBudgetModal}
@@ -409,7 +431,7 @@ function App() {
   };
 
   return (
-    <ConfigProvider theme={appTheme}>
+    <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
       {isStandaloneBudgetEditor ? (
         <>
           <main className="standalone-budget-editor">
@@ -425,7 +447,9 @@ function App() {
             workspaceRole={workspaceRole}
             isAdmin={session.user.isAdmin}
             isAuthSubmitting={auth.isAuthSubmitting}
+            language={language}
             onNavigate={handleNavigate}
+            onLanguageChange={setLanguage}
             onProfile={handleProfileOpen}
             onLogout={auth.handleLogout}
           >

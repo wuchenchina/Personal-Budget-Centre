@@ -19,6 +19,7 @@ interface UseBudgetControllerOptions {
   initialBudgetId?: number | null;
   session: AuthSession | null;
   onCreated?: () => void;
+  onWorkspaceSelected?: (workspaceId: number) => Promise<void> | void;
 }
 
 export function useBudgetController(options: UseBudgetControllerOptions) {
@@ -123,6 +124,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     const dateRange = defaultBudgetDateRange();
     budgetForm.resetFields();
     budgetForm.setFieldsValue({
+      workspaceId: activeWorkspaceId ?? undefined,
       title: defaultBudgetTitle(dateRange),
       ownerName: session?.user.displayName ?? '',
       ownerNameHidden: false,
@@ -141,6 +143,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     setEditingBudgetId(budget.id);
     budgetForm.resetFields();
     budgetForm.setFieldsValue({
+      workspaceId: budget.workspaceId,
       title: budget.title,
       ownerName: budget.ownerName,
       ownerNameHidden: budget.ownerName.trim() === '',
@@ -169,8 +172,9 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       setIsBudgetSaving(true);
       setBudgetError(null);
 
+      const workspaceId = editingBudgetId === null ? values.workspaceId : activeWorkspaceId;
       const payload = {
-        workspaceId: activeWorkspaceId,
+        workspaceId,
         title: values.title.trim(),
         ownerName: values.ownerNameHidden ? '' : (values.ownerName?.trim() ?? ''),
         startDate: values.dateRange?.[0]?.format('YYYY-MM-DD') ?? null,
@@ -185,11 +189,22 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         editingBudgetId === null
           ? await createBudget(payload)
           : await updateBudget({
-              ...payload,
+              title: payload.title,
+              ownerName: payload.ownerName,
+              startDate: payload.startDate,
+              endDate: payload.endDate,
+              baseCurrency: payload.baseCurrency,
+              displayCurrency: payload.displayCurrency,
+              visibility: payload.visibility,
+              status: payload.status,
+              note: payload.note,
               id: editingBudgetId,
             });
 
       requestedBudgetId.current = savedBudget.id;
+      if (editingBudgetId === null && workspaceId !== activeWorkspaceId) {
+        await options.onWorkspaceSelected?.(workspaceId);
+      }
       setBudgets((currentBudgets) => [
         savedBudget,
         ...currentBudgets.filter((budget) => budget.id !== savedBudget.id),

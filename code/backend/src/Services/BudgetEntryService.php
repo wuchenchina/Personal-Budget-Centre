@@ -305,7 +305,7 @@ final readonly class BudgetEntryService
             return $categoryId;
         }
 
-        return $categories->findOrCreateForName($workspaceId, $userId, $label);
+        throw new AuthException('VALIDATION_ERROR', 'Please select a preset category.', 422);
     }
 
     private function rateToBase(

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Flex, Form, Input, Space, Tabs, Tag, Typography } from 'antd';
+import { Alert, Button, Flex, Form, Input, Modal, Space, Tabs, Tag, Typography } from 'antd';
 import { KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import { resendEmailVerification, updatePassword, updateProfile } from '../../api/auth';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import type { AuthSession } from '../../types/auth';
-import type { PasswordFormValues, ProfileFormValues } from '../../types/forms';
+import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
 
 const { Text, Title } = Typography;
@@ -17,6 +17,7 @@ interface ProfilePageProps {
 
 export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePageProps) {
   const [profileForm] = Form.useForm<ProfileFormValues>();
+  const [emailChangeForm] = Form.useForm<EmailChangeFormValues>();
   const [passwordForm] = Form.useForm<PasswordFormValues>();
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileNotice, setProfileNotice] = useState<string | null>(null);
@@ -25,13 +26,13 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   const [isEmailVerificationSending, setIsEmailVerificationSending] = useState(false);
+  const [isEmailChangeOpen, setIsEmailChangeOpen] = useState(false);
 
   useEffect(() => {
     profileForm.setFieldsValue({
       displayName: session.user.displayName,
-      email: session.user.email,
     });
-  }, [profileForm, session.user.displayName, session.user.email]);
+  }, [profileForm, session.user.displayName]);
 
   const handleProfileSave = async (values: ProfileFormValues) => {
     setIsProfileSaving(true);
@@ -41,17 +42,43 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     try {
       const result = await updateProfile({
         displayName: values.displayName.trim(),
-        email: values.email.trim(),
+        email: session.user.email,
+      });
+
+      onSessionUpdate(result.session);
+      setProfileNotice('个人资料已更新。');
+    } catch (error: unknown) {
+      setProfileError(error instanceof Error ? error.message : '更新个人资料失败。');
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
+
+  const handleEmailChange = async () => {
+    setIsProfileSaving(true);
+    setProfileError(null);
+    setProfileNotice(null);
+
+    try {
+      const values = await emailChangeForm.validateFields();
+      const nextEmail = values.email.trim();
+      const result = await updateProfile({
+        displayName: session.user.displayName,
+        email: nextEmail,
       });
 
       onSessionUpdate(result.session);
       setProfileNotice(
         result.emailVerificationSent
-          ? '个人资料已更新，新的邮箱验证信已发送。'
-          : '个人资料已更新。',
+          ? `新的验证邮件已发送至 ${nextEmail}。`
+          : '电子邮件已更新。',
       );
+      setIsEmailChangeOpen(false);
+      emailChangeForm.resetFields();
     } catch (error: unknown) {
-      setProfileError(error instanceof Error ? error.message : '更新个人资料失败。');
+      if (error instanceof Error) {
+        setProfileError(error.message);
+      }
     } finally {
       setIsProfileSaving(false);
     }
@@ -144,14 +171,14 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                     }
                   />
                 ) : null}
-                <Form<ProfileFormValues>
-                  form={profileForm}
-                  layout="vertical"
-                  name="budget-centre-profile"
-                  requiredMark={false}
-                  onFinish={handleProfileSave}
-                >
-                  <div className="profile-form-grid">
+                <div className="profile-account-panel">
+                  <Form<ProfileFormValues>
+                    form={profileForm}
+                    layout="vertical"
+                    name="budget-centre-profile"
+                    requiredMark={false}
+                    onFinish={handleProfileSave}
+                  >
                     <Form.Item
                       label="昵称"
                       name="displayName"
@@ -162,21 +189,27 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                     >
                       <Input autoComplete="name" prefix={<UserRound size={15} />} />
                     </Form.Item>
-                    <Form.Item
-                      label="电子邮件"
-                      name="email"
-                      rules={[
-                        { required: true, message: '请输入电子邮件。' },
-                        { type: 'email', message: '请输入有效的电子邮件。' },
-                      ]}
+                    <Button type="primary" htmlType="submit" loading={isProfileSaving}>
+                      保存资料
+                    </Button>
+                  </Form>
+                  <div className="profile-email-card">
+                    <span>电子邮件</span>
+                    <strong>{session.user.email}</strong>
+                    <small>
+                      更改电子邮件后需要重新验证；验证完成前，系统会把它视为待验证地址。
+                    </small>
+                    <Button
+                      icon={<Mail size={15} />}
+                      onClick={() => {
+                        emailChangeForm.resetFields();
+                        setIsEmailChangeOpen(true);
+                      }}
                     >
-                      <Input autoComplete="email" prefix={<Mail size={15} />} />
-                    </Form.Item>
+                      更改电子邮件
+                    </Button>
                   </div>
-                  <Button type="primary" htmlType="submit" loading={isProfileSaving}>
-                    保存资料
-                  </Button>
-                </Form>
+                </div>
               </Flex>
             ),
           },
@@ -265,6 +298,68 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
           },
         ]}
       />
+      <Modal
+        destroyOnClose
+        confirmLoading={isProfileSaving}
+        okText="提交更改"
+        open={isEmailChangeOpen}
+        title="更改电子邮件"
+        onCancel={() => setIsEmailChangeOpen(false)}
+        onOk={() => void handleEmailChange()}
+      >
+        <Alert
+          className="modal-error"
+          type="warning"
+          showIcon
+          message="这会影响登录和通知地址"
+          description="提交后系统会发送验证邮件。完成验证前，请不要把这个地址视为已确认。"
+        />
+        <Form<EmailChangeFormValues>
+          form={emailChangeForm}
+          layout="vertical"
+          name="budget-centre-email-change"
+          requiredMark={false}
+        >
+          <Form.Item
+            label="新的电子邮件"
+            name="email"
+            rules={[
+              { required: true, message: '请输入新的电子邮件。' },
+              { type: 'email', message: '请输入有效的电子邮件。' },
+              {
+                validator(_, value: string | undefined) {
+                  if (!value || value.trim() !== session.user.email) {
+                    return Promise.resolve();
+                  }
+
+                  return Promise.reject(new Error('新的电子邮件不能与当前电子邮件相同。'));
+                },
+              },
+            ]}
+          >
+            <Input autoComplete="email" prefix={<Mail size={15} />} />
+          </Form.Item>
+          <Form.Item
+            dependencies={['email']}
+            label="再次输入新的电子邮件"
+            name="confirmEmail"
+            rules={[
+              { required: true, message: '请再次输入新的电子邮件。' },
+              ({ getFieldValue }) => ({
+                validator(_, value: string | undefined) {
+                  if (!value || getFieldValue('email') === value) {
+                    return Promise.resolve();
+                  }
+
+                  return Promise.reject(new Error('两次输入的电子邮件不一致。'));
+                },
+              }),
+            ]}
+          >
+            <Input autoComplete="email" prefix={<Mail size={15} />} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

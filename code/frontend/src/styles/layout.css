@@ -120,6 +120,10 @@
   padding-inline: 6px;
 }
 
+.language-switcher {
+  width: 84px;
+}
+
 .app-content {
   min-width: 0;
   padding: 18px;

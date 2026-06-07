@@ -15,6 +15,7 @@ use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
 use DateTimeImmutable;
 use PDO;
+use RuntimeException;
 use Throwable;
 
 final readonly class AuthService
@@ -426,7 +427,16 @@ final readonly class AuthService
 BudgetCentre
 TEXT;
 
-        (new SmtpMailer())->send($email, '验证你的 BudgetCentre 邮箱', $body);
+        try {
+            (new SmtpMailer())->send($email, '验证你的 BudgetCentre 邮箱', $body);
+        } catch (RuntimeException $exception) {
+            throw new AuthException(
+                'MAIL_DELIVERY_FAILED',
+                'Email delivery failed. Please try again later.',
+                503,
+                ['detail' => Env::string('APP_ENV') === 'local' ? $exception->getMessage() : null],
+            );
+        }
     }
 
     private function tokenHash(string $token): string

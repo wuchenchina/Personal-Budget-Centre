@@ -11,6 +11,7 @@ interface BudgetCreateModalProps {
   open: boolean;
   isEditing: boolean;
   error: string | null;
+  workspaceOptions: Array<{ label: string; value: number }>;
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
@@ -21,6 +22,7 @@ export function BudgetCreateModal({
   open,
   isEditing,
   error,
+  workspaceOptions,
   confirmLoading,
   onCancel,
   onOk,
@@ -49,6 +51,20 @@ export function BudgetCreateModal({
         name="budget-centre-budget"
         requiredMark={false}
       >
+        <Form.Item
+          label="工作区"
+          name="workspaceId"
+          extra={isEditing ? '既有预算的工作区归属不能在这里移动。' : undefined}
+          rules={[{ required: true, message: '请选择工作区。' }]}
+        >
+          <Select
+            disabled={isEditing}
+            optionFilterProp="label"
+            options={workspaceOptions}
+            placeholder="选择工作区"
+            showSearch
+          />
+        </Form.Item>
         <Form.Item
           label="标题"
           name="title"

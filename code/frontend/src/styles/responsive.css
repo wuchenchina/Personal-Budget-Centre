@@ -68,6 +68,7 @@
   .project-list-grid,
   .project-money-row,
   .workspace-stat-grid,
+  .profile-account-panel,
   .profile-form-grid,
   .profile-security-grid {
     grid-template-columns: 1fr;

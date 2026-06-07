@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Button, Layout, Menu, Space, Tag } from 'antd';
+import { Button, Layout, Menu, Select, Space, Tag } from 'antd';
 import type { MenuProps } from 'antd';
 import {
+  Building2,
   LayoutDashboard,
   LogOut,
   RefreshCcw,
@@ -11,10 +12,54 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { iconSize, roleColors, roleLabels } from '../../config/appConfig';
+import type { AppLanguage } from '../../i18n';
+import { languageOptions } from '../../i18n';
 import type { AuthSession } from '../../types/auth';
 import type { WorkspaceRole } from '../../types/budget';
 
 const { Header, Sider, Content } = Layout;
+
+const shellCopy = {
+  en: {
+    admin: 'Admin',
+    brandCaption: 'Personal finance',
+    budgets: 'Budgets',
+    categories: 'Categories',
+    currentWorkspace: 'Current workspace',
+    dashboard: 'Dashboard',
+    logout: 'Sign out',
+    rates: 'Rates',
+    unset: 'Not set',
+    workspace: 'Workspace',
+    workspaceMissing: 'No workspace selected',
+  },
+  sc: {
+    admin: '后台',
+    brandCaption: '个人财务',
+    budgets: '预算项目',
+    categories: '分类',
+    currentWorkspace: '当前工作区',
+    dashboard: '仪表盘',
+    logout: '退出',
+    rates: '汇率',
+    unset: '未设置',
+    workspace: '工作区',
+    workspaceMissing: '尚未选择工作区',
+  },
+  tc: {
+    admin: '後台',
+    brandCaption: '個人財務',
+    budgets: '預算項目',
+    categories: '分類',
+    currentWorkspace: '當前工作區',
+    dashboard: '儀表盤',
+    logout: '登出',
+    rates: '匯率',
+    unset: '未設定',
+    workspace: '工作區',
+    workspaceMissing: '尚未選擇工作區',
+  },
+} satisfies Record<AppLanguage, Record<string, string>>;
 
 interface AppShellProps {
   activeKey: string;
@@ -22,8 +67,10 @@ interface AppShellProps {
   workspaceRole: WorkspaceRole | undefined;
   isAdmin: boolean;
   isAuthSubmitting: boolean;
+  language: AppLanguage;
   children: ReactNode;
   onNavigate: (key: string) => void;
+  onLanguageChange: (language: AppLanguage) => void;
   onProfile: () => void;
   onLogout: () => void;
 }
@@ -34,21 +81,25 @@ export function AppShell({
   workspaceRole,
   isAdmin,
   isAuthSubmitting,
+  language,
   children,
   onNavigate,
+  onLanguageChange,
   onProfile,
   onLogout,
 }: AppShellProps) {
+  const copy = shellCopy[language];
   const menuItems: MenuProps['items'] = [
-    { key: 'dashboard', icon: <LayoutDashboard size={iconSize} />, label: '仪表盘' },
-    { key: 'budgets', icon: <WalletCards size={iconSize} />, label: '预算项目' },
-    { key: 'categories', icon: <Tags size={iconSize} />, label: '分类' },
-    { key: 'rates', icon: <RefreshCcw size={iconSize} />, label: '汇率' },
+    { key: 'dashboard', icon: <LayoutDashboard size={iconSize} />, label: copy.dashboard },
+    { key: 'workspace', icon: <Building2 size={iconSize} />, label: copy.workspace },
+    { key: 'budgets', icon: <WalletCards size={iconSize} />, label: copy.budgets },
+    { key: 'categories', icon: <Tags size={iconSize} />, label: copy.categories },
+    { key: 'rates', icon: <RefreshCcw size={iconSize} />, label: copy.rates },
   ];
   if (isAdmin) {
-    menuItems.push({ key: 'admin', icon: <ShieldCheck size={iconSize} />, label: '后台' });
+    menuItems.push({ key: 'admin', icon: <ShieldCheck size={iconSize} />, label: copy.admin });
   }
-  const workspaceName = session.workspace?.name ?? '尚未選擇工作區';
+  const workspaceName = session.workspace?.name ?? copy.workspaceMissing;
 
   return (
     <Layout className="app-shell">
@@ -59,7 +110,7 @@ export function AppShell({
           </div>
           <div>
             <div className="brand-title">BudgetCentre</div>
-            <div className="brand-caption">个人财务</div>
+            <div className="brand-caption">{copy.brandCaption}</div>
           </div>
         </div>
         <Menu
@@ -75,21 +126,29 @@ export function AppShell({
         <Header className="app-header">
           <div className="header-main">
             <div className="header-context">
-              <span className="header-context-kicker">當前工作區</span>
+              <span className="header-context-kicker">{copy.currentWorkspace}</span>
               <div className="header-context-row">
                 <strong>{workspaceName}</strong>
                 {workspaceRole ? (
                   <Tag color={roleColors[workspaceRole]}>{roleLabels[workspaceRole]}</Tag>
                 ) : (
-                  <Tag>未設定</Tag>
+                  <Tag>{copy.unset}</Tag>
                 )}
               </div>
             </div>
           </div>
           <Space className="header-actions" wrap>
-            <Button type="text" onClick={() => onNavigate('dashboard')}>
-              工作台
+            <Button type="text" onClick={() => onNavigate('workspace')}>
+              {copy.workspace}
             </Button>
+            <Select<AppLanguage>
+              aria-label="Language"
+              className="language-switcher"
+              options={languageOptions}
+              size="small"
+              value={language}
+              onChange={onLanguageChange}
+            />
             <Button
               className="user-name-button"
               icon={<UserRound size={15} />}
@@ -104,7 +163,7 @@ export function AppShell({
               size="small"
               onClick={onLogout}
             >
-              退出
+              {copy.logout}
             </Button>
           </Space>
         </Header>

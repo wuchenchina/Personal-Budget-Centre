@@ -23,3 +23,42 @@
   padding: 0;
   border: 0;
 }
+
+.profile-account-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.6fr);
+  gap: 16px;
+}
+
+.profile-email-card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.profile-email-card span,
+.profile-email-card small {
+  color: #8c8c8c;
+}
+
+.profile-email-card span {
+  font-size: 12px;
+}
+
+.profile-email-card strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #1f1f1f;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-email-card small {
+  line-height: 1.5;
+}

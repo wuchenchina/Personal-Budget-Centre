@@ -803,7 +803,7 @@ final class App
             $service = new PasskeyService($pdo, $sessionManager, $authenticator);
 
             return $callback($service);
-        } catch (InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException $exception) {
+        } catch (InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException | RuntimeException $exception) {
             return $this->apiExceptionResponse($exception);
         }
     }
@@ -831,7 +831,7 @@ final class App
             $service = $factory($pdo, $authenticator);
 
             return $callback($service);
-        } catch (InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException $exception) {
+        } catch (InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException | RuntimeException $exception) {
             return $this->apiExceptionResponse($exception);
         }
     }
@@ -862,8 +862,8 @@ final class App
 
         if ($exception instanceof RuntimeException) {
             return JsonResponse::error(
-            'MAIL_DELIVERY_FAILED',
-            'Email delivery failed. Please try again later.',
+                'SERVER_ERROR',
+                'The server could not complete the request. Please try again later.',
                 503,
                 ['detail' => Env::string('APP_ENV') === 'local' ? $exception->getMessage() : null],
             );

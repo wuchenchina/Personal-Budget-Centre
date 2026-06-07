@@ -10,7 +10,6 @@ interface OperationsSectionsProps {
   operations: OperationsController;
   selectedBudget: BudgetDetail | null;
   activeWorkspaceId: number | null;
-  canWriteBudgets: boolean;
   canManageBudgetShares: boolean;
 }
 
@@ -19,7 +18,6 @@ export function OperationsSections({
   operations,
   selectedBudget,
   activeWorkspaceId,
-  canWriteBudgets,
   canManageBudgetShares,
 }: OperationsSectionsProps) {
   const showCategories = activeKey === 'categories';
@@ -40,9 +38,7 @@ export function OperationsSections({
           canManageBudgetShares={canManageBudgetShares}
         />
       ) : null}
-      {showCategories ? (
-        <CategorySideSection operations={operations} canWriteBudgets={canWriteBudgets} />
-      ) : null}
+      {showCategories ? <CategorySideSection operations={operations} /> : null}
       {showRates ? (
         <ExchangeRateSideSection
           activeWorkspaceId={activeWorkspaceId}
