@@ -1,6 +1,7 @@
 import { Alert, Form, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import { currencyOptions } from '../../config/appConfig';
+import { useI18n } from '../../i18n';
 import type { BudgetItem } from '../../types/budget';
 import type { BudgetItemFormValues } from '../../types/forms';
 
@@ -25,6 +26,7 @@ export function BudgetItemModal({
   onCancel,
   onOk,
 }: BudgetItemModalProps) {
+  const { t } = useI18n();
   const handleCategoryChange = (categoryId: number | null | undefined) => {
     if (categoryId === null || categoryId === undefined) {
       return;
@@ -40,9 +42,9 @@ export function BudgetItemModal({
     <Modal
       destroyOnClose
       confirmLoading={confirmLoading}
-      okText={editingItem === null ? '创建' : '保存'}
+      okText={editingItem === null ? t('create') : t('save')}
       open={open}
-      title={editingItem === null ? '新增预算项' : '编辑预算项'}
+      title={editingItem === null ? t('budgetItem') : t('editBudgetItem')}
       width={720}
       onCancel={onCancel}
       onOk={onOk}
@@ -59,31 +61,31 @@ export function BudgetItemModal({
         </Form.Item>
 
         <Form.Item
-          label="预设分类"
+          label={t('manageCategories')}
           name="categoryId"
-          rules={[{ required: true, message: '请选择预设分类。' }]}
+          rules={[{ required: true, message: t('selectCategory') }]}
         >
           <Select
             showSearch
             optionFilterProp="label"
             options={categoryOptions}
-            placeholder="选择预设分类"
+            placeholder={t('selectCategory')}
             onChange={handleCategoryChange}
           />
         </Form.Item>
 
         <div className="modal-form-grid">
           <Form.Item
-            label="预算货币"
+            label={t('budgetCurrency')}
             name="budgetCurrency"
-            rules={[{ required: true, message: '请选择预算货币。' }]}
+            rules={[{ required: true, message: t('selectBaseCurrency') }]}
           >
             <Select options={currencyOptions} />
           </Form.Item>
           <Form.Item
-            label="预算金额"
+            label={t('budgetAmount')}
             name="budgetAmount"
-            rules={[{ type: 'number', min: 0, message: '预算金额不能小于 0。' }]}
+            rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
           >
             <InputNumber className="form-full-width" precision={2} step={100} />
           </Form.Item>
@@ -91,9 +93,9 @@ export function BudgetItemModal({
 
         <div className="modal-form-grid">
           <Form.Item
-            label="排序"
+            label={t('sortOrder')}
             name="sortOrder"
-            rules={[{ type: 'number', min: 0, message: '排序不能小于 0。' }]}
+            rules={[{ type: 'number', min: 0, message: t('sortOrderMin') }]}
           >
             <InputNumber className="form-full-width" precision={0} step={1} />
           </Form.Item>
@@ -101,8 +103,8 @@ export function BudgetItemModal({
             label="Bank Fee (%)"
             name="bankFee"
             rules={[
-              { type: 'number', min: 0, message: 'Bank Fee 不能小于 0。' },
-              { type: 'number', max: 100, message: 'Bank Fee 不能超过 100%。' },
+              { type: 'number', min: 0, message: t('bankFeeMin') },
+              { type: 'number', max: 100, message: t('bankFeeMax') },
             ]}
           >
             <InputNumber className="form-full-width" precision={2} step={0.1} />
@@ -111,16 +113,16 @@ export function BudgetItemModal({
 
         <div className="modal-form-grid">
           <Form.Item
-            label="预计货币"
+            label={t('estimatedCurrency')}
             name="estimatedCurrency"
-            rules={[{ required: true, message: '请选择预计货币。' }]}
+            rules={[{ required: true, message: t('selectDisplayCurrency') }]}
           >
             <Select options={currencyOptions} />
           </Form.Item>
           <Form.Item
-            label="预计金额"
+            label={t('estimatedAmount')}
             name="estimatedAmount"
-            rules={[{ type: 'number', min: 0, message: '预计金额不能小于 0。' }]}
+            rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
           >
             <InputNumber className="form-full-width" precision={2} step={100} />
           </Form.Item>

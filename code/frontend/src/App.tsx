@@ -26,8 +26,8 @@ import { useBudgetEntryController } from './hooks/useBudgetEntryController';
 import { useOperationsController } from './hooks/useOperationsController';
 import { useTemplateController } from './hooks/useTemplateController';
 import { useWorkspaceController } from './hooks/useWorkspaceController';
-import type { AppLanguage } from './i18n';
-import { antdLocales, normalizeLanguage } from './i18n';
+import type { AppLanguage, I18nKey, I18nValues } from './i18n';
+import { I18nContext, antdLocales, normalizeLanguage, translate } from './i18n';
 import './App.css';
 
 interface AppRoute {
@@ -93,6 +93,14 @@ function App() {
   const [route, setRoute] = useState(initialRouteFromLocation);
   const [language, setLanguage] = useState<AppLanguage>(initialLanguage);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const i18nValue = useMemo(
+    () => ({
+      language,
+      t: (key: I18nKey, values?: I18nValues) => translate(language, key, values),
+    }),
+    [language],
+  );
+  const { t } = i18nValue;
   const activeKey = route.activeKey;
   const initialBudgetProjectId = route.budgetId;
 
@@ -184,7 +192,9 @@ function App() {
   if (isEmailVerificationRoute) {
     return (
       <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
-        <EmailVerificationScreen />
+        <I18nContext.Provider value={i18nValue}>
+          <EmailVerificationScreen />
+        </I18nContext.Provider>
       </ConfigProvider>
     );
   }
@@ -192,7 +202,9 @@ function App() {
   if (auth.isSessionLoading) {
     return (
       <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
-        <AuthLoadingScreen />
+        <I18nContext.Provider value={i18nValue}>
+          <AuthLoadingScreen />
+        </I18nContext.Provider>
       </ConfigProvider>
     );
   }
@@ -200,17 +212,21 @@ function App() {
   if (auth.session === null) {
     return (
       <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
-        <AuthScreen
-          form={auth.authForm}
-          mode={auth.authMode}
-          error={auth.authError}
-          notice={auth.authNotice}
-          isSubmitting={auth.isAuthSubmitting}
-          watchedPassword={auth.watchedPassword}
-          onFinish={auth.handleAuthFinish}
-          onModeChange={auth.switchAuthMode}
-          onPasskeyLogin={auth.handlePasskeyLogin}
-        />
+        <I18nContext.Provider value={i18nValue}>
+          <AuthScreen
+            form={auth.authForm}
+            mode={auth.authMode}
+            error={auth.authError}
+            notice={auth.authNotice}
+            isSubmitting={auth.isAuthSubmitting}
+            language={language}
+            watchedPassword={auth.watchedPassword}
+            onFinish={auth.handleAuthFinish}
+            onLanguageChange={setLanguage}
+            onModeChange={auth.switchAuthMode}
+            onPasskeyLogin={auth.handlePasskeyLogin}
+          />
+        </I18nContext.Provider>
       </ConfigProvider>
     );
   }
@@ -332,7 +348,7 @@ function App() {
         destroyOnClose
         footer={null}
         open={isShareModalOpen}
-        title="共享预算"
+        title={t('shareBudget')}
         width={760}
         onCancel={() => setIsShareModalOpen(false)}
       >
@@ -432,33 +448,35 @@ function App() {
 
   return (
     <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
-      {isStandaloneBudgetEditor ? (
-        <>
-          <main className="standalone-budget-editor">
-            {budgetEditorContent}
-          </main>
-          {modals}
-        </>
-      ) : (
-        <>
-          <AppShell
-            activeKey={activeKey}
-            session={session}
-            workspaceRole={workspaceRole}
-            isAdmin={session.user.isAdmin}
-            isAuthSubmitting={auth.isAuthSubmitting}
-            language={language}
-            onNavigate={handleNavigate}
-            onLanguageChange={setLanguage}
-            onProfile={handleProfileOpen}
-            onLogout={auth.handleLogout}
-          >
-            {renderMainContent()}
-          </AppShell>
+      <I18nContext.Provider value={i18nValue}>
+        {isStandaloneBudgetEditor ? (
+          <>
+            <main className="standalone-budget-editor">
+              {budgetEditorContent}
+            </main>
+            {modals}
+          </>
+        ) : (
+          <>
+            <AppShell
+              activeKey={activeKey}
+              session={session}
+              workspaceRole={workspaceRole}
+              isAdmin={session.user.isAdmin}
+              isAuthSubmitting={auth.isAuthSubmitting}
+              language={language}
+              onNavigate={handleNavigate}
+              onLanguageChange={setLanguage}
+              onProfile={handleProfileOpen}
+              onLogout={auth.handleLogout}
+            >
+              {renderMainContent()}
+            </AppShell>
 
-          {modals}
-        </>
-      )}
+            {modals}
+          </>
+        )}
+      </I18nContext.Provider>
     </ConfigProvider>
   );
 }

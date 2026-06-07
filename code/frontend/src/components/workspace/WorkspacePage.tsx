@@ -1,7 +1,8 @@
 import { Alert, Button, Empty, Select, Space, Tag } from 'antd';
 import { Plus, UsersRound } from 'lucide-react';
-import { roleColors, roleLabels } from '../../config/appConfig';
+import { roleColors } from '../../config/appConfig';
 import type { WorkspaceController } from '../../hooks/useWorkspaceController';
+import { roleLabelsByLanguage, useI18n } from '../../i18n';
 import type { WorkspaceMember } from '../../types/auth';
 
 interface WorkspacePageProps {
@@ -15,6 +16,7 @@ export function WorkspacePage({
   currentUserId,
   canManageWorkspaceMembers,
 }: WorkspacePageProps) {
+  const { language, t } = useI18n();
   const activeWorkspace = workspace.workspaces.find(
     (item) => item.id === workspace.activeWorkspaceId,
   );
@@ -26,25 +28,25 @@ export function WorkspacePage({
       <section className="workspace-command-panel">
         <div className="workspace-command-header">
           <div>
-            <Tag color="geekblue">Workspace</Tag>
-            <h1>工作區</h1>
-            <p>在這裡選擇工作區、管理成員與檢查權限；預算編輯頁只處理預算內容。</p>
+            <Tag color="geekblue">{t('workspace')}</Tag>
+            <h1>{t('workspace')}</h1>
+            <p>{t('workspacePageDesc')}</p>
           </div>
           <Space wrap>
             <Select<number>
-              aria-label="切換工作區"
+              aria-label={t('selectWorkspace')}
               className="workspace-command-select"
               disabled={workspace.workspaces.length === 0}
               loading={workspace.isWorkspaceLoading || workspace.isWorkspaceSwitching}
               optionFilterProp="label"
               options={workspace.workspaceOptions}
-              placeholder="選擇工作區"
+              placeholder={t('selectWorkspace')}
               showSearch
               value={workspace.activeWorkspaceId ?? undefined}
               onChange={(workspaceId) => void workspace.handleWorkspaceSwitch(workspaceId)}
             />
             <Button icon={<Plus size={15} />} onClick={workspace.openWorkspaceModal}>
-              新建工作區
+              {t('createWorkspace')}
             </Button>
             {canManageWorkspaceMembers ? (
               <Button
@@ -52,7 +54,7 @@ export function WorkspacePage({
                 icon={<UsersRound size={15} />}
                 onClick={workspace.openWorkspaceMemberModal}
               >
-                添加成員
+                {t('addMember')}
               </Button>
             ) : null}
           </Space>
@@ -78,14 +80,14 @@ export function WorkspacePage({
         <div className="workspace-command-grid">
           <div className="workspace-directory-panel">
             <div className="workspace-section-heading">
-              <span>工作區清單</span>
+              <span>{t('workspaceDirectory')}</span>
               <strong>{workspace.workspaces.length.toLocaleString('en-US')}</strong>
             </div>
             <div className="workspace-directory-list">
               {workspace.isWorkspaceLoading ? (
-                <div className="empty-line">正在載入工作區...</div>
+                <div className="empty-line">{t('loadingWorkspaces')}</div>
               ) : workspace.workspaces.length === 0 ? (
-                <Empty description="暫無可存取工作區" />
+                <Empty description={t('noWorkspaces')} />
               ) : (
                 workspace.workspaces.map((item) => (
                   <button
@@ -100,7 +102,9 @@ export function WorkspacePage({
                     onClick={() => void workspace.handleWorkspaceSwitch(item.id)}
                   >
                     <span>{item.name}</span>
-                    <Tag color={roleColors[item.role]}>{roleLabels[item.role]}</Tag>
+                    <Tag color={roleColors[item.role]}>
+                      {roleLabelsByLanguage[language][item.role]}
+                    </Tag>
                   </button>
                 ))
               )}
@@ -109,25 +113,30 @@ export function WorkspacePage({
 
           <div className="workspace-summary-panel">
             <div className="workspace-section-heading">
-              <span>目前上下文</span>
-              <strong>{activeWorkspace?.name ?? '未選擇工作區'}</strong>
+              <span>{t('currentContext')}</span>
+              <strong>{activeWorkspace?.name ?? t('noWorkspaceSelected')}</strong>
             </div>
             <div className="workspace-stat-grid">
-              <WorkspaceStat label="成員" value={activeMembers.length.toLocaleString('en-US')} />
-              <WorkspaceStat label="邀請中" value={invitedMembers.length.toLocaleString('en-US')} />
-              <WorkspaceStat label="預設貨幣" value={activeWorkspace?.defaultCurrency ?? '-'} />
+              <WorkspaceStat label={t('members')} value={activeMembers.length.toLocaleString('en-US')} />
+              <WorkspaceStat label={t('invitePending')} value={invitedMembers.length.toLocaleString('en-US')} />
+              <WorkspaceStat
+                label={t('defaultCurrency')}
+                value={activeWorkspace?.defaultCurrency ?? '-'}
+              />
             </div>
             <div className="workspace-member-strip">
               {workspace.isWorkspaceMemberLoading ? (
-                <div className="empty-line">正在載入成員...</div>
+                <div className="empty-line">{t('loadingMembers')}</div>
               ) : workspace.workspaceMembers.length === 0 ? (
-                <div className="empty-line">暫無成員。</div>
+                <div className="empty-line">{t('noMembers')}</div>
               ) : (
                 workspace.workspaceMembers.map((member) => (
                   <WorkspaceMemberChip
                     currentUserId={currentUserId}
                     key={member.userId}
                     member={member}
+                    meLabel={t('me')}
+                    roleLabel={roleLabelsByLanguage[language][member.role]}
                   />
                 ))
               )}
@@ -151,9 +160,13 @@ function WorkspaceStat({ label, value }: { label: string; value: string }) {
 function WorkspaceMemberChip({
   member,
   currentUserId,
+  meLabel,
+  roleLabel,
 }: {
   member: WorkspaceMember;
   currentUserId: number | null;
+  meLabel: string;
+  roleLabel: string;
 }) {
   return (
     <div className="workspace-member-chip">
@@ -161,11 +174,11 @@ function WorkspaceMemberChip({
       <div>
         <span>
           {member.displayName}
-          {member.userId === currentUserId ? '（我）' : ''}
+          {member.userId === currentUserId ? ` (${meLabel})` : ''}
         </span>
         <small>{member.email}</small>
       </div>
-      <Tag color={roleColors[member.role]}>{roleLabels[member.role]}</Tag>
+      <Tag color={roleColors[member.role]}>{roleLabel}</Tag>
     </div>
   );
 }

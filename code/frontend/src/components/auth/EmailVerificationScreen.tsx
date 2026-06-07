@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Result, Spin } from 'antd';
 import { verifyEmailToken } from '../../api/auth';
+import { translateCurrent, useI18n } from '../../i18n';
 
 type VerificationState =
   | { status: 'loading' }
@@ -8,9 +9,12 @@ type VerificationState =
   | { status: 'error'; message: string };
 
 export function EmailVerificationScreen() {
+  const { t } = useI18n();
   const token = new URLSearchParams(window.location.search).get('token') ?? '';
   const [state, setState] = useState<VerificationState>(() =>
-    token === '' ? { status: 'error', message: '验证链接缺少 token。' } : { status: 'loading' },
+    token === ''
+      ? { status: 'error', message: translateCurrent('emailVerificationMissingToken') }
+      : { status: 'loading' },
   );
 
   useEffect(() => {
@@ -29,7 +33,7 @@ export function EmailVerificationScreen() {
         if (isMounted) {
           setState({
             status: 'error',
-            message: caught instanceof Error ? caught.message : '邮箱验证失败。',
+            message: caught instanceof Error ? caught.message : t('emailVerificationFailedMessage'),
           });
         }
       });
@@ -37,7 +41,7 @@ export function EmailVerificationScreen() {
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, [t, token]);
 
   return (
     <main className="auth-shell">
@@ -45,27 +49,27 @@ export function EmailVerificationScreen() {
         {state.status === 'loading' ? (
           <div className="verification-loading">
             <Spin size="large" />
-            <span>正在验证邮箱...</span>
+            <span>{t('emailVerifying')}</span>
           </div>
         ) : state.status === 'success' ? (
           <Result
             status="success"
-            title={state.alreadyVerified ? '邮箱已验证' : '邮箱验证成功'}
-            subTitle="现在可以使用 BudgetCentre。"
+            title={state.alreadyVerified ? t('emailVerified') : t('emailVerificationSuccess')}
+            subTitle={t('verifyEmailNowAvailable')}
             extra={
               <Button type="primary" href="/">
-                返回登录
+                {t('returnToLogin')}
               </Button>
             }
           />
         ) : (
           <Result
             status="error"
-            title="邮箱验证失败"
+            title={t('emailVerificationFailed')}
             subTitle={state.message}
             extra={
               <Button type="primary" href="/">
-                返回登录
+                {t('returnToLogin')}
               </Button>
             }
           />

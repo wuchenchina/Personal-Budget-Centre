@@ -13,6 +13,7 @@ import type { SaveBudgetItemPayload, SaveTransactionPayload } from '../api/budge
 import { convertCurrency } from '../api/exchangeRates';
 import type { BudgetDetail, BudgetItem, CurrencyCode, Transaction } from '../types/budget';
 import type { BudgetItemFormValues, TransactionFormValues } from '../types/forms';
+import { translateCurrent } from '../i18n';
 
 interface UseBudgetEntryControllerOptions {
   baseCurrency: CurrencyCode;
@@ -37,7 +38,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
   const openBudgetItemCreateModal = () => {
     if (options.selectedBudget === null) {
-      setEntryError('请先选择预算，再添加预算项。');
+      setEntryError(translateCurrent('selectBudgetFirst'));
 
       return;
     }
@@ -77,7 +78,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
   const handleBudgetItemSave = async () => {
     if (options.selectedBudget === null && editingBudgetItem === null) {
-      setEntryError('请先选择预算，再添加预算项。');
+      setEntryError(translateCurrent('selectBudgetFirst'));
 
       return;
     }
@@ -135,7 +136,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
 
     if (options.selectedBudget === null) {
-      throw new Error('请先选择预算，再保存预算项。');
+      throw new Error(translateCurrent('selectBudgetFirst'));
     }
 
     const bankFeeMultiplier = 1 + (normalizedBankFee(values.bankFee) ?? 0) / 100;
@@ -158,7 +159,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       options.replaceBudgetDetail(await deleteBudgetItem(id));
     } catch (error: unknown) {
-      setEntryError(error instanceof Error ? error.message : '删除预算项失败。');
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setDeletingBudgetItemId(null);
     }
@@ -166,7 +167,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
   const openTransactionCreateModal = () => {
     if (options.selectedBudget === null) {
-      setEntryError('请先选择预算，再添加交易。');
+      setEntryError(translateCurrent('selectBudgetFirst'));
 
       return;
     }
@@ -208,7 +209,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
   const handleTransactionSave = async () => {
     if (options.selectedBudget === null && editingTransaction === null) {
-      setEntryError('请先选择预算，再添加交易。');
+      setEntryError(translateCurrent('selectBudgetFirst'));
 
       return;
     }
@@ -259,7 +260,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       options.replaceBudgetDetail(await deleteTransaction(id));
     } catch (error: unknown) {
-      setEntryError(error instanceof Error ? error.message : '删除交易失败。');
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setDeletingTransactionId(null);
     }

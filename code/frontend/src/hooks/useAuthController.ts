@@ -4,6 +4,7 @@ import { getCurrentSession, login, logout, register } from '../api/auth';
 import { getPasskeyLoginOptions, verifyPasskeyLogin } from '../api/passkeys';
 import type { AuthSession } from '../types/auth';
 import type { AuthFormValues, AuthMode } from '../types/forms';
+import { translateCurrent } from '../i18n';
 import { toCurrencyCode } from '../utils/budgetTemplate';
 import { getPasskeyCredential } from '../utils/webauthn';
 
@@ -64,7 +65,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
 
         if ('requiresEmailVerification' in result) {
           setAuthMode('login');
-          setAuthNotice(`验证邮件已发送至 ${result.email}，请验证后再登录。`);
+          setAuthNotice(translateCurrent('emailSent', { email: result.email }));
           authForm.setFieldsValue({
             identifier: result.email,
             email: result.email,
@@ -87,7 +88,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
       setSession(nextSession);
       setAuthError(null);
     } catch (error: unknown) {
-      setAuthError(error instanceof Error ? error.message : '认证失败。');
+      setAuthError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setIsAuthSubmitting(false);
     }
@@ -109,7 +110,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
       setSession(nextSession);
       setAuthError(null);
     } catch (error: unknown) {
-      setAuthError(error instanceof Error ? error.message : '通行密钥登录失败。');
+      setAuthError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setIsAuthSubmitting(false);
     }
@@ -122,7 +123,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
       await logout();
       setAuthError(null);
     } catch (error: unknown) {
-      setAuthError(error instanceof Error ? error.message : '退出登录失败。');
+      setAuthError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setSession(null);
       setAuthMode('login');

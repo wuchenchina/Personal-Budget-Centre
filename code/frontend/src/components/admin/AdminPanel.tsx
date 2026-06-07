@@ -2,19 +2,13 @@ import { Alert, Button, Descriptions, Input, Popconfirm, Select, Space, Switch, 
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
 import { Mail, RefreshCcw, ServerCog, ShieldCheck, UserCog } from 'lucide-react';
-import { userStatusColors, userStatusLabels } from '../../config/appConfig';
+import { userStatusColors } from '../../config/appConfig';
 import type { AdminController } from '../../hooks/useAdminController';
+import { userStatusLabelsByLanguage, useI18n } from '../../i18n';
 import type { AdminUser } from '../../types/admin';
 import type { UserStatus } from '../../types/auth';
 
 const { Search } = Input;
-
-const statusOptions: Array<{ label: string; value: UserStatus | 'all' }> = [
-  { label: '全部状态', value: 'all' },
-  { label: userStatusLabels.active, value: 'active' },
-  { label: userStatusLabels.pending, value: 'pending' },
-  { label: userStatusLabels.disabled, value: 'disabled' },
-];
 
 interface AdminPanelProps {
   controller: AdminController;
@@ -22,9 +16,16 @@ interface AdminPanelProps {
 }
 
 export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
+  const { language, t } = useI18n();
+  const statusOptions: Array<{ label: string; value: UserStatus | 'all' }> = [
+    { label: t('allStatus'), value: 'all' },
+    { label: userStatusLabelsByLanguage[language].active, value: 'active' },
+    { label: userStatusLabelsByLanguage[language].pending, value: 'pending' },
+    { label: userStatusLabelsByLanguage[language].disabled, value: 'disabled' },
+  ];
   const columns: TableProps<AdminUser>['columns'] = [
     {
-      title: '用户',
+      title: t('user'),
       dataIndex: 'displayName',
       width: 260,
       render: (_value, record) => (
@@ -35,21 +36,21 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
       ),
     },
     {
-      title: '邮箱',
+      title: t('email'),
       dataIndex: 'email',
       width: 260,
       render: (email: string) => <span className="admin-email">{email}</span>,
     },
     {
-      title: '状态',
+      title: t('status'),
       dataIndex: 'status',
       width: 112,
       render: (status: UserStatus) => (
-        <Tag color={userStatusColors[status]}>{userStatusLabels[status]}</Tag>
+        <Tag color={userStatusColors[status]}>{userStatusLabelsByLanguage[language][status]}</Tag>
       ),
     },
     {
-      title: '邮箱验证',
+      title: t('emailVerified'),
       dataIndex: 'emailVerifiedAt',
       width: 190,
       render: (_value, record) => {
@@ -57,7 +58,9 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
 
         return (
           <Space size={6} wrap>
-            <Tag color={verified ? 'blue' : 'orange'}>{verified ? '已验证' : '未验证'}</Tag>
+            <Tag color={verified ? 'blue' : 'orange'}>
+              {verified ? t('verified') : t('emailPending')}
+            </Tag>
             {!verified ? (
               <>
                 <Button
@@ -66,7 +69,7 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
                   size="small"
                   onClick={() => void controller.updateUser({ id: record.id, emailVerified: true })}
                 >
-                  标记
+                  {t('mark')}
                 </Button>
                 <Button
                   icon={<Mail size={13} />}
@@ -74,7 +77,7 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
                   size="small"
                   onClick={() => void controller.resendVerification(record.id)}
                 >
-                  重发
+                  {t('resend')}
                 </Button>
               </>
             ) : null}
@@ -83,43 +86,47 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
       },
     },
     {
-      title: '管理员',
+      title: t('administrator'),
       dataIndex: 'isAdmin',
       width: 110,
       render: (isAdmin: boolean, record) => (
         <Switch
           checked={isAdmin}
-          checkedChildren="是"
+          checkedChildren={t('yes')}
           disabled={record.id === currentUserId}
           loading={controller.savingUserId === record.id}
           size="small"
-          unCheckedChildren="否"
+          unCheckedChildren={t('no')}
           onChange={(checked) => void controller.updateUser({ id: record.id, isAdmin: checked })}
         />
       ),
     },
     {
-      title: '创建时间',
+      title: t('date'),
       dataIndex: 'createdAt',
       width: 150,
       render: (value: string) => formatDate(value),
     },
     {
-      title: '操作',
+      title: '',
       key: 'actions',
       fixed: 'right',
       width: 128,
       render: (_value, record) => {
         const disabled = record.status === 'disabled';
         const nextStatus: UserStatus = disabled ? 'active' : 'disabled';
-        const buttonText = disabled ? '启用' : '停用';
+        const buttonText = disabled ? t('active') : t('disabled');
 
         return (
           <Popconfirm
-            title={`${buttonText}用户`}
-            description={`确认${buttonText} ${record.displayName}？`}
+            title={disabled ? t('enableUser') : t('disableUser')}
+            description={
+              disabled
+                ? t('confirmEnableUser', { name: record.displayName })
+                : t('confirmDisableUser', { name: record.displayName })
+            }
             okText={buttonText}
-            cancelText="取消"
+            cancelText={t('cancel')}
             okButtonProps={{ danger: !disabled }}
             disabled={record.id === currentUserId}
             onConfirm={() => void controller.updateUser({ id: record.id, status: nextStatus })}
@@ -143,14 +150,14 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
     <section className="admin-panel">
       <div className="admin-toolbar">
         <div>
-          <h2>后台用户管理</h2>
+          <h2>{t('adminUserManagement')}</h2>
         </div>
         <Space wrap>
           <Search
             allowClear
             className="admin-search"
-            enterButton="搜索"
-            placeholder="搜索邮箱、用户名或显示名称"
+            enterButton={t('search')}
+            placeholder={t('searchUsersPlaceholder')}
             onSearch={controller.applySearch}
           />
           <Select<UserStatus | 'all'>
@@ -164,7 +171,7 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
             loading={controller.isEnvironmentLoading}
             onClick={() => void controller.checkEnvironment()}
           >
-            环境检查
+            {t('environmentCheck')}
           </Button>
         </Space>
       </div>
@@ -184,13 +191,13 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
         columns={columns}
         dataSource={controller.users}
         loading={controller.loading}
-        locale={{ emptyText: '暂无用户' }}
+        locale={{ emptyText: t('noUsers') }}
         pagination={{
           current: controller.page,
           pageSize: controller.pageSize,
           total: controller.total,
           showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 位用户`,
+          showTotal: (total) => `${total}`,
           onChange: (nextPage, nextPageSize) => {
             controller.setPage(nextPage);
             controller.setPageSize(nextPageSize);
@@ -209,6 +216,8 @@ function EnvironmentCheckSummary({
 }: {
   environment: AdminController['environment'];
 }) {
+  const { t } = useI18n();
+
   if (environment === null) {
     return null;
   }
@@ -222,20 +231,20 @@ function EnvironmentCheckSummary({
     },
     {
       key: 'ok',
-      label: '整体状态',
+      label: t('overallStatus'),
       children: (
         <Tag color={environment.ok ? 'blue' : 'orange'}>
-          {environment.ok ? '通过' : '需处理'}
+          {environment.ok ? t('verified') : t('environmentCheckNeedsAttention')}
         </Tag>
       ),
     },
     {
       key: 'extensions',
-      label: '缺失扩展',
+      label: t('missingExtensions'),
       span: 2,
       children:
         missingExtensions.length === 0 ? (
-          <Tag color="blue">无</Tag>
+          <Tag color="blue">{t('none')}</Tag>
         ) : (
           <Space wrap>
             {missingExtensions.map((extension) => (
@@ -246,25 +255,25 @@ function EnvironmentCheckSummary({
     },
     {
       key: 'path',
-      label: '导出目录',
+      label: t('exportDirectory'),
       span: 2,
       children: <span className="admin-path">{environment.exportStorage.path}</span>,
     },
     {
       key: 'writable',
-      label: '目录可写',
+      label: t('writable'),
       children: (
         <Tag color={environment.exportStorage.writable ? 'blue' : 'red'}>
-          {environment.exportStorage.writable ? '是' : '否'}
+          {environment.exportStorage.writable ? t('yes') : t('no')}
         </Tag>
       ),
     },
     {
       key: 'parentWritable',
-      label: '父目录可写',
+      label: t('parentDirectoryWritable'),
       children: (
         <Tag color={environment.exportStorage.parentWritable ? 'blue' : 'orange'}>
-          {environment.exportStorage.parentWritable ? '是' : '否'}
+          {environment.exportStorage.parentWritable ? t('yes') : t('no')}
         </Tag>
       ),
     },

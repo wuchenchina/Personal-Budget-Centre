@@ -11,6 +11,7 @@ import {
 import type { AuthSession } from '../types/auth';
 import type { BudgetDetail, BudgetSummary, CurrencyCode } from '../types/budget';
 import type { BudgetFormValues } from '../types/forms';
+import { translateCurrent } from '../i18n';
 import { defaultBudgetDateRange, defaultBudgetTitle } from '../utils/budgetTitle';
 
 interface UseBudgetControllerOptions {
@@ -92,7 +93,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
           }
         } catch (error: unknown) {
           if (isMounted) {
-            setBudgetError(error instanceof Error ? error.message : '加载预算失败。');
+            setBudgetError(error instanceof Error ? error.message : translateCurrent('loadingBudget'));
           }
         } finally {
           if (isMounted) {
@@ -103,7 +104,9 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         if (isMounted) {
           setBudgets([]);
           setSelectedBudget(null);
-          setBudgetError(error instanceof Error ? error.message : '加载预算列表失败。');
+          setBudgetError(
+            error instanceof Error ? error.message : translateCurrent('loadingBudgetProjects'),
+          );
         }
       } finally {
         if (isMounted) {
@@ -162,7 +165,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
 
   const handleBudgetSave = async () => {
     if (activeWorkspaceId === null) {
-      setBudgetError('请先选择工作区，再创建预算。');
+      setBudgetError(translateCurrent('selectWorkspaceFirst'));
 
       return;
     }
@@ -243,7 +246,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         requestedBudgetId.current = null;
       }
     } catch (error: unknown) {
-      setBudgetError(error instanceof Error ? error.message : '删除预算失败。');
+      setBudgetError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setDeletingBudgetId(null);
     }
@@ -262,7 +265,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       const budgetDetail = await getBudgetDetail(budgetId);
       setSelectedBudget(budgetDetail);
     } catch (error: unknown) {
-      setBudgetError(error instanceof Error ? error.message : '加载预算失败。');
+      setBudgetError(error instanceof Error ? error.message : translateCurrent('loadingBudget'));
     } finally {
       setIsBudgetDetailLoading(false);
     }

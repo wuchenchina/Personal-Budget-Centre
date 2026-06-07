@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Input, Popconfirm, Space } from 'antd';
 import { Check, KeyRound, Pencil, ShieldCheck, Trash2, X } from 'lucide-react';
 import type { OperationsController } from '../../hooks/useOperationsController';
+import { useI18n } from '../../i18n';
 import type { PasskeyCredential } from '../../types/auth';
 
 interface PasskeySideSectionProps {
@@ -13,6 +14,7 @@ export function PasskeySideSection({
   operations,
   compactTitle = false,
 }: PasskeySideSectionProps) {
+  const { language, t } = useI18n();
   const [deviceName, setDeviceName] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -47,7 +49,7 @@ export function PasskeySideSection({
         <div className="side-title side-title-row">
           <span className="side-title-label">
             <KeyRound size={16} />
-            <span>通行密钥</span>
+            <span>{t('passkey')}</span>
           </span>
         </div>
       )}
@@ -55,7 +57,7 @@ export function PasskeySideSection({
         <Input
           allowClear
           disabled={operations.isPasskeyRegistering}
-          placeholder="设备名称"
+          placeholder={t('deviceName')}
           value={deviceName}
           onChange={(event) => setDeviceName(event.target.value)}
           onPressEnter={handleRegister}
@@ -65,14 +67,14 @@ export function PasskeySideSection({
           loading={operations.isPasskeyRegistering}
           onClick={handleRegister}
         >
-          添加
+          {t('add')}
         </Button>
       </div>
       <div className="operation-list">
         {operations.isPasskeyLoading ? (
-          <div className="empty-line">正在加载通行密钥...</div>
+          <div className="empty-line">{t('loadingPasskeys')}</div>
         ) : operations.passkeys.length === 0 ? (
-          <div className="empty-line">暂无通行密钥。</div>
+          <div className="empty-line">{t('noPasskeys')}</div>
         ) : (
           operations.passkeys.map((passkey) => (
             <div className="operation-list-item operation-list-item-row" key={passkey.id}>
@@ -95,11 +97,15 @@ export function PasskeySideSection({
               ) : (
                 <>
                   <div className="operation-list-main passkey-main">
-                    <span>{passkey.deviceName ?? '通行密钥'}</span>
+                    <span>{passkey.deviceName ?? t('passkey')}</span>
                     <small>
                       {passkey.lastUsedAt
-                        ? `上次使用 ${formatPasskeyDate(passkey.lastUsedAt)}`
-                        : `创建于 ${formatPasskeyDate(passkey.createdAt)}`}
+                        ? t('passkeyLastUsed', {
+                            date: formatPasskeyDate(passkey.lastUsedAt, language),
+                          })
+                        : t('passkeyCreatedAt', {
+                            date: formatPasskeyDate(passkey.createdAt, language),
+                          })}
                     </small>
                   </div>
                   <Space className="passkey-action-row" size={4}>
@@ -108,18 +114,18 @@ export function PasskeySideSection({
                       size="small"
                       onClick={() => startEditing(passkey)}
                     >
-                      重命名
+                      {t('passkeyRename')}
                     </Button>
                     <Popconfirm
-                      title="删除通行密钥"
-                      description="此设备将不能再使用通行密钥登录。"
-                      okText="删除"
-                      cancelText="取消"
+                      title={t('deletePasskey')}
+                      description={t('deletePasskeyDescription')}
+                      okText={t('delete')}
+                      cancelText={t('cancel')}
                       okButtonProps={{ danger: true }}
                       onConfirm={() => operations.removePasskey(passkey.id)}
                     >
                       <Button danger icon={<Trash2 size={13} />} size="small">
-                        删除
+                        {t('delete')}
                       </Button>
                     </Popconfirm>
                   </Space>
@@ -133,13 +139,15 @@ export function PasskeySideSection({
   );
 }
 
-function formatPasskeyDate(value: string): string {
+function formatPasskeyDate(value: string, language: string): string {
   const timestamp = new Date(value);
   if (Number.isNaN(timestamp.getTime())) {
     return value;
   }
 
-  return timestamp.toLocaleString('zh-CN', {
+  const locale = language === 'en' ? 'en-US' : language === 'sc' ? 'zh-CN' : 'zh-HK';
+
+  return timestamp.toLocaleString(locale, {
     hour: '2-digit',
     minute: '2-digit',
     month: '2-digit',

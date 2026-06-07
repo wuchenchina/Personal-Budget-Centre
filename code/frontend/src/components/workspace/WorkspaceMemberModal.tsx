@@ -1,6 +1,7 @@
 import { Alert, Form, Input, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
-import { assignableWorkspaceRoleOptions } from '../../config/appConfig';
+import { roleLabelsByLanguage, useI18n } from '../../i18n';
+import type { WorkspaceRole } from '../../types/budget';
 import type { WorkspaceMemberFormValues } from '../../types/forms';
 
 interface WorkspaceMemberModalProps {
@@ -20,13 +21,21 @@ export function WorkspaceMemberModal({
   onCancel,
   onOk,
 }: WorkspaceMemberModalProps) {
+  const { language, t } = useI18n();
+  const roleOptions: Array<{ label: string; value: WorkspaceRole }> = [
+    { label: roleLabelsByLanguage[language].admin, value: 'admin' },
+    { label: roleLabelsByLanguage[language].editor, value: 'editor' },
+    { label: roleLabelsByLanguage[language].viewer, value: 'viewer' },
+    { label: roleLabelsByLanguage[language].auditor, value: 'auditor' },
+  ];
+
   return (
     <Modal
       destroyOnClose
       confirmLoading={confirmLoading}
-      okText="添加"
+      okText={t('add')}
       open={open}
-      title="添加工作区成员"
+      title={t('addWorkspaceMember')}
       onCancel={onCancel}
       onOk={onOk}
     >
@@ -41,21 +50,21 @@ export function WorkspaceMemberModal({
         }}
       >
         <Form.Item
-          label="邮箱"
+          label={t('email')}
           name="email"
           rules={[
-            { required: true, message: '请输入成员邮箱。' },
-            { type: 'email', message: '邮箱格式不正确。' },
+            { required: true, message: t('memberEmailRequired') },
+            { type: 'email', message: t('emailFormatInvalid') },
           ]}
         >
           <Input autoComplete="email" />
         </Form.Item>
         <Form.Item
-          label="角色"
+          label={t('role')}
           name="role"
-          rules={[{ required: true, message: '请选择成员角色。' }]}
+          rules={[{ required: true, message: t('selectMemberRole') }]}
         >
-          <Select options={assignableWorkspaceRoleOptions} />
+          <Select options={roleOptions} />
         </Form.Item>
       </Form>
     </Modal>

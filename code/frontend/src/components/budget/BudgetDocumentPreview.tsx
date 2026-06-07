@@ -4,6 +4,11 @@ import type { TableProps } from 'antd';
 import { CalendarRange, Download, FileText, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
 import type { BudgetEntryController } from '../../hooks/useBudgetEntryController';
 import type { OperationsController } from '../../hooks/useOperationsController';
+import {
+  budgetStatusLabelsByLanguage,
+  useI18n,
+  visibilityLabelsByLanguage,
+} from '../../i18n';
 import type {
   BudgetDetail,
   BudgetItem,
@@ -16,7 +21,6 @@ import {
   createTransactionColumns,
   formatBudgetMoney,
 } from '../../utils/budgetTemplate';
-import { budgetStatusLabels } from '../../config/appConfig';
 import { formatBudgetPeriod } from '../../utils/budgetPeriod';
 
 interface BudgetDocumentPreviewProps {
@@ -50,6 +54,7 @@ export function BudgetDocumentPreview({
   onOpenShare,
   operations,
 }: BudgetDocumentPreviewProps) {
+  const { language, t } = useI18n();
   const budgetHighlights = template?.sections.find(
     (section) => section.key === 'budget_highlights',
   );
@@ -63,9 +68,14 @@ export function BudgetDocumentPreview({
         selectedBudget?.baseCurrency ?? baseCurrency,
       );
 
-      return appendBudgetItemActions(columns, canWriteBudgets, entry);
+      return appendBudgetItemActions(columns, canWriteBudgets, entry, {
+        cancel: t('cancel'),
+        delete: t('delete'),
+        deleteTitle: t('deleteBudgetItemTitle'),
+        edit: t('edit'),
+      });
     },
-    [baseCurrency, budgetHighlights, canWriteBudgets, entry, selectedBudget?.baseCurrency],
+    [baseCurrency, budgetHighlights, canWriteBudgets, entry, selectedBudget?.baseCurrency, t],
   );
   const transactionColumns = useMemo(
     () =>
@@ -73,12 +83,23 @@ export function BudgetDocumentPreview({
         createTransactionColumns(transactionBreakdown?.columns ?? []),
         canWriteBudgets,
         entry,
+        {
+          cancel: t('cancel'),
+          delete: t('delete'),
+          deleteTitle: t('deleteTransactionTitle'),
+          edit: t('edit'),
+        },
       ),
-    [canWriteBudgets, entry, transactionBreakdown],
+    [canWriteBudgets, entry, t, transactionBreakdown],
   );
-  const budgetTitle = selectedBudget?.title ?? '未选择预算';
+  const budgetTitle = selectedBudget?.title ?? t('noBudgetSelected');
   const budgetSubtitle = selectedBudget?.ownerName.trim() ?? '';
-  const budgetDateText = selectedBudget ? formatBudgetPeriod(selectedBudget) : null;
+  const budgetDateText = selectedBudget ? formatBudgetPeriod(selectedBudget, language) : null;
+  const visibilityOptions = [
+    { label: visibilityLabelsByLanguage[language].private, value: 'private' },
+    { label: visibilityLabelsByLanguage[language].workspace, value: 'workspace' },
+    { label: visibilityLabelsByLanguage[language].custom, value: 'custom' },
+  ];
 
   return (
     <main className="document-workbench">
@@ -89,29 +110,25 @@ export function BudgetDocumentPreview({
             icon={<CalendarRange size={16} />}
             onClick={onEditBudget}
           >
-            项目信息
+            {t('projectInfo')}
           </Button>
           <Button
             disabled={selectedBudget === null || onOpenShare === undefined}
             icon={<Share2 size={16} />}
             onClick={onOpenShare}
           >
-            共享
+            {t('share')}
           </Button>
           <Segmented
             disabled
             value={selectedBudget?.visibility ?? 'private'}
-            options={[
-              { label: '私有', value: 'private' },
-              { label: '工作区', value: 'workspace' },
-              { label: '自定义', value: 'custom' },
-            ]}
+            options={visibilityOptions}
           />
         </Space>
         <Space wrap>
           {selectedBudget ? (
             <Tag color={selectedBudget.status === 'active' ? 'blue' : 'default'}>
-              {budgetStatusLabels[selectedBudget.status]}
+              {budgetStatusLabelsByLanguage[language][selectedBudget.status]}
             </Tag>
           ) : null}
         </Space>
@@ -121,7 +138,7 @@ export function BudgetDocumentPreview({
         <div className="budget-export-actions">
           <span className="budget-export-label">
             <FileText size={15} />
-            导出
+            {t('export')}
           </span>
           <Button
             disabled={selectedBudget === null}
@@ -149,20 +166,20 @@ export function BudgetDocumentPreview({
 
       {templateError || budgetError ? (
         <div className="state-panel">
-          <Alert
+            <Alert
             type="error"
             showIcon
-            message={templateError ? '模板接口不可用' : '预算接口不可用'}
+            message={templateError ? t('templateApiUnavailable') : t('budgetApiUnavailable')}
             description={templateError ?? budgetError}
           />
         </div>
       ) : isBudgetLoading ? (
         <div className="state-panel">
-          <Empty description="正在加载预算..." />
+          <Empty description={t('loadingBudget')} />
         </div>
       ) : selectedBudget === null ? (
         <div className="state-panel">
-          <Empty description="未选择预算" />
+          <Empty description={t('noBudgetSelected')} />
         </div>
       ) : (
         <section className="budget-document-preview">
@@ -179,23 +196,26 @@ export function BudgetDocumentPreview({
                   type="text"
                   onClick={entry.openBudgetItemCreateModal}
                 >
-                  添加
+                  {t('add')}
                 </Button>
               ) : null}
             </div>
             {budgetDateText ? (
-              <div className="budget-section-date">日期：{budgetDateText}</div>
+              <div className="budget-section-date">
+                {t('datePrefix')}
+                {budgetDateText}
+              </div>
             ) : null}
             <Table<BudgetItem>
               bordered
               columns={budgetColumns}
               dataSource={selectedBudget.items}
               loading={isTemplateLoading || isBudgetDetailLoading}
-              locale={{ emptyText: <Empty description="暂无预算项" /> }}
+              locale={{ emptyText: <Empty description={t('budgetItemsEmpty')} /> }}
               pagination={false}
               rowKey="id"
               size="small"
-              summary={() => renderBudgetSummary(budgetColumns, selectedBudget)}
+              summary={() => renderBudgetSummary(budgetColumns, selectedBudget, t('summary'))}
               tableLayout="fixed"
             />
           </div>
@@ -210,19 +230,22 @@ export function BudgetDocumentPreview({
                   type="text"
                   onClick={entry.openTransactionCreateModal}
                 >
-                  添加
+                  {t('add')}
                 </Button>
               ) : null}
             </div>
             {budgetDateText ? (
-              <div className="budget-section-date">日期：{budgetDateText}</div>
+              <div className="budget-section-date">
+                {t('datePrefix')}
+                {budgetDateText}
+              </div>
             ) : null}
             <Table<Transaction>
               bordered
               columns={transactionColumns}
               dataSource={selectedBudget.transactions}
               loading={isTemplateLoading || isBudgetDetailLoading}
-              locale={{ emptyText: <Empty description="暂无交易" /> }}
+              locale={{ emptyText: <Empty description={t('transactionsEmpty')} /> }}
               pagination={false}
               rowKey="id"
               size="small"
@@ -238,6 +261,7 @@ export function BudgetDocumentPreview({
 function renderBudgetSummary(
   columns: TableProps<BudgetItem>['columns'],
   selectedBudget: BudgetDetail,
+  summaryLabel: string,
 ) {
   if (columns === undefined || columns.length === 0) {
     return null;
@@ -257,7 +281,7 @@ function renderBudgetSummary(
               index={index}
               key={`${key}-${index}`}
             >
-              {summaryCellContent(key, index, selectedBudget)}
+              {summaryCellContent(key, index, selectedBudget, summaryLabel)}
             </Table.Summary.Cell>
           );
         })}
@@ -266,7 +290,12 @@ function renderBudgetSummary(
   );
 }
 
-function summaryCellContent(key: string, index: number, selectedBudget: BudgetDetail): string {
+function summaryCellContent(
+  key: string,
+  index: number,
+  selectedBudget: BudgetDetail,
+  summaryLabel: string,
+): string {
   if (key === 'budget') {
     return formatBudgetMoney(selectedBudget.baseCurrency, selectedBudget.totals.totalBudgetBase);
   }
@@ -286,13 +315,21 @@ function summaryCellContent(key: string, index: number, selectedBudget: BudgetDe
     return '';
   }
 
-  return index === 0 ? '统计' : '';
+  return index === 0 ? summaryLabel : '';
+}
+
+interface ActionLabels {
+  cancel: string;
+  delete: string;
+  deleteTitle: string;
+  edit: string;
 }
 
 function appendBudgetItemActions(
   columns: TableProps<BudgetItem>['columns'],
   canWriteBudgets: boolean,
   entry: BudgetEntryController,
+  labels: ActionLabels,
 ): TableProps<BudgetItem>['columns'] {
   if (!canWriteBudgets) {
     return columns;
@@ -307,7 +344,7 @@ function appendBudgetItemActions(
       width: 72,
       render: (_: unknown, row: BudgetItem) => (
         <Space size={2}>
-          <Tooltip title="编辑">
+          <Tooltip title={labels.edit}>
             <Button
               icon={<Pencil size={14} />}
               size="small"
@@ -316,12 +353,13 @@ function appendBudgetItemActions(
             />
           </Tooltip>
           <Popconfirm
-            title="删除这个预算项？"
-            okText="删除"
+            title={labels.deleteTitle}
+            okText={labels.delete}
+            cancelText={labels.cancel}
             okButtonProps={{ danger: true }}
             onConfirm={() => entry.handleBudgetItemDelete(row.id)}
           >
-            <Tooltip title="删除">
+            <Tooltip title={labels.delete}>
               <Button
                 danger
                 icon={<Trash2 size={14} />}
@@ -341,6 +379,7 @@ function appendTransactionActions(
   columns: TableProps<Transaction>['columns'],
   canWriteBudgets: boolean,
   entry: BudgetEntryController,
+  labels: ActionLabels,
 ): TableProps<Transaction>['columns'] {
   if (!canWriteBudgets) {
     return columns;
@@ -355,7 +394,7 @@ function appendTransactionActions(
       width: 72,
       render: (_: unknown, row: Transaction) => (
         <Space size={2}>
-          <Tooltip title="编辑">
+          <Tooltip title={labels.edit}>
             <Button
               icon={<Pencil size={14} />}
               size="small"
@@ -364,12 +403,13 @@ function appendTransactionActions(
             />
           </Tooltip>
           <Popconfirm
-            title="删除这条交易？"
-            okText="删除"
+            title={labels.deleteTitle}
+            okText={labels.delete}
+            cancelText={labels.cancel}
             okButtonProps={{ danger: true }}
             onConfirm={() => entry.handleTransactionDelete(row.id)}
           >
-            <Tooltip title="删除">
+            <Tooltip title={labels.delete}>
               <Button
                 danger
                 icon={<Trash2 size={14} />}

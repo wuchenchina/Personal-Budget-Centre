@@ -6,8 +6,9 @@ import {
   Trash2,
   UserRound,
 } from 'lucide-react';
-import { assignableWorkspaceRoleOptions, roleColors, roleLabels } from '../../config/appConfig';
+import { roleColors } from '../../config/appConfig';
 import type { OperationsController } from '../../hooks/useOperationsController';
+import { roleLabelsByLanguage, useI18n } from '../../i18n';
 import type { WorkspaceMember } from '../../types/auth';
 import type { WorkspaceRole } from '../../types/budget';
 import type { BudgetController } from '../../hooks/useBudgetController';
@@ -61,15 +62,17 @@ export function GovernancePanel({
 }
 
 function WorkspaceSideSection({ workspace }: { workspace: WorkspaceController }) {
+  const { language, t } = useI18n();
+
   return (
     <div className="side-section">
       <div className="side-title side-title-row">
         <span className="side-title-label">
           <LayoutDashboard size={16} />
-          <span>工作区</span>
+          <span>{t('workspace')}</span>
         </span>
         <Button icon={<Plus size={14} />} onClick={workspace.openWorkspaceModal} size="small">
-          新建
+          {t('create')}
         </Button>
       </div>
       {workspace.workspaceError ? (
@@ -77,9 +80,9 @@ function WorkspaceSideSection({ workspace }: { workspace: WorkspaceController })
       ) : (
         <div className="workspace-list">
           {workspace.isWorkspaceLoading ? (
-            <div className="empty-line">正在加载工作区...</div>
+            <div className="empty-line">{t('loadingWorkspaces')}</div>
           ) : workspace.workspaces.length === 0 ? (
-            <div className="empty-line">暂无可访问工作区。</div>
+            <div className="empty-line">{t('noWorkspaces')}</div>
           ) : (
             workspace.workspaces.map((item) => (
               <div
@@ -91,7 +94,9 @@ function WorkspaceSideSection({ workspace }: { workspace: WorkspaceController })
                 key={item.id}
               >
                 <span>{item.name}</span>
-                <Tag color={roleColors[item.role]}>{roleLabels[item.role]}</Tag>
+                <Tag color={roleColors[item.role]}>
+                  {roleLabelsByLanguage[language][item.role]}
+                </Tag>
               </div>
             ))
           )}
@@ -110,12 +115,14 @@ function MemberSideSection({
   currentUserId: number | null;
   canManageWorkspaceMembers: boolean;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="side-section">
       <div className="side-title side-title-row">
         <span className="side-title-label">
           <UserRound size={16} />
-          <span>成员</span>
+          <span>{t('members')}</span>
         </span>
         {canManageWorkspaceMembers ? (
           <Button
@@ -124,7 +131,7 @@ function MemberSideSection({
             onClick={workspace.openWorkspaceMemberModal}
             size="small"
           >
-            添加
+            {t('add')}
           </Button>
         ) : null}
       </div>
@@ -138,9 +145,9 @@ function MemberSideSection({
       ) : null}
       <div className="member-list">
         {workspace.isWorkspaceMemberLoading ? (
-          <div className="empty-line">正在加载成员...</div>
+          <div className="empty-line">{t('loadingMembers')}</div>
         ) : workspace.workspaceMembers.length === 0 ? (
-          <div className="empty-line">暂无成员。</div>
+          <div className="empty-line">{t('noMembers')}</div>
         ) : (
           workspace.workspaceMembers.map((member) => (
             <MemberRow
@@ -168,8 +175,15 @@ function MemberRow({
   currentUserId: number | null;
   canManageWorkspaceMembers: boolean;
 }) {
+  const { language, t } = useI18n();
   const canManageThisMember =
     canManageWorkspaceMembers && member.role !== 'owner' && member.userId !== currentUserId;
+  const roleOptions: Array<{ label: string; value: WorkspaceRole }> = [
+    { label: roleLabelsByLanguage[language].admin, value: 'admin' },
+    { label: roleLabelsByLanguage[language].editor, value: 'editor' },
+    { label: roleLabelsByLanguage[language].viewer, value: 'viewer' },
+    { label: roleLabelsByLanguage[language].auditor, value: 'auditor' },
+  ];
 
   return (
     <div className="member-list-item">
@@ -180,28 +194,28 @@ function MemberRow({
       {canManageThisMember ? (
         <Space size={4} wrap={false}>
           <Select<WorkspaceRole>
-            aria-label={`${member.displayName} 的角色`}
+            aria-label={`${member.displayName} ${t('role')}`}
             className="member-role-select"
             disabled={
               workspace.updatingMemberUserId === member.userId ||
               workspace.deletingMemberUserId === member.userId
             }
             loading={workspace.updatingMemberUserId === member.userId}
-            options={assignableWorkspaceRoleOptions}
+            options={roleOptions}
             size="small"
             value={member.role}
             onChange={(role) => workspace.handleWorkspaceMemberRoleChange(member, role)}
           />
           <Popconfirm
-            title="移除成员"
-            description="这会移除此成员在当前工作区的访问权限。"
-            okText="移除"
-            cancelText="取消"
+            title={t('removeMember')}
+            description={t('removeMemberDescription')}
+            okText={t('remove')}
+            cancelText={t('cancel')}
             okButtonProps={{ danger: true }}
             onConfirm={() => workspace.handleWorkspaceMemberDelete(member)}
           >
             <Button
-              aria-label={`移除 ${member.displayName}`}
+              aria-label={`${t('remove')} ${member.displayName}`}
               danger
               icon={<Trash2 size={13} />}
               loading={workspace.deletingMemberUserId === member.userId}
@@ -210,24 +224,28 @@ function MemberRow({
           </Popconfirm>
         </Space>
       ) : (
-        <Tag color={roleColors[member.role]}>{roleLabels[member.role]}</Tag>
+        <Tag color={roleColors[member.role]}>
+          {roleLabelsByLanguage[language][member.role]}
+        </Tag>
       )}
     </div>
   );
 }
 
 function PermissionSideSection() {
+  const { language, t } = useI18n();
+
   return (
     <div className="side-section">
       <div className="side-title">
         <ShieldCheck size={16} />
-        <span>权限</span>
+        <span>{t('permissions')}</span>
       </div>
       <Space wrap>
-        <Tag color={roleColors.owner}>{roleLabels.owner}</Tag>
-        <Tag color={roleColors.admin}>{roleLabels.admin}</Tag>
-        <Tag color={roleColors.editor}>{roleLabels.editor}</Tag>
-        <Tag color={roleColors.auditor}>{roleLabels.auditor}</Tag>
+        <Tag color={roleColors.owner}>{roleLabelsByLanguage[language].owner}</Tag>
+        <Tag color={roleColors.admin}>{roleLabelsByLanguage[language].admin}</Tag>
+        <Tag color={roleColors.editor}>{roleLabelsByLanguage[language].editor}</Tag>
+        <Tag color={roleColors.auditor}>{roleLabelsByLanguage[language].auditor}</Tag>
       </Space>
     </div>
   );

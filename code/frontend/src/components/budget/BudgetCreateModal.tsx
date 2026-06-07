@@ -1,6 +1,12 @@
 import { Alert, Button, Checkbox, DatePicker, Form, Input, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import { currencyOptions } from '../../config/appConfig';
+import {
+  budgetStatusLabelsByLanguage,
+  useI18n,
+  visibilityLabelsByLanguage,
+} from '../../i18n';
+import type { BudgetStatus, Visibility } from '../../types/budget';
 import type { BudgetFormValues } from '../../types/forms';
 import { defaultBudgetTitle } from '../../utils/budgetTitle';
 
@@ -27,8 +33,20 @@ export function BudgetCreateModal({
   onCancel,
   onOk,
 }: BudgetCreateModalProps) {
+  const { language, t } = useI18n();
   const dateRange = Form.useWatch('dateRange', form);
   const ownerNameHidden = Form.useWatch('ownerNameHidden', form) === true;
+  const visibilityOptions: Array<{ label: string; value: Visibility }> = [
+    { label: visibilityLabelsByLanguage[language].private, value: 'private' },
+    { label: visibilityLabelsByLanguage[language].workspace, value: 'workspace' },
+    { label: visibilityLabelsByLanguage[language].custom, value: 'custom' },
+  ];
+  const statusOptions: Array<{ label: string; value: BudgetStatus }> = [
+    { label: budgetStatusLabelsByLanguage[language].draft, value: 'draft' },
+    { label: budgetStatusLabelsByLanguage[language].active, value: 'active' },
+    { label: budgetStatusLabelsByLanguage[language].closed, value: 'closed' },
+    { label: budgetStatusLabelsByLanguage[language].archived, value: 'archived' },
+  ];
   const handleResetTitle = () => {
     form.setFieldValue('title', defaultBudgetTitle(dateRange ?? null));
   };
@@ -38,9 +56,9 @@ export function BudgetCreateModal({
       destroyOnClose
       forceRender
       confirmLoading={confirmLoading}
-      okText={isEditing ? '保存' : '创建'}
+      okText={isEditing ? t('save') : t('create')}
       open={open}
-      title={isEditing ? '编辑预算' : '新建预算'}
+      title={isEditing ? t('editBudget') : t('createBudget')}
       onCancel={onCancel}
       onOk={onOk}
     >
@@ -52,99 +70,86 @@ export function BudgetCreateModal({
         requiredMark={false}
       >
         <Form.Item
-          label="工作区"
+          label={t('workspace')}
           name="workspaceId"
-          extra={isEditing ? '既有预算的工作区归属不能在这里移动。' : undefined}
-          rules={[{ required: true, message: '请选择工作区。' }]}
+          extra={isEditing ? t('workspaceBudgetMoveLocked') : undefined}
+          rules={[{ required: true, message: t('selectWorkspaceFirst') }]}
         >
           <Select
             disabled={isEditing}
             optionFilterProp="label"
             options={workspaceOptions}
-            placeholder="选择工作区"
+            placeholder={t('selectWorkspace')}
             showSearch
           />
         </Form.Item>
         <Form.Item
-          label="标题"
+          label={t('title')}
           name="title"
           rules={[
-            { required: true, message: '请输入预算标题。' },
-            { max: 255, message: '预算标题不能超过 255 个字符。' },
+            { required: true, message: t('budgetTitleRequired') },
+            { max: 255, message: t('budgetTitleMax') },
           ]}
         >
           <Input
             autoComplete="off"
             addonAfter={
               <Button size="small" type="link" onClick={handleResetTitle}>
-                重置
+                {t('reset')}
               </Button>
             }
           />
         </Form.Item>
         <Form.Item name="ownerNameHidden" valuePropName="checked">
-          <Checkbox>隐藏显示名称</Checkbox>
+          <Checkbox>{t('hideDisplayName')}</Checkbox>
         </Form.Item>
         {ownerNameHidden ? null : (
           <Form.Item
-            label="显示名称"
+            label={t('displayName')}
             name="ownerName"
-            rules={[{ max: 160, message: '显示名称不能超过 160 个字符。' }]}
+            rules={[{ max: 160, message: t('displayNameMax') }]}
           >
             <Input autoComplete="name" addonBefore="(" addonAfter=")" />
           </Form.Item>
         )}
         <Form.Item
-          label="周期"
+          label={t('period')}
           name="dateRange"
         >
           <RangePicker allowClear className="form-full-width" />
         </Form.Item>
         <Form.Item
-          label="基准货币"
+          label={t('baseCurrency')}
           name="baseCurrency"
-          rules={[{ required: true, message: '请选择基准货币。' }]}
+          rules={[{ required: true, message: t('selectBaseCurrency') }]}
         >
           <Select options={currencyOptions} />
         </Form.Item>
         <Form.Item
-          label="显示货币"
+          label={t('displayCurrency')}
           name="displayCurrency"
-          rules={[{ required: true, message: '请选择显示货币。' }]}
+          rules={[{ required: true, message: t('selectDisplayCurrency') }]}
         >
           <Select options={currencyOptions} />
         </Form.Item>
         <Form.Item
-          label="可见性"
+          label={t('visibility')}
           name="visibility"
-          rules={[{ required: true, message: '请选择可见性。' }]}
+          rules={[{ required: true, message: t('selectVisibility') }]}
         >
-          <Select
-            options={[
-              { label: '私有', value: 'private' },
-              { label: '工作区', value: 'workspace' },
-              { label: '自定义', value: 'custom' },
-            ]}
-          />
+          <Select options={visibilityOptions} />
         </Form.Item>
         <Form.Item
-          label="状态"
+          label={t('status')}
           name="status"
-          rules={[{ required: true, message: '请选择状态。' }]}
+          rules={[{ required: true, message: t('selectStatus') }]}
         >
-          <Select
-            options={[
-              { label: '草稿', value: 'draft' },
-              { label: '启用', value: 'active' },
-              { label: '关闭', value: 'closed' },
-              { label: '归档', value: 'archived' },
-            ]}
-          />
+          <Select options={statusOptions} />
         </Form.Item>
         <Form.Item
-          label="备注"
+          label={t('note')}
           name="note"
-          rules={[{ max: 20000, message: '备注不能超过 20000 个字符。' }]}
+          rules={[{ max: 20000, message: t('noteMax') }]}
         >
           <Input.TextArea autoSize={{ minRows: 2, maxRows: 5 }} />
         </Form.Item>

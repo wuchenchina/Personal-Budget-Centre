@@ -1,6 +1,7 @@
 import { Form, Input, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
-import { currencyOptions, workspaceTypeOptions } from '../../config/appConfig';
+import { currencyOptions } from '../../config/appConfig';
+import { useI18n, workspaceTypeLabelsByLanguage } from '../../i18n';
 import type { CurrencyCode } from '../../types/budget';
 import type { WorkspaceFormValues } from '../../types/forms';
 
@@ -21,13 +22,20 @@ export function WorkspaceCreateModal({
   onCancel,
   onOk,
 }: WorkspaceCreateModalProps) {
+  const { language, t } = useI18n();
+  const workspaceTypeOptions = [
+    { label: workspaceTypeLabelsByLanguage[language].family, value: 'family' },
+    { label: workspaceTypeLabelsByLanguage[language].team, value: 'team' },
+    { label: workspaceTypeLabelsByLanguage[language].custom, value: 'custom' },
+  ];
+
   return (
     <Modal
       destroyOnClose
       confirmLoading={confirmLoading}
-      okText="创建"
+      okText={t('create')}
       open={open}
-      title="新建工作区"
+      title={t('createWorkspace')}
       onCancel={onCancel}
       onOk={onOk}
     >
@@ -42,26 +50,26 @@ export function WorkspaceCreateModal({
         }}
       >
         <Form.Item
-          label="名称"
+          label={t('name')}
           name="name"
           rules={[
-            { required: true, message: '请输入工作区名称。' },
-            { max: 160, message: '工作区名称不能超过 160 个字符。' },
+            { required: true, message: t('workspaceNameRequired') },
+            { max: 160, message: t('workspaceNameMax') },
           ]}
         >
           <Input autoComplete="organization" />
         </Form.Item>
         <Form.Item
-          label="类型"
+          label={t('workspaceType')}
           name="type"
-          rules={[{ required: true, message: '请选择工作区类型。' }]}
+          rules={[{ required: true, message: t('selectWorkspaceType') }]}
         >
           <Select options={workspaceTypeOptions} />
         </Form.Item>
         <Form.Item
-          label="默认货币"
+          label={t('defaultCurrency')}
           name="defaultCurrency"
-          rules={[{ required: true, message: '请选择默认货币。' }]}
+          rules={[{ required: true, message: t('selectDefaultCurrency') }]}
         >
           <Select options={currencyOptions} />
         </Form.Item>

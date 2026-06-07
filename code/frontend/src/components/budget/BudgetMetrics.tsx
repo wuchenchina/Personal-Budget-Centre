@@ -1,5 +1,6 @@
 import { Statistic } from 'antd';
 import { defaultBudgetTotals } from '../../config/appConfig';
+import { useI18n } from '../../i18n';
 import type { BudgetDetail, CurrencyCode } from '../../types/budget';
 
 interface BudgetMetricsProps {
@@ -9,6 +10,7 @@ interface BudgetMetricsProps {
 }
 
 export function BudgetMetrics({ selectedBudget, baseCurrency, loading }: BudgetMetricsProps) {
+  const { t } = useI18n();
   const activeCurrency = selectedBudget?.baseCurrency ?? baseCurrency;
   const activeTotals = selectedBudget?.totals ?? defaultBudgetTotals;
 
@@ -16,7 +18,7 @@ export function BudgetMetrics({ selectedBudget, baseCurrency, loading }: BudgetM
     <section className="metric-grid" aria-label="Budget totals">
       <div className="metric-panel">
         <Statistic
-          title="Budget Total"
+          title={t('totalBudgetLabel')}
           value={activeTotals.totalBudgetBase}
           precision={2}
           prefix={activeCurrency}
@@ -25,7 +27,7 @@ export function BudgetMetrics({ selectedBudget, baseCurrency, loading }: BudgetM
       </div>
       <div className="metric-panel">
         <Statistic
-          title="Estimated Actuals"
+          title={t('estimatedActuals')}
           value={activeTotals.totalEstimatedBase}
           precision={2}
           prefix={activeCurrency}
@@ -34,7 +36,7 @@ export function BudgetMetrics({ selectedBudget, baseCurrency, loading }: BudgetM
       </div>
       <div className="metric-panel">
         <Statistic
-          title="Variance"
+          title={t('variance')}
           value={activeTotals.totalVarianceBase}
           precision={2}
           prefix={activeCurrency}
@@ -43,7 +45,7 @@ export function BudgetMetrics({ selectedBudget, baseCurrency, loading }: BudgetM
       </div>
       <div className="metric-panel">
         <Statistic
-          title="Transactions"
+          title={t('transactionCount')}
           value={activeTotals.transactionCount}
           loading={loading}
         />

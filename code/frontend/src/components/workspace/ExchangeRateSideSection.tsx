@@ -4,19 +4,13 @@ import type { TableColumnsType } from 'antd';
 import { RefreshCcw } from 'lucide-react';
 import { listExchangeRates } from '../../api/exchangeRates';
 import type { OperationsController } from '../../hooks/useOperationsController';
+import { currencyRateSourceLabelsByLanguage, useI18n } from '../../i18n';
 import type { CurrencyRate } from '../../types/budget';
 
 interface ExchangeRateSideSectionProps {
   activeWorkspaceId: number | null;
   operations: OperationsController;
 }
-
-const sourceLabels: Record<CurrencyRate['source'], string> = {
-  manual: '手动',
-  budget_default: '预算默认',
-  bochk: 'BOCHK',
-  mastercard: 'Mastercard',
-};
 
 const sourceColors: Record<CurrencyRate['source'], string> = {
   manual: 'purple',
@@ -29,6 +23,7 @@ export function ExchangeRateSideSection({
   activeWorkspaceId,
   operations,
 }: ExchangeRateSideSectionProps) {
+  const { language, t } = useI18n();
   const [rates, setRates] = useState<CurrencyRate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,11 +42,11 @@ export function ExchangeRateSideSection({
     try {
       setRates(await listExchangeRates({ workspaceId: activeWorkspaceId }));
     } catch (nextError: unknown) {
-      setError(nextError instanceof Error ? nextError.message : '加载汇率失败。');
+      setError(nextError instanceof Error ? nextError.message : t('loadingExchangeRatesFailed'));
     } finally {
       setIsLoading(false);
     }
-  }, [activeWorkspaceId]);
+  }, [activeWorkspaceId, t]);
 
   useEffect(() => {
     queueMicrotask(() => void loadRates());
@@ -62,13 +57,13 @@ export function ExchangeRateSideSection({
     () => [
       {
         key: 'pair',
-        title: '货币',
+        title: t('budgetCurrency'),
         width: 120,
         render: (_, rate) => `${rate.from} -> ${rate.to}`,
       },
       {
         key: 'rate',
-        title: '汇率',
+        title: t('rate'),
         align: 'right',
         render: (_, rate) =>
           rate.rate.toLocaleString('en-US', {
@@ -77,20 +72,22 @@ export function ExchangeRateSideSection({
       },
       {
         key: 'source',
-        title: '来源',
+        title: t('source'),
         width: 112,
         render: (_, rate) => (
-          <Tag color={sourceColors[rate.source]}>{sourceLabels[rate.source]}</Tag>
+          <Tag color={sourceColors[rate.source]}>
+            {currencyRateSourceLabelsByLanguage[language][rate.source]}
+          </Tag>
         ),
       },
       {
         dataIndex: 'rateDate',
         key: 'rateDate',
-        title: '日期',
+        title: t('date'),
         width: 112,
       },
     ],
-    [],
+    [language, t],
   );
 
   const handleRefreshBochk = async () => {
@@ -103,7 +100,7 @@ export function ExchangeRateSideSection({
       <div className="side-title side-title-row">
         <span className="side-title-label">
           <RefreshCcw size={16} />
-          <span>汇率</span>
+          <span>{t('rates')}</span>
         </span>
         <Button
           icon={<RefreshCcw size={13} />}
@@ -111,7 +108,7 @@ export function ExchangeRateSideSection({
           size="small"
           onClick={() => void loadRates()}
         >
-          重新加载
+          {t('reload')}
         </Button>
       </div>
 
@@ -139,7 +136,7 @@ export function ExchangeRateSideSection({
         columns={columns}
         dataSource={latestRates}
         loading={isLoading}
-        locale={{ emptyText: '暂无汇率记录' }}
+        locale={{ emptyText: t('noExchangeRates') }}
         pagination={false}
         rowKey="id"
         scroll={{ x: 560 }}

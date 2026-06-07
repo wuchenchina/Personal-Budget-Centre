@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button, Empty, Input, Segmented, Space, Tag } from 'antd';
 import { CalendarRange, ExternalLink, Pencil, Plus, Search } from 'lucide-react';
-import { budgetStatusLabels } from '../../config/appConfig';
+import { budgetStatusLabelsByLanguage, useI18n } from '../../i18n';
 import type { BudgetStatus, BudgetSummary } from '../../types/budget';
 import { formatBudgetPeriod } from '../../utils/budgetPeriod';
 import { formatMoney } from '../../utils/currency';
@@ -18,14 +18,6 @@ interface BudgetProjectListProps {
   onOpenProject: (budgetId: number) => void;
   onSelectProject: (budgetId: number) => void;
 }
-
-const filterOptions: Array<{ label: string; value: ProjectFilter }> = [
-  { label: '全部', value: 'all' },
-  { label: budgetStatusLabels.active, value: 'active' },
-  { label: budgetStatusLabels.draft, value: 'draft' },
-  { label: budgetStatusLabels.closed, value: 'closed' },
-  { label: budgetStatusLabels.archived, value: 'archived' },
-];
 
 const statusColors: Record<BudgetStatus, string> = {
   draft: 'default',
@@ -44,8 +36,16 @@ export function BudgetProjectList({
   onOpenProject,
   onSelectProject,
 }: BudgetProjectListProps) {
+  const { language, t } = useI18n();
   const [statusFilter, setStatusFilter] = useState<ProjectFilter>('all');
   const [searchText, setSearchText] = useState('');
+  const filterOptions: Array<{ label: string; value: ProjectFilter }> = [
+    { label: t('all'), value: 'all' },
+    { label: budgetStatusLabelsByLanguage[language].active, value: 'active' },
+    { label: budgetStatusLabelsByLanguage[language].draft, value: 'draft' },
+    { label: budgetStatusLabelsByLanguage[language].closed, value: 'closed' },
+    { label: budgetStatusLabelsByLanguage[language].archived, value: 'archived' },
+  ];
 
   const filteredBudgets = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
@@ -65,13 +65,13 @@ export function BudgetProjectList({
     <div className="project-library">
       <section className="project-page-header">
         <div>
-          <Tag color="blue">Project Library</Tag>
-          <h1>预算项目库</h1>
-          <p>预算项目独立存在；需要协作时，再通过共享规则关联到工作区或用户。</p>
+          <Tag color="blue">{t('projectLibrary')}</Tag>
+          <h1>{t('projectLibraryTitle')}</h1>
+          <p>{t('projectLibraryDesc')}</p>
         </div>
         {canWriteBudgets ? (
           <Button type="primary" icon={<Plus size={16} />} onClick={onNewProject}>
-            新建预算项目
+            {t('createBudgetProject')}
           </Button>
         ) : null}
       </section>
@@ -85,7 +85,7 @@ export function BudgetProjectList({
         <Input
           allowClear
           className="project-search"
-          placeholder="搜索预算项目"
+          placeholder={t('searchBudgetProjects')}
           prefix={<Search size={15} />}
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
@@ -94,16 +94,16 @@ export function BudgetProjectList({
 
       {loading ? (
         <div className="project-panel">
-          <div className="empty-line">正在加载预算项目...</div>
+          <div className="empty-line">{t('loadingBudgetProjects')}</div>
         </div>
       ) : filteredBudgets.length === 0 ? (
         <div className="project-panel">
-          <Empty description="没有匹配的预算项目" />
+          <Empty description={t('noMatchingBudgetProjects')} />
         </div>
       ) : (
         <div className="project-list-grid">
           {filteredBudgets.map((budget) => {
-            const budgetPeriod = formatBudgetPeriod(budget);
+            const budgetPeriod = formatBudgetPeriod(budget, language);
             const ownerName = budget.ownerName.trim();
 
             return (
@@ -118,7 +118,7 @@ export function BudgetProjectList({
                 <div className="project-list-card-main">
                   <div>
                     <Tag color={statusColors[budget.status]}>
-                      {budgetStatusLabels[budget.status]}
+                      {budgetStatusLabelsByLanguage[language][budget.status]}
                     </Tag>
                     <h2>{budget.title}</h2>
                     {ownerName ? <p>({ownerName})</p> : null}
@@ -133,21 +133,21 @@ export function BudgetProjectList({
 
                 <div className="project-money-row">
                   <ProjectAmount
-                    label="预算"
+                    label={t('budget')}
                     value={formatMoney({
                       currency: budget.baseCurrency,
                       amount: budget.totals.totalBudgetBase,
                     })}
                   />
                   <ProjectAmount
-                    label="预估实际"
+                    label={t('estimatedActuals')}
                     value={formatMoney({
                       currency: budget.baseCurrency,
                       amount: budget.totals.totalEstimatedBase,
                     })}
                   />
                   <ProjectAmount
-                    label="差异"
+                    label={t('variance')}
                     value={formatMoney({
                       currency: budget.baseCurrency,
                       amount: budget.totals.totalVarianceBase,
@@ -161,15 +161,15 @@ export function BudgetProjectList({
                     icon={<ExternalLink size={15} />}
                     onClick={() => onOpenProject(budget.id)}
                   >
-                    新标签页编辑
+                    {t('newTabEdit')}
                   </Button>
-                  <Button onClick={() => onSelectProject(budget.id)}>设为当前</Button>
+                  <Button onClick={() => onSelectProject(budget.id)}>{t('setCurrent')}</Button>
                   {canWriteBudgets ? (
                     <Button
                       icon={<Pencil size={15} />}
                       onClick={() => onEditProjectInfo(budget)}
                     >
-                      项目信息
+                      {t('projectInfo')}
                     </Button>
                   ) : null}
                 </Space>

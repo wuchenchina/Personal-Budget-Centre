@@ -11,55 +11,13 @@ import {
   UserRound,
   WalletCards,
 } from 'lucide-react';
-import { iconSize, roleColors, roleLabels } from '../../config/appConfig';
+import { iconSize, roleColors } from '../../config/appConfig';
 import type { AppLanguage } from '../../i18n';
-import { languageOptions } from '../../i18n';
+import { languageOptions, roleLabelsByLanguage, useI18n } from '../../i18n';
 import type { AuthSession } from '../../types/auth';
 import type { WorkspaceRole } from '../../types/budget';
 
 const { Header, Sider, Content } = Layout;
-
-const shellCopy = {
-  en: {
-    admin: 'Admin',
-    brandCaption: 'Personal finance',
-    budgets: 'Budgets',
-    categories: 'Categories',
-    currentWorkspace: 'Current workspace',
-    dashboard: 'Dashboard',
-    logout: 'Sign out',
-    rates: 'Rates',
-    unset: 'Not set',
-    workspace: 'Workspace',
-    workspaceMissing: 'No workspace selected',
-  },
-  sc: {
-    admin: '后台',
-    brandCaption: '个人财务',
-    budgets: '预算项目',
-    categories: '分类',
-    currentWorkspace: '当前工作区',
-    dashboard: '仪表盘',
-    logout: '退出',
-    rates: '汇率',
-    unset: '未设置',
-    workspace: '工作区',
-    workspaceMissing: '尚未选择工作区',
-  },
-  tc: {
-    admin: '後台',
-    brandCaption: '個人財務',
-    budgets: '預算項目',
-    categories: '分類',
-    currentWorkspace: '當前工作區',
-    dashboard: '儀表盤',
-    logout: '登出',
-    rates: '匯率',
-    unset: '未設定',
-    workspace: '工作區',
-    workspaceMissing: '尚未選擇工作區',
-  },
-} satisfies Record<AppLanguage, Record<string, string>>;
 
 interface AppShellProps {
   activeKey: string;
@@ -88,18 +46,18 @@ export function AppShell({
   onProfile,
   onLogout,
 }: AppShellProps) {
-  const copy = shellCopy[language];
+  const { t } = useI18n();
   const menuItems: MenuProps['items'] = [
-    { key: 'dashboard', icon: <LayoutDashboard size={iconSize} />, label: copy.dashboard },
-    { key: 'workspace', icon: <Building2 size={iconSize} />, label: copy.workspace },
-    { key: 'budgets', icon: <WalletCards size={iconSize} />, label: copy.budgets },
-    { key: 'categories', icon: <Tags size={iconSize} />, label: copy.categories },
-    { key: 'rates', icon: <RefreshCcw size={iconSize} />, label: copy.rates },
+    { key: 'dashboard', icon: <LayoutDashboard size={iconSize} />, label: t('dashboard') },
+    { key: 'workspace', icon: <Building2 size={iconSize} />, label: t('workspace') },
+    { key: 'budgets', icon: <WalletCards size={iconSize} />, label: t('budgetProjects') },
+    { key: 'categories', icon: <Tags size={iconSize} />, label: t('categories') },
+    { key: 'rates', icon: <RefreshCcw size={iconSize} />, label: t('rates') },
   ];
   if (isAdmin) {
-    menuItems.push({ key: 'admin', icon: <ShieldCheck size={iconSize} />, label: copy.admin });
+    menuItems.push({ key: 'admin', icon: <ShieldCheck size={iconSize} />, label: 'Admin' });
   }
-  const workspaceName = session.workspace?.name ?? copy.workspaceMissing;
+  const workspaceName = session.workspace?.name ?? t('selectWorkspace');
 
   return (
     <Layout className="app-shell">
@@ -110,7 +68,7 @@ export function AppShell({
           </div>
           <div>
             <div className="brand-title">BudgetCentre</div>
-            <div className="brand-caption">{copy.brandCaption}</div>
+            <div className="brand-caption">Personal Finance</div>
           </div>
         </div>
         <Menu
@@ -126,20 +84,22 @@ export function AppShell({
         <Header className="app-header">
           <div className="header-main">
             <div className="header-context">
-              <span className="header-context-kicker">{copy.currentWorkspace}</span>
+              <span className="header-context-kicker">{t('currentWorkspace')}</span>
               <div className="header-context-row">
                 <strong>{workspaceName}</strong>
                 {workspaceRole ? (
-                  <Tag color={roleColors[workspaceRole]}>{roleLabels[workspaceRole]}</Tag>
+                  <Tag color={roleColors[workspaceRole]}>
+                    {roleLabelsByLanguage[language][workspaceRole]}
+                  </Tag>
                 ) : (
-                  <Tag>{copy.unset}</Tag>
+                  <Tag>-</Tag>
                 )}
               </div>
             </div>
           </div>
           <Space className="header-actions" wrap>
             <Button type="text" onClick={() => onNavigate('workspace')}>
-              {copy.workspace}
+              {t('workspace')}
             </Button>
             <Select<AppLanguage>
               aria-label="Language"
@@ -163,7 +123,7 @@ export function AppShell({
               size="small"
               onClick={onLogout}
             >
-              {copy.logout}
+              {t('logout')}
             </Button>
           </Space>
         </Header>

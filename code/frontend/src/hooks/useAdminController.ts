@@ -8,6 +8,7 @@ import {
 } from '../api/admin';
 import type { AdminEnvironmentCheck, AdminUser, AdminUserUpdatePayload } from '../types/admin';
 import type { UserStatus } from '../types/auth';
+import { translateCurrent } from '../i18n';
 
 export function useAdminController(enabled: boolean) {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -48,7 +49,7 @@ export function useAdminController(enabled: boolean) {
         })
         .catch((caught: unknown) => {
           if (isMounted) {
-            setError(caught instanceof Error ? caught.message : '加载用户失败。');
+            setError(caught instanceof Error ? caught.message : translateCurrent('authFailed'));
           }
         })
         .finally(() => {
@@ -73,9 +74,9 @@ export function useAdminController(enabled: boolean) {
       setUsers((currentUsers) =>
         currentUsers.map((user) => (user.id === updatedUser.id ? updatedUser : user)),
       );
-      setNotice('用户已更新。');
+      setNotice(translateCurrent('profileUpdated'));
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '更新用户失败。');
+      setError(caught instanceof Error ? caught.message : translateCurrent('authFailed'));
     } finally {
       setSavingUserId(null);
     }
@@ -90,11 +91,11 @@ export function useAdminController(enabled: boolean) {
       const result = await resendAdminEmailVerification(id);
       setNotice(
         result.alreadyVerified
-          ? `${result.email} 已完成邮箱验证。`
-          : `验证邮件已发送至 ${result.email}。`,
+          ? `${result.email} ${translateCurrent('emailVerified')}`
+          : translateCurrent('emailSent', { email: result.email }),
       );
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '发送验证邮件失败。');
+      setError(caught instanceof Error ? caught.message : translateCurrent('authFailed'));
     } finally {
       setSavingUserId(null);
     }
@@ -118,9 +119,13 @@ export function useAdminController(enabled: boolean) {
     try {
       const result = await getAdminEnvironment();
       setEnvironment(result);
-      setNotice(result.ok ? '环境检查通过。' : '环境检查发现需要处理的项目。');
+      setNotice(
+        result.ok
+          ? translateCurrent('environmentCheckPassed')
+          : translateCurrent('environmentCheckNeedsAttention'),
+      );
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '环境检查失败。');
+      setError(caught instanceof Error ? caught.message : translateCurrent('environmentCheckFailed'));
     } finally {
       setIsEnvironmentLoading(false);
     }

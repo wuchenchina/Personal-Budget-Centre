@@ -22,6 +22,13 @@
   font-weight: 650;
 }
 
+.side-description {
+  margin: -2px 0 12px;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .side-title-row {
   justify-content: space-between;
 }
@@ -170,6 +177,35 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+.category-create-form {
+  margin-bottom: 12px;
+}
+
+.category-create-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.1fr) minmax(150px, 0.7fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.category-create-grid .ant-form-item {
+  margin-bottom: 0;
+}
+
+.category-table .ant-table {
+  border-radius: 8px;
+}
+
+.category-alias-stack,
+.category-alias-input {
+  width: 100%;
+}
+
+.muted-inline {
+  color: #8c8c8c;
+  font-size: 12px;
 }
 
 .side-compact-row {

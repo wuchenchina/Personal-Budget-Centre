@@ -1,15 +1,13 @@
 import { LoginForm, ProFormSelect, ProFormText } from '@ant-design/pro-components';
-import { Alert, Button, Divider, Progress, Tabs } from 'antd';
+import { Alert, Button, Divider, Progress, Select, Tabs } from 'antd';
 import type { FormInstance } from 'antd';
 import { KeyRound, LockKeyhole, UserRound, WalletCards } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
+import type { AppLanguage } from '../../i18n';
+import { languageOptions, useI18n } from '../../i18n';
 import type { AuthFormValues, AuthMode } from '../../types/forms';
 import { isCurrencyCode } from '../../utils/budgetTemplate';
-import {
-  passwordProgressStatus,
-  passwordStrengthFor,
-  passwordStrengthLabels,
-} from '../../utils/password';
+import { passwordProgressStatus, passwordStrengthFor } from '../../utils/password';
 
 interface AuthScreenProps {
   form: FormInstance<AuthFormValues>;
@@ -17,8 +15,10 @@ interface AuthScreenProps {
   error: string | null;
   notice: string | null;
   isSubmitting: boolean;
+  language: AppLanguage;
   watchedPassword: string | undefined;
   onFinish: (values: AuthFormValues) => Promise<void>;
+  onLanguageChange: (language: AppLanguage) => void;
   onModeChange: (mode: AuthMode) => void;
   onPasskeyLogin: () => Promise<void>;
 }
@@ -29,16 +29,32 @@ export function AuthScreen({
   error,
   notice,
   isSubmitting,
+  language,
   watchedPassword,
   onFinish,
+  onLanguageChange,
   onModeChange,
   onPasskeyLogin,
 }: AuthScreenProps) {
+  const { t } = useI18n();
   const passwordStrength = passwordStrengthFor(watchedPassword);
   const passwordProgressPercent = Math.min((watchedPassword?.length ?? 0) * 10, 100);
+  const passwordStrengthLabels = {
+    poor: t('passwordStrengthPoor'),
+    pass: t('passwordStrengthPass'),
+    ok: t('passwordStrengthOk'),
+  };
 
   return (
     <main className="auth-shell">
+      <Select<AppLanguage>
+        aria-label="Language"
+        className="auth-language-switcher"
+        options={languageOptions}
+        size="small"
+        value={language}
+        onChange={onLanguageChange}
+      />
       <LoginForm<AuthFormValues>
         className="auth-pro-form"
         form={form}
@@ -48,7 +64,7 @@ export function AuthScreen({
           </div>
         }
         title="BudgetCentre"
-        subTitle="个人财务工作区"
+        subTitle={t('loginSubtitle')}
         contentStyle={{
           minWidth: 280,
           maxWidth: '75vw',
@@ -56,7 +72,7 @@ export function AuthScreen({
         initialValues={{ defaultCurrency: 'CNY' }}
         submitter={{
           searchConfig: {
-            submitText: mode === 'login' ? '登录' : '创建账户',
+            submitText: mode === 'login' ? t('login') : t('createAccount'),
           },
           submitButtonProps: {
             loading: isSubmitting,
@@ -74,8 +90,8 @@ export function AuthScreen({
           activeKey={mode}
           centered
           items={[
-            { key: 'login', label: '账户登录' },
-            { key: 'register', label: '创建账户' },
+            { key: 'login', label: t('loginTab') },
+            { key: 'register', label: t('createAccount') },
           ]}
           onChange={(key) => onModeChange(key as AuthMode)}
         />
@@ -93,10 +109,10 @@ export function AuthScreen({
               size="large"
               onClick={() => void onPasskeyLogin()}
             >
-              使用通行密钥继续
+              {t('loginWithPasskey')}
             </Button>
             <Divider className="auth-login-divider" plain>
-              账号密码登录
+              {t('loginWithPassword')}
             </Divider>
           </div>
         ) : null}
@@ -110,12 +126,12 @@ export function AuthScreen({
                 prefix: <UserRound size={16} />,
                 size: 'large',
               }}
-              placeholder="用户名"
+              placeholder={t('username')}
               rules={[
-                { required: true, message: '请输入用户名。' },
+                { required: true, message: t('usernameRequired') },
                 {
                   pattern: /^[a-zA-Z0-9_][a-zA-Z0-9_.-]{2,31}$/,
-                  message: '用户名为 3-32 个字符，可使用字母、数字、点、横线或下划线。',
+                  message: t('usernamePattern'),
                 },
               ]}
             />
@@ -126,8 +142,8 @@ export function AuthScreen({
                 prefix: <UserRound size={16} />,
                 size: 'large',
               }}
-              placeholder="显示名称"
-              rules={[{ required: true, message: '请输入显示名称。' }]}
+              placeholder={t('displayName')}
+              rules={[{ required: true, message: t('displayNameRequired') }]}
             />
           </>
         ) : null}
@@ -139,10 +155,15 @@ export function AuthScreen({
             prefix: <UserRound size={16} />,
             size: 'large',
           }}
-          placeholder={mode === 'login' ? '用户名或邮箱' : '邮箱'}
+          placeholder={mode === 'login' ? t('usernameOrEmail') : t('email')}
           rules={[
-            { required: true, message: mode === 'login' ? '请输入用户名或邮箱。' : '请输入邮箱。' },
-            ...(mode === 'register' ? [{ type: 'email' as const, message: '邮箱格式不正确。' }] : []),
+            {
+              required: true,
+              message: mode === 'login' ? t('usernameOrEmailRequired') : t('emailRequired'),
+            },
+            ...(mode === 'register'
+              ? [{ type: 'email' as const, message: t('emailFormatInvalid') }]
+              : []),
           ]}
         />
 
@@ -153,11 +174,11 @@ export function AuthScreen({
             prefix: <LockKeyhole size={16} />,
             size: 'large',
           }}
-          placeholder={mode === 'login' ? '密码' : '至少 10 个字符，区分大小写'}
+          placeholder={mode === 'login' ? t('password') : t('passwordMin')}
           rules={[
-            { required: true, message: '请输入密码。' },
+            { required: true, message: t('passwordRequired') },
             ...(mode === 'register'
-              ? [{ min: 10, message: '密码至少需要 10 个字符。' }]
+              ? [{ min: 10, message: t('passwordMin') }]
               : []),
           ]}
         />
@@ -181,14 +202,14 @@ export function AuthScreen({
                 prefix: <LockKeyhole size={16} />,
                 size: 'large',
               }}
-              placeholder="确认密码"
+              placeholder={t('confirmPassword')}
               rules={[
-                { required: true, message: '请再次输入密码。' },
+                { required: true, message: t('confirmPassword') },
                 ({ getFieldValue }) => ({
                   validator(_, value: unknown) {
                     return value === getFieldValue('password')
                       ? Promise.resolve()
-                      : Promise.reject(new Error('两次输入的密码不一致。'));
+                      : Promise.reject(new Error(t('passwordMismatch')));
                   },
                 }),
               ]}
@@ -200,15 +221,15 @@ export function AuthScreen({
                 size: 'large',
               }}
               options={currencyOptions}
-              placeholder="默认货币"
+              placeholder={t('defaultCurrency')}
               rules={[
-                { required: true, message: '请选择默认货币。' },
+                { required: true, message: t('selectDefaultCurrency') },
                 {
                   validator: (_, value: unknown) =>
                     typeof value === 'string' && isCurrencyCode(value)
                       ? Promise.resolve()
                       : Promise.reject(
-                          new Error('请使用 CNY、HKD、USD、EUR、GBP、JPY、TWD 或 MOP。'),
+                          new Error(t('supportedCurrencyOnly')),
                         ),
                 },
               ]}

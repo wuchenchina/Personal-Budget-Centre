@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getPersonalBudgetTemplate } from '../api/templates';
 import type { AuthSession } from '../types/auth';
 import type { BudgetTemplateDefinition } from '../types/budget';
+import { translateCurrent } from '../i18n';
 
 export function useTemplateController(session: AuthSession | null) {
   const [template, setTemplate] = useState<BudgetTemplateDefinition | null>(null);
@@ -45,7 +46,7 @@ export function useTemplateController(session: AuthSession | null) {
           if (!isMounted) {
             return;
           }
-          setTemplateError(error instanceof Error ? error.message : '加载模板失败。');
+          setTemplateError(error instanceof Error ? error.message : translateCurrent('loadingTemplateFailed'));
         })
         .finally(() => {
           if (isMounted) {

@@ -1,6 +1,6 @@
 import { Button, Empty, Space, Tag } from 'antd';
 import { ArrowRight, BriefcaseBusiness, CalendarRange, Plus } from 'lucide-react';
-import { budgetStatusLabels } from '../../config/appConfig';
+import { budgetStatusLabelsByLanguage, useI18n } from '../../i18n';
 import type { BudgetDetail, BudgetStatus, BudgetSummary, CurrencyCode } from '../../types/budget';
 import { formatBudgetPeriod } from '../../utils/budgetPeriod';
 import { formatMoney } from '../../utils/currency';
@@ -33,6 +33,7 @@ export function BudgetProjectDashboard({
   onNewProject,
   onOpenProject,
 }: BudgetProjectDashboardProps) {
+  const { language, t } = useI18n();
   const dashboardCurrency = selectedBudget?.baseCurrency ?? baseCurrency;
   const sameCurrencyProjects = budgets.filter(
     (budget) => budget.baseCurrency === dashboardCurrency,
@@ -52,34 +53,37 @@ export function BudgetProjectDashboard({
     { budget: 0, estimated: 0, variance: 0, transactions: 0 },
   );
   const recentProjects = budgets.slice(0, 4);
-  const activeProjectPeriod = activeProject ? formatBudgetPeriod(activeProject) : null;
+  const activeProjectPeriod = activeProject ? formatBudgetPeriod(activeProject, language) : null;
 
   return (
     <div className="project-dashboard">
       <section className="project-hero">
         <div>
-          <Tag color="blue">Budget Projects</Tag>
-          <h1>预算项目总览</h1>
-          <p>每一份预算都是独立项目；工作区只承担共享、协作和权限管理。</p>
+          <Tag color="blue">{t('budgetProjectsKicker')}</Tag>
+          <h1>{t('budgetProjectsTitle')}</h1>
+          <p>{t('budgetProjectsDesc')}</p>
         </div>
         <Space wrap>
           <Button icon={<BriefcaseBusiness size={16} />} onClick={() => onNavigate('budgets')}>
-            项目库
+            {t('projectLibrary')}
           </Button>
           {canWriteBudgets ? (
             <Button type="primary" icon={<Plus size={16} />} onClick={onNewProject}>
-              新建预算项目
+              {t('createBudgetProject')}
             </Button>
           ) : null}
         </Space>
       </section>
 
       <section className="project-overview-grid" aria-label="Budget project overview">
-        <OverviewTile label="预算项目" value={totalProjects.toLocaleString('en-US')} />
-        <OverviewTile label="启用中" value={activeProjects.toLocaleString('en-US')} />
-        <OverviewTile label="草稿" value={draftProjects.toLocaleString('en-US')} />
         <OverviewTile
-          label={`${dashboardCurrency} 差异`}
+          label={t('totalBudgetProjects')}
+          value={totalProjects.toLocaleString('en-US')}
+        />
+        <OverviewTile label={t('active')} value={activeProjects.toLocaleString('en-US')} />
+        <OverviewTile label={t('draft')} value={draftProjects.toLocaleString('en-US')} />
+        <OverviewTile
+          label={`${dashboardCurrency} ${t('variance')}`}
           value={formatMoney({ currency: dashboardCurrency, amount: projectTotals.variance })}
           tone={projectTotals.variance < 0 ? 'warning' : 'default'}
         />
@@ -89,19 +93,19 @@ export function BudgetProjectDashboard({
         <div className="project-panel project-panel-focus">
           <div className="project-panel-heading">
             <div>
-              <span>当前预算项目</span>
-              <strong>{activeProject?.title ?? '暂无预算项目'}</strong>
+              <span>{t('currentBudgetProject')}</span>
+              <strong>{activeProject?.title ?? t('noBudgetSelected')}</strong>
             </div>
             {activeProject ? (
               <Tag color={statusColors[activeProject.status]}>
-                {budgetStatusLabels[activeProject.status]}
+                {budgetStatusLabelsByLanguage[language][activeProject.status]}
               </Tag>
             ) : null}
           </div>
           {loading ? (
-            <div className="empty-line">正在加载预算项目...</div>
+            <div className="empty-line">{t('loadingBudgetProjects')}</div>
           ) : activeProject === null ? (
-            <Empty description="还没有预算项目" />
+            <Empty description={t('noBudgetSelected')} />
           ) : (
             <>
               {activeProjectPeriod ? (
@@ -112,21 +116,21 @@ export function BudgetProjectDashboard({
               ) : null}
               <div className="project-money-row">
                 <MetricMini
-                  label="预算"
+                  label={t('budget')}
                   value={formatMoney({
                     currency: activeProject.baseCurrency,
                     amount: activeProject.totals.totalBudgetBase,
                   })}
                 />
                 <MetricMini
-                  label="预估实际"
+                  label={t('estimatedActuals')}
                   value={formatMoney({
                     currency: activeProject.baseCurrency,
                     amount: activeProject.totals.totalEstimatedBase,
                   })}
                 />
                 <MetricMini
-                  label="交易"
+                  label={t('transaction')}
                   value={activeProject.totals.transactionCount.toLocaleString('en-US')}
                 />
               </div>
@@ -135,7 +139,7 @@ export function BudgetProjectDashboard({
                 icon={<ArrowRight size={15} />}
                 onClick={() => onOpenProject(activeProject.id)}
               >
-                新标签页编辑
+                {t('newTabEdit')}
               </Button>
             </>
           )}
@@ -144,21 +148,21 @@ export function BudgetProjectDashboard({
         <div className="project-panel">
           <div className="project-panel-heading">
             <div>
-              <span>{dashboardCurrency} 汇总</span>
-              <strong>{sameCurrencyProjects.length} 个同币种项目</strong>
+              <span>{dashboardCurrency} {t('summary')}</span>
+              <strong>{t('totalSameCurrencyProjects', { count: sameCurrencyProjects.length })}</strong>
             </div>
           </div>
           <div className="project-money-stack">
             <MetricMini
-              label="总预算"
+              label={t('totalBudget')}
               value={formatMoney({ currency: dashboardCurrency, amount: projectTotals.budget })}
             />
             <MetricMini
-              label="预估实际"
+              label={t('estimatedActuals')}
               value={formatMoney({ currency: dashboardCurrency, amount: projectTotals.estimated })}
             />
             <MetricMini
-              label="交易数"
+              label={t('transactionCount')}
               value={projectTotals.transactions.toLocaleString('en-US')}
             />
           </div>
@@ -168,19 +172,19 @@ export function BudgetProjectDashboard({
       <section className="project-panel">
         <div className="project-panel-heading">
           <div>
-            <span>最近预算项目</span>
-            <strong>从项目库打开独立编辑页</strong>
+            <span>{t('latestBudgetProjects')}</span>
+            <strong>{t('latestBudgetProjectsDesc')}</strong>
           </div>
           <Button type="link" onClick={() => onNavigate('budgets')}>
-            查看全部
+            {t('all')}
           </Button>
         </div>
         {recentProjects.length === 0 ? (
-          <Empty description="暂无预算项目" />
+          <Empty description={t('noBudgetSelected')} />
         ) : (
           <div className="project-card-grid">
             {recentProjects.map((project) => {
-              const projectPeriod = formatBudgetPeriod(project);
+              const projectPeriod = formatBudgetPeriod(project, language);
 
               return (
                 <button

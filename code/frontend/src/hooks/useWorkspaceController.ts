@@ -13,7 +13,7 @@ import type { AuthSession, AuthWorkspace, WorkspaceMember } from '../types/auth'
 import type { WorkspaceMemberFormValues, WorkspaceFormValues } from '../types/forms';
 import type { WorkspaceRole } from '../types/budget';
 import { toCurrencyCode } from '../utils/budgetTemplate';
-import { roleLabels } from '../config/appConfig';
+import { translateCurrent } from '../i18n';
 
 export function useWorkspaceController(
   session: AuthSession | null,
@@ -69,7 +69,9 @@ export function useWorkspaceController(
           })
           .catch((error: unknown) => {
             if (isMounted) {
-              setWorkspaceError(error instanceof Error ? error.message : '加载工作区失败。');
+              setWorkspaceError(
+                error instanceof Error ? error.message : translateCurrent('loadingWorkspaces'),
+              );
             }
           })
           .finally(() => {
@@ -117,7 +119,7 @@ export function useWorkspaceController(
           .catch((error: unknown) => {
             if (isMounted) {
               setWorkspaceMemberError(
-                error instanceof Error ? error.message : '加载工作区成员失败。',
+                error instanceof Error ? error.message : translateCurrent('loadingMembers'),
               );
             }
           })
@@ -137,7 +139,7 @@ export function useWorkspaceController(
   const workspaceOptions = useMemo(
     () =>
       workspaces.map((workspace) => ({
-        label: `${workspace.name} (${roleLabels[workspace.role]})`,
+        label: workspace.name,
         value: workspace.id,
       })),
     [workspaces],
@@ -192,7 +194,7 @@ export function useWorkspaceController(
             },
       );
     } catch (error: unknown) {
-      setWorkspaceError(error instanceof Error ? error.message : '切换工作区失败。');
+      setWorkspaceError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setIsWorkspaceSwitching(false);
     }
@@ -212,7 +214,7 @@ export function useWorkspaceController(
 
   const handleWorkspaceMemberAdd = async () => {
     if (activeWorkspaceId === null) {
-      setWorkspaceMemberError('请先选择工作区，再添加成员。');
+      setWorkspaceMemberError(translateCurrent('selectWorkspaceFirst'));
 
       return;
     }
@@ -272,7 +274,7 @@ export function useWorkspaceController(
       );
     } catch (error: unknown) {
       setWorkspaceMemberError(
-        error instanceof Error ? error.message : '更新成员权限失败。',
+        error instanceof Error ? error.message : translateCurrent('authFailed'),
       );
     } finally {
       setUpdatingMemberUserId(null);
@@ -294,7 +296,7 @@ export function useWorkspaceController(
       );
     } catch (error: unknown) {
       setWorkspaceMemberError(
-        error instanceof Error ? error.message : '移除工作区成员失败。',
+        error instanceof Error ? error.message : translateCurrent('authFailed'),
       );
     } finally {
       setDeletingMemberUserId(null);

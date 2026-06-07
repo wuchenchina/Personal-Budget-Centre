@@ -1,6 +1,9 @@
 import { WalletCards } from 'lucide-react';
+import { useI18n } from '../../i18n';
 
 export function AuthLoadingScreen() {
+  const { t } = useI18n();
+
   return (
     <main className="auth-shell">
       <div className="auth-loading-panel">
@@ -10,7 +13,7 @@ export function AuthLoadingScreen() {
           </div>
           <div>
             <h1>BudgetCentre</h1>
-            <p>正在加载会话...</p>
+            <p>{t('sessionLoading')}</p>
           </div>
         </div>
       </div>

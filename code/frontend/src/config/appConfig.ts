@@ -1,11 +1,5 @@
 import type { ThemeConfig } from 'antd';
-import type {
-  BudgetSharePrincipalType,
-  BudgetShareRole,
-  BudgetStatus,
-  CurrencyCode,
-  WorkspaceRole,
-} from '../types/budget';
+import type { CurrencyCode, WorkspaceRole } from '../types/budget';
 import type { UserStatus } from '../types/auth';
 
 export const iconSize = 16;
@@ -41,40 +35,6 @@ export const roleColors: Record<WorkspaceRole, string> = {
   auditor: 'purple',
 };
 
-export const roleLabels: Record<WorkspaceRole, string> = {
-  owner: '所有者',
-  admin: '管理员',
-  editor: '编辑者',
-  viewer: '查看者',
-  auditor: '审计员',
-};
-
-export const budgetShareRoleLabels: Record<BudgetShareRole, string> = {
-  owner: '所有者',
-  editor: '编辑者',
-  viewer: '查看者',
-  auditor: '审计员',
-};
-
-export const principalTypeLabels: Record<BudgetSharePrincipalType, string> = {
-  user: '用户',
-  workgroup: '工作组',
-  workspace: '工作区',
-};
-
-export const budgetStatusLabels: Record<BudgetStatus, string> = {
-  draft: '草稿',
-  active: '启用',
-  closed: '关闭',
-  archived: '归档',
-};
-
-export const userStatusLabels: Record<UserStatus, string> = {
-  active: '正常',
-  pending: '待验证',
-  disabled: '已停用',
-};
-
 export const userStatusColors: Record<UserStatus, string> = {
   active: 'blue',
   pending: 'orange',
@@ -85,25 +45,6 @@ export const currencyOptions = supportedCurrencyCodes.map((code) => ({
   label: code,
   value: code,
 }));
-
-export const workspaceTypeOptions = [
-  { label: '家庭', value: 'family' },
-  { label: '团队', value: 'team' },
-  { label: '自定义', value: 'custom' },
-];
-
-export const assignableWorkspaceRoleOptions = [
-  { label: roleLabels.admin, value: 'admin' },
-  { label: roleLabels.editor, value: 'editor' },
-  { label: roleLabels.viewer, value: 'viewer' },
-  { label: roleLabels.auditor, value: 'auditor' },
-];
-
-export const budgetShareRoleOptions: Array<{ label: string; value: BudgetShareRole }> = [
-  { label: budgetShareRoleLabels.editor, value: 'editor' },
-  { label: budgetShareRoleLabels.viewer, value: 'viewer' },
-  { label: budgetShareRoleLabels.auditor, value: 'auditor' },
-];
 
 export const defaultBudgetTotals = {
   totalBudgetBase: 0,

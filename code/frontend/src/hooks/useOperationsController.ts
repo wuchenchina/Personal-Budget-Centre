@@ -34,6 +34,7 @@ import type {
   Currency,
   CurrencyCode,
 } from '../types/budget';
+import { translateCurrent } from '../i18n';
 import { createPasskeyCredential } from '../utils/webauthn';
 
 interface UseOperationsControllerOptions {
@@ -109,7 +110,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         })
         .catch((error: unknown) => {
           if (isMounted) {
-            setOperationsError(error instanceof Error ? error.message : '加载货币失败。');
+            setOperationsError(error instanceof Error ? error.message : translateCurrent('loadingCurrency'));
           }
         })
         .finally(() => {
@@ -126,7 +127,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         })
         .catch((error: unknown) => {
           if (isMounted) {
-            setOperationsError(error instanceof Error ? error.message : '加载通行密钥失败。');
+            setOperationsError(error instanceof Error ? error.message : translateCurrent('loadingPasskeys'));
           }
         })
         .finally(() => {
@@ -174,7 +175,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         })
         .catch((error: unknown) => {
           if (isMounted) {
-            setOperationsError(error instanceof Error ? error.message : '加载分类失败。');
+            setOperationsError(error instanceof Error ? error.message : translateCurrent('loadingCategories'));
           }
         })
         .finally(() => {
@@ -223,7 +224,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
           })
           .catch((error: unknown) => {
             if (isMounted) {
-              setOperationsError(error instanceof Error ? error.message : '加载共享规则失败。');
+              setOperationsError(error instanceof Error ? error.message : translateCurrent('loadingShares'));
             }
           })
           .finally(() => {
@@ -268,7 +269,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     defaultCurrency?: CurrencyCode | null;
   }) => {
     if (activeWorkspaceId === null) {
-      setOperationsError('请先选择工作区，再保存分类。');
+      setOperationsError(translateCurrent('selectWorkspaceFirst'));
 
       return;
     }
@@ -288,7 +289,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
       setCategories(nextCategories);
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '保存分类失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('saveCategoryFailed'));
     } finally {
       setIsCategorySaving(false);
     }
@@ -301,7 +302,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     try {
       setCategories(await deleteBudgetCategory(id));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '删除分类失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('saveCategoryFailed'));
     } finally {
       setIsCategorySaving(false);
     }
@@ -309,7 +310,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
   const saveAlias = async (categoryId: number, alias: string) => {
     if (activeWorkspaceId === null) {
-      setOperationsError('请先选择工作区，再保存别名。');
+      setOperationsError(translateCurrent('selectWorkspaceFirst'));
 
       return;
     }
@@ -326,7 +327,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         }),
       );
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '保存别名失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('saveAliasFailed'));
     } finally {
       setIsCategorySaving(false);
     }
@@ -339,7 +340,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     try {
       setCategories(await deleteCategoryAlias(id));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '删除别名失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('saveAliasFailed'));
     } finally {
       setIsCategorySaving(false);
     }
@@ -347,7 +348,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
   const createExport = async (format: BudgetExportFormat) => {
     if (selectedBudget === null) {
-      setOperationsError('请先选择预算，再导出。');
+      setOperationsError(translateCurrent('selectBudgetFirst'));
 
       return;
     }
@@ -359,7 +360,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
       const nextExport = await createBudgetExport(selectedBudget.id, format);
       triggerExportDownload(exportDownloadUrl(nextExport));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '创建导出失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setCreatingExportFormat(null);
     }
@@ -367,7 +368,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
   const refreshBochk = async () => {
     if (activeWorkspaceId === null) {
-      setOperationsError('请先选择工作区，再刷新 BOCHK 汇率。');
+      setOperationsError(translateCurrent('selectWorkspaceFirst'));
 
       return;
     }
@@ -378,7 +379,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     try {
       await refreshBochkRates(activeWorkspaceId);
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '刷新 BOCHK 汇率失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
     } finally {
       setRefreshingExchangeRateSource(null);
     }
@@ -386,7 +387,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
   const refreshMastercard = async () => {
     if (activeWorkspaceId === null) {
-      setOperationsError('请先选择工作区，再刷新 Mastercard 汇率。');
+      setOperationsError(translateCurrent('selectWorkspaceFirst'));
 
       return;
     }
@@ -400,7 +401,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         toCurrency: selectedBudget?.baseCurrency,
       });
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '刷新 Mastercard 汇率失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
     } finally {
       setRefreshingExchangeRateSource(null);
     }
@@ -417,7 +418,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     expiresAt?: string | null;
   }) => {
     if (selectedBudget === null) {
-      setOperationsError('请先选择预算，再管理共享。');
+      setOperationsError(translateCurrent('selectBudgetFirst'));
 
       return;
     }
@@ -447,7 +448,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
             });
       setShares(nextShares);
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '保存共享规则失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setIsShareSaving(false);
     }
@@ -460,7 +461,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     try {
       setShares(await deleteBudgetShare(id));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '删除共享规则失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setIsShareSaving(false);
     }
@@ -475,7 +476,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
       const credential = await createPasskeyCredential(options);
       setPasskeys(await verifyPasskeyRegistration(credential, deviceName));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '注册通行密钥失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setIsPasskeyRegistering(false);
     }
@@ -488,7 +489,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     try {
       setPasskeys(await updatePasskeyCredential(id, deviceName));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '更新通行密钥失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setIsPasskeyLoading(false);
     }
@@ -501,7 +502,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     try {
       setPasskeys(await deletePasskeyCredential(id));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : '删除通行密钥失败。');
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('authFailed'));
     } finally {
       setIsPasskeyLoading(false);
     }
