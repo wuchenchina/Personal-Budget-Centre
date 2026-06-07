@@ -39,9 +39,7 @@ export function GovernancePanel({
   canManageWorkspaceMembers,
 }: GovernancePanelProps) {
   const showWorkspace = activeKey === 'workspace';
-  const showOperations = ['categories', 'reconciliation', 'security', 'sharing'].includes(
-    activeKey,
-  );
+  const showOperations = ['categories', 'rates', 'security', 'sharing'].includes(activeKey);
 
   return (
     <aside className="governance-panel">

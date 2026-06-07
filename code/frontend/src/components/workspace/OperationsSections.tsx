@@ -4,8 +4,8 @@ import type { OperationsController } from '../../hooks/useOperationsController';
 import type { WorkspaceMember } from '../../types/auth';
 import type { BudgetDetail } from '../../types/budget';
 import { CategorySideSection } from './CategorySideSection';
+import { ExchangeRateSideSection } from './ExchangeRateSideSection';
 import { PasskeySideSection } from './PasskeySideSection';
-import { ReconciliationSideSection } from './ReconciliationSideSection';
 import { ShareSideSection } from './ShareSideSection';
 
 interface OperationsSectionsProps {
@@ -30,7 +30,7 @@ export function OperationsSections({
   canManageBudgetShares,
 }: OperationsSectionsProps) {
   const showCategories = activeKey === 'categories';
-  const showReconciliation = activeKey === 'reconciliation';
+  const showRates = activeKey === 'rates';
   const showSecurity = activeKey === 'security';
   const showSharing = activeKey === 'sharing';
 
@@ -54,8 +54,11 @@ export function OperationsSections({
       {showCategories ? (
         <CategorySideSection operations={operations} canWriteBudgets={canWriteBudgets} />
       ) : null}
-      {showReconciliation ? (
-        <ReconciliationSideSection operations={operations} selectedBudget={selectedBudget} />
+      {showRates ? (
+        <ExchangeRateSideSection
+          activeWorkspaceId={activeWorkspaceId}
+          operations={operations}
+        />
       ) : null}
       {showSecurity ? <PasskeySideSection operations={operations} /> : null}
     </>

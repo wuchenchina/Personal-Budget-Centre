@@ -220,17 +220,34 @@
   flex-wrap: wrap;
 }
 
-.passkey-action-row {
-  min-width: 76px;
-  justify-content: flex-end;
+.exchange-rate-section .ant-table-wrapper {
+  margin-top: 10px;
 }
 
-.reconciliation-grid {
+.exchange-rate-actions,
+.currency-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.passkey-register-row {
   display: grid;
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-.reconciliation-grid small {
-  color: #8c8c8c;
-  font-size: 12px;
+.passkey-main {
+  min-height: 34px;
+}
+
+.passkey-edit-input {
+  min-width: 0;
+}
+
+.passkey-action-row {
+  min-width: max-content;
+  justify-content: flex-end;
 }

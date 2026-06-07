@@ -1,5 +1,5 @@
 import { Button, Empty, Space, Tag } from 'antd';
-import { ArrowRight, BriefcaseBusiness, CalendarRange, Plus, RefreshCcw } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, CalendarRange, Plus } from 'lucide-react';
 import { budgetStatusLabels } from '../../config/appConfig';
 import type { BudgetDetail, BudgetStatus, BudgetSummary, CurrencyCode } from '../../types/budget';
 import { formatMoney } from '../../utils/currency';
@@ -128,18 +128,13 @@ export function BudgetProjectDashboard({
                   value={activeProject.totals.transactionCount.toLocaleString('en-US')}
                 />
               </div>
-              <Space wrap>
-                <Button
-                  type="primary"
-                  icon={<ArrowRight size={15} />}
-                  onClick={() => onOpenProject(activeProject.id)}
-                >
-                  新标签页编辑
-                </Button>
-                <Button icon={<RefreshCcw size={15} />} onClick={() => onNavigate('reconciliation')}>
-                  查看对账
-                </Button>
-              </Space>
+              <Button
+                type="primary"
+                icon={<ArrowRight size={15} />}
+                onClick={() => onOpenProject(activeProject.id)}
+              >
+                新标签页编辑
+              </Button>
             </>
           )}
         </div>

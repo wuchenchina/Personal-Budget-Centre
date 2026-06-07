@@ -35,11 +35,6 @@ export function CategorySideSection({
         <Tags size={16} />
         <span>分类</span>
       </div>
-      <Space className="side-tag-cloud" wrap>
-        {operations.currencies.map((currency) => (
-          <Tag key={currency.code}>{currency.code}</Tag>
-        ))}
-      </Space>
       {canWriteBudgets ? (
         <Space.Compact className="side-compact-row" block>
           <Input
@@ -114,7 +109,7 @@ function CategoryRow({
     <div className="operation-list-item">
       <div className="operation-list-main">
         <span>{category.name}</span>
-        <small>{category.defaultCurrency ?? '无默认货币'}</small>
+        <small>{category.defaultCurrency ? `默认货币 ${category.defaultCurrency}` : '无默认货币'}</small>
       </div>
       {canWriteBudgets ? (
         <Popconfirm

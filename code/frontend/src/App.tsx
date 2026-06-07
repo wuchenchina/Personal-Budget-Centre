@@ -294,11 +294,7 @@ function App() {
       );
     }
 
-    if (
-      ['workspace', 'categories', 'security', 'reconciliation', 'sharing'].includes(
-        activeKey,
-      )
-    ) {
+    if (['workspace', 'categories', 'rates', 'security', 'sharing'].includes(activeKey)) {
       return <div className="workspace-grid workspace-grid-panel-only">{governancePanel}</div>;
     }
 

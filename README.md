@@ -2,7 +2,7 @@
 
 BudgetCentre 是一個個人生活預算網站，目標是把既有 Word 模板轉成可協作、可審計、可匯出、可部署的 Web 系統。
 
-Version 1 已完成核心閉環：前端工作台、PHP API、MySQL schema、使用者/session、Passkey、Workspace/Workgroup、預算 CRUD、分類別名、共享權限、交易/預算項、匯率、對賬、Markdown/DOCX/PDF 匯出、資料庫初始化與部署腳本。
+Version 1 已完成核心閉環：前端工作台、PHP API、MySQL schema、使用者/session、Passkey、Workspace/Workgroup、預算 CRUD、分類別名、共享權限、交易/預算項、匯率、Markdown/DOCX/PDF 匯出、資料庫初始化與部署腳本。
 
 ## 目錄
 
@@ -34,7 +34,7 @@ Version 1 已完成核心閉環：前端工作台、PHP API、MySQL schema、使
 - Workspace、Workspace member、Workgroup CRUD
 - Budget list/detail/create/update/delete
 - Budget item 與 transaction CRUD
-- Category alias mapping 與 reconciliation
+- Category alias mapping
 - Budget share API，支援 user/workgroup/workspace principal
 - Currency API、manual exchange rate API
 - BOCHK 與 Mastercard 匯率 provider

@@ -156,16 +156,6 @@ export interface BudgetCategory {
   aliases: BudgetCategoryAlias[];
 }
 
-export interface BudgetReconciliationRow {
-  budgetId: number;
-  categoryId: number | null;
-  category: string | null;
-  label: string;
-  estimatedAmountBase: number;
-  transactionTotalBase: number;
-  differenceBase: number;
-}
-
 export type BudgetExportFormat = 'markdown' | 'docx' | 'pdf';
 
 export interface BudgetExport {

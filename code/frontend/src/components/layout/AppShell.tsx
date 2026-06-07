@@ -61,8 +61,8 @@ export function AppShell({
     { key: 'dashboard', icon: <LayoutDashboard size={iconSize} />, label: '仪表盘' },
     { key: 'budgets', icon: <WalletCards size={iconSize} />, label: '预算项目' },
     { key: 'sharing', icon: <Share2 size={iconSize} />, label: '共享' },
-    { key: 'reconciliation', icon: <RefreshCcw size={iconSize} />, label: '对账' },
     { key: 'categories', icon: <Tags size={iconSize} />, label: '分类' },
+    { key: 'rates', icon: <RefreshCcw size={iconSize} />, label: '汇率' },
     { key: 'workspace', icon: <Users size={iconSize} />, label: '协作工作区' },
     { key: 'security', icon: <KeyRound size={iconSize} />, label: '安全' },
   ];
@@ -94,10 +94,6 @@ export function AppShell({
       <Layout>
         <Header className="app-header">
           <div className="header-main">
-            <div className="workspace-heading">
-              <span className="workspace-kicker">工作区</span>
-              <strong>{session.workspace?.name ?? '个人财务'}</strong>
-            </div>
             <Select
               aria-label="切换工作区"
               className="workspace-switcher"
@@ -111,7 +107,6 @@ export function AppShell({
               onChange={onWorkspaceSwitch}
             />
             <div className="workspace-meta">
-              <Tag>{workspaces.length} 个工作区</Tag>
               {workspaceRole ? (
                 <Tag color={roleColors[workspaceRole]}>{roleLabels[workspaceRole]}</Tag>
               ) : (

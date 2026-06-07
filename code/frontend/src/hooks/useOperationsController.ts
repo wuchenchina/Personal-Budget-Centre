@@ -22,7 +22,6 @@ import {
   updatePasskeyCredential,
   verifyPasskeyRegistration,
 } from '../api/passkeys';
-import { getBudgetReconciliation } from '../api/reconciliation';
 import { listCurrencies } from '../api/referenceData';
 import type { AuthSession, PasskeyCredential } from '../types/auth';
 import type {
@@ -30,7 +29,6 @@ import type {
   BudgetDetail,
   BudgetExport,
   BudgetExportFormat,
-  BudgetReconciliationRow,
   BudgetShare,
   BudgetSharePrincipalType,
   BudgetShareRole,
@@ -49,7 +47,6 @@ interface UseOperationsControllerOptions {
 export function useOperationsController(options: UseOperationsControllerOptions) {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
-  const [reconciliation, setReconciliation] = useState<BudgetReconciliationRow[]>([]);
   const [exports, setExports] = useState<BudgetExport[]>([]);
   const [shares, setShares] = useState<BudgetShare[]>([]);
   const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
@@ -57,7 +54,6 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   const [isReferenceLoading, setIsReferenceLoading] = useState(false);
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [isCategorySaving, setIsCategorySaving] = useState(false);
-  const [isReconciliationLoading, setIsReconciliationLoading] = useState(false);
   const [isExportLoading, setIsExportLoading] = useState(false);
   const [isShareLoading, setIsShareLoading] = useState(false);
   const [isShareSaving, setIsShareSaving] = useState(false);
@@ -195,10 +191,8 @@ export function useOperationsController(options: UseOperationsControllerOptions)
           return;
         }
 
-        setReconciliation([]);
         setExports([]);
         setShares([]);
-        setIsReconciliationLoading(false);
         setIsExportLoading(false);
         setIsShareLoading(false);
       });
@@ -213,28 +207,8 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         return;
       }
 
-      setIsReconciliationLoading(true);
       setIsExportLoading(true);
       setIsShareLoading(canManageBudgetShares);
-
-      getBudgetReconciliation(selectedBudget.id)
-        .then((rows) => {
-          if (isMounted) {
-            setReconciliation(rows);
-          }
-        })
-        .catch((error: unknown) => {
-          if (isMounted) {
-            setOperationsError(
-              error instanceof Error ? error.message : '加载对账结果失败。',
-            );
-          }
-        })
-        .finally(() => {
-          if (isMounted) {
-            setIsReconciliationLoading(false);
-          }
-        });
 
       listBudgetExports(selectedBudget.id)
         .then((items) => {
@@ -553,7 +527,6 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     categories,
     categoryOptions,
     currencyOptions,
-    reconciliation,
     exports,
     shares,
     passkeys,
@@ -561,7 +534,6 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     isReferenceLoading,
     isCategoryLoading,
     isCategorySaving,
-    isReconciliationLoading,
     isExportLoading,
     isShareLoading,
     isShareSaving,

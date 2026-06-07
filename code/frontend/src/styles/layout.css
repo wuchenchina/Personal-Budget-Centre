@@ -75,31 +75,9 @@
 
 .header-main {
   display: flex;
-  flex: 1;
   align-items: center;
   gap: 10px;
   min-width: 0;
-}
-
-.workspace-heading {
-  display: grid;
-  min-width: 150px;
-  gap: 2px;
-}
-
-.workspace-heading strong {
-  min-width: 0;
-  overflow: hidden;
-  color: #1f1f1f;
-  font-size: 16px;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.workspace-kicker {
-  color: #8c8c8c;
-  font-size: 12px;
 }
 
 .workspace-switcher {
