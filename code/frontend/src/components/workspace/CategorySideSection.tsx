@@ -71,7 +71,7 @@ export function CategorySideSection({
         </Space.Compact>
       ) : null}
       <div className="operation-list">
-        {operations.isReferenceLoading ? (
+        {operations.isCategoryLoading ? (
           <div className="empty-line">正在加载分类...</div>
         ) : operations.categories.length === 0 ? (
           <div className="empty-line">暂无分类。</div>

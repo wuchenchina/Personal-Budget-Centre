@@ -8,12 +8,13 @@ type VerificationState =
   | { status: 'error'; message: string };
 
 export function EmailVerificationScreen() {
-  const [state, setState] = useState<VerificationState>({ status: 'loading' });
   const token = new URLSearchParams(window.location.search).get('token') ?? '';
+  const [state, setState] = useState<VerificationState>(() =>
+    token === '' ? { status: 'error', message: '验证链接缺少 token。' } : { status: 'loading' },
+  );
 
   useEffect(() => {
     if (token === '') {
-      setState({ status: 'error', message: '验证链接缺少 token。' });
       return;
     }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Form } from 'antd';
 import dayjs from 'dayjs';
 import {
@@ -15,6 +15,7 @@ import type { BudgetFormValues } from '../types/forms';
 interface UseBudgetControllerOptions {
   activeWorkspaceId: number | null;
   baseCurrency: CurrencyCode;
+  initialBudgetId?: number | null;
   session: AuthSession | null;
   onCreated?: () => void;
 }
@@ -30,21 +31,31 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
   const [isBudgetSaving, setIsBudgetSaving] = useState(false);
   const [editingBudgetId, setEditingBudgetId] = useState<number | null>(null);
   const [deletingBudgetId, setDeletingBudgetId] = useState<number | null>(null);
+  const requestedBudgetId = useRef<number | null>(options.initialBudgetId ?? null);
   const { activeWorkspaceId, baseCurrency, session } = options;
 
   useEffect(() => {
-    if (activeWorkspaceId === null) {
-      setBudgets([]);
-      setSelectedBudget(null);
-      setBudgetError(null);
-      setIsBudgetLoading(false);
-      setIsBudgetDetailLoading(false);
+    let isMounted = true;
 
-      return;
+    if (activeWorkspaceId === null) {
+      queueMicrotask(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setBudgets([]);
+        setSelectedBudget(null);
+        setBudgetError(null);
+        setIsBudgetLoading(false);
+        setIsBudgetDetailLoading(false);
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }
 
     const workspaceId = activeWorkspaceId;
-    let isMounted = true;
 
     async function loadWorkspaceBudgets() {
       setIsBudgetLoading(true);
@@ -60,16 +71,22 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         setBudgets(nextBudgets);
         setBudgetError(null);
 
-        const firstBudget = nextBudgets[0];
-        if (firstBudget === undefined) {
+        const firstBudgetId = nextBudgets[0]?.id ?? null;
+        const budgetIdToOpen = requestedBudgetId.current ?? firstBudgetId;
+        if (budgetIdToOpen === null) {
           return;
         }
 
         setIsBudgetDetailLoading(true);
         try {
-          const budgetDetail = await getBudgetDetail(firstBudget.id);
+          const budgetDetail = await getBudgetDetail(budgetIdToOpen);
           if (isMounted) {
             setSelectedBudget(budgetDetail);
+            setBudgets((currentBudgets) => {
+              const hasBudget = currentBudgets.some((budget) => budget.id === budgetDetail.id);
+
+              return hasBudget ? currentBudgets : [budgetDetail, ...currentBudgets];
+            });
           }
         } catch (error: unknown) {
           if (isMounted) {
@@ -167,6 +184,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
               id: editingBudgetId,
             });
 
+      requestedBudgetId.current = savedBudget.id;
       setBudgets((currentBudgets) => [
         savedBudget,
         ...currentBudgets.filter((budget) => budget.id !== savedBudget.id),
@@ -197,9 +215,12 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       if (selectedBudget?.id === budgetId) {
         setSelectedBudget(null);
         const nextBudget = remainingBudgets[0];
+        requestedBudgetId.current = nextBudget?.id ?? null;
         if (nextBudget !== undefined) {
           await handleBudgetSelect(nextBudget.id);
         }
+      } else if (requestedBudgetId.current === budgetId) {
+        requestedBudgetId.current = null;
       }
     } catch (error: unknown) {
       setBudgetError(error instanceof Error ? error.message : '删除预算失败。');
@@ -209,6 +230,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
   };
 
   const handleBudgetSelect = async (budgetId: number) => {
+    requestedBudgetId.current = budgetId;
     if (selectedBudget?.id === budgetId) {
       return;
     }

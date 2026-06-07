@@ -9,36 +9,50 @@ export function useTemplateController(session: AuthSession | null) {
   const [isTemplateLoading, setIsTemplateLoading] = useState(false);
 
   useEffect(() => {
-    if (session === null) {
-      setTemplate(null);
-      setTemplateError(null);
-      setIsTemplateLoading(false);
+    let isMounted = true;
 
-      return;
+    if (session === null) {
+      queueMicrotask(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setTemplate(null);
+        setTemplateError(null);
+        setIsTemplateLoading(false);
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }
 
-    let isMounted = true;
-    setIsTemplateLoading(true);
+    queueMicrotask(() => {
+      if (!isMounted) {
+        return;
+      }
 
-    getPersonalBudgetTemplate()
-      .then((nextTemplate) => {
-        if (!isMounted) {
-          return;
-        }
-        setTemplate(nextTemplate);
-        setTemplateError(null);
-      })
-      .catch((error: unknown) => {
-        if (!isMounted) {
-          return;
-        }
-        setTemplateError(error instanceof Error ? error.message : '加载模板失败。');
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsTemplateLoading(false);
-        }
-      });
+      setIsTemplateLoading(true);
+      getPersonalBudgetTemplate()
+        .then((nextTemplate) => {
+          if (!isMounted) {
+            return;
+          }
+          setTemplate(nextTemplate);
+          setTemplateError(null);
+        })
+        .catch((error: unknown) => {
+          if (!isMounted) {
+            return;
+          }
+          setTemplateError(error instanceof Error ? error.message : '加载模板失败。');
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsTemplateLoading(false);
+          }
+        });
+    });
 
     return () => {
       isMounted = false;

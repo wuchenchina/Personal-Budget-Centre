@@ -30,10 +30,11 @@ export function OperationsSections({
   canWriteBudgets,
   canManageBudgetShares,
 }: OperationsSectionsProps) {
-  const showAll = activeKey === 'dashboard';
-  const showSecurity = showAll || activeKey === 'security';
-  const showCurrencies = showAll || activeKey === 'currencies';
-  const showExports = showAll || activeKey === 'exports';
+  const showCategories = activeKey === 'categories';
+  const showExports = activeKey === 'exports';
+  const showReconciliation = activeKey === 'reconciliation';
+  const showSecurity = activeKey === 'security';
+  const showSharing = activeKey === 'sharing';
 
   return (
     <>
@@ -42,7 +43,7 @@ export function OperationsSections({
           <Alert type="error" showIcon message={operations.operationsError} />
         </div>
       ) : null}
-      {showSecurity ? (
+      {showSharing ? (
         <ShareSideSection
           operations={operations}
           selectedBudget={selectedBudget}
@@ -52,11 +53,11 @@ export function OperationsSections({
           canManageBudgetShares={canManageBudgetShares}
         />
       ) : null}
-      {showCurrencies ? (
-        <>
-          <CategorySideSection operations={operations} canWriteBudgets={canWriteBudgets} />
-          <ReconciliationSideSection operations={operations} selectedBudget={selectedBudget} />
-        </>
+      {showCategories ? (
+        <CategorySideSection operations={operations} canWriteBudgets={canWriteBudgets} />
+      ) : null}
+      {showReconciliation ? (
+        <ReconciliationSideSection operations={operations} selectedBudget={selectedBudget} />
       ) : null}
       {showExports ? (
         <ExportSideSection operations={operations} selectedBudget={selectedBudget} />

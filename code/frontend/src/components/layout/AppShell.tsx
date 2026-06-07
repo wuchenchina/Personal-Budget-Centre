@@ -5,12 +5,13 @@ import {
   Download,
   FileText,
   KeyRound,
-  Landmark,
   LayoutDashboard,
   LogOut,
   Plus,
+  RefreshCcw,
   Share2,
   ShieldCheck,
+  Tags,
   UserRound,
   Users,
   WalletCards,
@@ -61,9 +62,11 @@ export function AppShell({
 }: AppShellProps) {
   const menuItems: MenuProps['items'] = [
     { key: 'dashboard', icon: <LayoutDashboard size={iconSize} />, label: '仪表盘' },
-    { key: 'budgets', icon: <WalletCards size={iconSize} />, label: '预算' },
-    { key: 'workspace', icon: <Users size={iconSize} />, label: '工作区' },
-    { key: 'currencies', icon: <Landmark size={iconSize} />, label: '货币' },
+    { key: 'budgets', icon: <WalletCards size={iconSize} />, label: '预算项目' },
+    { key: 'sharing', icon: <Share2 size={iconSize} />, label: '共享' },
+    { key: 'reconciliation', icon: <RefreshCcw size={iconSize} />, label: '对账' },
+    { key: 'categories', icon: <Tags size={iconSize} />, label: '分类' },
+    { key: 'workspace', icon: <Users size={iconSize} />, label: '协作工作区' },
     { key: 'security', icon: <KeyRound size={iconSize} />, label: '安全' },
     { key: 'exports', icon: <Download size={iconSize} />, label: '导出' },
   ];
@@ -123,15 +126,23 @@ export function AppShell({
               <UserRound size={15} />
               {session.user.displayName}
             </span>
-            <Button icon={<Share2 size={16} />}>共享</Button>
-            <Button icon={<FileText size={16} />}>导出</Button>
+            <Button
+              disabled={activeWorkspaceId === null}
+              icon={<Share2 size={16} />}
+              onClick={() => onNavigate('sharing')}
+            >
+              共享
+            </Button>
+            <Button icon={<FileText size={16} />} onClick={() => onNavigate('exports')}>
+              导出
+            </Button>
             <Button
               type="primary"
               disabled={activeWorkspaceId === null || !canWriteBudgets}
               icon={<Plus size={16} />}
               onClick={onNewBudget}
             >
-              新建预算
+              新建预算项目
             </Button>
             <Button icon={<LogOut size={16} />} loading={isAuthSubmitting} onClick={onLogout}>
               退出

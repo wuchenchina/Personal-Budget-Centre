@@ -8,6 +8,8 @@ import { BudgetCreateModal } from './components/budget/BudgetCreateModal';
 import { BudgetDocumentPreview } from './components/budget/BudgetDocumentPreview';
 import { BudgetItemModal } from './components/budget/BudgetItemModal';
 import { BudgetMetrics } from './components/budget/BudgetMetrics';
+import { BudgetProjectDashboard } from './components/budget/BudgetProjectDashboard';
+import { BudgetProjectList } from './components/budget/BudgetProjectList';
 import { TransactionModal } from './components/budget/TransactionModal';
 import { AppShell } from './components/layout/AppShell';
 import { GovernancePanel } from './components/workspace/GovernancePanel';
@@ -25,8 +27,22 @@ import { useWorkgroupController } from './hooks/useWorkgroupController';
 import { useWorkspaceController } from './hooks/useWorkspaceController';
 import './App.css';
 
+function budgetProjectIdFromHash(hash: string): number | null {
+  const match = hash.match(/^#\/budgets\/(\d+)$/);
+  if (match === null) {
+    return null;
+  }
+
+  const budgetId = Number(match[1]);
+
+  return Number.isInteger(budgetId) && budgetId > 0 ? budgetId : null;
+}
+
 function App() {
-  const [activeKey, setActiveKey] = useState('dashboard');
+  const initialBudgetProjectId = budgetProjectIdFromHash(window.location.hash);
+  const [activeKey, setActiveKey] = useState(
+    initialBudgetProjectId === null ? 'dashboard' : 'budget-editor',
+  );
   const auth = useAuthController({
     onLogout: () => setActiveKey('dashboard'),
   });
@@ -36,6 +52,7 @@ function App() {
   const budget = useBudgetController({
     activeWorkspaceId: workspace.activeWorkspaceId,
     baseCurrency,
+    initialBudgetId: initialBudgetProjectId,
     session: auth.session,
     onCreated: () => setActiveKey('budgets'),
   });
@@ -93,6 +110,23 @@ function App() {
   }
 
   const currentUserId = auth.session.user.id;
+  const handleNavigate = (key: string) => {
+    if (key !== 'budget-editor' && window.location.hash.startsWith('#/budgets/')) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
+
+    setActiveKey(key);
+  };
+  const openBudgetProjectInNewTab = (budgetId: number) => {
+    const url = `${window.location.origin}${window.location.pathname}${window.location.search}#/budgets/${budgetId}`;
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+  const openSelectedBudgetSettings = () => {
+    if (budget.selectedBudget !== null) {
+      budget.openBudgetEditModal(budget.selectedBudget);
+    }
+  };
   const budgetMetrics = (
     <BudgetMetrics
       selectedBudget={budget.selectedBudget}
@@ -112,6 +146,7 @@ function App() {
       isBudgetLoading={budget.isBudgetLoading}
       isBudgetDetailLoading={budget.isBudgetDetailLoading}
       isTemplateLoading={template.isTemplateLoading}
+      onEditBudget={budget.selectedBudget === null ? undefined : openSelectedBudgetSettings}
     />
   );
   const governancePanel = (
@@ -128,7 +163,37 @@ function App() {
   );
 
   const renderMainContent = () => {
+    if (activeKey === 'dashboard') {
+      return (
+        <BudgetProjectDashboard
+          budgets={budget.budgets}
+          selectedBudget={budget.selectedBudget}
+          baseCurrency={baseCurrency}
+          canWriteBudgets={canWriteBudgets}
+          loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
+          onNavigate={handleNavigate}
+          onNewProject={budget.openBudgetModal}
+          onOpenProject={openBudgetProjectInNewTab}
+        />
+      );
+    }
+
     if (activeKey === 'budgets') {
+      return (
+        <BudgetProjectList
+          budgets={budget.budgets}
+          selectedBudgetId={budget.selectedBudget?.id ?? null}
+          canWriteBudgets={canWriteBudgets}
+          loading={budget.isBudgetLoading}
+          onEditProjectInfo={budget.openBudgetEditModal}
+          onNewProject={budget.openBudgetModal}
+          onOpenProject={openBudgetProjectInNewTab}
+          onSelectProject={(budgetId) => void budget.handleBudgetSelect(budgetId)}
+        />
+      );
+    }
+
+    if (activeKey === 'budget-editor') {
       return (
         <div className="view-stack">
           {budgetMetrics}
@@ -137,7 +202,11 @@ function App() {
       );
     }
 
-    if (['workspace', 'currencies', 'security', 'exports'].includes(activeKey)) {
+    if (
+      ['workspace', 'categories', 'security', 'exports', 'reconciliation', 'sharing'].includes(
+        activeKey,
+      )
+    ) {
       return <div className="workspace-grid workspace-grid-panel-only">{governancePanel}</div>;
     }
 
@@ -146,13 +215,16 @@ function App() {
     }
 
     return (
-      <>
-        {budgetMetrics}
-        <div className="workspace-grid">
-          {budgetPreview}
-          {governancePanel}
-        </div>
-      </>
+      <BudgetProjectDashboard
+        budgets={budget.budgets}
+        selectedBudget={budget.selectedBudget}
+        baseCurrency={baseCurrency}
+        canWriteBudgets={canWriteBudgets}
+        loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
+        onNavigate={handleNavigate}
+        onNewProject={budget.openBudgetModal}
+        onOpenProject={openBudgetProjectInNewTab}
+      />
     );
   };
 
@@ -170,7 +242,7 @@ function App() {
         isWorkspaceLoading={workspace.isWorkspaceLoading}
         isWorkspaceSwitching={workspace.isWorkspaceSwitching}
         isAuthSubmitting={auth.isAuthSubmitting}
-        onNavigate={setActiveKey}
+        onNavigate={handleNavigate}
         onWorkspaceSwitch={workspace.handleWorkspaceSwitch}
         onNewBudget={budget.openBudgetModal}
         onLogout={auth.handleLogout}

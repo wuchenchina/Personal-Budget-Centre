@@ -20,34 +20,46 @@ export function useWorkgroupController(activeWorkspaceId: number | null) {
   const [deletingWorkgroupId, setDeletingWorkgroupId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (activeWorkspaceId === null) {
-      setWorkgroups([]);
-      setWorkgroupError(null);
-      setIsWorkgroupLoading(false);
+    let isMounted = true;
 
-      return;
+    if (activeWorkspaceId === null) {
+      queueMicrotask(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setWorkgroups([]);
+        setWorkgroupError(null);
+        setIsWorkgroupLoading(false);
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }
 
-    let isMounted = true;
-    setIsWorkgroupLoading(true);
-
-    listWorkgroups(activeWorkspaceId)
-      .then((nextWorkgroups) => {
-        if (isMounted) {
-          setWorkgroups(nextWorkgroups);
-          setWorkgroupError(null);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isMounted) {
-          setWorkgroupError(error instanceof Error ? error.message : '加载工作组失败。');
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsWorkgroupLoading(false);
-        }
-      });
+    queueMicrotask(() => {
+      if (isMounted) {
+        setIsWorkgroupLoading(true);
+        listWorkgroups(activeWorkspaceId)
+          .then((nextWorkgroups) => {
+            if (isMounted) {
+              setWorkgroups(nextWorkgroups);
+              setWorkgroupError(null);
+            }
+          })
+          .catch((error: unknown) => {
+            if (isMounted) {
+              setWorkgroupError(error instanceof Error ? error.message : '加载工作组失败。');
+            }
+          })
+          .finally(() => {
+            if (isMounted) {
+              setIsWorkgroupLoading(false);
+            }
+          });
+      }
+    });
 
     return () => {
       isMounted = false;

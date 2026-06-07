@@ -7,7 +7,6 @@ import {
   Trash2,
   UserRound,
   Users,
-  WalletCards,
 } from 'lucide-react';
 import { assignableWorkspaceRoleOptions, roleColors, roleLabels } from '../../config/appConfig';
 import type { OperationsController } from '../../hooks/useOperationsController';
@@ -39,19 +38,13 @@ export function GovernancePanel({
   canWriteBudgets,
   canManageWorkspaceMembers,
 }: GovernancePanelProps) {
-  const showAll = activeKey === 'dashboard';
-  const showWorkspace = showAll || activeKey === 'workspace';
-  const showOperations = showAll || ['currencies', 'security', 'exports'].includes(activeKey);
+  const showWorkspace = activeKey === 'workspace';
+  const showOperations = ['categories', 'exports', 'reconciliation', 'security', 'sharing'].includes(
+    activeKey,
+  );
 
   return (
     <aside className="governance-panel">
-      {showAll ? (
-        <BudgetSideSection
-          budget={budget}
-          activeWorkspaceId={workspace.activeWorkspaceId}
-          canWriteBudgets={canWriteBudgets}
-        />
-      ) : null}
       {showWorkspace ? (
         <>
           <WorkspaceSideSection workspace={workspace} />
@@ -80,95 +73,6 @@ export function GovernancePanel({
         />
       ) : null}
     </aside>
-  );
-}
-
-function BudgetSideSection({
-  budget,
-  activeWorkspaceId,
-  canWriteBudgets,
-}: {
-  budget: BudgetController;
-  activeWorkspaceId: number | null;
-  canWriteBudgets: boolean;
-}) {
-  return (
-    <div className="side-section">
-      <div className="side-title side-title-row">
-        <span className="side-title-label">
-          <WalletCards size={16} />
-          <span>预算</span>
-        </span>
-        {canWriteBudgets ? (
-          <Button
-            disabled={activeWorkspaceId === null}
-            icon={<Plus size={14} />}
-            onClick={budget.openBudgetModal}
-            size="small"
-          >
-            新建
-          </Button>
-        ) : null}
-      </div>
-      {budget.budgetError ? (
-        <Alert className="side-alert" type="error" showIcon message={budget.budgetError} />
-      ) : null}
-      <div className="budget-list">
-        {budget.isBudgetLoading ? (
-          <div className="empty-line">正在加载预算...</div>
-        ) : budget.budgets.length === 0 ? (
-          <div className="empty-line">暂无预算。</div>
-        ) : (
-          budget.budgets.map((item) => (
-            <div
-              className={
-                budget.selectedBudget?.id === item.id
-                  ? 'budget-list-item budget-list-item-active'
-                  : 'budget-list-item'
-              }
-              key={item.id}
-            >
-              <button
-                className="budget-list-main"
-                type="button"
-                onClick={() => void budget.handleBudgetSelect(item.id)}
-              >
-                <span>{item.title}</span>
-                <small>
-                  {item.startDate} 至 {item.endDate}
-                </small>
-              </button>
-              {canWriteBudgets ? (
-                <Space size={4}>
-                  <Button
-                    aria-label={`编辑 ${item.title}`}
-                    icon={<Pencil size={13} />}
-                    onClick={() => budget.openBudgetEditModal(item)}
-                    size="small"
-                  />
-                  <Popconfirm
-                    title="删除预算"
-                    description="这会删除预算及其明细。"
-                    okText="删除"
-                    cancelText="取消"
-                    okButtonProps={{ danger: true }}
-                    onConfirm={() => budget.handleBudgetDelete(item.id)}
-                  >
-                    <Button
-                      aria-label={`删除 ${item.title}`}
-                      danger
-                      icon={<Trash2 size={13} />}
-                      loading={budget.deletingBudgetId === item.id}
-                      size="small"
-                    />
-                  </Popconfirm>
-                </Space>
-              ) : null}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
   );
 }
 

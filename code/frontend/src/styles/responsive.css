@@ -3,6 +3,16 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .project-overview-grid,
+  .project-card-grid,
+  .project-list-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-main-grid {
+    grid-template-columns: 1fr;
+  }
+
   .workspace-grid {
     grid-template-columns: 1fr;
   }
@@ -28,6 +38,25 @@
 
   .metric-grid {
     grid-template-columns: 1fr;
+  }
+
+  .project-hero,
+  .project-page-header,
+  .project-filter-row,
+  .project-list-card-main {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .project-overview-grid,
+  .project-card-grid,
+  .project-list-grid,
+  .project-money-row {
+    grid-template-columns: 1fr;
+  }
+
+  .project-search {
+    width: 100%;
   }
 
   .toolbar-row {

@@ -54,6 +54,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
   const [operationsError, setOperationsError] = useState<string | null>(null);
   const [isReferenceLoading, setIsReferenceLoading] = useState(false);
+  const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [isCategorySaving, setIsCategorySaving] = useState(false);
   const [isReconciliationLoading, setIsReconciliationLoading] = useState(false);
   const [isExportLoading, setIsExportLoading] = useState(false);
@@ -65,53 +66,68 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   const { activeWorkspaceId, canManageBudgetShares, selectedBudget, session } = options;
 
   useEffect(() => {
-    if (session === null) {
-      setCurrencies([]);
-      setPasskeys([]);
-      setOperationsError(null);
-      setIsReferenceLoading(false);
-      setIsPasskeyLoading(false);
+    let isMounted = true;
 
-      return;
+    if (session === null) {
+      queueMicrotask(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setCurrencies([]);
+        setPasskeys([]);
+        setOperationsError(null);
+        setIsReferenceLoading(false);
+        setIsPasskeyLoading(false);
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }
 
-    let isMounted = true;
-    setIsReferenceLoading(true);
-    setIsPasskeyLoading(true);
+    queueMicrotask(() => {
+      if (!isMounted) {
+        return;
+      }
 
-    listCurrencies()
-      .then((nextCurrencies) => {
-        if (isMounted) {
-          setCurrencies(nextCurrencies);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isMounted) {
-          setOperationsError(error instanceof Error ? error.message : '加载货币失败。');
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsReferenceLoading(false);
-        }
-      });
+      setIsReferenceLoading(true);
+      setIsPasskeyLoading(true);
 
-    listPasskeyCredentials()
-      .then((nextPasskeys) => {
-        if (isMounted) {
-          setPasskeys(nextPasskeys);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isMounted) {
-          setOperationsError(error instanceof Error ? error.message : '加载通行密钥失败。');
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsPasskeyLoading(false);
-        }
-      });
+      listCurrencies()
+        .then((nextCurrencies) => {
+          if (isMounted) {
+            setCurrencies(nextCurrencies);
+          }
+        })
+        .catch((error: unknown) => {
+          if (isMounted) {
+            setOperationsError(error instanceof Error ? error.message : '加载货币失败。');
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsReferenceLoading(false);
+          }
+        });
+
+      listPasskeyCredentials()
+        .then((nextPasskeys) => {
+          if (isMounted) {
+            setPasskeys(nextPasskeys);
+          }
+        })
+        .catch((error: unknown) => {
+          if (isMounted) {
+            setOperationsError(error instanceof Error ? error.message : '加载通行密钥失败。');
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsPasskeyLoading(false);
+          }
+        });
+    });
 
     return () => {
       isMounted = false;
@@ -119,31 +135,47 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   }, [session]);
 
   useEffect(() => {
-    if (activeWorkspaceId === null) {
-      setCategories([]);
+    let isMounted = true;
 
-      return;
+    if (activeWorkspaceId === null) {
+      queueMicrotask(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setCategories([]);
+        setIsCategoryLoading(false);
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }
 
-    let isMounted = true;
-    setIsReferenceLoading(true);
+    queueMicrotask(() => {
+      if (!isMounted) {
+        return;
+      }
 
-    listBudgetCategories(activeWorkspaceId)
-      .then((nextCategories) => {
-        if (isMounted) {
-          setCategories(nextCategories);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isMounted) {
-          setOperationsError(error instanceof Error ? error.message : '加载分类失败。');
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsReferenceLoading(false);
-        }
-      });
+      setIsCategoryLoading(true);
+
+      listBudgetCategories(activeWorkspaceId)
+        .then((nextCategories) => {
+          if (isMounted) {
+            setCategories(nextCategories);
+          }
+        })
+        .catch((error: unknown) => {
+          if (isMounted) {
+            setOperationsError(error instanceof Error ? error.message : '加载分类失败。');
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsCategoryLoading(false);
+          }
+        });
+    });
 
     return () => {
       isMounted = false;
@@ -151,76 +183,94 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   }, [activeWorkspaceId]);
 
   useEffect(() => {
-    if (selectedBudget === null) {
-      setReconciliation([]);
-      setExports([]);
-      setShares([]);
+    let isMounted = true;
 
-      return;
+    if (selectedBudget === null) {
+      queueMicrotask(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setReconciliation([]);
+        setExports([]);
+        setShares([]);
+        setIsReconciliationLoading(false);
+        setIsExportLoading(false);
+        setIsShareLoading(false);
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }
 
-    let isMounted = true;
-    setIsReconciliationLoading(true);
-    setIsExportLoading(true);
-    setIsShareLoading(canManageBudgetShares);
+    queueMicrotask(() => {
+      if (!isMounted) {
+        return;
+      }
 
-    getBudgetReconciliation(selectedBudget.id)
-      .then((rows) => {
-        if (isMounted) {
-          setReconciliation(rows);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isMounted) {
-          setOperationsError(
-            error instanceof Error ? error.message : '加载对账结果失败。',
-          );
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsReconciliationLoading(false);
-        }
-      });
+      setIsReconciliationLoading(true);
+      setIsExportLoading(true);
+      setIsShareLoading(canManageBudgetShares);
 
-    listBudgetExports(selectedBudget.id)
-      .then((items) => {
-        if (isMounted) {
-          setExports(items);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isMounted) {
-          setOperationsError(error instanceof Error ? error.message : '加载导出记录失败。');
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsExportLoading(false);
-        }
-      });
-
-    if (canManageBudgetShares) {
-      listBudgetShares(selectedBudget.id)
-        .then((items) => {
+      getBudgetReconciliation(selectedBudget.id)
+        .then((rows) => {
           if (isMounted) {
-            setShares(items);
+            setReconciliation(rows);
           }
         })
         .catch((error: unknown) => {
           if (isMounted) {
-            setOperationsError(error instanceof Error ? error.message : '加载共享规则失败。');
+            setOperationsError(
+              error instanceof Error ? error.message : '加载对账结果失败。',
+            );
           }
         })
         .finally(() => {
           if (isMounted) {
-            setIsShareLoading(false);
+            setIsReconciliationLoading(false);
           }
         });
-    } else {
-      setShares([]);
-      setIsShareLoading(false);
-    }
+
+      listBudgetExports(selectedBudget.id)
+        .then((items) => {
+          if (isMounted) {
+            setExports(items);
+          }
+        })
+        .catch((error: unknown) => {
+          if (isMounted) {
+            setOperationsError(error instanceof Error ? error.message : '加载导出记录失败。');
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsExportLoading(false);
+          }
+        });
+
+      if (canManageBudgetShares) {
+        listBudgetShares(selectedBudget.id)
+          .then((items) => {
+            if (isMounted) {
+              setShares(items);
+            }
+          })
+          .catch((error: unknown) => {
+            if (isMounted) {
+              setOperationsError(error instanceof Error ? error.message : '加载共享规则失败。');
+            }
+          })
+          .finally(() => {
+            if (isMounted) {
+              setIsShareLoading(false);
+            }
+          });
+      } else {
+        setShares([]);
+        setIsShareLoading(false);
+      }
+    });
 
     return () => {
       isMounted = false;
@@ -464,6 +514,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     passkeys,
     operationsError,
     isReferenceLoading,
+    isCategoryLoading,
     isCategorySaving,
     isReconciliationLoading,
     isExportLoading,

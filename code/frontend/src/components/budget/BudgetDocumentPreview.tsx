@@ -28,6 +28,7 @@ interface BudgetDocumentPreviewProps {
   isBudgetLoading: boolean;
   isBudgetDetailLoading: boolean;
   isTemplateLoading: boolean;
+  onEditBudget?: () => void;
 }
 
 export function BudgetDocumentPreview({
@@ -41,6 +42,7 @@ export function BudgetDocumentPreview({
   isBudgetLoading,
   isBudgetDetailLoading,
   isTemplateLoading,
+  onEditBudget,
 }: BudgetDocumentPreviewProps) {
   const budgetHighlights = template?.sections.find(
     (section) => section.key === 'budget_highlights',
@@ -84,7 +86,13 @@ export function BudgetDocumentPreview({
     <main className="document-workbench">
       <div className="toolbar-row">
         <Space wrap>
-          <Button icon={<CalendarRange size={16} />}>周期</Button>
+          <Button
+            disabled={selectedBudget === null || !canWriteBudgets}
+            icon={<CalendarRange size={16} />}
+            onClick={onEditBudget}
+          >
+            项目信息
+          </Button>
           <Segmented
             disabled
             value={selectedBudget?.visibility ?? 'private'}

@@ -38,35 +38,47 @@ export function useWorkspaceController(
   const workspaceRole = session?.workspace?.role;
 
   useEffect(() => {
-    if (session === null) {
-      setWorkspaces([]);
-      setWorkspaceError(null);
-      setIsWorkspaceLoading(false);
-      setIsWorkspaceSwitching(false);
+    let isMounted = true;
 
-      return;
+    if (session === null) {
+      queueMicrotask(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setWorkspaces([]);
+        setWorkspaceError(null);
+        setIsWorkspaceLoading(false);
+        setIsWorkspaceSwitching(false);
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }
 
-    let isMounted = true;
-    setIsWorkspaceLoading(true);
-
-    listWorkspaces()
-      .then((nextWorkspaces) => {
-        if (isMounted) {
-          setWorkspaces(nextWorkspaces);
-          setWorkspaceError(null);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isMounted) {
-          setWorkspaceError(error instanceof Error ? error.message : '加载工作区失败。');
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsWorkspaceLoading(false);
-        }
-      });
+    queueMicrotask(() => {
+      if (isMounted) {
+        setIsWorkspaceLoading(true);
+        listWorkspaces()
+          .then((nextWorkspaces) => {
+            if (isMounted) {
+              setWorkspaces(nextWorkspaces);
+              setWorkspaceError(null);
+            }
+          })
+          .catch((error: unknown) => {
+            if (isMounted) {
+              setWorkspaceError(error instanceof Error ? error.message : '加载工作区失败。');
+            }
+          })
+          .finally(() => {
+            if (isMounted) {
+              setIsWorkspaceLoading(false);
+            }
+          });
+      }
+    });
 
     return () => {
       isMounted = false;
@@ -74,36 +86,48 @@ export function useWorkspaceController(
   }, [session]);
 
   useEffect(() => {
-    if (activeWorkspaceId === null) {
-      setWorkspaceMembers([]);
-      setWorkspaceMemberError(null);
-      setIsWorkspaceMemberLoading(false);
+    let isMounted = true;
 
-      return;
+    if (activeWorkspaceId === null) {
+      queueMicrotask(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setWorkspaceMembers([]);
+        setWorkspaceMemberError(null);
+        setIsWorkspaceMemberLoading(false);
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }
 
-    let isMounted = true;
-    setIsWorkspaceMemberLoading(true);
-
-    listWorkspaceMembers(activeWorkspaceId)
-      .then((nextMembers) => {
-        if (isMounted) {
-          setWorkspaceMembers(nextMembers);
-          setWorkspaceMemberError(null);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isMounted) {
-          setWorkspaceMemberError(
-            error instanceof Error ? error.message : '加载工作区成员失败。',
-          );
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsWorkspaceMemberLoading(false);
-        }
-      });
+    queueMicrotask(() => {
+      if (isMounted) {
+        setIsWorkspaceMemberLoading(true);
+        listWorkspaceMembers(activeWorkspaceId)
+          .then((nextMembers) => {
+            if (isMounted) {
+              setWorkspaceMembers(nextMembers);
+              setWorkspaceMemberError(null);
+            }
+          })
+          .catch((error: unknown) => {
+            if (isMounted) {
+              setWorkspaceMemberError(
+                error instanceof Error ? error.message : '加载工作区成员失败。',
+              );
+            }
+          })
+          .finally(() => {
+            if (isMounted) {
+              setIsWorkspaceMemberLoading(false);
+            }
+          });
+      }
+    });
 
     return () => {
       isMounted = false;

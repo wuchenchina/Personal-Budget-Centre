@@ -27,27 +27,33 @@ export function useAdminController(enabled: boolean) {
 
     let isMounted = true;
     const params: AdminUserListParams = { search, status, page, pageSize };
-    setLoading(true);
 
-    listAdminUsers(params)
-      .then((result) => {
-        if (!isMounted) {
-          return;
-        }
-        setUsers(result.users);
-        setTotal(result.total);
-        setError(null);
-      })
-      .catch((caught: unknown) => {
-        if (isMounted) {
-          setError(caught instanceof Error ? caught.message : '加载用户失败。');
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setLoading(false);
-        }
-      });
+    queueMicrotask(() => {
+      if (!isMounted) {
+        return;
+      }
+
+      setLoading(true);
+      listAdminUsers(params)
+        .then((result) => {
+          if (!isMounted) {
+            return;
+          }
+          setUsers(result.users);
+          setTotal(result.total);
+          setError(null);
+        })
+        .catch((caught: unknown) => {
+          if (isMounted) {
+            setError(caught instanceof Error ? caught.message : '加载用户失败。');
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setLoading(false);
+          }
+        });
+    });
 
     return () => {
       isMounted = false;
