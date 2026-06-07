@@ -11,12 +11,13 @@ import {
 import type { AuthSession } from '../types/auth';
 import type { BudgetDetail, BudgetSummary, CurrencyCode } from '../types/budget';
 import type { BudgetFormValues } from '../types/forms';
-import { translateCurrent } from '../i18n';
+import { currentLanguage, translateCurrent } from '../i18n';
 import {
   createSignatureRow,
   emptySignatureConfig,
   signatureConfigFromForm,
   signatureConfigToForm,
+  signatureTitleForLanguage,
 } from '../utils/budgetSignature';
 import { defaultBudgetDateRange, defaultBudgetTitle } from '../utils/budgetTitle';
 
@@ -131,6 +132,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
   const openBudgetModal = () => {
     setBudgetError(null);
     const dateRange = defaultBudgetDateRange();
+    const language = currentLanguage();
     budgetForm.resetFields();
     budgetForm.setFieldsValue({
       workspaceId: activeWorkspaceId ?? undefined,
@@ -144,11 +146,10 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       status: 'draft',
       signatureConfig: {
         ...emptySignatureConfig(),
+        title: signatureTitleForLanguage(language),
+        labelLanguage: language,
         rows: [
-          { ...createSignatureRow('manual'), roleLabel: translateCurrent('preparedBy') },
-          { ...createSignatureRow('manual'), roleLabel: translateCurrent('handledBy') },
-          { ...createSignatureRow('manual'), roleLabel: translateCurrent('auditedBy') },
-          { ...createSignatureRow('manual'), roleLabel: translateCurrent('approvedBy') },
+          { ...createSignatureRow('manual'), roleLabel: translateCurrent('signatureParticipant') },
         ],
       },
     });

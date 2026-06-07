@@ -590,7 +590,17 @@ final readonly class BudgetRepository
             'enabled' => ($decoded['enabled'] ?? false) === true,
             'title' => is_string($decoded['title'] ?? null) && trim($decoded['title']) !== ''
                 ? trim($decoded['title'])
-                : 'Confirmation / Signature',
+                : 'Confirmation Signature',
+            'labelLanguage' => in_array($decoded['labelLanguage'] ?? null, ['en', 'sc', 'tc'], true)
+                ? $decoded['labelLanguage']
+                : 'en',
+            'labelMode' => in_array($decoded['labelMode'] ?? null, ['confirmation_signature', 'confirmation', 'signature'], true)
+                ? $decoded['labelMode']
+                : 'confirmation_signature',
+            'labelSeparator' => in_array($decoded['labelSeparator'] ?? null, ['space', 'slash', 'line'], true)
+                ? $decoded['labelSeparator']
+                : 'space',
+            'sectionAlign' => ($decoded['sectionAlign'] ?? null) === 'right' ? 'right' : 'full',
             'rows' => is_array($decoded['rows'] ?? null)
                 ? array_values(array_filter(array_map(
                     fn (mixed $row): ?array => is_array($row) ? $this->signatureRow($row) : null,
@@ -624,7 +634,11 @@ final readonly class BudgetRepository
     {
         return [
             'enabled' => false,
-            'title' => 'Confirmation / Signature',
+            'title' => 'Confirmation Signature',
+            'labelLanguage' => 'en',
+            'labelMode' => 'confirmation_signature',
+            'labelSeparator' => 'space',
+            'sectionAlign' => 'full',
             'rows' => [],
         ];
     }

@@ -16,9 +16,84 @@ export function formatBudgetMoney(currency: CurrencyCode, amount: number): strin
   return `${currency} ${amount.toFixed(2)}`;
 }
 
+export interface EffectiveBudgetItemAmounts {
+  budgetAmountOriginal: number;
+  budgetAmountBase: number;
+  estimatedAmountOriginal: number;
+  estimatedAmountBase: number;
+  varianceBase: number;
+}
+
+export function effectiveBudgetItemAmounts(
+  item: BudgetItem,
+  transactions: Transaction[],
+): EffectiveBudgetItemAmounts {
+  if (item.budget.amountOriginal !== 0 || item.budget.amountBase !== 0) {
+    return {
+      budgetAmountOriginal: item.budget.amountOriginal,
+      budgetAmountBase: item.budget.amountBase,
+      estimatedAmountOriginal: item.estimatedActuals.amountOriginal,
+      estimatedAmountBase: item.estimatedActuals.amountBase,
+      varianceBase: item.varianceBase,
+    };
+  }
+
+  const sameCategoryTransactions = transactions.filter((transaction) =>
+    item.categoryId === null
+      ? transaction.categoryId === null && transaction.category === item.label
+      : transaction.categoryId === item.categoryId,
+  );
+  if (sameCategoryTransactions.length === 0) {
+    return {
+      budgetAmountOriginal: item.budget.amountOriginal,
+      budgetAmountBase: item.budget.amountBase,
+      estimatedAmountOriginal: item.estimatedActuals.amountOriginal,
+      estimatedAmountBase: item.estimatedActuals.amountBase,
+      varianceBase: item.varianceBase,
+    };
+  }
+
+  const allSameBudgetCurrency = sameCategoryTransactions.every(
+    (transaction) => transaction.currency === item.budget.currency,
+  );
+  const originalTotal = allSameBudgetCurrency
+    ? sameCategoryTransactions.reduce((total, transaction) => total + transaction.amountOriginal, 0)
+    : item.budget.amountOriginal;
+  const baseTotal = sameCategoryTransactions.reduce(
+    (total, transaction) => total + transaction.amountBase,
+    0,
+  );
+
+  return {
+    budgetAmountOriginal: allSameBudgetCurrency ? roundMoney(originalTotal) : item.budget.amountOriginal,
+    budgetAmountBase: roundMoney(baseTotal),
+    estimatedAmountOriginal: allSameBudgetCurrency
+      ? roundMoney(originalTotal)
+      : item.estimatedActuals.amountOriginal,
+    estimatedAmountBase: roundMoney(baseTotal),
+    varianceBase: 0,
+  };
+}
+
+export function effectiveBudgetTotals(budget: BudgetDetail) {
+  return budget.items.reduce(
+    (totals, item) => {
+      const effective = effectiveBudgetItemAmounts(item, budget.transactions);
+
+      return {
+        totalBudgetBase: totals.totalBudgetBase + effective.budgetAmountBase,
+        totalEstimatedBase: totals.totalEstimatedBase + effective.estimatedAmountBase,
+        totalVarianceBase: totals.totalVarianceBase + effective.varianceBase,
+      };
+    },
+    { totalBudgetBase: 0, totalEstimatedBase: 0, totalVarianceBase: 0 },
+  );
+}
+
 export function createBudgetItemColumns(
   columns: TemplateColumn[],
   baseCurrency: CurrencyCode,
+  transactions: Transaction[] = [],
 ): TableProps<BudgetItem>['columns'] {
   return columns.map((column) => ({
     key: column.key,
@@ -34,16 +109,18 @@ export function createBudgetItemColumns(
         );
       }
 
+      const effective = effectiveBudgetItemAmounts(row, transactions);
+
       if (column.key === 'budget') {
-        return formatBudgetMoney(row.budget.currency, row.budget.amountOriginal);
+        return formatBudgetMoney(row.budget.currency, effective.budgetAmountOriginal);
       }
 
       if (column.key === 'estimated_actuals') {
-        return formatBudgetMoney(row.estimatedActuals.currency, row.estimatedActuals.amountOriginal);
+        return formatBudgetMoney(row.estimatedActuals.currency, effective.estimatedAmountOriginal);
       }
 
       if (column.key === 'variance') {
-        return formatBudgetMoney(baseCurrency, row.varianceBase);
+        return formatBudgetMoney(baseCurrency, effective.varianceBase);
       }
 
       return '';
@@ -71,6 +148,10 @@ function budgetInstallmentSummary(row: BudgetItem) {
           : ` · ${translateCurrent('installmentRemaining', { count: summary.remainingMonths })}`
       }`,
   );
+}
+
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export function createTransactionColumns(

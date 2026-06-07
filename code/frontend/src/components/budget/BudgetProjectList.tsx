@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Button, Empty, Input, Segmented, Space, Tag } from 'antd';
-import { CalendarRange, ExternalLink, Pencil, Plus, Search } from 'lucide-react';
+import { Button, Empty, Input, Popconfirm, Segmented, Space, Tag } from 'antd';
+import { CalendarRange, ExternalLink, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { budgetStatusLabelsByLanguage, useI18n } from '../../i18n';
 import type { BudgetStatus, BudgetSummary } from '../../types/budget';
 import { formatBudgetPeriod } from '../../utils/budgetPeriod';
@@ -14,6 +14,7 @@ interface BudgetProjectListProps {
   canWriteBudgets: boolean;
   loading: boolean;
   onEditProjectInfo: (budget: BudgetSummary) => void;
+  onDeleteProject: (budgetId: number) => void;
   onNewProject: () => void;
   onOpenProject: (budgetId: number) => void;
   onSelectProject: (budgetId: number) => void;
@@ -32,6 +33,7 @@ export function BudgetProjectList({
   canWriteBudgets,
   loading,
   onEditProjectInfo,
+  onDeleteProject,
   onNewProject,
   onOpenProject,
   onSelectProject,
@@ -171,6 +173,20 @@ export function BudgetProjectList({
                     >
                       {t('projectInfo')}
                     </Button>
+                  ) : null}
+                  {canWriteBudgets ? (
+                    <Popconfirm
+                      title={t('deleteBudgetTitle')}
+                      description={t('deleteBudgetDescription')}
+                      okButtonProps={{ danger: true }}
+                      okText={t('delete')}
+                      cancelText={t('cancel')}
+                      onConfirm={() => onDeleteProject(budget.id)}
+                    >
+                      <Button danger icon={<Trash2 size={15} />}>
+                        {t('delete')}
+                      </Button>
+                    </Popconfirm>
                   ) : null}
                 </Space>
               </article>

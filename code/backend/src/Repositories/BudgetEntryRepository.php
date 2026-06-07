@@ -177,6 +177,25 @@ final readonly class BudgetEntryRepository
         return $amount === false ? 0.0 : (float) $amount;
     }
 
+    public function budgetHasItemCategory(int $budgetId, int $categoryId): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT 1
+            FROM budget_items
+            WHERE budget_id = :budget_id
+              AND category_id = :category_id
+            LIMIT 1
+            SQL
+        );
+        $statement->execute([
+            'budget_id' => $budgetId,
+            'category_id' => $categoryId,
+        ]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
     private function budgetIdForTable(string $table, int $id): ?int
     {
         $statement = $this->pdo->prepare(

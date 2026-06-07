@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
   Empty,
+  InputNumber,
   Popconfirm,
   Segmented,
   Space,
@@ -33,9 +34,12 @@ import type {
 import {
   createBudgetItemColumns,
   createTransactionColumns,
+  effectiveBudgetItemAmounts,
+  effectiveBudgetTotals,
   formatBudgetMoney,
 } from '../../utils/budgetTemplate';
 import { formatBudgetPeriod } from '../../utils/budgetPeriod';
+import { signatureLabelForConfig } from '../../utils/budgetSignature';
 
 interface BudgetDocumentPreviewProps {
   selectedBudget: BudgetDetail | null;
@@ -84,16 +88,35 @@ export function BudgetDocumentPreview({
       const columns = createBudgetItemColumns(
         budgetHighlights?.columns ?? [],
         selectedBudget?.baseCurrency ?? baseCurrency,
+        selectedBudget?.transactions ?? [],
       );
 
-      return appendBudgetItemActions(columns, canWriteBudgets, entry, {
+      return appendBudgetItemActions(
+        appendQuickAmountEditors(
+          columns,
+          selectedBudget?.transactions ?? [],
+          canWriteBudgets,
+          entry,
+        ),
+        canWriteBudgets,
+        entry,
+        {
         cancel: t('cancel'),
         delete: t('delete'),
         deleteTitle: t('deleteBudgetItemTitle'),
         edit: t('edit'),
-      });
+        },
+      );
     },
-    [baseCurrency, budgetHighlights, canWriteBudgets, entry, selectedBudget?.baseCurrency, t],
+    [
+      baseCurrency,
+      budgetHighlights,
+      canWriteBudgets,
+      entry,
+      selectedBudget?.baseCurrency,
+      selectedBudget?.transactions,
+      t,
+    ],
   );
   const transactionColumns = useMemo(
     () =>
@@ -285,10 +308,7 @@ export function BudgetDocumentPreview({
           <BudgetSignatureSection
             config={selectedBudget.signatureConfig}
             fallbackTitle={t('signatureSectionTitle')}
-            labels={{
-              dateTime: t('dateTime'),
-              signature: t('confirmationSignature'),
-            }}
+            labels={{ dateTime: t('dateTime') }}
           />
         </section>
       )}
@@ -367,7 +387,6 @@ function BudgetSignatureSection({
   fallbackTitle: string;
   labels: {
     dateTime: string;
-    signature: string;
   };
 }) {
   if (!config.enabled || config.rows.length === 0) {
@@ -375,27 +394,138 @@ function BudgetSignatureSection({
   }
 
   return (
-    <div className="budget-signature-section">
+    <div className={`budget-signature-section budget-signature-section-${config.sectionAlign}`}>
       <div className="budget-signature-title">{config.title || fallbackTitle}</div>
       <div className="budget-signature-grid">
         {config.rows.map((row) => (
-          <BudgetSignatureCard key={row.id} labels={labels} row={row} />
+          <BudgetSignatureCard
+            config={config}
+            key={row.id}
+            labels={labels}
+            row={row}
+          />
         ))}
       </div>
     </div>
   );
 }
 
+function appendQuickAmountEditors(
+  columns: TableProps<BudgetItem>['columns'],
+  transactions: Transaction[],
+  canWriteBudgets: boolean,
+  entry: BudgetEntryController,
+): TableProps<BudgetItem>['columns'] {
+  if (columns === undefined) {
+    return columns;
+  }
+
+  return columns.map((column) => {
+    const key = String(column.key ?? '');
+    if (!['budget', 'estimated_actuals', 'variance'].includes(key)) {
+      return column;
+    }
+
+    return {
+      ...column,
+      render: (_value: unknown, row: BudgetItem) => {
+        const effective = effectiveBudgetItemAmounts(row, transactions);
+        const isSameCurrency = row.budget.currency === row.estimatedActuals.currency;
+        const editable = canWriteBudgets && isSameCurrency;
+        const currency = key === 'variance' ? row.budget.currency : (
+          key === 'budget' ? row.budget.currency : row.estimatedActuals.currency
+        );
+        const value = key === 'budget'
+          ? effective.budgetAmountOriginal
+          : key === 'estimated_actuals'
+            ? effective.estimatedAmountOriginal
+            : effective.budgetAmountOriginal - effective.estimatedAmountOriginal;
+
+        return (
+          <InlineMoneyCell
+            currency={currency}
+            disabled={entry.isBudgetItemSaving}
+            editable={editable}
+            value={value}
+            onCommit={(nextValue) => {
+              void entry.handleBudgetItemQuickAmountSave(row, key, nextValue);
+            }}
+          />
+        );
+      },
+    };
+  });
+}
+
+function InlineMoneyCell({
+  currency,
+  disabled,
+  editable,
+  value,
+  onCommit,
+}: {
+  currency: CurrencyCode;
+  disabled: boolean;
+  editable: boolean;
+  value: number;
+  onCommit: (value: number) => void;
+}) {
+  const [draftValue, setDraftValue] = useState<number | null>(value);
+
+  useEffect(() => {
+    setDraftValue(value);
+  }, [value]);
+
+  if (!editable) {
+    return formatBudgetMoney(currency, value);
+  }
+
+  const commit = () => {
+    if (draftValue === null || !Number.isFinite(draftValue)) {
+      setDraftValue(value);
+
+      return;
+    }
+
+    if (Math.abs(draftValue - value) >= 0.005) {
+      onCommit(draftValue);
+    }
+  };
+
+  return (
+    <span className="budget-inline-money-cell">
+      <span>{currency}</span>
+      <InputNumber
+        changeOnWheel={false}
+        className="budget-inline-money-input"
+        controls={false}
+        disabled={disabled}
+        precision={2}
+        size="small"
+        value={draftValue}
+        variant="borderless"
+        onBlur={commit}
+        onChange={(nextValue) => setDraftValue(typeof nextValue === 'number' ? nextValue : null)}
+        onPressEnter={commit}
+      />
+    </span>
+  );
+}
+
 function BudgetSignatureCard({
+  config,
   labels,
   row,
 }: {
+  config: BudgetSignatureConfig;
   labels: {
     dateTime: string;
-    signature: string;
   };
   row: BudgetSignatureRow;
 }) {
+  const signatureLabel = signatureLabelForConfig(config);
+  const dateTimeText = row.signedAt ?? currentDateTimeText();
+
   return (
     <div className="budget-signature-card">
       {row.showRole && row.roleLabel ? (
@@ -412,16 +542,33 @@ function BudgetSignatureCard({
       ) : null}
       {row.showSignature ? (
         <div className="budget-signature-box">
-          <span>{labels.signature}</span>
+          <span>{signatureLabel}</span>
         </div>
       ) : null}
       {row.showDateTime ? (
         <div className="budget-signature-date">
-          {labels.dateTime}: {row.signedAt ?? ''}
+          {labels.dateTime}: {dateTimeText}
         </div>
       ) : null}
     </div>
   );
+}
+
+function currentDateTimeText(): string {
+  const now = new Date();
+  const pad = (value: number) => value.toString().padStart(2, '0');
+
+  return [
+    now.getFullYear(),
+    pad(now.getMonth() + 1),
+    pad(now.getDate()),
+  ].join('-')
+    + ' '
+    + [
+      pad(now.getHours()),
+      pad(now.getMinutes()),
+      pad(now.getSeconds()),
+    ].join(':');
 }
 
 function renderBudgetSummary(
@@ -463,18 +610,24 @@ function summaryCellContent(
   summaryLabel: string,
 ): string {
   if (key === 'budget') {
-    return formatBudgetMoney(selectedBudget.baseCurrency, selectedBudget.totals.totalBudgetBase);
+    return formatBudgetMoney(
+      selectedBudget.baseCurrency,
+      effectiveBudgetTotals(selectedBudget).totalBudgetBase,
+    );
   }
 
   if (key === 'estimated_actuals') {
     return formatBudgetMoney(
       selectedBudget.baseCurrency,
-      selectedBudget.totals.totalEstimatedBase,
+      effectiveBudgetTotals(selectedBudget).totalEstimatedBase,
     );
   }
 
   if (key === 'variance') {
-    return formatBudgetMoney(selectedBudget.baseCurrency, selectedBudget.totals.totalVarianceBase);
+    return formatBudgetMoney(
+      selectedBudget.baseCurrency,
+      effectiveBudgetTotals(selectedBudget).totalVarianceBase,
+    );
   }
 
   if (key === 'actions') {

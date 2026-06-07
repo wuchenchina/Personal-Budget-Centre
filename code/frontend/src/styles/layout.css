@@ -248,6 +248,20 @@
   margin-bottom: 0;
 }
 
+.signature-label-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 12px;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.signature-label-preview strong {
+  color: #1f1f1f;
+  white-space: pre-line;
+}
+
 @media (min-width: 1040px) {
   .budget-info-modal .signature-config-row .modal-form-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));

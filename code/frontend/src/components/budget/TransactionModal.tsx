@@ -57,13 +57,17 @@ export function TransactionModal({
           <Input autoComplete="off" />
         </Form.Item>
 
-        <Form.Item label={t('category')} name="categoryId">
+        <Form.Item
+          label={t('category')}
+          name="categoryId"
+          extra={t('transactionCategoryFromHighlightsOnly')}
+          rules={[{ required: true, message: t('transactionCategoryFromHighlightsOnly') }]}
+        >
           <Select
-            allowClear
             showSearch
             optionFilterProp="label"
             options={categoryOptions}
-            placeholder={t('optionalCategory')}
+            placeholder={t('selectCategory')}
           />
         </Form.Item>
 

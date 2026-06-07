@@ -185,6 +185,22 @@ function App() {
       left.label.localeCompare(right.label),
     );
   }, [budget.selectedBudget?.items, operations.categoryOptions]);
+  const transactionCategoryOptions = useMemo(() => {
+    const optionMap = new Map<number, { label: string; value: number }>();
+
+    budget.selectedBudget?.items.forEach((item) => {
+      if (item.categoryId !== null) {
+        optionMap.set(item.categoryId, {
+          label: item.category ?? item.label,
+          value: item.categoryId,
+        });
+      }
+    });
+
+    return Array.from(optionMap.values()).sort((left, right) =>
+      left.label.localeCompare(right.label),
+    );
+  }, [budget.selectedBudget?.items]);
   const admin = useAdminController(auth.session?.user.isAdmin === true && activeKey === 'admin');
   const isEmailVerificationRoute = window.location.pathname === '/email/verify';
   const isStandaloneBudgetEditor = route.budgetId !== null;
@@ -320,7 +336,7 @@ function App() {
         editingTransaction={budgetEntry.editingTransaction}
         open={budgetEntry.isTransactionModalOpen}
         error={budgetEntry.entryError}
-        categoryOptions={entryCategoryOptions}
+        categoryOptions={transactionCategoryOptions}
         confirmLoading={budgetEntry.isTransactionSaving}
         onCancel={budgetEntry.closeTransactionModal}
         onOk={budgetEntry.handleTransactionSave}
@@ -405,6 +421,7 @@ function App() {
           selectedBudgetId={budget.selectedBudget?.id ?? null}
           canWriteBudgets={canWriteBudgets}
           loading={budget.isBudgetLoading}
+          onDeleteProject={(budgetId) => void budget.handleBudgetDelete(budgetId)}
           onEditProjectInfo={budget.openBudgetEditModal}
           onNewProject={budget.openBudgetModal}
           onOpenProject={openBudgetProjectInNewTab}

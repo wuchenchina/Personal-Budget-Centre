@@ -194,6 +194,54 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
   };
 
+  const handleBudgetItemQuickAmountSave = async (
+    item: BudgetItem,
+    field: string,
+    value: number,
+  ) => {
+    if (options.selectedBudget === null || !Number.isFinite(value)) {
+      return;
+    }
+
+    const nextBudgetAmount =
+      field === 'budget' ? value : item.budget.amountOriginal;
+    const nextEstimatedAmount =
+      field === 'estimated_actuals'
+        ? value
+        : field === 'variance'
+          ? nextBudgetAmount - value
+          : item.estimatedActuals.amountOriginal;
+
+    if (nextBudgetAmount < 0 || nextEstimatedAmount < 0) {
+      setEntryError(translateCurrent('amountMin'));
+
+      return;
+    }
+
+    setIsBudgetItemSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateBudgetItem({
+        id: item.id,
+        categoryId: item.categoryId ?? undefined,
+        label: item.label,
+        budgetCurrency: item.budget.currency,
+        budgetAmount: roundMoney(nextBudgetAmount),
+        budgetRate: item.budget.rateToBase,
+        estimatedCurrency: item.estimatedActuals.currency,
+        estimatedAmount: roundMoney(nextEstimatedAmount),
+        estimatedRate: item.estimatedActuals.rateToBase,
+        installmentConfig: item.installmentConfig,
+        sortOrder: item.sortOrder,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsBudgetItemSaving(false);
+    }
+  };
+
   const openTransactionCreateModal = () => {
     if (options.selectedBudget === null) {
       setEntryError(translateCurrent('selectBudgetFirst'));
@@ -204,7 +252,17 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     setEntryError(null);
     setEditingTransaction(null);
     transactionForm.resetFields();
+    const firstCategoryId = options.selectedBudget.items
+      .map((item) => item.categoryId)
+      .find((categoryId): categoryId is number => categoryId !== null);
+    if (firstCategoryId === undefined) {
+      setEntryError(translateCurrent('transactionCategoryFromHighlightsOnly'));
+
+      return;
+    }
+
     transactionForm.setFieldsValue({
+      categoryId: firstCategoryId,
       transactionDate: dayjs(),
       currency: entryCurrency,
       sortOrder: options.selectedBudget.transactions.length + 1,
@@ -312,6 +370,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     closeBudgetItemModal,
     handleBudgetItemSave,
     handleBudgetItemDelete,
+    handleBudgetItemQuickAmountSave,
     openTransactionCreateModal,
     openTransactionEditModal,
     closeTransactionModal,

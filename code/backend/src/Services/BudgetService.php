@@ -379,7 +379,7 @@ final readonly class BudgetService
 
     private function signatureConfigFromArray(array $input): array
     {
-        $title = $this->limitedString($input['title'] ?? null, 120) ?? 'Confirmation / Signature';
+        $title = $this->limitedString($input['title'] ?? null, 120) ?? 'Confirmation Signature';
         $rows = [];
         $rawRows = is_array($input['rows'] ?? null) ? array_slice($input['rows'], 0, self::SIGNATURE_ROW_LIMIT) : [];
         foreach ($rawRows as $row) {
@@ -396,6 +396,10 @@ final readonly class BudgetService
         return [
             'enabled' => ($input['enabled'] ?? false) === true,
             'title' => $title,
+            'labelLanguage' => $this->signatureLabelLanguage($input['labelLanguage'] ?? $input['label_language'] ?? null),
+            'labelMode' => $this->signatureLabelMode($input['labelMode'] ?? $input['label_mode'] ?? null),
+            'labelSeparator' => $this->signatureLabelSeparator($input['labelSeparator'] ?? $input['label_separator'] ?? null),
+            'sectionAlign' => ($input['sectionAlign'] ?? $input['section_align'] ?? null) === 'right' ? 'right' : 'full',
             'rows' => $rows,
         ];
     }
@@ -472,11 +476,32 @@ final readonly class BudgetService
         return $string;
     }
 
+    private function signatureLabelLanguage(mixed $value): string
+    {
+        return in_array($value, ['en', 'sc', 'tc'], true) ? $value : 'en';
+    }
+
+    private function signatureLabelMode(mixed $value): string
+    {
+        return in_array($value, ['confirmation_signature', 'confirmation', 'signature'], true)
+            ? $value
+            : 'confirmation_signature';
+    }
+
+    private function signatureLabelSeparator(mixed $value): string
+    {
+        return in_array($value, ['space', 'slash', 'line'], true) ? $value : 'space';
+    }
+
     private function emptySignatureConfig(): array
     {
         return [
             'enabled' => false,
-            'title' => 'Confirmation / Signature',
+            'title' => 'Confirmation Signature',
+            'labelLanguage' => 'en',
+            'labelMode' => 'confirmation_signature',
+            'labelSeparator' => 'space',
+            'sectionAlign' => 'full',
             'rows' => [],
         ];
     }

@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
 import {
   budgetStatusLabelsByLanguage,
+  languageOptions,
   useI18n,
   visibilityLabelsByLanguage,
 } from '../../i18n';
@@ -13,6 +14,7 @@ import type { BudgetFormValues } from '../../types/forms';
 import {
   createSignatureRow,
   memberOptions,
+  signatureLabelForConfig,
   signatureRowFromMember,
 } from '../../utils/budgetSignature';
 import { defaultBudgetTitle } from '../../utils/budgetTitle';
@@ -46,6 +48,9 @@ export function BudgetCreateModal({
   const dateRange = Form.useWatch('dateRange', form);
   const ownerNameHidden = Form.useWatch('ownerNameHidden', form) === true;
   const signatureEnabled = Form.useWatch(['signatureConfig', 'enabled'], form) === true;
+  const signatureLabelLanguage = Form.useWatch(['signatureConfig', 'labelLanguage'], form) ?? 'en';
+  const signatureLabelMode = Form.useWatch(['signatureConfig', 'labelMode'], form) ?? 'confirmation_signature';
+  const signatureLabelSeparator = Form.useWatch(['signatureConfig', 'labelSeparator'], form) ?? 'space';
   const onlineMemberOptions = memberOptions(workspaceMembers);
   const visibilityOptions: Array<{ label: string; value: Visibility }> = [
     { label: visibilityLabelsByLanguage[language].private, value: 'private' },
@@ -58,6 +63,15 @@ export function BudgetCreateModal({
     { label: budgetStatusLabelsByLanguage[language].closed, value: 'closed' },
     { label: budgetStatusLabelsByLanguage[language].archived, value: 'archived' },
   ];
+  const signatureLabelPreview = signatureLabelForConfig({
+    enabled: true,
+    title: '',
+    labelLanguage: signatureLabelLanguage,
+    labelMode: signatureLabelMode,
+    labelSeparator: signatureLabelSeparator,
+    sectionAlign: 'full',
+    rows: [],
+  });
   const handleResetTitle = () => {
     form.setFieldValue('title', defaultBudgetTitle(dateRange ?? null));
   };
@@ -201,6 +215,49 @@ export function BudgetCreateModal({
               >
                 <Input autoComplete="off" />
               </Form.Item>
+              <div className="modal-form-grid">
+                <Form.Item
+                  label={t('signatureLabelLanguage')}
+                  name={['signatureConfig', 'labelLanguage']}
+                >
+                  <Select options={languageOptions} />
+                </Form.Item>
+                <Form.Item label={t('signatureLabelMode')} name={['signatureConfig', 'labelMode']}>
+                  <Select
+                    options={[
+                      { label: t('confirmationSignature'), value: 'confirmation_signature' },
+                      { label: t('confirmationOnly'), value: 'confirmation' },
+                      { label: t('signatureOnly'), value: 'signature' },
+                    ]}
+                  />
+                </Form.Item>
+              </div>
+              <div className="modal-form-grid">
+                <Form.Item
+                  label={t('signatureLabelSeparator')}
+                  name={['signatureConfig', 'labelSeparator']}
+                >
+                  <Select
+                    options={[
+                      { label: t('spaceSeparator'), value: 'space' },
+                      { label: t('slashSeparator'), value: 'slash' },
+                      { label: t('lineSeparator'), value: 'line' },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item label={t('signatureSectionAlign')} name={['signatureConfig', 'sectionAlign']}>
+                  <Select
+                    options={[
+                      { label: t('alignFullWidth'), value: 'full' },
+                      { label: t('alignRightWhenNotFull'), value: 'right' },
+                    ]}
+                  />
+                </Form.Item>
+              </div>
+              <div className="signature-label-preview">
+                <span>{t('preview')}</span>
+                <strong>{signatureLabelPreview}</strong>
+              </div>
               <Form.List name={['signatureConfig', 'rows']}>
                 {(fields, { add, remove }) => (
                   <div className="signature-row-list">

@@ -224,7 +224,7 @@ final readonly class BudgetEntryService
 
         return [
             'budget_id' => $budgetId,
-            'category_id' => $this->categoryId($workspaceId, $input, $details),
+            'category_id' => $this->transactionCategoryId($budgetId, $workspaceId, $input),
             'transaction_date' => $transactionDate,
             'details' => $details,
             'currency_id' => $currencyId,
@@ -294,6 +294,23 @@ final readonly class BudgetEntryService
             $categoryId,
             $text,
         );
+    }
+
+    private function transactionCategoryId(int $budgetId, int $workspaceId, array $input): int
+    {
+        $categoryId = Input::positiveInt($input['categoryId'] ?? $input['category_id'] ?? null)
+            ?? throw new AuthException('VALIDATION_ERROR', 'Transaction category must be selected from Budget Highlights.', 422);
+
+        $categories = new BudgetCategoryRepository($this->pdo);
+        if ($categories->workspaceIdForCategory($categoryId) !== $workspaceId) {
+            throw new AuthException('CATEGORY_NOT_FOUND', 'Category was not found.', 404);
+        }
+
+        if (!(new BudgetEntryRepository($this->pdo))->budgetHasItemCategory($budgetId, $categoryId)) {
+            throw new AuthException('VALIDATION_ERROR', 'Transaction category must exist in Budget Highlights.', 422);
+        }
+
+        return $categoryId;
     }
 
     private function budgetItemCategoryId(
