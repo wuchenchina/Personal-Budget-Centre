@@ -117,11 +117,13 @@ final readonly class MastercardExchangeRateProvider
             ],
         ]);
         $body = @file_get_contents($url, false, $context);
+        $headers = $http_response_header ?? [];
         if (!is_string($body) || trim($body) === '') {
             throw new AuthException(
                 'EXCHANGE_RATE_PROVIDER_FAILED',
                 'Mastercard exchange rate endpoint is unavailable.',
                 502,
+                $this->responseMeta($url, $headers, ''),
             );
         }
 
@@ -130,8 +132,9 @@ final readonly class MastercardExchangeRateProvider
         } catch (JsonException) {
             throw new AuthException(
                 'EXCHANGE_RATE_PROVIDER_INVALID',
-                'Mastercard exchange rate response is not valid JSON.',
+                'Mastercard public endpoint returned a non-JSON response. Official Mastercard API may require OAuth or the host may be blocking anonymous requests.',
                 502,
+                $this->responseMeta($url, $headers, $body),
             );
         }
 
@@ -152,6 +155,50 @@ final readonly class MastercardExchangeRateProvider
         }
 
         return $payload;
+    }
+
+    private function responseMeta(string $url, array $headers, string $body): array
+    {
+        return [
+            'url' => $url,
+            'status' => $this->statusCode($headers),
+            'contentType' => $this->headerValue($headers, 'Content-Type'),
+            'bodySample' => $this->bodySample($body),
+        ];
+    }
+
+    private function statusCode(array $headers): ?int
+    {
+        $statusLine = $headers[0] ?? null;
+        if (!is_string($statusLine) || preg_match('/\s(\d{3})\s/', $statusLine, $matches) !== 1) {
+            return null;
+        }
+
+        return (int) $matches[1];
+    }
+
+    private function headerValue(array $headers, string $name): ?string
+    {
+        $prefix = strtolower($name) . ':';
+        foreach ($headers as $header) {
+            if (!is_string($header) || !str_starts_with(strtolower($header), $prefix)) {
+                continue;
+            }
+
+            return trim(substr($header, strlen($prefix)));
+        }
+
+        return null;
+    }
+
+    private function bodySample(string $body): ?string
+    {
+        $sample = trim(preg_replace('/\s+/', ' ', strip_tags($body)) ?? '');
+        if ($sample === '') {
+            return null;
+        }
+
+        return mb_substr($sample, 0, 220);
     }
 
     private function numberString(float $value): string

@@ -156,7 +156,7 @@ export interface BudgetCategory {
   aliases: BudgetCategoryAlias[];
 }
 
-export type BudgetExportFormat = 'markdown' | 'docx' | 'pdf';
+export type BudgetExportFormat = 'pdf';
 
 export interface BudgetExport {
   id: number;

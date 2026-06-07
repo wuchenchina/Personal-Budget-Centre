@@ -6,7 +6,6 @@ import type { BudgetEntryController } from '../../hooks/useBudgetEntryController
 import type { OperationsController } from '../../hooks/useOperationsController';
 import type {
   BudgetDetail,
-  BudgetExportFormat,
   BudgetItem,
   BudgetTemplateDefinition,
   CurrencyCode,
@@ -15,6 +14,7 @@ import type {
 import {
   createBudgetItemColumns,
   createTransactionColumns,
+  formatBudgetMoney,
   renderBudgetTemplateText,
 } from '../../utils/budgetTemplate';
 import { budgetStatusLabels } from '../../config/appConfig';
@@ -33,12 +33,6 @@ interface BudgetDocumentPreviewProps {
   onEditBudget?: () => void;
   operations: OperationsController;
 }
-
-const exportFormats: Array<{ label: string; value: BudgetExportFormat }> = [
-  { label: 'Markdown', value: 'markdown' },
-  { label: 'DOCX', value: 'docx' },
-  { label: 'PDF', value: 'pdf' },
-];
 
 export function BudgetDocumentPreview({
   selectedBudget,
@@ -127,14 +121,6 @@ export function BudgetDocumentPreview({
           >
             BOCHK 汇率
           </Button>
-          <Button
-            icon={<RefreshCcw size={13} />}
-            loading={operations.refreshingExchangeRateSource === 'mastercard'}
-            size="small"
-            onClick={() => void operations.refreshMastercard()}
-          >
-            Mastercard 汇率
-          </Button>
         </Space>
       </div>
 
@@ -144,41 +130,15 @@ export function BudgetDocumentPreview({
             <FileText size={15} />
             导出
           </span>
-          <Space size={6} wrap>
-            {exportFormats.map((format) => (
-              <Button
-                disabled={selectedBudget === null}
-                icon={<Download size={13} />}
-                key={format.value}
-                loading={operations.creatingExportFormat === format.value}
-                size="small"
-                onClick={() => operations.createExport(format.value)}
-              >
-                {format.label}
-              </Button>
-            ))}
-          </Space>
-        </div>
-        <div className="budget-export-history">
-          {selectedBudget === null ? (
-            <span>未选择预算</span>
-          ) : operations.isExportLoading ? (
-            <span>正在加载导出记录...</span>
-          ) : operations.exports.length === 0 ? (
-            <span>暂无导出记录</span>
-          ) : (
-            operations.exports.slice(0, 3).map((item) => (
-              <Button
-                icon={<Download size={13} />}
-                key={item.id}
-                size="small"
-                type="text"
-                onClick={() => operations.downloadExport(item)}
-              >
-                {item.fileName}
-              </Button>
-            ))
-          )}
+          <Button
+            disabled={selectedBudget === null}
+            icon={<Download size={13} />}
+            loading={operations.creatingExportFormat === 'pdf'}
+            size="small"
+            onClick={() => operations.createExport('pdf')}
+          >
+            PDF
+          </Button>
         </div>
       </div>
 
@@ -240,6 +200,7 @@ export function BudgetDocumentPreview({
               pagination={false}
               rowKey="id"
               size="small"
+              summary={() => renderBudgetSummary(budgetColumns, selectedBudget)}
               tableLayout="fixed"
             />
           </div>
@@ -275,6 +236,60 @@ export function BudgetDocumentPreview({
       )}
     </main>
   );
+}
+
+function renderBudgetSummary(
+  columns: TableProps<BudgetItem>['columns'],
+  selectedBudget: BudgetDetail,
+) {
+  if (columns === undefined || columns.length === 0) {
+    return null;
+  }
+
+  return (
+    <Table.Summary>
+      <Table.Summary.Row className="budget-summary-row">
+        {columns.map((column, index) => {
+          const key = String(column.key ?? '');
+          const isNumberColumn =
+            key === 'budget' || key === 'estimated_actuals' || key === 'variance';
+
+          return (
+            <Table.Summary.Cell
+              className={isNumberColumn ? 'budget-summary-number' : undefined}
+              index={index}
+              key={`${key}-${index}`}
+            >
+              {summaryCellContent(key, index, selectedBudget)}
+            </Table.Summary.Cell>
+          );
+        })}
+      </Table.Summary.Row>
+    </Table.Summary>
+  );
+}
+
+function summaryCellContent(key: string, index: number, selectedBudget: BudgetDetail): string {
+  if (key === 'budget') {
+    return formatBudgetMoney(selectedBudget.baseCurrency, selectedBudget.totals.totalBudgetBase);
+  }
+
+  if (key === 'estimated_actuals') {
+    return formatBudgetMoney(
+      selectedBudget.baseCurrency,
+      selectedBudget.totals.totalEstimatedBase,
+    );
+  }
+
+  if (key === 'variance') {
+    return formatBudgetMoney(selectedBudget.baseCurrency, selectedBudget.totals.totalVarianceBase);
+  }
+
+  if (key === 'actions') {
+    return '';
+  }
+
+  return index === 0 ? '统计' : '';
 }
 
 function appendBudgetItemActions(

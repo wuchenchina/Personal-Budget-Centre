@@ -74,8 +74,4 @@
     flex-direction: column;
   }
 
-  .budget-export-history {
-    justify-content: flex-start;
-    width: 100%;
-  }
 }

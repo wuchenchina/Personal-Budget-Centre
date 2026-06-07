@@ -54,7 +54,7 @@ export function ExchangeRateSideSection({
   }, [activeWorkspaceId]);
 
   useEffect(() => {
-    void loadRates();
+    queueMicrotask(() => void loadRates());
   }, [loadRates]);
 
   const latestRates = useMemo(() => rates.slice(0, 12), [rates]);
@@ -98,11 +98,6 @@ export function ExchangeRateSideSection({
     await loadRates();
   };
 
-  const handleRefreshMastercard = async () => {
-    await operations.refreshMastercard();
-    await loadRates();
-  };
-
   return (
     <div className="side-section exchange-rate-section">
       <div className="side-title side-title-row">
@@ -128,14 +123,6 @@ export function ExchangeRateSideSection({
           onClick={() => void handleRefreshBochk()}
         >
           BOCHK
-        </Button>
-        <Button
-          icon={<RefreshCcw size={13} />}
-          loading={operations.refreshingExchangeRateSource === 'mastercard'}
-          size="small"
-          onClick={() => void handleRefreshMastercard()}
-        >
-          Mastercard
         </Button>
       </div>
 

@@ -14,7 +14,7 @@
 - 預算摘要表
 - 交易明細表
 - 模板預覽
-- 匯出 Markdown / Word / PDF
+- 匯出 PDF
 - MySQL 持久化儲存
 
 技術棧：
@@ -22,7 +22,7 @@
 - 前端：Vite + React + TypeScript + Ant Design 5
 - 後端：PHP 8.x + Composer + PDO
 - 資料庫：MySQL 8.x
-- 匯出：PHPWord 產生 DOCX，mPDF 產生 PDF
+- 匯出：mPDF 產生 PDF
 
 資料庫由網頁端預先建立，本專案只提供建立資料表、索引、外鍵、view、seed data 的 SQL 文件，不包含 `CREATE DATABASE`。
 
@@ -76,7 +76,7 @@ BudgetCentre/
 - Categories：管理分類與分類別名。
 - Currencies：管理啟用貨幣與匯率。
 - Templates：預覽與管理預算模板。
-- Exports：查看匯出記錄與下載 DOCX / PDF / Markdown。
+- Exports：查看匯出記錄與下載 PDF。
 - Members & Permissions：管理工作區成員、工作組、角色、邀請。
 - Sharing Center：查看所有共享給我、我共享出去的預算。
 
@@ -162,7 +162,7 @@ Ant Design 使用：
 | currency.manage | 管理啟用貨幣 |
 | exchange_rate.manage | 管理匯率 |
 | template.manage | 管理模板 |
-| export.create | 匯出 Markdown / DOCX / PDF |
+| export.create | 匯出 PDF |
 | audit.read | 查看操作記錄 |
 
 ## 5. Passkey / WebAuthn 登入
@@ -804,8 +804,6 @@ Transaction Breakdown 的每一行。
 
 格式：
 
-- `markdown`
-- `docx`
 - `pdf`
 
 ### import_jobs
@@ -909,7 +907,6 @@ PHP 後端使用：
 - `vlucas/phpdotenv`
 - `nikic/fast-route`
 - `web-auth/webauthn-lib`
-- `phpoffice/phpword`
 - `mpdf/mpdf`
 
 API 回應格式：
@@ -999,45 +996,15 @@ Templates：
 
 Exports：
 
-- `GET /api/budgets/{id}/export/markdown`
-- `GET /api/budgets/{id}/export/docx`
-- `GET /api/budgets/{id}/export/pdf`
+- `POST /api/exports`
+- `GET /api/exports`
+- `GET /api/exports/download`
 
 Reconciliation：
 
 - `GET /api/budgets/{id}/reconciliation`
 
 ## 13. 匯出方案
-
-### Markdown
-
-由後端根據 budget data 直接產出。
-
-用途：
-
-- 快速預覽
-- Git / 文本歸檔
-- Debug
-
-### DOCX
-
-使用 PHPWord。
-
-策略：
-
-- 用模板配置生成 Word table。
-- 設定字體、字號、欄寬、背景色、邊框。
-- 標題使用 TimesNewRoman。
-- 表格資料使用 SF-Mono。
-- 中文 fallback 使用 TCSongti。
-
-注意：
-
-- DOCX 只指定 font family。
-- 如果打開文件的設備沒有該字體，Word 可能 fallback。
-- 若需要 100% 視覺一致，PDF 比 DOCX 更可靠。
-
-### PDF
 
 使用 mPDF。
 
@@ -1162,7 +1129,7 @@ Reconciliation：
 - 確認工作區、工作組、共享、角色、權限模型。
 - 確認多貨幣策略：第一版手動匯率，後期即時匯率。
 - 確認 Passkey 的 RP ID、正式 domain、HTTPS 部署方式。
-- 確認 DOCX / PDF 匯出字體來源。
+- 確認 PDF 匯出字體來源。
 
 ### Phase 1：基礎骨架
 
@@ -1200,8 +1167,6 @@ Reconciliation：
 ### Phase 5：校驗與匯出
 
 - 完成 reconciliation。
-- 完成 Markdown 匯出。
-- 完成 DOCX 匯出。
 - 完成 PDF 匯出。
 
 ### Phase 6：模板與體驗優化
@@ -1246,15 +1211,13 @@ Reconciliation：
 5. Budget Editor
 6. 多貨幣與匯率凍結
 7. Reconciliation
-8. Markdown 匯出
+8. PDF 匯出
 
 第二優先：
 
-1. DOCX 匯出
-2. PDF 匯出
-3. Template 管理
-4. 匯出歷史
-5. Audit logs
+1. Template 管理
+2. 匯出歷史
+3. Audit logs
 
 第三優先：
 

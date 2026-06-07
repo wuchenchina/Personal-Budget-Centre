@@ -2,7 +2,7 @@
 
 BudgetCentre 是一個個人生活預算網站，目標是把既有 Word 模板轉成可協作、可審計、可匯出、可部署的 Web 系統。
 
-Version 1 已完成核心閉環：前端工作台、PHP API、MySQL schema、使用者/session、Passkey、Workspace/Workgroup、預算 CRUD、分類別名、共享權限、交易/預算項、匯率、Markdown/DOCX/PDF 匯出、資料庫初始化與部署腳本。
+Version 1 已完成核心閉環：前端工作台、PHP API、MySQL schema、使用者/session、Passkey、Workspace/Workgroup、預算 CRUD、分類別名、共享權限、交易/預算項、匯率、PDF 匯出、資料庫初始化與部署腳本。
 
 ## 目錄
 
@@ -39,7 +39,7 @@ Version 1 已完成核心閉環：前端工作台、PHP API、MySQL schema、使
 - Currency API、manual exchange rate API
 - BOCHK 與 Mastercard 匯率 provider
 - 交易與預算項自動換算：`manual > mastercard > bochk > budget_default`
-- Markdown、DOCX、PDF 匯出與匯出歷史
+- PDF 匯出與匯出歷史
 - MySQL schema、seed、views
 - 不建立 database 的初始化腳本
 - 根目錄部署腳本
@@ -220,6 +220,7 @@ Mastercard：
 - Source name: `Mastercard International Incorporated`
 - 用於 card network conversion rate
 - 日期以官方 converter 可選日期為準，預設從今天減 2 天開始，失敗時向前 fallback
+- 目前使用官網頁面背後的公開端點；若伺服器被回傳 HTML/風控頁，可在 backend `.env` 設定 `MASTERCARD_PROVIDER_ENABLED=false`，先改用 BOCHK 或手動匯率
 
 不再接入 HSBCHK。
 

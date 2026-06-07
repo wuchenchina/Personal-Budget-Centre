@@ -12,6 +12,7 @@ use BudgetCentre\Repositories\CurrencyRepository;
 use BudgetCentre\Repositories\ExchangeRateRepository;
 use BudgetCentre\Services\ExchangeRates\BochkExchangeRateProvider;
 use BudgetCentre\Services\ExchangeRates\MastercardExchangeRateProvider;
+use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
 use DateTimeImmutable;
 use PDO;
@@ -184,24 +185,23 @@ final readonly class ExchangeRateService
             ?? throw new AuthException('CURRENCY_NOT_FOUND', 'Target currency is not available.', 422);
         $bankFee = $this->nonNegativeNumber($input['bankFee'] ?? $input['bank_fee'] ?? null) ?? 0.0;
         $startDate = $this->mastercardStartDate(Input::date($input['rateDate'] ?? $input['rate_date'] ?? null));
-        $provider = new MastercardExchangeRateProvider();
-        $supportedCodes = $provider->supportedCurrencies();
 
-        if (!in_array($toCode, $supportedCodes, true)) {
-            throw new AuthException('CURRENCY_NOT_FOUND', 'Target currency is not supported by Mastercard.', 422);
+        if (!$this->mastercardProviderEnabled()) {
+            throw new AuthException(
+                'EXCHANGE_RATE_PROVIDER_DISABLED',
+                'Mastercard exchange rate provider is disabled.',
+                422,
+                ['env' => 'MASTERCARD_PROVIDER_ENABLED'],
+            );
         }
 
+        $provider = new MastercardExchangeRateProvider();
         $requestedCodes = $this->requestedCurrencyCodes($input['currencies'] ?? null, $currencies->listEnabled());
         $quotes = [];
         $skipped = [];
 
         foreach ($requestedCodes as $fromCode) {
             if ($fromCode === $toCode) {
-                continue;
-            }
-
-            if (!in_array($fromCode, $supportedCodes, true)) {
-                $skipped[] = $fromCode;
                 continue;
             }
 
@@ -384,6 +384,13 @@ final readonly class ExchangeRateService
         }
 
         return $number;
+    }
+
+    private function mastercardProviderEnabled(): bool
+    {
+        $value = strtolower(Env::string('MASTERCARD_PROVIDER_ENABLED', 'true') ?? 'true');
+
+        return !in_array($value, ['0', 'false', 'no', 'off'], true);
     }
 
     private function requestedCurrencyCodes(mixed $value, array $enabledCurrencies): array

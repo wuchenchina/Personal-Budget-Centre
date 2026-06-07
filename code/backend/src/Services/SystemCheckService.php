@@ -16,7 +16,6 @@ final readonly class SystemCheckService
         'dom',
         'xml',
         'xmlwriter',
-        'zip',
         'zlib',
         'curl',
         'openssl',

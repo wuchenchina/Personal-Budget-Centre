@@ -393,7 +393,7 @@ CREATE TABLE IF NOT EXISTS budget_exports (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   budget_id BIGINT UNSIGNED NOT NULL,
   user_id BIGINT UNSIGNED NOT NULL,
-  format ENUM('markdown', 'docx', 'pdf') NOT NULL,
+  format ENUM('pdf') NOT NULL,
   file_name VARCHAR(255) NOT NULL,
   file_path VARCHAR(500) NULL,
   status ENUM('queued', 'processing', 'completed', 'failed') NOT NULL DEFAULT 'queued',

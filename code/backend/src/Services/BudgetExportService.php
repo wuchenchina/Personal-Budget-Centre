@@ -15,14 +15,11 @@ use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
 use Mpdf\Mpdf;
 use PDO;
-use PhpOffice\PhpWord\IOFactory;
-use PhpOffice\PhpWord\PhpWord;
-use PhpOffice\PhpWord\SimpleType\JcTable;
 use Throwable;
 
 final readonly class BudgetExportService
 {
-    private const FORMATS = ['markdown', 'docx', 'pdf'];
+    private const FORMATS = ['pdf'];
 
     public function __construct(
         private PDO $pdo,
@@ -62,8 +59,6 @@ final readonly class BudgetExportService
 
         try {
             match ($format) {
-                'markdown' => $this->writeMarkdown($budget, $path),
-                'docx' => $this->writeDocx($budget, $path),
                 'pdf' => $this->writePdf($budget, $path),
             };
         } catch (AuthException $exception) {
@@ -113,132 +108,94 @@ final readonly class BudgetExportService
         );
     }
 
-    private function writeMarkdown(array $budget, string $path): void
-    {
-        if (file_put_contents($path, $this->markdown($budget)) === false) {
-            throw new AuthException(
-                'EXPORT_STORAGE_UNWRITABLE',
-                'Export storage is not writable. Set EXPORT_STORAGE_DIR or grant write permission.',
-                500,
-                ['path' => $path],
-            );
-        }
-    }
-
-    private function markdown(array $budget): string
-    {
-        $lines = [
-            "# {$budget['title']}",
-            '',
-            "Owner: {$budget['ownerName']}",
-            "Period: {$budget['startDate']} to {$budget['endDate']}",
-            "Base currency: {$budget['baseCurrency']}",
-            '',
-            '## Budget Highlights',
-            '',
-            '| Label | Category | Budget | Estimated | Variance |',
-            '| --- | --- | ---: | ---: | ---: |',
-        ];
-
-        foreach ($budget['items'] as $item) {
-            $lines[] = sprintf(
-                '| %s | %s | %s %.2f | %s %.2f | %.2f |',
-                $this->escapeMarkdown((string) $item['label']),
-                $this->escapeMarkdown((string) ($item['category'] ?? '')),
-                $item['budget']['currency'],
-                $item['budget']['amountOriginal'],
-                $item['estimatedActuals']['currency'],
-                $item['estimatedActuals']['amountOriginal'],
-                $item['varianceBase'],
-            );
-        }
-
-        $lines[] = '';
-        $lines[] = '## Transaction Breakdown';
-        $lines[] = '';
-        $lines[] = '| Date | Details | Category | Amount | Remark |';
-        $lines[] = '| --- | --- | --- | ---: | --- |';
-
-        foreach ($budget['transactions'] as $transaction) {
-            $lines[] = sprintf(
-                '| %s | %s | %s | %s %.2f | %s |',
-                $transaction['transactionDate'] ?? '',
-                $this->escapeMarkdown((string) $transaction['details']),
-                $this->escapeMarkdown((string) ($transaction['category'] ?? '')),
-                $transaction['currency'],
-                $transaction['amountOriginal'],
-                $this->escapeMarkdown((string) ($transaction['remark'] ?? '')),
-            );
-        }
-
-        return implode("\n", $lines) . "\n";
-    }
-
-    private function writeDocx(array $budget, string $path): void
-    {
-        $phpWord = new PhpWord();
-        $phpWord->setDefaultFontName('Times New Roman');
-        $phpWord->setDefaultFontSize(10);
-        $section = $phpWord->addSection();
-        $section->addText($budget['title'], ['name' => 'Times New Roman', 'size' => 14], ['alignment' => 'center']);
-        $section->addText(
-            "{$budget['startDate']} to {$budget['endDate']} / {$budget['baseCurrency']}",
-            ['name' => 'Times New Roman', 'size' => 10],
-            ['alignment' => 'center'],
-        );
-        $section->addTextBreak();
-
-        $this->addDocxTable($section, 'Budget Highlights', ['Label', 'Category', 'Budget', 'Estimated', 'Variance'], array_map(
-            static fn (array $item): array => [
-                $item['label'],
-                $item['category'] ?? '',
-                "{$item['budget']['currency']} " . number_format((float) $item['budget']['amountOriginal'], 2),
-                "{$item['estimatedActuals']['currency']} " . number_format((float) $item['estimatedActuals']['amountOriginal'], 2),
-                number_format((float) $item['varianceBase'], 2),
-            ],
-            $budget['items'],
-        ));
-
-        $section->addTextBreak();
-        $this->addDocxTable($section, 'Transaction Breakdown', ['Date', 'Details', 'Category', 'Amount', 'Remark'], array_map(
-            static fn (array $transaction): array => [
-                $transaction['transactionDate'] ?? '',
-                $transaction['details'],
-                $transaction['category'] ?? '',
-                "{$transaction['currency']} " . number_format((float) $transaction['amountOriginal'], 2),
-                $transaction['remark'] ?? '',
-            ],
-            $budget['transactions'],
-        ));
-
-        IOFactory::createWriter($phpWord, 'Word2007')->save($path);
-    }
-
     private function writePdf(array $budget, string $path): void
     {
         $tempDir = $this->storagePath('tmp');
         $this->ensureStorageDirectory($tempDir);
 
-        $mpdf = new Mpdf(['tempDir' => $tempDir]);
-        $html = nl2br(htmlspecialchars($this->markdown($budget), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
-        $mpdf->WriteHTML('<html><body style="font-family: serif; font-size: 10pt;">' . $html . '</body></html>');
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4',
+            'tempDir' => $tempDir,
+            'default_font' => 'sun-exta',
+            'autoScriptToLang' => true,
+            'autoLangToFont' => true,
+            'useSubstitutions' => true,
+        ]);
+        $mpdf->WriteHTML($this->pdfHtml($budget));
         $mpdf->Output($path, 'F');
     }
 
-    private function addDocxTable(mixed $section, string $title, array $headers, array $rows): void
+    private function pdfHtml(array $budget): string
     {
-        $section->addText($title, ['bold' => true]);
-        $table = $section->addTable(['borderSize' => 4, 'borderColor' => '111111', 'alignment' => JcTable::CENTER]);
-        $table->addRow();
+        $items = array_map(
+            fn (array $item): array => [
+                $item['label'],
+                $item['category'] ?? '',
+                $this->money((string) $item['budget']['currency'], (float) $item['budget']['amountOriginal']),
+                $this->money((string) $item['estimatedActuals']['currency'], (float) $item['estimatedActuals']['amountOriginal']),
+                number_format((float) $item['varianceBase'], 2),
+            ],
+            $budget['items'],
+        );
+        $transactions = array_map(
+            fn (array $transaction): array => [
+                $transaction['transactionDate'] ?? '',
+                $transaction['details'],
+                $transaction['category'] ?? '',
+                $this->money((string) $transaction['currency'], (float) $transaction['amountOriginal']),
+                $transaction['remark'] ?? '',
+            ],
+            $budget['transactions'],
+        );
+
+        return '<!doctype html><html lang="zh-Hans"><head><meta charset="utf-8">'
+            . '<style>'
+            . 'body{font-family:sun-exta,dejavusanscondensed,sans-serif;color:#1f1f1f;font-size:10pt;}'
+            . 'h1{font-size:18pt;text-align:center;margin:0 0 8mm;}'
+            . 'h2{font-size:12pt;margin:9mm 0 3mm;}'
+            . '.meta{width:100%;border-collapse:collapse;margin-bottom:6mm;}'
+            . '.meta th{width:28mm;color:#595959;text-align:left;font-weight:700;padding:1.5mm 2mm;}'
+            . '.meta td{padding:1.5mm 2mm;}'
+            . '.data-table{width:100%;border-collapse:collapse;table-layout:fixed;}'
+            . '.data-table th{background:#f5f5f5;font-weight:700;}'
+            . '.data-table th,.data-table td{border:0.2mm solid #d9d9d9;padding:2mm;vertical-align:top;}'
+            . '.number{text-align:right;white-space:nowrap;}'
+            . '.empty{color:#8c8c8c;text-align:center;}'
+            . '</style></head><body>'
+            . '<h1>' . $this->escapeHtml((string) $budget['title']) . '</h1>'
+            . '<table class="meta"><tr><th>Owner</th><td>' . $this->escapeHtml((string) $budget['ownerName']) . '</td></tr>'
+            . '<tr><th>Period</th><td>' . $this->escapeHtml((string) $budget['startDate']) . ' to ' . $this->escapeHtml((string) $budget['endDate']) . '</td></tr>'
+            . '<tr><th>Base currency</th><td>' . $this->escapeHtml((string) $budget['baseCurrency']) . '</td></tr></table>'
+            . '<h2>Budget Highlights</h2>'
+            . $this->htmlTable(['Label', 'Category', 'Budget', 'Estimated', 'Variance'], $items, [2, 3, 4], '暂无预算项')
+            . '<h2>Transaction Breakdown</h2>'
+            . $this->htmlTable(['Date', 'Details', 'Category', 'Amount', 'Remark'], $transactions, [3], '暂无交易')
+            . '</body></html>';
+    }
+
+    private function htmlTable(array $headers, array $rows, array $numberColumns, string $emptyText): string
+    {
+        $html = '<table class="data-table"><thead><tr>';
         foreach ($headers as $header) {
-            $table->addCell(2000)->addText((string) $header, ['bold' => true, 'size' => 8]);
+            $html .= '<th>' . $this->escapeHtml((string) $header) . '</th>';
         }
+        $html .= '</tr></thead><tbody>';
+
+        if ($rows === []) {
+            return $html . '<tr><td class="empty" colspan="' . count($headers) . '">' . $this->escapeHtml($emptyText) . '</td></tr></tbody></table>';
+        }
+
         foreach ($rows as $row) {
-            $table->addRow();
-            foreach ($row as $cell) {
-                $table->addCell(2000)->addText((string) $cell, ['size' => 8]);
+            $html .= '<tr>';
+            foreach ($row as $index => $cell) {
+                $class = in_array($index, $numberColumns, true) ? ' class="number"' : '';
+                $html .= '<td' . $class . '>' . $this->escapeHtml((string) $cell) . '</td>';
             }
+            $html .= '</tr>';
         }
+
+        return $html . '</tbody></table>';
     }
 
     private function permissions(): PermissionGuard
@@ -310,8 +267,13 @@ final readonly class BudgetExportService
         };
     }
 
-    private function escapeMarkdown(string $value): string
+    private function escapeHtml(string $value): string
     {
-        return str_replace('|', '\\|', $value);
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    private function money(string $currency, float $amount): string
+    {
+        return $currency . ' ' . number_format($amount, 2);
     }
 }

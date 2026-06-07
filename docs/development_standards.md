@@ -81,10 +81,11 @@ manual > mastercard > bochk > budget_default
 - Mastercard provider 使用 `Mastercard International Incorporated`。
 - 不再新增 HSBCHK provider，除非重新確認有公開、穩定、合法使用的牌價 API。
 - Mastercard 日期要以官方 converter 可選日期為準；預設從今天減 2 天開始，不可直接假設今天可用。
+- Mastercard 官網公開端點不是正式 API 契約；若回傳非 JSON 或被主機攔截，可用 `MASTERCARD_PROVIDER_ENABLED=false` 關閉。
 
 ## 匯出標準
 
-- Markdown、DOCX、PDF 匯出都應通過 `BudgetExportService`。
+- PDF 匯出應通過 `BudgetExportService`。
 - 匯出檔案寫入 backend storage，不寫入前端。
 - 匯出 storage 可透過 `EXPORT_STORAGE_DIR` 指定；未指定時使用 `backend/storage/exports`。
 - 匯出前需檢查 storage 目錄可建立且可寫，錯誤需回傳 JSON，不得讓 PHP warning 污染 API response。
@@ -117,7 +118,7 @@ manual > mastercard > bochk > budget_default
 ```text
 GET /api/health
 GET /
-登入、建立 workspace、建立 budget、刷新匯率、建立 transaction、匯出 markdown
+登入、建立 workspace、建立 budget、刷新匯率、建立 transaction、匯出 PDF
 ```
 
 ## 提交前檢查

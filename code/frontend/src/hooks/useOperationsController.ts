@@ -13,7 +13,7 @@ import {
   listBudgetShares,
   updateBudgetShare,
 } from '../api/budgetShares';
-import { createBudgetExport, exportDownloadUrl, listBudgetExports } from '../api/exports';
+import { createBudgetExport, exportDownloadUrl } from '../api/exports';
 import { refreshBochkRates, refreshMastercardRates } from '../api/exchangeRates';
 import {
   deletePasskeyCredential,
@@ -27,7 +27,6 @@ import type { AuthSession, PasskeyCredential } from '../types/auth';
 import type {
   BudgetCategory,
   BudgetDetail,
-  BudgetExport,
   BudgetExportFormat,
   BudgetShare,
   BudgetSharePrincipalType,
@@ -44,17 +43,25 @@ interface UseOperationsControllerOptions {
   canManageBudgetShares: boolean;
 }
 
+function triggerExportDownload(url: string): void {
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = '';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 export function useOperationsController(options: UseOperationsControllerOptions) {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
-  const [exports, setExports] = useState<BudgetExport[]>([]);
   const [shares, setShares] = useState<BudgetShare[]>([]);
   const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
   const [operationsError, setOperationsError] = useState<string | null>(null);
   const [isReferenceLoading, setIsReferenceLoading] = useState(false);
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [isCategorySaving, setIsCategorySaving] = useState(false);
-  const [isExportLoading, setIsExportLoading] = useState(false);
   const [isShareLoading, setIsShareLoading] = useState(false);
   const [isShareSaving, setIsShareSaving] = useState(false);
   const [creatingExportFormat, setCreatingExportFormat] = useState<BudgetExportFormat | null>(null);
@@ -191,9 +198,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
           return;
         }
 
-        setExports([]);
         setShares([]);
-        setIsExportLoading(false);
         setIsShareLoading(false);
       });
 
@@ -207,25 +212,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         return;
       }
 
-      setIsExportLoading(true);
       setIsShareLoading(canManageBudgetShares);
-
-      listBudgetExports(selectedBudget.id)
-        .then((items) => {
-          if (isMounted) {
-            setExports(items);
-          }
-        })
-        .catch((error: unknown) => {
-          if (isMounted) {
-            setOperationsError(error instanceof Error ? error.message : '加载导出记录失败。');
-          }
-        })
-        .finally(() => {
-          if (isMounted) {
-            setIsExportLoading(false);
-          }
-        });
 
       if (canManageBudgetShares) {
         listBudgetShares(selectedBudget.id)
@@ -370,16 +357,12 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
     try {
       const nextExport = await createBudgetExport(selectedBudget.id, format);
-      setExports((currentExports) => [nextExport, ...currentExports]);
+      triggerExportDownload(exportDownloadUrl(nextExport));
     } catch (error: unknown) {
       setOperationsError(error instanceof Error ? error.message : '创建导出失败。');
     } finally {
       setCreatingExportFormat(null);
     }
-  };
-
-  const downloadExport = (item: BudgetExport) => {
-    window.open(exportDownloadUrl(item), '_blank', 'noopener,noreferrer');
   };
 
   const refreshBochk = async () => {
@@ -527,14 +510,12 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     categories,
     categoryOptions,
     currencyOptions,
-    exports,
     shares,
     passkeys,
     operationsError,
     isReferenceLoading,
     isCategoryLoading,
     isCategorySaving,
-    isExportLoading,
     isShareLoading,
     isShareSaving,
     creatingExportFormat,
@@ -546,7 +527,6 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     saveAlias,
     removeAlias,
     createExport,
-    downloadExport,
     refreshBochk,
     refreshMastercard,
     saveShare,

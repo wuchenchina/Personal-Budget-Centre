@@ -34,7 +34,6 @@
 .budget-export-strip {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   min-height: 48px;
   padding: 9px 16px;
@@ -43,8 +42,7 @@
 }
 
 .budget-export-actions,
-.budget-export-label,
-.budget-export-history {
+.budget-export-label {
   display: flex;
   align-items: center;
   min-width: 0;
@@ -59,24 +57,6 @@
   color: #1f1f1f;
   font-size: 13px;
   font-weight: 650;
-  white-space: nowrap;
-}
-
-.budget-export-history {
-  justify-content: flex-end;
-  gap: 4px;
-  color: #8c8c8c;
-  font-size: 12px;
-}
-
-.budget-export-history .ant-btn {
-  max-width: 180px;
-}
-
-.budget-export-history .ant-btn > span:last-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -155,6 +135,19 @@
   font-size: 7.5pt;
 }
 
+.budget-table-frame .ant-table,
+.budget-table-frame .ant-table-container,
+.budget-table-frame .ant-table-content,
+.budget-table-frame .ant-table-container table,
+.budget-table-frame .ant-table-thead > tr:first-child > th:first-child,
+.budget-table-frame .ant-table-thead > tr:first-child > th:last-child {
+  border-radius: 0 !important;
+  border-start-start-radius: 0 !important;
+  border-start-end-radius: 0 !important;
+  border-end-start-radius: 0 !important;
+  border-end-end-radius: 0 !important;
+}
+
 .budget-table-frame .ant-table-thead > tr > th {
   background: #d7d7d7 !important;
   color: #111;
@@ -165,6 +158,18 @@
 .budget-table-frame .ant-table-tbody > tr > td {
   color: #111;
   font-size: 7.5pt;
+}
+
+.budget-table-frame .ant-table-summary > tr > td {
+  color: #111;
+  background: #f4f4f4;
+  border-color: #111 !important;
+  font-size: 7.5pt;
+  font-weight: 650;
+}
+
+.budget-summary-number {
+  text-align: right;
 }
 
 .budget-list {
