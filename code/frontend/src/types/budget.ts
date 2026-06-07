@@ -75,6 +75,41 @@ export interface BudgetShare {
   updatedAt: string;
 }
 
+export type BudgetSignatureParticipantType = 'workspace_member' | 'manual';
+
+export interface BudgetSignatureRow {
+  id: string;
+  participantType: BudgetSignatureParticipantType;
+  memberUserId: number | null;
+  roleLabel: string;
+  displayName: string;
+  email: string | null;
+  position: string | null;
+  signedAt: string | null;
+  showRole: boolean;
+  showName: boolean;
+  showEmail: boolean;
+  showPosition: boolean;
+  showSignature: boolean;
+  showDateTime: boolean;
+}
+
+export interface BudgetSignatureConfig {
+  enabled: boolean;
+  title: string;
+  rows: BudgetSignatureRow[];
+}
+
+export interface BudgetInstallmentConfig {
+  enabled: boolean;
+  months: number | null;
+  paidMonths: number;
+  monthlyAmount: number | null;
+  totalAmount: number | null;
+  startMonth: string | null;
+  remark: string | null;
+}
+
 export interface BudgetItem {
   id: number;
   categoryId: number | null;
@@ -93,6 +128,7 @@ export interface BudgetItem {
     amountBase: number;
   };
   varianceBase: number;
+  installmentConfig: BudgetInstallmentConfig;
   sortOrder: number;
 }
 
@@ -230,6 +266,7 @@ export interface BudgetSummary {
   visibility: Visibility;
   status: BudgetStatus;
   note: string | null;
+  signatureConfig: BudgetSignatureConfig;
   template: BudgetTemplateRef;
   totals: BudgetTotals;
   createdAt: string;
@@ -261,4 +298,5 @@ export interface BudgetDocument {
   members: WorkspaceMember[];
   shares: ShareGrant[];
   templateStyle: BudgetTemplateStyle;
+  signatureConfig: BudgetSignatureConfig;
 }

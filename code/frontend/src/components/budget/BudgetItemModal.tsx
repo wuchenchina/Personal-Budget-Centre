@@ -1,5 +1,6 @@
-import { Alert, Form, InputNumber, Modal, Select } from 'antd';
+import { Alert, Button, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
+import type { ChangeEvent } from 'react';
 import { currencyOptions } from '../../config/appConfig';
 import { useI18n } from '../../i18n';
 import type { BudgetItem } from '../../types/budget';
@@ -27,6 +28,24 @@ export function BudgetItemModal({
   onOk,
 }: BudgetItemModalProps) {
   const { t } = useI18n();
+  const budgetCurrency = Form.useWatch('budgetCurrency', form);
+  const estimatedCurrency = Form.useWatch('estimatedCurrency', form);
+  const installmentEnabled = Form.useWatch(['installmentConfig', 'enabled'], form) === true;
+  const installmentTotal = Form.useWatch(['installmentConfig', 'totalAmount'], form);
+  const installmentMonths = Form.useWatch(['installmentConfig', 'months'], form);
+  const installmentMonthly = Form.useWatch(['installmentConfig', 'monthlyAmount'], form);
+  const calculatedMonthlyInstallment =
+    typeof installmentMonthly === 'number' && installmentMonthly > 0
+      ? installmentMonthly
+      : null;
+  const derivedMonthlyInstallment =
+    calculatedMonthlyInstallment
+    ?? (typeof installmentTotal === 'number'
+      && typeof installmentMonths === 'number'
+      && installmentTotal > 0
+      && installmentMonths > 0
+      ? installmentTotal / installmentMonths
+      : null);
   const handleCategoryChange = (categoryId: number | null | undefined) => {
     if (categoryId === null || categoryId === undefined) {
       return;
@@ -36,6 +55,30 @@ export function BudgetItemModal({
     if (selectedOption !== undefined) {
       form.setFieldValue('label', selectedOption.label);
     }
+  };
+  const handleLabelChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const categoryId = form.getFieldValue('categoryId');
+    if (categoryId === null || categoryId === undefined) {
+      return;
+    }
+
+    const selectedOption = categoryOptions.find((option) => option.value === categoryId);
+    if (selectedOption !== undefined && selectedOption.label !== event.target.value.trim()) {
+      form.setFieldValue('categoryId', undefined);
+    }
+  };
+  const applyInstallmentMonthlyAmount = () => {
+    if (derivedMonthlyInstallment === null) {
+      return;
+    }
+
+    form.setFieldsValue({
+      budgetAmount: Number(derivedMonthlyInstallment.toFixed(2)),
+      installmentConfig: {
+        ...form.getFieldValue('installmentConfig'),
+        monthlyAmount: Number(derivedMonthlyInstallment.toFixed(2)),
+      },
+    });
   };
 
   return (
@@ -56,21 +99,35 @@ export function BudgetItemModal({
         name="budget-centre-budget-item"
         requiredMark={false}
       >
-        <Form.Item hidden name="label">
-          <input type="hidden" />
-        </Form.Item>
-
         <Form.Item
-          label={t('manageCategories')}
+          label={t('presetCategory')}
           name="categoryId"
-          rules={[{ required: true, message: t('selectCategory') }]}
+          extra={t('presetCategoryHelp')}
         >
           <Select
+            allowClear
             showSearch
             optionFilterProp="label"
             options={categoryOptions}
             placeholder={t('selectCategory')}
             onChange={handleCategoryChange}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label={t('categoryName')}
+          name="label"
+          rules={[
+            { required: true, whitespace: true, message: t('categoryNameRequired') },
+            { max: 160, message: t('categoryNameMax') },
+          ]}
+          extra={t('customCategoryHelp')}
+        >
+          <Input
+            allowClear
+            maxLength={160}
+            placeholder={t('customCategoryPlaceholder')}
+            onChange={handleLabelChange}
           />
         </Form.Item>
 
@@ -87,17 +144,103 @@ export function BudgetItemModal({
             name="budgetAmount"
             rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
           >
-            <InputNumber className="form-full-width" precision={2} step={100} />
+            <InputNumber
+              addonBefore={budgetCurrency ?? t('currency')}
+              className="form-full-width"
+              precision={2}
+              step={100}
+            />
           </Form.Item>
+        </div>
+
+        <div className="installment-config-panel">
+          <Form.Item name={['installmentConfig', 'enabled']} valuePropName="checked">
+            <Checkbox>{t('enableInstallments')}</Checkbox>
+          </Form.Item>
+          {installmentEnabled ? (
+            <>
+              <div className="modal-form-grid">
+                <Form.Item
+                  label={t('installmentTotalAmount')}
+                  name={['installmentConfig', 'totalAmount']}
+                  rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+                >
+                  <InputNumber
+                    addonBefore={budgetCurrency ?? t('currency')}
+                    className="form-full-width"
+                    precision={2}
+                    step={100}
+                  />
+                </Form.Item>
+                <Form.Item
+                  label={t('installmentMonths')}
+                  name={['installmentConfig', 'months']}
+                  rules={[
+                    { type: 'number', min: 1, message: t('installmentMonthsMin') },
+                    { type: 'number', max: 600, message: t('installmentMonthsMax') },
+                  ]}
+                >
+                  <InputNumber className="form-full-width" precision={0} step={1} />
+                </Form.Item>
+              </div>
+              <div className="modal-form-grid">
+                <Form.Item
+                  label={t('installmentMonthlyAmount')}
+                  name={['installmentConfig', 'monthlyAmount']}
+                  rules={[
+                    { type: 'number', min: Number.MIN_VALUE, message: t('installmentMonthlyMin') },
+                  ]}
+                >
+                  <InputNumber
+                    addonBefore={budgetCurrency ?? t('currency')}
+                    className="form-full-width"
+                    precision={2}
+                    step={100}
+                  />
+                </Form.Item>
+                <Form.Item
+                  label={t('installmentPaidMonths')}
+                  name={['installmentConfig', 'paidMonths']}
+                  rules={[{ type: 'number', min: 0, message: t('sortOrderMin') }]}
+                >
+                  <InputNumber className="form-full-width" precision={0} step={1} />
+                </Form.Item>
+              </div>
+              <div className="modal-form-grid">
+                <Form.Item
+                  label={t('installmentStartMonth')}
+                  name={['installmentConfig', 'startMonth']}
+                >
+                  <DatePicker className="form-full-width" picker="month" />
+                </Form.Item>
+                <Form.Item label={t('installmentRemark')} name={['installmentConfig', 'remark']}>
+                  <Input maxLength={500} />
+                </Form.Item>
+              </div>
+              <Button
+                block
+                disabled={derivedMonthlyInstallment === null}
+                type="dashed"
+                onClick={applyInstallmentMonthlyAmount}
+              >
+                {derivedMonthlyInstallment === null
+                  ? t('applyInstallmentMonthly')
+                  : t('applyInstallmentMonthlyWithAmount', {
+                    amount: `${budgetCurrency ?? t('currency')} ${derivedMonthlyInstallment.toFixed(2)}`,
+                  })}
+              </Button>
+            </>
+          ) : null}
         </div>
 
         <div className="modal-form-grid">
           <Form.Item
-            label={t('sortOrder')}
-            name="sortOrder"
-            rules={[{ type: 'number', min: 0, message: t('sortOrderMin') }]}
+            label={t('budgetRateToBase')}
+            name="budgetRate"
+            rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
+            extra={t('manualRateOptional')}
           >
-            <InputNumber className="form-full-width" precision={0} step={1} />
+            <InputNumber className="form-full-width" precision={6} step={0.01} />
           </Form.Item>
           <Form.Item
             label="Bank Fee (%)"
@@ -124,7 +267,30 @@ export function BudgetItemModal({
             name="estimatedAmount"
             rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
           >
-            <InputNumber className="form-full-width" precision={2} step={100} />
+            <InputNumber
+              addonBefore={estimatedCurrency ?? t('currency')}
+              className="form-full-width"
+              precision={2}
+              step={100}
+            />
+          </Form.Item>
+        </div>
+
+        <div className="modal-form-grid">
+          <Form.Item
+            label={t('estimatedRateToBase')}
+            name="estimatedRate"
+            rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
+            extra={t('manualRateOptional')}
+          >
+            <InputNumber className="form-full-width" precision={6} step={0.01} />
+          </Form.Item>
+          <Form.Item
+            label={t('sortOrder')}
+            name="sortOrder"
+            rules={[{ type: 'number', min: 0, message: t('sortOrderMin') }]}
+          >
+            <InputNumber className="form-full-width" precision={0} step={1} />
           </Form.Item>
         </div>
       </Form>

@@ -168,7 +168,7 @@ final readonly class BudgetExportService
         $subtitle = trim((string) $budget['ownerName']);
         $subtitleHtml = $subtitle === ''
             ? ''
-            : '<div class="subtitle">(' . $this->escapeHtml($subtitle) . ')</div>';
+            : '<div class="subtitle">' . $this->escapeHtml($subtitle) . '</div>';
         $periodText = $this->periodText($budget);
         $sections = $this->sectionsByKey($template);
         $budgetSection = $sections['budget_highlights'] ?? [
@@ -191,7 +191,7 @@ final readonly class BudgetExportService
         ];
         $items = array_map(
             fn (array $item): array => [
-                $item['category'] ?? $item['label'],
+                $this->itemLabelWithInstallment($item),
                 $this->templateMoney((string) $item['budget']['currency'], (float) $item['budget']['amountOriginal']),
                 $this->templateMoney((string) $item['estimatedActuals']['currency'], (float) $item['estimatedActuals']['amountOriginal']),
                 $this->templateMoney((string) $budget['baseCurrency'], (float) $item['varianceBase']),
@@ -237,11 +237,20 @@ final readonly class BudgetExportService
             . '.align-center{text-align:center;}'
             . '.nowrap{white-space:nowrap;}'
             . '.empty{text-align:center;color:#595959;}'
+            . '.signature-section{width:100%;margin-top:8mm;font-family:"SF-Mono",TCSongti,monospace;}'
+            . '.signature-title{background:#d7d7d7;border:0.2mm solid #111;font-size:8pt;padding:1.2mm 1.9mm;}'
+            . '.signature-table{width:100%;border-collapse:collapse;table-layout:fixed;border-left:0.2mm solid #111;}'
+            . '.signature-table td{width:50%;height:33mm;border-right:0.2mm solid #111;border-bottom:0.2mm solid #111;vertical-align:top;padding:1.8mm;font-size:7.5pt;}'
+            . '.signature-role{font-size:8pt;font-weight:bold;margin-bottom:1.2mm;}'
+            . '.signature-line{min-height:4mm;}'
+            . '.signature-box{height:13mm;margin-top:1.8mm;border:0.2mm solid #8c8c8c;background-color:#f7f7f7;background-image:linear-gradient(135deg,transparent 0 46%,rgba(0,0,0,.05) 46% 54%,transparent 54% 100%),repeating-linear-gradient(-28deg,rgba(0,0,0,.09) 0 0.25mm,transparent 0.25mm 2mm),repeating-linear-gradient(28deg,rgba(0,0,0,.05) 0 0.25mm,transparent 0.25mm 2.4mm);color:#777;font-size:6.8pt;padding:1.2mm;}'
+            . '.signature-date{margin-top:1.5mm;border-top:0.2mm solid #bfbfbf;padding-top:1mm;}'
             . '</style></head><body>'
             . '<div class="title">' . $title . '</div>'
             . $subtitleHtml
             . $this->templateTable($budgetSection, $periodText, $items, $summaryRow, 'No budget items')
             . $this->templateTable($transactionSection, $periodText, $transactions, null, 'No transactions')
+            . $this->signatureSection($budget)
             . '</body></html>';
     }
 
@@ -286,7 +295,7 @@ final readonly class BudgetExportService
                 $html .= '<td class="' . $this->columnClass($column) . '"'
                     . $this->cellWidthStyle($column)
                     . '>'
-                    . $this->escapeHtml((string) $cell)
+                    . $this->templateCellText((string) $cell)
                     . '</td>';
             }
             $html .= '</tr>';
@@ -300,7 +309,7 @@ final readonly class BudgetExportService
                 $html .= '<td class="' . $this->columnClass($column) . '"'
                     . $this->cellWidthStyle($column)
                     . '>'
-                    . $this->escapeHtml((string) $cell)
+                    . $this->templateCellText((string) $cell)
                     . '</td>';
             }
             $html .= '</tr></tbody></table>';
@@ -317,6 +326,97 @@ final readonly class BudgetExportService
         }
 
         return $html . '</colgroup>';
+    }
+
+    private function templateCellText(string $value): string
+    {
+        return nl2br($this->escapeHtml($value), false);
+    }
+
+    private function itemLabelWithInstallment(array $item): string
+    {
+        $label = (string) ($item['category'] ?? $item['label']);
+        $config = $item['installmentConfig'] ?? null;
+        if (!is_array($config) || ($config['enabled'] ?? false) !== true) {
+            return $label;
+        }
+
+        $months = is_int($config['months'] ?? null) ? $config['months'] : null;
+        $paidMonths = is_int($config['paidMonths'] ?? null) ? $config['paidMonths'] : 0;
+        $monthlyAmount = is_numeric($config['monthlyAmount'] ?? null)
+            ? (float) $config['monthlyAmount']
+            : null;
+
+        if ($months === null || $monthlyAmount === null) {
+            return $label;
+        }
+
+        $remaining = max(0, $months - max(0, min($paidMonths, $months)));
+
+        return $label
+            . "\nInstallment: "
+            . $this->templateMoney((string) $item['budget']['currency'], $monthlyAmount)
+            . ' / month, '
+            . max(0, min($paidMonths, $months))
+            . '/'
+            . $months
+            . ' paid, '
+            . $remaining
+            . ' remaining';
+    }
+
+    private function signatureSection(array $budget): string
+    {
+        $config = $budget['signatureConfig'] ?? null;
+        if (!is_array($config) || ($config['enabled'] ?? false) !== true || !is_array($config['rows'] ?? null) || $config['rows'] === []) {
+            return '';
+        }
+
+        $title = is_string($config['title'] ?? null) && trim($config['title']) !== ''
+            ? trim($config['title'])
+            : 'Confirmation / Signature';
+        $html = '<div class="signature-section">'
+            . '<div class="signature-title">' . $this->escapeHtml($title) . '</div>'
+            . '<table class="signature-table"><tbody>';
+        foreach (array_chunk($config['rows'], 2) as $rowPair) {
+            $html .= '<tr>';
+            foreach ($rowPair as $row) {
+                $html .= $this->signatureCell(is_array($row) ? $row : []);
+            }
+            if (count($rowPair) === 1) {
+                $html .= '<td></td>';
+            }
+            $html .= '</tr>';
+        }
+
+        return $html . '</tbody></table></div>';
+    }
+
+    private function signatureCell(array $row): string
+    {
+        $html = '<td>';
+        if (($row['showRole'] ?? true) !== false && trim((string) ($row['roleLabel'] ?? '')) !== '') {
+            $html .= '<div class="signature-role">' . $this->escapeHtml((string) $row['roleLabel']) . '</div>';
+        }
+        if (($row['showName'] ?? true) !== false && trim((string) ($row['displayName'] ?? '')) !== '') {
+            $html .= '<div class="signature-line">' . $this->escapeHtml((string) $row['displayName']) . '</div>';
+        }
+        if (($row['showPosition'] ?? false) === true && trim((string) ($row['position'] ?? '')) !== '') {
+            $html .= '<div class="signature-line">' . $this->escapeHtml((string) $row['position']) . '</div>';
+        }
+        if (($row['showEmail'] ?? false) === true && trim((string) ($row['email'] ?? '')) !== '') {
+            $html .= '<div class="signature-line">' . $this->escapeHtml((string) $row['email']) . '</div>';
+        }
+        if (($row['showSignature'] ?? true) !== false) {
+            $html .= '<div class="signature-box">CONFIRMATION SIGNATURE</div>';
+        }
+        if (($row['showDateTime'] ?? true) !== false) {
+            $html .= '<div class="signature-date">Date &amp; Time: '
+                . $this->escapeHtml((string) ($row['signedAt'] ?? ''))
+                . '</div>';
+        }
+
+        return $html . '</td>';
     }
 
     private function cellWidthStyle(array $column): string

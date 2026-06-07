@@ -29,6 +29,7 @@ final readonly class BudgetEntryRepository
               estimated_rate_to_base,
               estimated_amount_base,
               variance_amount_base,
+              installment_config,
               sort_order
             ) VALUES (
               :budget_id,
@@ -43,6 +44,7 @@ final readonly class BudgetEntryRepository
               :estimated_rate_to_base,
               :estimated_amount_base,
               :variance_amount_base,
+              :installment_config,
               :sort_order
             )
             SQL
@@ -70,6 +72,7 @@ final readonly class BudgetEntryRepository
               estimated_rate_to_base = :estimated_rate_to_base,
               estimated_amount_base = :estimated_amount_base,
               variance_amount_base = :variance_amount_base,
+              installment_config = :installment_config,
               sort_order = :sort_order
             WHERE id = :id
             SQL

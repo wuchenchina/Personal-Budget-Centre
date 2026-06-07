@@ -48,6 +48,12 @@ export function deleteBudgetCategory(id: number): Promise<BudgetCategory[]> {
   );
 }
 
+export function deleteBudgetCategories(ids: number[]): Promise<BudgetCategory[]> {
+  return apiDelete<CategoryListResponse>('/api/budget-categories', { ids }).then(
+    (response) => response.categories,
+  );
+}
+
 export function createCategoryAlias(
   payload: CreateCategoryAliasPayload,
 ): Promise<BudgetCategory[]> {

@@ -1,5 +1,20 @@
 import type { Dayjs } from 'dayjs';
-import type { BudgetStatus, CurrencyCode, Visibility, WorkspaceRole } from './budget';
+import type {
+  BudgetInstallmentConfig,
+  BudgetSignatureConfig,
+  BudgetStatus,
+  CurrencyCode,
+  Visibility,
+  WorkspaceRole,
+} from './budget';
+
+export type BudgetSignatureFormRow = Omit<BudgetSignatureConfig['rows'][number], 'signedAt'> & {
+  signedAt?: Dayjs | null;
+};
+
+export type BudgetInstallmentFormConfig = Omit<BudgetInstallmentConfig, 'startMonth'> & {
+  startMonth?: Dayjs | null;
+};
 
 export type AuthMode = 'login' | 'register';
 
@@ -35,6 +50,9 @@ export interface BudgetFormValues {
   visibility: Visibility;
   status: BudgetStatus;
   note?: string;
+  signatureConfig?: Omit<BudgetSignatureConfig, 'rows'> & {
+    rows: BudgetSignatureFormRow[];
+  };
 }
 
 export interface BudgetItemFormValues {
@@ -47,6 +65,7 @@ export interface BudgetItemFormValues {
   estimatedAmount?: number;
   estimatedRate?: number;
   bankFee?: number;
+  installmentConfig?: BudgetInstallmentFormConfig;
   sortOrder?: number;
 }
 

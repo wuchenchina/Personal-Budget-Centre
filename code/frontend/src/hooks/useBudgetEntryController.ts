@@ -14,6 +14,11 @@ import { convertCurrency } from '../api/exchangeRates';
 import type { BudgetDetail, BudgetItem, CurrencyCode, Transaction } from '../types/budget';
 import type { BudgetItemFormValues, TransactionFormValues } from '../types/forms';
 import { translateCurrent } from '../i18n';
+import {
+  emptyInstallmentConfig,
+  installmentConfigFromForm,
+  installmentConfigToForm,
+} from '../utils/budgetInstallments';
 
 interface UseBudgetEntryControllerOptions {
   baseCurrency: CurrencyCode;
@@ -49,6 +54,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     budgetItemForm.setFieldsValue({
       budgetCurrency: entryCurrency,
       estimatedCurrency: entryCurrency,
+      installmentConfig: emptyInstallmentConfig(),
       sortOrder: options.selectedBudget.items.length + 1,
     });
     setIsBudgetItemModalOpen(true);
@@ -63,8 +69,11 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       label: item.label,
       budgetCurrency: item.budget.currency,
       budgetAmount: item.budget.amountOriginal,
+      budgetRate: item.budget.rateToBase,
       estimatedCurrency: item.estimatedActuals.currency,
       estimatedAmount: item.estimatedActuals.amountOriginal,
+      estimatedRate: item.estimatedActuals.rateToBase,
+      installmentConfig: installmentConfigToForm(item.installmentConfig),
       sortOrder: item.sortOrder,
     });
     setIsBudgetItemModalOpen(true);
@@ -88,14 +97,18 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       setIsBudgetItemSaving(true);
       setEntryError(null);
       const amounts = await completeBudgetItemAmounts(values);
+      const installmentConfig = installmentConfigFromForm(values.installmentConfig);
 
       const payload: SaveBudgetItemPayload = {
         categoryId: values.categoryId,
         label: values.label.trim(),
         budgetCurrency: values.budgetCurrency,
         budgetAmount: amounts.budgetAmount,
+        budgetRate: values.budgetRate,
         estimatedCurrency: values.estimatedCurrency,
         estimatedAmount: amounts.estimatedAmount,
+        estimatedRate: values.estimatedRate,
+        installmentConfig,
         sortOrder: values.sortOrder ?? 0,
       };
       const savedBudget =
@@ -123,6 +136,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
   const completeBudgetItemAmounts = async (values: BudgetItemFormValues) => {
     const budgetAmount = normalizedAmount(values.budgetAmount);
     const estimatedAmount = normalizedAmount(values.estimatedAmount);
+    const budgetRate = normalizedAmount(values.budgetRate);
+    const estimatedRate = normalizedAmount(values.estimatedRate);
 
     if (budgetAmount === null) {
       return {
@@ -140,6 +155,20 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
 
     const bankFeeMultiplier = 1 + (normalizedBankFee(values.bankFee) ?? 0) / 100;
+    if (budgetRate !== null || estimatedRate !== null) {
+      if (budgetRate !== null && estimatedRate !== null) {
+        return {
+          budgetAmount,
+          estimatedAmount: roundMoney((budgetAmount * budgetRate * bankFeeMultiplier) / estimatedRate),
+        };
+      }
+
+      return {
+        budgetAmount,
+        estimatedAmount: undefined,
+      };
+    }
+
     return {
       budgetAmount,
       estimatedAmount: await convertedAmount({

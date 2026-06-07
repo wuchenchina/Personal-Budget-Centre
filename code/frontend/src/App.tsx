@@ -266,8 +266,10 @@ function App() {
       operations={operations}
       isBudgetLoading={budget.isBudgetLoading}
       isBudgetDetailLoading={budget.isBudgetDetailLoading}
+      isBudgetSaving={budget.isBudgetSaving}
       isTemplateLoading={template.isTemplateLoading}
       onEditBudget={budget.selectedBudget === null ? undefined : openSelectedBudgetSettings}
+      onInlineHeaderSave={budget.handleBudgetHeaderSave}
       onOpenShare={canManageWorkspaceMembers ? () => setIsShareModalOpen(true) : undefined}
     />
   );
@@ -295,6 +297,7 @@ function App() {
         isEditing={budget.editingBudgetId !== null}
         error={budget.budgetError}
         workspaceOptions={workspace.workspaceOptions}
+        workspaceMembers={workspace.workspaceMembers}
         confirmLoading={budget.isBudgetSaving}
         onCancel={() => {
           budget.setIsBudgetModalOpen(false);

@@ -121,7 +121,7 @@ export function BudgetProjectList({
                       {budgetStatusLabelsByLanguage[language][budget.status]}
                     </Tag>
                     <h2>{budget.title}</h2>
-                    {ownerName ? <p>({ownerName})</p> : null}
+                    {ownerName ? <p>{ownerName}</p> : null}
                   </div>
                   {budgetPeriod ? (
                     <div className="project-period">

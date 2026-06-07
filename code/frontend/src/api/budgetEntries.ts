@@ -1,5 +1,5 @@
 import { apiDelete, apiPatch, apiPost } from './http';
-import type { BudgetDetail, CurrencyCode } from '../types/budget';
+import type { BudgetDetail, BudgetInstallmentConfig, CurrencyCode } from '../types/budget';
 
 interface BudgetResponse {
   budget: BudgetDetail;
@@ -14,6 +14,7 @@ export interface SaveBudgetItemPayload {
   estimatedCurrency: CurrencyCode;
   estimatedAmount?: number;
   estimatedRate?: number;
+  installmentConfig?: BudgetInstallmentConfig;
   sortOrder?: number;
 }
 

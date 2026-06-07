@@ -4,6 +4,7 @@ import type {
   BudgetStatus,
   BudgetSummary,
   CurrencyCode,
+  BudgetSignatureConfig,
   Visibility,
 } from '../types/budget';
 
@@ -26,6 +27,7 @@ export interface CreateBudgetPayload {
   visibility: Visibility;
   status?: BudgetStatus;
   note?: string | null;
+  signatureConfig?: BudgetSignatureConfig;
 }
 
 export interface UpdateBudgetPayload extends Omit<CreateBudgetPayload, 'workspaceId'> {

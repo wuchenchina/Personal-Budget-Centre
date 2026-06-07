@@ -17,6 +17,8 @@ use PDO;
 
 final readonly class BudgetEntryService
 {
+    private const INSTALLMENT_MAX_MONTHS = 600;
+
     public function __construct(
         private PDO $pdo,
         private SessionAuthenticator $authenticator,
@@ -138,8 +140,8 @@ final readonly class BudgetEntryService
         $budgetAmount = $this->number($input['budgetAmount'] ?? $input['budget_amount'] ?? null);
         $estimatedAmount = $this->number($input['estimatedAmount'] ?? $input['estimated_amount'] ?? null);
 
-        if ($label === null || strlen($label) > 180) {
-            throw new AuthException('VALIDATION_ERROR', 'Item label is required and must be 180 characters or less.', 422);
+        if ($label === null || strlen($label) > 160) {
+            throw new AuthException('VALIDATION_ERROR', 'Category name is required and must be 160 characters or less.', 422);
         }
 
         $budgetCurrencyId = $this->currencyId($input['budgetCurrency'] ?? $input['budget_currency'] ?? null);
@@ -191,6 +193,7 @@ final readonly class BudgetEntryService
             'estimated_rate_to_base' => $estimatedRate,
             'estimated_amount_base' => $estimatedBase,
             'variance_amount_base' => $budgetBase - $estimatedBase,
+            'installment_config' => $this->installmentConfigJsonFromInput($input, $budgetAmount),
             'sort_order' => Input::positiveInt($input['sortOrder'] ?? $input['sort_order'] ?? null) ?? 0,
         ];
     }
@@ -305,7 +308,7 @@ final readonly class BudgetEntryService
             return $categoryId;
         }
 
-        throw new AuthException('VALIDATION_ERROR', 'Please select a preset category.', 422);
+        return $categories->findOrCreateForName($workspaceId, $userId, $label);
     }
 
     private function rateToBase(
@@ -354,6 +357,125 @@ final readonly class BudgetEntryService
         }
 
         return $amountBase / $rateToBase;
+    }
+
+    private function installmentConfigJsonFromInput(array $input, float $fallbackMonthlyAmount): ?string
+    {
+        $raw = $input['installmentConfig'] ?? $input['installment_config'] ?? null;
+        if ($raw === null) {
+            return null;
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (!is_array($decoded)) {
+                throw new AuthException('VALIDATION_ERROR', 'Installment settings must be valid JSON.', 422);
+            }
+            $raw = $decoded;
+        }
+
+        if (!is_array($raw)) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment settings must be an object.', 422);
+        }
+
+        $config = $this->installmentConfigFromArray($raw, $fallbackMonthlyAmount);
+        $json = json_encode($config, JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment settings could not be encoded.', 422);
+        }
+
+        return $json;
+    }
+
+    private function installmentConfigFromArray(array $input, float $fallbackMonthlyAmount): array
+    {
+        $enabled = ($input['enabled'] ?? false) === true;
+        $months = Input::positiveInt($input['months'] ?? $input['totalMonths'] ?? $input['total_months'] ?? null);
+        $paidMonths = $this->nonNegativeInt($input['paidMonths'] ?? $input['paid_months'] ?? null) ?? 0;
+        $totalAmount = $this->number(
+            $input['totalAmount'] ?? $input['total_amount'] ?? null,
+        );
+        $monthlyAmount = $this->number(
+            $input['monthlyAmount'] ?? $input['monthly_amount'] ?? null,
+        );
+        $startMonth = $this->monthFromInput($input['startMonth'] ?? $input['start_month'] ?? null);
+        $remark = Input::string($input['remark'] ?? null);
+
+        if (!$enabled) {
+            return [
+                'enabled' => false,
+                'months' => null,
+                'paidMonths' => 0,
+                'monthlyAmount' => null,
+                'totalAmount' => null,
+                'startMonth' => null,
+                'remark' => null,
+            ];
+        }
+
+        if ($months === null || $months > self::INSTALLMENT_MAX_MONTHS) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment months must be between 1 and 600.', 422);
+        }
+
+        $monthlyAmount ??= $totalAmount === null ? $fallbackMonthlyAmount : $totalAmount / $months;
+
+        if ($paidMonths > $months) {
+            throw new AuthException('VALIDATION_ERROR', 'Paid installment months cannot exceed total months.', 422);
+        }
+
+        if ($monthlyAmount <= 0.0) {
+            throw new AuthException('VALIDATION_ERROR', 'Monthly installment amount must be greater than 0.', 422);
+        }
+
+        if ($totalAmount !== null && $totalAmount < 0.0) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment total amount cannot be less than 0.', 422);
+        }
+
+        if ($remark !== null && strlen($remark) > 500) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment remark must be 500 characters or less.', 422);
+        }
+
+        return [
+            'enabled' => true,
+            'months' => $months,
+            'paidMonths' => $paidMonths,
+            'monthlyAmount' => $monthlyAmount,
+            'totalAmount' => $totalAmount ?? $monthlyAmount * $months,
+            'startMonth' => $startMonth,
+            'remark' => $remark,
+        ];
+    }
+
+    private function monthFromInput(mixed $value): ?string
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $trimmed = trim($value);
+        if (preg_match('/^\d{4}-\d{2}$/', $trimmed) !== 1) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment start month must use YYYY-MM.', 422);
+        }
+
+        $date = Input::date($trimmed . '-01');
+        if ($date === null) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment start month must be a valid month.', 422);
+        }
+
+        return substr($date, 0, 7);
+    }
+
+    private function nonNegativeInt(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value >= 0 ? $value : null;
+        }
+
+        if (!is_string($value) || !ctype_digit($value)) {
+            return null;
+        }
+
+        return (int) $value;
     }
 
     private function number(mixed $value): ?float

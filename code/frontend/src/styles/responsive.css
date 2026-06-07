@@ -17,6 +17,15 @@
     grid-template-columns: 1fr;
   }
 
+  .budget-info-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .budget-info-title-field,
+  .budget-info-wide-field {
+    grid-column: span 2;
+  }
+
   .workspace-grid {
     grid-template-columns: 1fr;
   }
@@ -67,11 +76,22 @@
   .project-card-grid,
   .project-list-grid,
   .project-money-row,
+  .budget-info-form-grid,
+  .modal-form-grid,
   .workspace-stat-grid,
   .profile-account-panel,
   .profile-form-grid,
   .profile-security-grid {
     grid-template-columns: 1fr;
+  }
+
+  .budget-info-modal .ant-modal {
+    max-width: calc(100vw - 24px);
+  }
+
+  .budget-info-title-field,
+  .budget-info-wide-field {
+    grid-column: auto;
   }
 
   .workspace-command-select {

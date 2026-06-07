@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   createBudgetCategory,
   createCategoryAlias,
+  deleteBudgetCategories,
   deleteBudgetCategory,
   deleteCategoryAlias,
   listBudgetCategories,
@@ -296,11 +297,21 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   };
 
   const removeCategory = async (id: number) => {
+    await removeCategories([id]);
+  };
+
+  const removeCategories = async (ids: number[]) => {
+    if (ids.length === 0) {
+      return;
+    }
+
     setIsCategorySaving(true);
     setOperationsError(null);
 
     try {
-      setCategories(await deleteBudgetCategory(id));
+      setCategories(ids.length === 1
+        ? await deleteBudgetCategory(ids[0])
+        : await deleteBudgetCategories(ids));
     } catch (error: unknown) {
       setOperationsError(error instanceof Error ? error.message : translateCurrent('saveCategoryFailed'));
     } finally {
@@ -527,6 +538,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     isPasskeyRegistering,
     saveCategory,
     removeCategory,
+    removeCategories,
     saveAlias,
     removeAlias,
     createExport,

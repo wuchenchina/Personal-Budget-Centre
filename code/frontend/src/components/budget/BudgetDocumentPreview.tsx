@@ -1,6 +1,18 @@
 import { useMemo } from 'react';
-import { Alert, Button, Empty, Popconfirm, Segmented, Space, Table, Tag, Tooltip } from 'antd';
+import {
+  Alert,
+  Button,
+  Empty,
+  Popconfirm,
+  Segmented,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'antd';
 import type { TableProps } from 'antd';
+import type { TextProps } from 'antd/es/typography/Text';
 import { CalendarRange, Download, FileText, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
 import type { BudgetEntryController } from '../../hooks/useBudgetEntryController';
 import type { OperationsController } from '../../hooks/useOperationsController';
@@ -12,6 +24,8 @@ import {
 import type {
   BudgetDetail,
   BudgetItem,
+  BudgetSignatureConfig,
+  BudgetSignatureRow,
   BudgetTemplateDefinition,
   CurrencyCode,
   Transaction,
@@ -33,8 +47,10 @@ interface BudgetDocumentPreviewProps {
   entry: BudgetEntryController;
   isBudgetLoading: boolean;
   isBudgetDetailLoading: boolean;
+  isBudgetSaving: boolean;
   isTemplateLoading: boolean;
   onEditBudget?: () => void;
+  onInlineHeaderSave?: (values: { title?: string; ownerName?: string }) => Promise<void>;
   onOpenShare?: () => void;
   operations: OperationsController;
 }
@@ -49,8 +65,10 @@ export function BudgetDocumentPreview({
   entry,
   isBudgetLoading,
   isBudgetDetailLoading,
+  isBudgetSaving,
   isTemplateLoading,
   onEditBudget,
+  onInlineHeaderSave,
   onOpenShare,
   operations,
 }: BudgetDocumentPreviewProps) {
@@ -95,6 +113,12 @@ export function BudgetDocumentPreview({
   const budgetTitle = selectedBudget?.title ?? t('noBudgetSelected');
   const budgetSubtitle = selectedBudget?.ownerName.trim() ?? '';
   const budgetDateText = selectedBudget ? formatBudgetPeriod(selectedBudget, language) : null;
+  const canInlineEditHeader =
+    selectedBudget !== null
+    && canWriteBudgets
+    && onInlineHeaderSave !== undefined
+    && !isBudgetDetailLoading
+    && !isBudgetSaving;
   const visibilityOptions = [
     { label: visibilityLabelsByLanguage[language].private, value: 'private' },
     { label: visibilityLabelsByLanguage[language].workspace, value: 'workspace' },
@@ -166,7 +190,7 @@ export function BudgetDocumentPreview({
 
       {templateError || budgetError ? (
         <div className="state-panel">
-            <Alert
+          <Alert
             type="error"
             showIcon
             message={templateError ? t('templateApiUnavailable') : t('budgetApiUnavailable')}
@@ -183,8 +207,13 @@ export function BudgetDocumentPreview({
         </div>
       ) : (
         <section className="budget-document-preview">
-          <h1>{budgetTitle}</h1>
-          {budgetSubtitle ? <p>({budgetSubtitle})</p> : null}
+          <BudgetEditableHeader
+            canEdit={canInlineEditHeader}
+            ownerName={budgetSubtitle}
+            saving={isBudgetSaving}
+            title={budgetTitle}
+            onSave={onInlineHeaderSave}
+          />
 
           <div className="budget-table-frame">
             <div className="budget-section-title budget-section-title-row">
@@ -252,9 +281,146 @@ export function BudgetDocumentPreview({
               tableLayout="fixed"
             />
           </div>
+
+          <BudgetSignatureSection
+            config={selectedBudget.signatureConfig}
+            fallbackTitle={t('signatureSectionTitle')}
+            labels={{
+              dateTime: t('dateTime'),
+              signature: t('confirmationSignature'),
+            }}
+          />
         </section>
       )}
     </main>
+  );
+}
+
+function BudgetEditableHeader({
+  canEdit,
+  ownerName,
+  saving,
+  title,
+  onSave,
+}: {
+  canEdit: boolean;
+  ownerName: string;
+  saving: boolean;
+  title: string;
+  onSave?: (values: { title?: string; ownerName?: string }) => Promise<void>;
+}) {
+  const editableTrigger: Array<'icon' | 'text'> = ['icon', 'text'];
+  const titleEditable =
+    canEdit && onSave !== undefined
+      ? {
+          autoSize: { maxRows: 2, minRows: 1 },
+          maxLength: 255,
+          text: title,
+          tooltip: false,
+          triggerType: editableTrigger,
+          onChange: (value: string) => {
+            void onSave({ title: value });
+          },
+        } satisfies TextProps['editable']
+      : false;
+  const ownerEditable =
+    canEdit && onSave !== undefined
+      ? {
+          autoSize: { maxRows: 2, minRows: 1 },
+          maxLength: 160,
+          text: ownerName,
+          tooltip: false,
+          triggerType: editableTrigger,
+          onChange: (value: string) => {
+            void onSave({ ownerName: value });
+          },
+        } satisfies TextProps['editable']
+      : false;
+
+  return (
+    <div className="budget-document-heading" aria-busy={saving}>
+      <Typography.Title
+        className="budget-document-title"
+        editable={titleEditable}
+        level={1}
+      >
+        {title}
+      </Typography.Title>
+      {ownerName || canEdit ? (
+        <Typography.Paragraph
+          className="budget-document-subtitle"
+          editable={ownerEditable}
+        >
+          {ownerName || ' '}
+        </Typography.Paragraph>
+      ) : null}
+    </div>
+  );
+}
+
+function BudgetSignatureSection({
+  config,
+  fallbackTitle,
+  labels,
+}: {
+  config: BudgetSignatureConfig;
+  fallbackTitle: string;
+  labels: {
+    dateTime: string;
+    signature: string;
+  };
+}) {
+  if (!config.enabled || config.rows.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="budget-signature-section">
+      <div className="budget-signature-title">{config.title || fallbackTitle}</div>
+      <div className="budget-signature-grid">
+        {config.rows.map((row) => (
+          <BudgetSignatureCard key={row.id} labels={labels} row={row} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BudgetSignatureCard({
+  labels,
+  row,
+}: {
+  labels: {
+    dateTime: string;
+    signature: string;
+  };
+  row: BudgetSignatureRow;
+}) {
+  return (
+    <div className="budget-signature-card">
+      {row.showRole && row.roleLabel ? (
+        <div className="budget-signature-role">{row.roleLabel}</div>
+      ) : null}
+      {row.showName && row.displayName ? (
+        <div className="budget-signature-line">{row.displayName}</div>
+      ) : null}
+      {row.showPosition && row.position ? (
+        <div className="budget-signature-line">{row.position}</div>
+      ) : null}
+      {row.showEmail && row.email ? (
+        <div className="budget-signature-line">{row.email}</div>
+      ) : null}
+      {row.showSignature ? (
+        <div className="budget-signature-box">
+          <span>{labels.signature}</span>
+        </div>
+      ) : null}
+      {row.showDateTime ? (
+        <div className="budget-signature-date">
+          {labels.dateTime}: {row.signedAt ?? ''}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

@@ -91,7 +91,7 @@ export function TransactionModal({
           <Form.Item
             label={t('toBaseRate')}
             name="rate"
-            rules={[{ type: 'number', min: 0, message: t('rateMin') }]}
+            rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
           >
             <InputNumber className="form-full-width" precision={6} step={0.01} />
           </Form.Item>

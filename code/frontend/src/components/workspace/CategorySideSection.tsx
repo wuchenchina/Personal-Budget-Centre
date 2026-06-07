@@ -18,6 +18,7 @@ export function CategorySideSection({ operations }: CategorySideSectionProps) {
   const [editingName, setEditingName] = useState('');
   const [editingCurrency, setEditingCurrency] = useState<CurrencyCode | null>(null);
   const [aliasDrafts, setAliasDrafts] = useState<Record<number, string>>({});
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
 
   const currencyOptions = operations.currencies.map((currency) => ({
     label: `${currency.code} ${currency.name}`,
@@ -72,6 +73,10 @@ export function CategorySideSection({ operations }: CategorySideSectionProps) {
 
     void operations.saveAlias(categoryId, alias);
     setAliasDrafts((current) => ({ ...current, [categoryId]: '' }));
+  };
+  const removeSelectedCategories = () => {
+    void operations.removeCategories(selectedCategoryIds);
+    setSelectedCategoryIds([]);
   };
 
   const columns: TableProps<BudgetCategory>['columns'] = [
@@ -238,6 +243,32 @@ export function CategorySideSection({ operations }: CategorySideSectionProps) {
           </Button>
         </div>
       </Form>
+      <div className="category-bulk-toolbar">
+        <span className="muted-inline">
+          {t('selectedCount', { count: selectedCategoryIds.length })}
+        </span>
+        <Popconfirm
+          title={t('batchDelete')}
+          description={t('batchDeleteCategoriesDescription', {
+            count: selectedCategoryIds.length,
+          })}
+          okText={t('delete')}
+          cancelText={t('cancel')}
+          okButtonProps={{ danger: true }}
+          disabled={selectedCategoryIds.length === 0}
+          onConfirm={removeSelectedCategories}
+        >
+          <Button
+            danger
+            disabled={selectedCategoryIds.length === 0}
+            icon={<Trash2 size={14} />}
+            loading={operations.isCategorySaving}
+            size="small"
+          >
+            {t('batchDelete')}
+          </Button>
+        </Popconfirm>
+      </div>
       <Table<BudgetCategory>
         className="category-table"
         columns={columns}
@@ -245,6 +276,10 @@ export function CategorySideSection({ operations }: CategorySideSectionProps) {
         loading={operations.isCategoryLoading}
         locale={{ emptyText: t('noCategories') }}
         pagination={false}
+        rowSelection={{
+          selectedRowKeys: selectedCategoryIds,
+          onChange: (keys) => setSelectedCategoryIds(keys.map(Number)),
+        }}
         rowKey="id"
         size="small"
         scroll={{ x: 760 }}

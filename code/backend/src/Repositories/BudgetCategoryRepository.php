@@ -9,37 +9,8 @@ use PDOException;
 
 final readonly class BudgetCategoryRepository
 {
-    private const PRESET_CATEGORY_NAMES = [
-        'Credit Repayment',
-        'Bill of Server',
-        'Top up the Hong Kong Bank',
-        'Top up the CHINESE MAINLAND Bank',
-        'Bill of Key',
-        'Top up the Deposit Account',
-        'UNICEF',
-        'Domain Renew',
-        'Digital Subscription',
-        'Birthday Red Packet',
-        'Other',
-    ];
-
     public function __construct(private PDO $pdo)
     {
-    }
-
-    public function ensurePresetCategories(int $workspaceId, int $userId): void
-    {
-        foreach (self::PRESET_CATEGORY_NAMES as $index => $name) {
-            if ($this->findIdByName($workspaceId, $name) !== null) {
-                continue;
-            }
-
-            try {
-                $this->create($workspaceId, $userId, $name, null, ($index + 1) * 10);
-            } catch (PDOException) {
-                // Another request may have created the same preset category first.
-            }
-        }
     }
 
     public function listForWorkspace(int $workspaceId): array
@@ -145,6 +116,20 @@ final readonly class BudgetCategoryRepository
     {
         $statement = $this->pdo->prepare('DELETE FROM budget_categories WHERE id = :id');
         $statement->execute(['id' => $id]);
+    }
+
+    /**
+     * @param list<int> $ids
+     */
+    public function deleteMany(array $ids): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $this->pdo->prepare("DELETE FROM budget_categories WHERE id IN ({$placeholders})");
+        $statement->execute($ids);
     }
 
     public function createAlias(int $workspaceId, int $userId, int $categoryId, string $alias): int

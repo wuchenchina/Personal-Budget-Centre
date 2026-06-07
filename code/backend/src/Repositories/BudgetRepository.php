@@ -26,6 +26,7 @@ final readonly class BudgetRepository
               b.visibility,
               b.status,
               b.note,
+              b.signature_config,
               b.created_at,
               b.updated_at,
               base.code AS base_currency,
@@ -113,6 +114,7 @@ final readonly class BudgetRepository
         string $visibility,
         string $status,
         ?string $note,
+        ?string $signatureConfig,
     ): int {
         $statement = $this->pdo->prepare(
             <<<'SQL'
@@ -130,7 +132,8 @@ final readonly class BudgetRepository
               display_currency_id,
               visibility,
               status,
-              note
+              note,
+              signature_config
             ) VALUES (
               :workspace_id,
               :user_id,
@@ -145,7 +148,8 @@ final readonly class BudgetRepository
               :display_currency_id,
               :visibility,
               :status,
-              :note
+              :note,
+              :signature_config
             )
             SQL
         );
@@ -164,6 +168,7 @@ final readonly class BudgetRepository
             'visibility' => $visibility,
             'status' => $status,
             'note' => $note,
+            'signature_config' => $signatureConfig,
         ]);
 
         return (int) $this->pdo->lastInsertId();
@@ -183,6 +188,7 @@ final readonly class BudgetRepository
               b.visibility,
               b.status,
               b.note,
+              b.signature_config,
               b.created_at,
               b.updated_at,
               base.code AS base_currency,
@@ -348,6 +354,7 @@ final readonly class BudgetRepository
         string $visibility,
         string $status,
         ?string $note,
+        ?string $signatureConfig,
     ): void {
         $statement = $this->pdo->prepare(
             <<<'SQL'
@@ -361,7 +368,8 @@ final readonly class BudgetRepository
               display_currency_id = :display_currency_id,
               visibility = :visibility,
               status = :status,
-              note = :note
+              note = :note,
+              signature_config = :signature_config
             WHERE id = :budget_id
             SQL
         );
@@ -376,6 +384,7 @@ final readonly class BudgetRepository
             'visibility' => $visibility,
             'status' => $status,
             'note' => $note,
+            'signature_config' => $signatureConfig,
         ]);
     }
 
@@ -403,6 +412,7 @@ final readonly class BudgetRepository
               bi.estimated_rate_to_base,
               bi.estimated_amount_base,
               bi.variance_amount_base,
+              bi.installment_config,
               bi.sort_order
             FROM budget_items bi
             LEFT JOIN budget_categories bc ON bc.id = bi.category_id
@@ -433,6 +443,7 @@ final readonly class BudgetRepository
                     'amountBase' => $this->decimal($row['estimated_amount_base']),
                 ],
                 'varianceBase' => $this->decimal($row['variance_amount_base']),
+                'installmentConfig' => $this->installmentConfig($row['installment_config'] ?? null),
                 'sortOrder' => (int) $row['sort_order'],
             ],
             $statement->fetchAll(),
@@ -496,6 +507,7 @@ final readonly class BudgetRepository
             'visibility' => $row['visibility'],
             'status' => $row['status'],
             'note' => $row['note'],
+            'signatureConfig' => $this->signatureConfig($row['signature_config'] ?? null),
             'template' => [
                 'key' => $row['template_key'],
                 'name' => $row['template_name'],
@@ -515,5 +527,105 @@ final readonly class BudgetRepository
     private function decimal(mixed $value): float
     {
         return $value === null ? 0.0 : (float) $value;
+    }
+
+    private function installmentConfig(mixed $value): array
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return $this->emptyInstallmentConfig();
+        }
+
+        $decoded = json_decode($value, true);
+        if (!is_array($decoded)) {
+            return $this->emptyInstallmentConfig();
+        }
+
+        $months = is_int($decoded['months'] ?? null) ? $decoded['months'] : null;
+        $paidMonths = is_int($decoded['paidMonths'] ?? null) ? $decoded['paidMonths'] : 0;
+
+        return [
+            'enabled' => ($decoded['enabled'] ?? false) === true,
+            'months' => $months,
+            'paidMonths' => max(0, min($months ?? 0, $paidMonths)),
+            'monthlyAmount' => is_numeric($decoded['monthlyAmount'] ?? null)
+                ? (float) $decoded['monthlyAmount']
+                : null,
+            'totalAmount' => is_numeric($decoded['totalAmount'] ?? null)
+                ? (float) $decoded['totalAmount']
+                : null,
+            'startMonth' => is_string($decoded['startMonth'] ?? null) && preg_match('/^\d{4}-\d{2}$/', $decoded['startMonth']) === 1
+                ? $decoded['startMonth']
+                : null,
+            'remark' => is_string($decoded['remark'] ?? null) && trim($decoded['remark']) !== ''
+                ? trim($decoded['remark'])
+                : null,
+        ];
+    }
+
+    private function emptyInstallmentConfig(): array
+    {
+        return [
+            'enabled' => false,
+            'months' => null,
+            'paidMonths' => 0,
+            'monthlyAmount' => null,
+            'totalAmount' => null,
+            'startMonth' => null,
+            'remark' => null,
+        ];
+    }
+
+    private function signatureConfig(mixed $value): array
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return $this->emptySignatureConfig();
+        }
+
+        $decoded = json_decode($value, true);
+        if (!is_array($decoded)) {
+            return $this->emptySignatureConfig();
+        }
+
+        return [
+            'enabled' => ($decoded['enabled'] ?? false) === true,
+            'title' => is_string($decoded['title'] ?? null) && trim($decoded['title']) !== ''
+                ? trim($decoded['title'])
+                : 'Confirmation / Signature',
+            'rows' => is_array($decoded['rows'] ?? null)
+                ? array_values(array_filter(array_map(
+                    fn (mixed $row): ?array => is_array($row) ? $this->signatureRow($row) : null,
+                    $decoded['rows'],
+                )))
+                : [],
+        ];
+    }
+
+    private function signatureRow(array $row): array
+    {
+        return [
+            'id' => is_string($row['id'] ?? null) && trim($row['id']) !== '' ? trim($row['id']) : bin2hex(random_bytes(8)),
+            'participantType' => ($row['participantType'] ?? null) === 'workspace_member' ? 'workspace_member' : 'manual',
+            'memberUserId' => is_int($row['memberUserId'] ?? null) ? $row['memberUserId'] : null,
+            'roleLabel' => is_string($row['roleLabel'] ?? null) ? trim($row['roleLabel']) : '',
+            'displayName' => is_string($row['displayName'] ?? null) ? trim($row['displayName']) : '',
+            'email' => is_string($row['email'] ?? null) && trim($row['email']) !== '' ? trim($row['email']) : null,
+            'position' => is_string($row['position'] ?? null) && trim($row['position']) !== '' ? trim($row['position']) : null,
+            'signedAt' => is_string($row['signedAt'] ?? null) && trim($row['signedAt']) !== '' ? trim($row['signedAt']) : null,
+            'showRole' => ($row['showRole'] ?? true) !== false,
+            'showName' => ($row['showName'] ?? true) !== false,
+            'showEmail' => ($row['showEmail'] ?? false) === true,
+            'showPosition' => ($row['showPosition'] ?? false) === true,
+            'showSignature' => ($row['showSignature'] ?? true) !== false,
+            'showDateTime' => ($row['showDateTime'] ?? true) !== false,
+        ];
+    }
+
+    private function emptySignatureConfig(): array
+    {
+        return [
+            'enabled' => false,
+            'title' => 'Confirmation / Signature',
+            'rows' => [],
+        ];
     }
 }

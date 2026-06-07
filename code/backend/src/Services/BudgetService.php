@@ -12,6 +12,7 @@ use BudgetCentre\Repositories\BudgetRepository;
 use BudgetCentre\Repositories\BudgetTemplateRepository;
 use BudgetCentre\Repositories\CurrencyRepository;
 use BudgetCentre\Support\Input;
+use DateTimeImmutable;
 use PDO;
 use Throwable;
 
@@ -19,6 +20,7 @@ final readonly class BudgetService
 {
     private const VISIBILITIES = ['private', 'workspace', 'custom'];
     private const STATUSES = ['draft', 'active', 'closed', 'archived'];
+    private const SIGNATURE_ROW_LIMIT = 50;
 
     public function __construct(
         private PDO $pdo,
@@ -63,6 +65,7 @@ final readonly class BudgetService
         $visibility = Input::string($input['visibility'] ?? null) ?? 'private';
         $status = Input::string($input['status'] ?? null) ?? 'draft';
         $note = Input::string($input['note'] ?? null);
+        $signatureConfig = $this->signatureConfigJsonFromInput($input);
 
         if ($workspaceId === null) {
             throw new AuthException('VALIDATION_ERROR', 'workspaceId is required.', 422);
@@ -104,6 +107,7 @@ final readonly class BudgetService
                 $visibility,
                 $status,
                 $note,
+                $signatureConfig,
             );
             $this->pdo->commit();
         } catch (Throwable $exception) {
@@ -123,6 +127,7 @@ final readonly class BudgetService
             'visibility' => $visibility,
             'status' => $status,
             'note' => $note,
+            'signatureConfig' => $this->signatureConfigFromJson($signatureConfig),
             'items' => [],
             'transactions' => [],
         ];
@@ -165,6 +170,15 @@ final readonly class BudgetService
         );
 
         $payload = $this->validatedBudgetPayload($input, (string) $session['display_name']);
+        if (!$this->hasSignatureConfigInput($input)) {
+            $existingBudget = $repository->findForUser($budgetId, (int) $session['user_id'], true)
+                ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
+            $payload['signatureConfig'] = json_encode(
+                $existingBudget['signatureConfig'] ?? $this->emptySignatureConfig(),
+                JSON_UNESCAPED_UNICODE,
+            ) ?: null;
+        }
+
         $currencies = new CurrencyRepository($this->pdo);
         $baseCurrencyId = $currencies->findIdByCode($payload['baseCurrency']);
         $displayCurrencyId = $currencies->findIdByCode($payload['displayCurrency']);
@@ -183,6 +197,7 @@ final readonly class BudgetService
             $payload['visibility'],
             $payload['status'],
             $payload['note'],
+            $payload['signatureConfig'],
         );
 
         return $repository->findForUser($budgetId, (int) $session['user_id'], true)
@@ -227,6 +242,7 @@ final readonly class BudgetService
         $visibility = Input::string($input['visibility'] ?? null) ?? 'private';
         $status = Input::string($input['status'] ?? null) ?? 'draft';
         $note = Input::string($input['note'] ?? null);
+        $signatureConfig = $this->signatureConfigJsonFromInput($input);
 
         $this->validateBudgetInput($title, $ownerName, $startDate, $endDate, $visibility, $status, $note);
 
@@ -240,6 +256,7 @@ final readonly class BudgetService
             'visibility' => $visibility,
             'status' => $status,
             'note' => $note,
+            'signatureConfig' => $signatureConfig,
         ];
     }
 
@@ -314,5 +331,153 @@ final readonly class BudgetService
         }
 
         return null;
+    }
+
+    private function signatureConfigJsonFromInput(array $input): ?string
+    {
+        $raw = $input['signatureConfig'] ?? $input['signature_config'] ?? null;
+        if ($raw === null) {
+            return null;
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (!is_array($decoded)) {
+                throw new AuthException('VALIDATION_ERROR', 'Signature settings must be valid JSON.', 422);
+            }
+            $raw = $decoded;
+        }
+
+        if (!is_array($raw)) {
+            throw new AuthException('VALIDATION_ERROR', 'Signature settings must be an object.', 422);
+        }
+
+        $config = $this->signatureConfigFromArray($raw);
+        $json = json_encode($config, JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            throw new AuthException('VALIDATION_ERROR', 'Signature settings could not be encoded.', 422);
+        }
+
+        return $json;
+    }
+
+    private function hasSignatureConfigInput(array $input): bool
+    {
+        return array_key_exists('signatureConfig', $input) || array_key_exists('signature_config', $input);
+    }
+
+    private function signatureConfigFromJson(?string $json): array
+    {
+        if ($json === null || trim($json) === '') {
+            return $this->emptySignatureConfig();
+        }
+
+        $decoded = json_decode($json, true);
+
+        return is_array($decoded) ? $decoded : $this->emptySignatureConfig();
+    }
+
+    private function signatureConfigFromArray(array $input): array
+    {
+        $title = $this->limitedString($input['title'] ?? null, 120) ?? 'Confirmation / Signature';
+        $rows = [];
+        $rawRows = is_array($input['rows'] ?? null) ? array_slice($input['rows'], 0, self::SIGNATURE_ROW_LIMIT) : [];
+        foreach ($rawRows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $normalized = $this->signatureRowFromArray($row);
+            if ($normalized !== null) {
+                $rows[] = $normalized;
+            }
+        }
+
+        return [
+            'enabled' => ($input['enabled'] ?? false) === true,
+            'title' => $title,
+            'rows' => $rows,
+        ];
+    }
+
+    private function signatureRowFromArray(array $row): ?array
+    {
+        $displayName = $this->limitedString($row['displayName'] ?? $row['display_name'] ?? null, 160) ?? '';
+        $roleLabel = $this->limitedString($row['roleLabel'] ?? $row['role_label'] ?? null, 120) ?? '';
+        $email = $this->limitedString($row['email'] ?? null, 190);
+        $position = $this->limitedString($row['position'] ?? null, 160);
+        $signedAt = $this->signatureDateTime($row['signedAt'] ?? $row['signed_at'] ?? null);
+        $memberUserId = Input::positiveInt($row['memberUserId'] ?? $row['member_user_id'] ?? null);
+
+        if ($displayName === '' && $roleLabel === '' && $email === null && $position === null && $signedAt === null && $memberUserId === null) {
+            return null;
+        }
+
+        return [
+            'id' => $this->limitedString($row['id'] ?? null, 80) ?? bin2hex(random_bytes(8)),
+            'participantType' => ($row['participantType'] ?? $row['participant_type'] ?? null) === 'workspace_member'
+                ? 'workspace_member'
+                : 'manual',
+            'memberUserId' => $memberUserId,
+            'roleLabel' => $roleLabel,
+            'displayName' => $displayName,
+            'email' => $email,
+            'position' => $position,
+            'signedAt' => $signedAt,
+            'showRole' => ($row['showRole'] ?? $row['show_role'] ?? true) !== false,
+            'showName' => ($row['showName'] ?? $row['show_name'] ?? true) !== false,
+            'showEmail' => ($row['showEmail'] ?? $row['show_email'] ?? false) === true,
+            'showPosition' => ($row['showPosition'] ?? $row['show_position'] ?? false) === true,
+            'showSignature' => ($row['showSignature'] ?? $row['show_signature'] ?? true) !== false,
+            'showDateTime' => ($row['showDateTime'] ?? $row['show_date_time'] ?? true) !== false,
+        ];
+    }
+
+    private function signatureDateTime(mixed $value): ?string
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $trimmed = trim($value);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $trimmed) === 1) {
+            $date = Input::date($trimmed);
+            if ($date !== null) {
+                return $date;
+            }
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/', $trimmed) === 1) {
+            $normalized = strlen($trimmed) === 16 ? $trimmed . ':00' : $trimmed;
+            $date = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $normalized);
+            if ($date !== false && $date->format('Y-m-d H:i:s') === $normalized) {
+                return $normalized;
+            }
+        }
+
+        throw new AuthException('VALIDATION_ERROR', 'Signature date and time must use YYYY-MM-DD HH:mm:ss.', 422);
+    }
+
+    private function limitedString(mixed $value, int $maxLength): ?string
+    {
+        $string = Input::string($value);
+        if ($string === null) {
+            return null;
+        }
+
+        if (strlen($string) > $maxLength) {
+            throw new AuthException('VALIDATION_ERROR', 'Signature settings contain text that is too long.', 422);
+        }
+
+        return $string;
+    }
+
+    private function emptySignatureConfig(): array
+    {
+        return [
+            'enabled' => false,
+            'title' => 'Confirmation / Signature',
+            'rows' => [],
+        ];
     }
 }

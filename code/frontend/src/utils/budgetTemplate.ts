@@ -1,5 +1,6 @@
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
+import { createElement } from 'react';
 import { supportedCurrencyCodes } from '../config/appConfig';
 import type {
   BudgetDetail,
@@ -8,6 +9,8 @@ import type {
   TemplateColumn,
   Transaction,
 } from '../types/budget';
+import { translateCurrent } from '../i18n';
+import { installmentSummary } from './budgetInstallments';
 
 export function formatBudgetMoney(currency: CurrencyCode, amount: number): string {
   return `${currency} ${amount.toFixed(2)}`;
@@ -23,7 +26,12 @@ export function createBudgetItemColumns(
     align: column.align,
     render: (_: unknown, row: BudgetItem) => {
       if (column.key === 'category') {
-        return row.category ?? row.label;
+        return createElement(
+          'div',
+          { className: 'budget-item-category-cell' },
+          createElement('span', null, row.category ?? row.label),
+          budgetInstallmentSummary(row),
+        );
       }
 
       if (column.key === 'budget') {
@@ -42,6 +50,27 @@ export function createBudgetItemColumns(
     },
     width: `${column.widthPercent}%`,
   }));
+}
+
+function budgetInstallmentSummary(row: BudgetItem) {
+  const summary = installmentSummary(row.installmentConfig);
+  if (!summary.isEnabled || summary.monthlyAmount === null || row.installmentConfig.months === null) {
+    return null;
+  }
+
+  return createElement(
+    'span',
+    { className: 'budget-installment-summary' },
+    `${translateCurrent('installment')}: ${translateCurrent('installmentSummary', {
+        amount: formatBudgetMoney(row.budget.currency, summary.monthlyAmount),
+        paid: row.installmentConfig.paidMonths,
+        months: row.installmentConfig.months,
+      })}${
+        summary.remainingMonths === null
+          ? ''
+          : ` · ${translateCurrent('installmentRemaining', { count: summary.remainingMonths })}`
+      }`,
+  );
 }
 
 export function createTransactionColumns(

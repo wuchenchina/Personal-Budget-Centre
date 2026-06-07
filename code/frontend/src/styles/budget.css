@@ -73,23 +73,48 @@
   overflow-x: auto;
 }
 
-.budget-document-preview h1 {
+.budget-document-heading {
+  display: grid;
+  justify-items: center;
+  margin-bottom: 18px;
+}
+
+.budget-document-heading[aria-busy='true'] {
+  opacity: 0.72;
+}
+
+.budget-document-title.ant-typography,
+.budget-document-subtitle.ant-typography {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: min(100%, 920px);
+  text-align: center;
+}
+
+.budget-document-title.ant-typography {
   margin: 0;
   color: #121614;
   font-family: var(--font-title), var(--font-cjk), serif;
   font-size: 14pt;
   font-weight: 400;
   line-height: 1.3;
-  text-align: center;
 }
 
-.budget-document-preview p {
-  margin: 2px 0 18px;
+.budget-document-subtitle.ant-typography {
+  min-height: 18px;
+  margin: 2px 0 0;
   color: #121614;
   font-family: var(--font-title), var(--font-cjk), serif;
   font-size: 14pt;
   line-height: 1.3;
-  text-align: center;
+}
+
+.budget-document-title .ant-typography-edit,
+.budget-document-subtitle .ant-typography-edit {
+  margin-inline-start: 2px;
+  color: #595959;
 }
 
 .budget-table-frame {
@@ -170,6 +195,84 @@
 
 .budget-summary-number {
   text-align: right;
+}
+
+.budget-item-category-cell {
+  display: grid;
+  gap: 2px;
+}
+
+.budget-installment-summary {
+  color: #595959;
+  font-size: 7pt;
+  line-height: 1.35;
+}
+
+.budget-signature-section {
+  min-width: 760px;
+  margin-top: 22px;
+  font-family: var(--font-mono), var(--font-cjk), monospace;
+}
+
+.budget-signature-title {
+  padding: 5px 7px;
+  color: #111;
+  background: #d7d7d7;
+  border: 0.5pt solid #111;
+  font-size: 8pt;
+}
+
+.budget-signature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-left: 0.5pt solid #111;
+}
+
+.budget-signature-card {
+  min-height: 132px;
+  padding: 8px;
+  border-right: 0.5pt solid #111;
+  border-bottom: 0.5pt solid #111;
+  font-size: 7.5pt;
+}
+
+.budget-signature-role {
+  margin-bottom: 5px;
+  font-size: 8pt;
+  font-weight: 650;
+}
+
+.budget-signature-line {
+  min-height: 17px;
+  color: #111;
+}
+
+.budget-signature-box {
+  display: grid;
+  min-height: 52px;
+  margin-top: 7px;
+  place-items: end start;
+  padding: 5px;
+  color: rgba(17, 17, 17, 0.46);
+  background:
+    linear-gradient(135deg, transparent 0 46%, rgba(17, 17, 17, 0.05) 46% 54%, transparent 54% 100%),
+    repeating-linear-gradient(-28deg, rgba(17, 17, 17, 0.09) 0 1px, transparent 1px 8px),
+    repeating-linear-gradient(28deg, rgba(17, 17, 17, 0.05) 0 1px, transparent 1px 10px),
+    repeating-linear-gradient(90deg, rgba(17, 17, 17, 0.03) 0 1px, transparent 1px 12px),
+    #f7f7f7;
+  border: 0.5pt solid #8c8c8c;
+}
+
+.budget-signature-box span {
+  font-size: 6.8pt;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.budget-signature-date {
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 0.5pt solid #bfbfbf;
 }
 
 .budget-list {

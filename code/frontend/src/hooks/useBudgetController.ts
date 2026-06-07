@@ -12,6 +12,12 @@ import type { AuthSession } from '../types/auth';
 import type { BudgetDetail, BudgetSummary, CurrencyCode } from '../types/budget';
 import type { BudgetFormValues } from '../types/forms';
 import { translateCurrent } from '../i18n';
+import {
+  createSignatureRow,
+  emptySignatureConfig,
+  signatureConfigFromForm,
+  signatureConfigToForm,
+} from '../utils/budgetSignature';
 import { defaultBudgetDateRange, defaultBudgetTitle } from '../utils/budgetTitle';
 
 interface UseBudgetControllerOptions {
@@ -136,6 +142,15 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       displayCurrency: baseCurrency,
       visibility: 'private',
       status: 'draft',
+      signatureConfig: {
+        ...emptySignatureConfig(),
+        rows: [
+          { ...createSignatureRow('manual'), roleLabel: translateCurrent('preparedBy') },
+          { ...createSignatureRow('manual'), roleLabel: translateCurrent('handledBy') },
+          { ...createSignatureRow('manual'), roleLabel: translateCurrent('auditedBy') },
+          { ...createSignatureRow('manual'), roleLabel: translateCurrent('approvedBy') },
+        ],
+      },
     });
     setEditingBudgetId(null);
     setIsBudgetModalOpen(true);
@@ -159,6 +174,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       visibility: budget.visibility,
       status: budget.status,
       note: budget.note ?? undefined,
+      signatureConfig: signatureConfigToForm(budget.signatureConfig),
     });
     setIsBudgetModalOpen(true);
   };
@@ -176,6 +192,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       setBudgetError(null);
 
       const workspaceId = editingBudgetId === null ? values.workspaceId : activeWorkspaceId;
+      const isCreatingBudget = editingBudgetId === null;
+      const signatureConfig = signatureConfigFromForm(values.signatureConfig);
       const payload = {
         workspaceId,
         title: values.title.trim(),
@@ -187,6 +205,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         visibility: values.visibility,
         status: values.status,
         note: values.note?.trim() || null,
+        signatureConfig,
       };
       const savedBudget =
         editingBudgetId === null
@@ -201,6 +220,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
               visibility: payload.visibility,
               status: payload.status,
               note: payload.note,
+              signatureConfig: payload.signatureConfig,
               id: editingBudgetId,
             });
 
@@ -216,7 +236,59 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       setIsBudgetModalOpen(false);
       setEditingBudgetId(null);
       budgetForm.resetFields();
-      options.onCreated?.();
+      if (isCreatingBudget) {
+        options.onCreated?.();
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setBudgetError(error.message);
+      }
+    } finally {
+      setIsBudgetSaving(false);
+    }
+  };
+
+  const handleBudgetHeaderSave = async (values: { title?: string; ownerName?: string }) => {
+    if (selectedBudget === null) {
+      return;
+    }
+
+    const nextTitle = values.title?.trim() ?? selectedBudget.title;
+    const nextOwnerName = values.ownerName?.trim() ?? selectedBudget.ownerName;
+    if (nextTitle === '') {
+      setBudgetError(translateCurrent('budgetTitleRequired'));
+
+      return;
+    }
+
+    if (nextTitle === selectedBudget.title && nextOwnerName === selectedBudget.ownerName) {
+      return;
+    }
+
+    setIsBudgetSaving(true);
+    setBudgetError(null);
+
+    try {
+      const savedBudget = await updateBudget({
+        id: selectedBudget.id,
+        title: nextTitle,
+        ownerName: nextOwnerName,
+        startDate: selectedBudget.startDate,
+        endDate: selectedBudget.endDate,
+        baseCurrency: selectedBudget.baseCurrency,
+        displayCurrency: selectedBudget.displayCurrency,
+        visibility: selectedBudget.visibility,
+        status: selectedBudget.status,
+        note: selectedBudget.note,
+        signatureConfig: selectedBudget.signatureConfig,
+      });
+      requestedBudgetId.current = savedBudget.id;
+      setSelectedBudget(savedBudget);
+      setBudgets((currentBudgets) =>
+        currentBudgets.map((budget) =>
+          budget.id === savedBudget.id ? savedBudget : budget,
+        ),
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
         setBudgetError(error.message);
@@ -300,6 +372,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     deletingBudgetId,
     openBudgetModal,
     openBudgetEditModal,
+    handleBudgetHeaderSave,
     handleBudgetSave,
     handleBudgetSelect,
     handleBudgetDelete,

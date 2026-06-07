@@ -33,7 +33,6 @@ final readonly class BudgetCategoryService
         $this->permissions()->requireWorkspaceRole($workspaceId, (int) $session['user_id']);
 
         $repository = new BudgetCategoryRepository($this->pdo);
-        $repository->ensurePresetCategories($workspaceId, (int) $session['user_id']);
 
         return $repository->listForWorkspace($workspaceId);
     }
@@ -101,19 +100,29 @@ final readonly class BudgetCategoryService
     {
         $session = $this->authenticator->authenticatedSession($request);
         $id = Input::positiveInt($input['id'] ?? null);
-        if ($id === null) {
+        $ids = $this->categoryIds($input['ids'] ?? null);
+        if ($id !== null) {
+            $ids[] = $id;
+        }
+        $ids = array_values(array_unique($ids));
+        if ($ids === []) {
             throw new AuthException('VALIDATION_ERROR', 'Category id is required.', 422);
         }
 
         $repository = new BudgetCategoryRepository($this->pdo);
-        $workspaceId = $repository->workspaceIdForCategory($id)
+        $workspaceId = $repository->workspaceIdForCategory($ids[0])
             ?? throw new AuthException('CATEGORY_NOT_FOUND', 'Category was not found.', 404);
         $this->permissions()->requireWorkspaceRole(
             $workspaceId,
             (int) $session['user_id'],
             PermissionGuard::WRITE_ROLES,
         );
-        $repository->delete($id);
+        foreach ($ids as $categoryId) {
+            if ($repository->workspaceIdForCategory($categoryId) !== $workspaceId) {
+                throw new AuthException('CATEGORY_NOT_FOUND', 'Category was not found.', 404);
+            }
+        }
+        $repository->deleteMany($ids);
 
         return $repository->listForWorkspace($workspaceId);
     }
@@ -177,6 +186,26 @@ final readonly class BudgetCategoryService
         }
 
         return $currencyId;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function categoryIds(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($value as $item) {
+            $id = Input::positiveInt($item);
+            if ($id !== null) {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
     }
 
     private function permissions(): PermissionGuard

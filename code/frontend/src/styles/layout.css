@@ -164,6 +164,37 @@
   width: 100%;
 }
 
+.budget-info-modal .ant-modal {
+  max-width: calc(100vw - 48px);
+}
+
+.budget-info-modal .ant-modal-body {
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+
+.budget-info-form-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(240px, 1fr) minmax(240px, 1fr);
+  gap: 12px 16px;
+  align-items: start;
+}
+
+.budget-info-form-grid .ant-form-item {
+  margin-bottom: 0;
+}
+
+.budget-info-title-field,
+.budget-info-wide-field {
+  grid-column: span 2;
+}
+
+.budget-info-inline-check {
+  align-self: end;
+  padding-bottom: 5px;
+}
+
 .modal-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -172,4 +203,53 @@
 
 .modal-error {
   margin-bottom: 16px;
+}
+
+.signature-config-panel {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.installment-config-panel {
+  margin: 4px 0 16px;
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.signature-row-list {
+  display: grid;
+  gap: 12px;
+}
+
+.signature-config-row {
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.signature-config-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.signature-config-row-head strong {
+  color: #1f1f1f;
+  font-size: 13px;
+}
+
+.signature-option-grid .ant-form-item {
+  margin-bottom: 0;
+}
+
+@media (min-width: 1040px) {
+  .budget-info-modal .signature-config-row .modal-form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
