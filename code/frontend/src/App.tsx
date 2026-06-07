@@ -249,12 +249,9 @@ function App() {
     />
   );
   const budgetEditorContent = (
-    <div className="workspace-grid budget-editor-grid">
-      <div className="view-stack">
-        {budgetMetrics}
-        {budgetPreview}
-      </div>
-      {governancePanel}
+    <div className="budget-editor-shell">
+      {budgetMetrics}
+      {budgetPreview}
     </div>
   );
   const modals = (
@@ -332,8 +329,6 @@ function App() {
         <ShareSideSection
           operations={operations}
           selectedBudget={budget.selectedBudget}
-          activeWorkspaceId={workspace.activeWorkspaceId}
-          workspaceMembers={workspace.workspaceMembers}
           canManageBudgetShares={canManageWorkspaceMembers}
         />
       </Modal>
@@ -347,7 +342,10 @@ function App() {
           budgets={budget.budgets}
           selectedBudget={budget.selectedBudget}
           baseCurrency={baseCurrency}
+          workspace={workspace}
+          currentUserId={currentUserId}
           canWriteBudgets={canWriteBudgets}
+          canManageWorkspaceMembers={canManageWorkspaceMembers}
           loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
           onNavigate={handleNavigate}
           onNewProject={budget.openBudgetModal}
@@ -398,7 +396,10 @@ function App() {
         budgets={budget.budgets}
         selectedBudget={budget.selectedBudget}
         baseCurrency={baseCurrency}
+        workspace={workspace}
+        currentUserId={currentUserId}
         canWriteBudgets={canWriteBudgets}
+        canManageWorkspaceMembers={canManageWorkspaceMembers}
         loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
         onNavigate={handleNavigate}
         onNewProject={budget.openBudgetModal}
@@ -421,16 +422,10 @@ function App() {
           <AppShell
             activeKey={activeKey}
             session={session}
-            workspaces={workspace.workspaces}
             workspaceRole={workspaceRole}
-            workspaceOptions={workspace.workspaceOptions}
-            activeWorkspaceId={workspace.activeWorkspaceId}
             isAdmin={session.user.isAdmin}
-            isWorkspaceLoading={workspace.isWorkspaceLoading}
-            isWorkspaceSwitching={workspace.isWorkspaceSwitching}
             isAuthSubmitting={auth.isAuthSubmitting}
             onNavigate={handleNavigate}
-            onWorkspaceSwitch={workspace.handleWorkspaceSwitch}
             onProfile={handleProfileOpen}
             onLogout={auth.handleLogout}
           >

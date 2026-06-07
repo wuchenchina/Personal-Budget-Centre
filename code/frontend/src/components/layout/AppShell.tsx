@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button, Layout, Menu, Select, Space, Tag } from 'antd';
+import { Button, Layout, Menu, Space, Tag } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   LayoutDashboard,
@@ -11,7 +11,7 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { iconSize, roleColors, roleLabels } from '../../config/appConfig';
-import type { AuthSession, AuthWorkspace } from '../../types/auth';
+import type { AuthSession } from '../../types/auth';
 import type { WorkspaceRole } from '../../types/budget';
 
 const { Header, Sider, Content } = Layout;
@@ -19,17 +19,11 @@ const { Header, Sider, Content } = Layout;
 interface AppShellProps {
   activeKey: string;
   session: AuthSession;
-  workspaces: AuthWorkspace[];
   workspaceRole: WorkspaceRole | undefined;
-  workspaceOptions: { label: string; value: number }[];
-  activeWorkspaceId: number | null;
   isAdmin: boolean;
-  isWorkspaceLoading: boolean;
-  isWorkspaceSwitching: boolean;
   isAuthSubmitting: boolean;
   children: ReactNode;
   onNavigate: (key: string) => void;
-  onWorkspaceSwitch: (workspaceId: number) => void;
   onProfile: () => void;
   onLogout: () => void;
 }
@@ -37,17 +31,11 @@ interface AppShellProps {
 export function AppShell({
   activeKey,
   session,
-  workspaces,
   workspaceRole,
-  workspaceOptions,
-  activeWorkspaceId,
   isAdmin,
-  isWorkspaceLoading,
-  isWorkspaceSwitching,
   isAuthSubmitting,
   children,
   onNavigate,
-  onWorkspaceSwitch,
   onProfile,
   onLogout,
 }: AppShellProps) {
@@ -60,6 +48,7 @@ export function AppShell({
   if (isAdmin) {
     menuItems.push({ key: 'admin', icon: <ShieldCheck size={iconSize} />, label: '后台' });
   }
+  const workspaceName = session.workspace?.name ?? '尚未選擇工作區';
 
   return (
     <Layout className="app-shell">
@@ -85,27 +74,22 @@ export function AppShell({
       <Layout>
         <Header className="app-header">
           <div className="header-main">
-            <Select
-              aria-label="切换工作区"
-              className="workspace-switcher"
-              disabled={workspaces.length === 0}
-              loading={isWorkspaceLoading || isWorkspaceSwitching}
-              optionFilterProp="label"
-              options={workspaceOptions}
-              placeholder="选择工作区"
-              showSearch
-              value={activeWorkspaceId ?? undefined}
-              onChange={onWorkspaceSwitch}
-            />
-            <div className="workspace-meta">
-              {workspaceRole ? (
-                <Tag color={roleColors[workspaceRole]}>{roleLabels[workspaceRole]}</Tag>
-              ) : (
-                <Tag>无工作区</Tag>
-              )}
+            <div className="header-context">
+              <span className="header-context-kicker">當前工作區</span>
+              <div className="header-context-row">
+                <strong>{workspaceName}</strong>
+                {workspaceRole ? (
+                  <Tag color={roleColors[workspaceRole]}>{roleLabels[workspaceRole]}</Tag>
+                ) : (
+                  <Tag>未設定</Tag>
+                )}
+              </div>
             </div>
           </div>
           <Space className="header-actions" wrap>
+            <Button type="text" onClick={() => onNavigate('dashboard')}>
+              工作台
+            </Button>
             <Button
               className="user-name-button"
               icon={<UserRound size={15} />}

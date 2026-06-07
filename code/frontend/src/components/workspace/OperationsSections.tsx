@@ -1,6 +1,5 @@
 import { Alert } from 'antd';
 import type { OperationsController } from '../../hooks/useOperationsController';
-import type { WorkspaceMember } from '../../types/auth';
 import type { BudgetDetail } from '../../types/budget';
 import { CategorySideSection } from './CategorySideSection';
 import { ExchangeRateSideSection } from './ExchangeRateSideSection';
@@ -11,7 +10,6 @@ interface OperationsSectionsProps {
   operations: OperationsController;
   selectedBudget: BudgetDetail | null;
   activeWorkspaceId: number | null;
-  workspaceMembers: WorkspaceMember[];
   canWriteBudgets: boolean;
   canManageBudgetShares: boolean;
 }
@@ -21,7 +19,6 @@ export function OperationsSections({
   operations,
   selectedBudget,
   activeWorkspaceId,
-  workspaceMembers,
   canWriteBudgets,
   canManageBudgetShares,
 }: OperationsSectionsProps) {
@@ -40,8 +37,6 @@ export function OperationsSections({
         <ShareSideSection
           operations={operations}
           selectedBudget={selectedBudget}
-          activeWorkspaceId={activeWorkspaceId}
-          workspaceMembers={workspaceMembers}
           canManageBudgetShares={canManageBudgetShares}
         />
       ) : null}

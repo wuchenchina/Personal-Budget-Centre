@@ -80,15 +80,32 @@
   min-width: 0;
 }
 
-.workspace-switcher {
-  width: min(100%, 240px);
+.header-context {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
 }
 
-.workspace-meta {
+.header-context-kicker {
+  color: #8c8c8c;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.header-context-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-width: max-content;
+  gap: 8px;
+  min-width: 0;
+}
+
+.header-context-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #1f1f1f;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .header-actions {
@@ -123,6 +140,13 @@
   display: grid;
   gap: 18px;
   width: 100%;
+}
+
+.budget-editor-shell {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  min-width: 0;
 }
 
 .standalone-budget-editor {

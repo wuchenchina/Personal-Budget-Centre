@@ -8,44 +8,23 @@ import {
   roleColors,
 } from '../../config/appConfig';
 import type { OperationsController } from '../../hooks/useOperationsController';
-import type { WorkspaceMember } from '../../types/auth';
 import type {
   BudgetDetail,
   BudgetShare,
-  BudgetSharePrincipalType,
   BudgetShareRole,
 } from '../../types/budget';
-
-const principalTypeOptions: Array<{ label: string; value: BudgetSharePrincipalType }> = [
-  { label: principalTypeLabels.user, value: 'user' },
-  { label: principalTypeLabels.workspace, value: 'workspace' },
-];
-
-type UserShareTargetMode = 'member' | 'identifier';
-
-const userShareTargetOptions: Array<{ label: string; value: UserShareTargetMode }> = [
-  { label: '成员', value: 'member' },
-  { label: '其他使用者', value: 'identifier' },
-];
 
 interface ShareSideSectionProps {
   operations: OperationsController;
   selectedBudget: BudgetDetail | null;
-  activeWorkspaceId: number | null;
-  workspaceMembers: WorkspaceMember[];
   canManageBudgetShares: boolean;
 }
 
 export function ShareSideSection({
   operations,
   selectedBudget,
-  activeWorkspaceId,
-  workspaceMembers,
   canManageBudgetShares,
 }: ShareSideSectionProps) {
-  const [principalType, setPrincipalType] = useState<BudgetSharePrincipalType>('user');
-  const [userTargetMode, setUserTargetMode] = useState<UserShareTargetMode>('member');
-  const [principalId, setPrincipalId] = useState<number | undefined>();
   const [principalIdentifier, setPrincipalIdentifier] = useState('');
   const [role, setRole] = useState<BudgetShareRole>('viewer');
   const [canExport, setCanExport] = useState(false);
@@ -55,24 +34,9 @@ export function ShareSideSection({
     return null;
   }
 
-  const memberOptions = workspaceMembers.map((member) => ({
-    label: `${member.displayName} (${member.email})`,
-    value: member.userId,
-  }));
-  const principalOptions = [
-    {
-      label: '所有工作区成员',
-      value: activeWorkspaceId ?? 0,
-    },
-  ];
-  const nextPrincipalId = principalType === 'workspace' ? activeWorkspaceId ?? undefined : principalId;
   const normalizedPrincipalIdentifier = principalIdentifier.trim();
-  const isIdentifierShare = principalType === 'user' && userTargetMode === 'identifier';
-  const canCreate =
-    selectedBudget !== null &&
-    (isIdentifierShare
-      ? normalizedPrincipalIdentifier.length > 0
-      : nextPrincipalId !== undefined && nextPrincipalId > 0);
+  const canCreate = selectedBudget !== null && normalizedPrincipalIdentifier.length > 0;
+  const userShares = operations.shares.filter((share) => share.principalType === 'user');
 
   const handleCreate = () => {
     if (!canCreate) {
@@ -80,14 +44,12 @@ export function ShareSideSection({
     }
 
     void operations.saveShare({
-      principalType,
-      principalId: isIdentifierShare ? undefined : nextPrincipalId,
-      principalIdentifier: isIdentifierShare ? normalizedPrincipalIdentifier : undefined,
+      principalType: 'user',
+      principalIdentifier: normalizedPrincipalIdentifier,
       role,
       canExport,
       canReshare,
     });
-    setPrincipalId(undefined);
     setPrincipalIdentifier('');
     setRole('viewer');
     setCanExport(false);
@@ -104,56 +66,15 @@ export function ShareSideSection({
         <div className="empty-line">选择一个预算后管理共享。</div>
       ) : (
         <>
-          <div
-            className={
-              principalType === 'user'
-                ? 'share-create-grid share-create-grid-user'
-                : 'share-create-grid'
-            }
-          >
-            <Select<BudgetSharePrincipalType>
-              options={principalTypeOptions}
+          <div className="share-create-grid share-create-grid-user-only">
+            <Input
+              allowClear
+              placeholder="用户名或邮箱"
               size="small"
-              value={principalType}
-              onChange={(value) => {
-                setPrincipalType(value);
-                setUserTargetMode('member');
-                setPrincipalId(undefined);
-                setPrincipalIdentifier('');
-              }}
+              value={principalIdentifier}
+              onChange={(event) => setPrincipalIdentifier(event.target.value)}
+              onPressEnter={handleCreate}
             />
-            {principalType === 'user' ? (
-              <Select<UserShareTargetMode>
-                options={userShareTargetOptions}
-                size="small"
-                value={userTargetMode}
-                onChange={(value) => {
-                  setUserTargetMode(value);
-                  setPrincipalId(undefined);
-                  setPrincipalIdentifier('');
-                }}
-              />
-            ) : null}
-            {principalType === 'user' && userTargetMode === 'identifier' ? (
-              <Input
-                allowClear
-                placeholder="用户名或邮箱"
-                size="small"
-                value={principalIdentifier}
-                onChange={(event) => setPrincipalIdentifier(event.target.value)}
-              />
-            ) : (
-              <Select<number>
-                disabled={principalType === 'workspace'}
-                options={principalType === 'user' ? memberOptions : principalOptions}
-                optionFilterProp="label"
-                placeholder={principalType === 'user' ? '选择成员' : '共享对象'}
-                showSearch
-                size="small"
-                value={nextPrincipalId}
-                onChange={setPrincipalId}
-              />
-            )}
             <Select<BudgetShareRole>
               options={budgetShareRoleOptions}
               size="small"
@@ -181,10 +102,10 @@ export function ShareSideSection({
           <div className="operation-list">
             {operations.isShareLoading ? (
               <div className="empty-line">正在加载共享规则...</div>
-            ) : operations.shares.length === 0 ? (
+            ) : userShares.length === 0 ? (
               <div className="empty-line">暂无共享规则。</div>
             ) : (
-              operations.shares.map((share) => (
+              userShares.map((share) => (
                 <ShareRow key={share.id} share={share} operations={operations} />
               ))
             )}
