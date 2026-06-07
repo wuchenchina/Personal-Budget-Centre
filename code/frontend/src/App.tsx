@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ConfigProvider } from 'antd';
+import { Alert, ConfigProvider, Modal } from 'antd';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { AuthLoadingScreen } from './components/auth/AuthLoadingScreen';
 import { EmailVerificationScreen } from './components/auth/EmailVerificationScreen';
@@ -14,6 +14,7 @@ import { TransactionModal } from './components/budget/TransactionModal';
 import { AppShell } from './components/layout/AppShell';
 import { ProfilePage } from './components/profile/ProfilePage';
 import { GovernancePanel } from './components/workspace/GovernancePanel';
+import { ShareSideSection } from './components/workspace/ShareSideSection';
 import { WorkspaceCreateModal } from './components/workspace/WorkspaceCreateModal';
 import { WorkspaceMemberModal } from './components/workspace/WorkspaceMemberModal';
 import { appTheme } from './config/appConfig';
@@ -80,6 +81,7 @@ function initialRouteFromLocation(): AppRoute {
 
 function App() {
   const [route, setRoute] = useState(initialRouteFromLocation);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const activeKey = route.activeKey;
   const initialBudgetProjectId = route.budgetId;
 
@@ -232,6 +234,7 @@ function App() {
       isBudgetDetailLoading={budget.isBudgetDetailLoading}
       isTemplateLoading={template.isTemplateLoading}
       onEditBudget={budget.selectedBudget === null ? undefined : openSelectedBudgetSettings}
+      onOpenShare={canManageWorkspaceMembers ? () => setIsShareModalOpen(true) : undefined}
     />
   );
   const governancePanel = (
@@ -310,6 +313,30 @@ function App() {
         }}
         onOk={workspace.handleWorkspaceMemberAdd}
       />
+      <Modal
+        destroyOnClose
+        footer={null}
+        open={isShareModalOpen}
+        title="共享预算"
+        width={760}
+        onCancel={() => setIsShareModalOpen(false)}
+      >
+        {operations.operationsError ? (
+          <Alert
+            className="modal-error"
+            type="error"
+            showIcon
+            message={operations.operationsError}
+          />
+        ) : null}
+        <ShareSideSection
+          operations={operations}
+          selectedBudget={budget.selectedBudget}
+          activeWorkspaceId={workspace.activeWorkspaceId}
+          workspaceMembers={workspace.workspaceMembers}
+          canManageBudgetShares={canManageWorkspaceMembers}
+        />
+      </Modal>
     </>
   );
 

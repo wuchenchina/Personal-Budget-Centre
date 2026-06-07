@@ -1,7 +1,8 @@
-import { Alert, DatePicker, Form, Input, Modal, Select } from 'antd';
+import { Alert, Button, Checkbox, DatePicker, Form, Input, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import { currencyOptions } from '../../config/appConfig';
 import type { BudgetFormValues } from '../../types/forms';
+import { defaultBudgetTitle } from '../../utils/budgetTitle';
 
 const { RangePicker } = DatePicker;
 
@@ -24,9 +25,16 @@ export function BudgetCreateModal({
   onCancel,
   onOk,
 }: BudgetCreateModalProps) {
+  const dateRange = Form.useWatch('dateRange', form);
+  const ownerNameHidden = Form.useWatch('ownerNameHidden', form) === true;
+  const handleResetTitle = () => {
+    form.setFieldValue('title', defaultBudgetTitle(dateRange ?? null));
+  };
+
   return (
     <Modal
       destroyOnClose
+      forceRender
       confirmLoading={confirmLoading}
       okText={isEditing ? '保存' : '创建'}
       open={open}
@@ -49,15 +57,27 @@ export function BudgetCreateModal({
             { max: 255, message: '预算标题不能超过 255 个字符。' },
           ]}
         >
-          <Input autoComplete="off" />
+          <Input
+            autoComplete="off"
+            addonAfter={
+              <Button size="small" type="link" onClick={handleResetTitle}>
+                重置
+              </Button>
+            }
+          />
         </Form.Item>
-        <Form.Item
-          label="显示名称"
-          name="ownerName"
-          rules={[{ max: 160, message: '显示名称不能超过 160 个字符。' }]}
-        >
-          <Input autoComplete="name" />
+        <Form.Item name="ownerNameHidden" valuePropName="checked">
+          <Checkbox>隐藏显示名称</Checkbox>
         </Form.Item>
+        {ownerNameHidden ? null : (
+          <Form.Item
+            label="显示名称"
+            name="ownerName"
+            rules={[{ max: 160, message: '显示名称不能超过 160 个字符。' }]}
+          >
+            <Input autoComplete="name" addonBefore="(" addonAfter=")" />
+          </Form.Item>
+        )}
         <Form.Item
           label="周期"
           name="dateRange"

@@ -3,7 +3,7 @@
 @import url('https://fonts.api.axchen.top/TCSongti/index.css');
 
 :root {
-  --font-title: 'TimesNewRoman', serif;
-  --font-mono: 'SF-Mono', monospace;
-  --font-cjk: 'TCSongti', serif;
+  --font-title: 'TimesNewRoman';
+  --font-mono: 'SF-Mono';
+  --font-cjk: 'TCSongti';
 }

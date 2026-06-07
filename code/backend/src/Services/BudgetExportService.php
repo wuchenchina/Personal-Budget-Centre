@@ -168,7 +168,7 @@ final readonly class BudgetExportService
         $subtitle = trim((string) $budget['ownerName']);
         $subtitleHtml = $subtitle === ''
             ? ''
-            : '<div class="subtitle">' . $this->escapeHtml($subtitle) . '</div>';
+            : '<div class="subtitle">(' . $this->escapeHtml($subtitle) . ')</div>';
         $periodText = $this->periodText($budget);
         $sections = $this->sectionsByKey($template);
         $budgetSection = $sections['budget_highlights'] ?? [

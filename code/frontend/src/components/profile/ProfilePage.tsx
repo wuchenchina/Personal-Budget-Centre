@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Flex, Form, Input, Space, Tabs, Tag, Typography } from 'antd';
 import { KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react';
-import { updatePassword, updateProfile } from '../../api/auth';
+import { resendEmailVerification, updatePassword, updateProfile } from '../../api/auth';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import type { AuthSession } from '../../types/auth';
 import type { PasswordFormValues, ProfileFormValues } from '../../types/forms';
@@ -24,6 +24,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+  const [isEmailVerificationSending, setIsEmailVerificationSending] = useState(false);
 
   useEffect(() => {
     profileForm.setFieldsValue({
@@ -75,6 +76,21 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     }
   };
 
+  const handleResendEmailVerification = async () => {
+    setIsEmailVerificationSending(true);
+    setProfileError(null);
+    setProfileNotice(null);
+
+    try {
+      await resendEmailVerification(session.user.email);
+      setProfileNotice(`验证邮件已发送至 ${session.user.email}。`);
+    } catch (error: unknown) {
+      setProfileError(error instanceof Error ? error.message : '发送验证邮件失败。');
+    } finally {
+      setIsEmailVerificationSending(false);
+    }
+  };
+
   return (
     <div className="profile-page">
       <Flex align="flex-start" justify="space-between" gap="middle" wrap>
@@ -109,6 +125,24 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                 ) : null}
                 {profileNotice ? (
                   <Alert className="side-alert" type="success" showIcon message={profileNotice} />
+                ) : null}
+                {session.user.emailVerifiedAt === null ? (
+                  <Alert
+                    className="side-alert"
+                    type="warning"
+                    showIcon
+                    message="电子邮件尚未验证"
+                    description="修改电子邮件后，需要通过验证信确认新的地址。"
+                    action={
+                      <Button
+                        size="small"
+                        loading={isEmailVerificationSending}
+                        onClick={handleResendEmailVerification}
+                      >
+                        重新发送验证信
+                      </Button>
+                    }
+                  />
                 ) : null}
                 <Form<ProfileFormValues>
                   form={profileForm}

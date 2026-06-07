@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Alert, Button, Empty, Popconfirm, Segmented, Space, Table, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
-import { CalendarRange, Download, FileText, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarRange, Download, FileText, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
 import type { BudgetEntryController } from '../../hooks/useBudgetEntryController';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import type {
@@ -31,6 +31,7 @@ interface BudgetDocumentPreviewProps {
   isBudgetDetailLoading: boolean;
   isTemplateLoading: boolean;
   onEditBudget?: () => void;
+  onOpenShare?: () => void;
   operations: OperationsController;
 }
 
@@ -46,6 +47,7 @@ export function BudgetDocumentPreview({
   isBudgetDetailLoading,
   isTemplateLoading,
   onEditBudget,
+  onOpenShare,
   operations,
 }: BudgetDocumentPreviewProps) {
   const budgetHighlights = template?.sections.find(
@@ -88,6 +90,13 @@ export function BudgetDocumentPreview({
             onClick={onEditBudget}
           >
             项目信息
+          </Button>
+          <Button
+            disabled={selectedBudget === null || onOpenShare === undefined}
+            icon={<Share2 size={16} />}
+            onClick={onOpenShare}
+          >
+            共享
           </Button>
           <Segmented
             disabled
@@ -158,7 +167,7 @@ export function BudgetDocumentPreview({
       ) : (
         <section className="budget-document-preview">
           <h1>{budgetTitle}</h1>
-          {budgetSubtitle ? <p>{budgetSubtitle}</p> : null}
+          {budgetSubtitle ? <p>({budgetSubtitle})</p> : null}
 
           <div className="budget-table-frame">
             <div className="budget-section-title budget-section-title-row">

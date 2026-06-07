@@ -104,6 +104,7 @@ export function BudgetProjectList({
         <div className="project-list-grid">
           {filteredBudgets.map((budget) => {
             const budgetPeriod = formatBudgetPeriod(budget);
+            const ownerName = budget.ownerName.trim();
 
             return (
               <article
@@ -120,7 +121,7 @@ export function BudgetProjectList({
                       {budgetStatusLabels[budget.status]}
                     </Tag>
                     <h2>{budget.title}</h2>
-                    <p>{budget.ownerName}</p>
+                    {ownerName ? <p>({ownerName})</p> : null}
                   </div>
                   {budgetPeriod ? (
                     <div className="project-period">

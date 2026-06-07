@@ -121,7 +121,13 @@ remote_fix_permissions() {
   remote_exec "find '${REMOTE_PATH}' -type d -exec chmod 755 {} + && \
     find '${REMOTE_PATH}' -type f -exec chmod 644 {} + && \
     chmod -R 775 '${REMOTE_PATH}/backend/storage' && \
-    chmod 640 '${REMOTE_PATH}/backend/.env' && \
+    if id -u www >/dev/null 2>&1; then \
+      chown -R www:www '${REMOTE_PATH}/backend/storage' && \
+      chown www:www '${REMOTE_PATH}/backend/.env' && \
+      chmod 640 '${REMOTE_PATH}/backend/.env'; \
+    else \
+      chmod 644 '${REMOTE_PATH}/backend/.env'; \
+    fi && \
     find '${REMOTE_PATH}/backend/bin' -type f -name '*.php' -exec chmod 755 {} +"
 }
 

@@ -11,6 +11,7 @@ import {
 import type { AuthSession } from '../types/auth';
 import type { BudgetDetail, BudgetSummary, CurrencyCode } from '../types/budget';
 import type { BudgetFormValues } from '../types/forms';
+import { defaultBudgetDateRange, defaultBudgetTitle } from '../utils/budgetTitle';
 
 interface UseBudgetControllerOptions {
   activeWorkspaceId: number | null;
@@ -119,11 +120,13 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
 
   const openBudgetModal = () => {
     setBudgetError(null);
+    const dateRange = defaultBudgetDateRange();
     budgetForm.resetFields();
     budgetForm.setFieldsValue({
-      title: '',
+      title: defaultBudgetTitle(dateRange),
       ownerName: session?.user.displayName ?? '',
-      dateRange: null,
+      ownerNameHidden: false,
+      dateRange,
       baseCurrency,
       displayCurrency: baseCurrency,
       visibility: 'private',
@@ -140,6 +143,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     budgetForm.setFieldsValue({
       title: budget.title,
       ownerName: budget.ownerName,
+      ownerNameHidden: budget.ownerName.trim() === '',
       dateRange:
         budget.startDate && budget.endDate
           ? [dayjs(budget.startDate), dayjs(budget.endDate)]
@@ -168,7 +172,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       const payload = {
         workspaceId: activeWorkspaceId,
         title: values.title.trim(),
-        ownerName: values.ownerName?.trim() ?? '',
+        ownerName: values.ownerNameHidden ? '' : (values.ownerName?.trim() ?? ''),
         startDate: values.dateRange?.[0]?.format('YYYY-MM-DD') ?? null,
         endDate: values.dateRange?.[1]?.format('YYYY-MM-DD') ?? null,
         baseCurrency: values.baseCurrency,

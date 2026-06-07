@@ -27,6 +27,7 @@ export interface WorkspaceMemberFormValues {
 export interface BudgetFormValues {
   title: string;
   ownerName?: string;
+  ownerNameHidden?: boolean;
   dateRange?: [Dayjs, Dayjs] | null;
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;

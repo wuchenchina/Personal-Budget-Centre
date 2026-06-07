@@ -40,15 +40,6 @@ export function GovernancePanel({
     <aside className="governance-panel">
       {showBudgetCollaboration ? (
         <>
-          <OperationsSections
-            activeKey="sharing"
-            operations={operations}
-            selectedBudget={budget.selectedBudget}
-            activeWorkspaceId={workspace.activeWorkspaceId}
-            workspaceMembers={workspace.workspaceMembers}
-            canWriteBudgets={canWriteBudgets}
-            canManageBudgetShares={canManageWorkspaceMembers}
-          />
           <WorkspaceSideSection workspace={workspace} />
           <MemberSideSection
             workspace={workspace}
