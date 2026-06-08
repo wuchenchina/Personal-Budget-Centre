@@ -93,6 +93,40 @@ final readonly class BudgetEntryRepository
 
     public function createTransaction(array $transaction): int
     {
+        if (!$this->hasTransactionReferenceColumns()) {
+            unset($transaction['reference_currency_id'], $transaction['reference_amount_original']);
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                INSERT INTO budget_transactions (
+                  budget_id,
+                  category_id,
+                  transaction_date,
+                  details,
+                  currency_id,
+                  amount_original,
+                  rate_to_base,
+                  amount_base,
+                  remark,
+                  sort_order
+                ) VALUES (
+                  :budget_id,
+                  :category_id,
+                  :transaction_date,
+                  :details,
+                  :currency_id,
+                  :amount_original,
+                  :rate_to_base,
+                  :amount_base,
+                  :remark,
+                  :sort_order
+                )
+                SQL
+            );
+            $statement->execute($transaction);
+
+            return (int) $this->pdo->lastInsertId();
+        }
+
         $statement = $this->pdo->prepare(
             <<<'SQL'
             INSERT INTO budget_transactions (
@@ -132,6 +166,29 @@ final readonly class BudgetEntryRepository
     public function updateTransaction(int $id, array $transaction): void
     {
         unset($transaction['budget_id']);
+        if (!$this->hasTransactionReferenceColumns()) {
+            unset($transaction['reference_currency_id'], $transaction['reference_amount_original']);
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                UPDATE budget_transactions
+                SET
+                  category_id = :category_id,
+                  transaction_date = :transaction_date,
+                  details = :details,
+                  currency_id = :currency_id,
+                  amount_original = :amount_original,
+                  rate_to_base = :rate_to_base,
+                  amount_base = :amount_base,
+                  remark = :remark,
+                  sort_order = :sort_order
+                WHERE id = :id
+                SQL
+            );
+            $statement->execute(['id' => $id, ...$transaction]);
+
+            return;
+        }
+
         $statement = $this->pdo->prepare(
             <<<'SQL'
             UPDATE budget_transactions
@@ -211,5 +268,21 @@ final readonly class BudgetEntryRepository
         $budgetId = $statement->fetchColumn();
 
         return $budgetId === false ? null : (int) $budgetId;
+    }
+
+    private function hasTransactionReferenceColumns(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_transactions'
+              AND column_name IN ('reference_currency_id', 'reference_amount_original')
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 2;
     }
 }

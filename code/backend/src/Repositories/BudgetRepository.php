@@ -510,8 +510,21 @@ final readonly class BudgetRepository
 
     private function transactionsForBudget(int $budgetId): array
     {
+        $hasReferenceColumns = $this->hasTransactionReferenceColumns();
+        $referenceSelect = $hasReferenceColumns
+            ? <<<'SQL'
+              reference_currency.code AS reference_currency,
+              bt.reference_amount_original,
+            SQL
+            : <<<'SQL'
+              NULL AS reference_currency,
+              NULL AS reference_amount_original,
+            SQL;
+        $referenceJoin = $hasReferenceColumns
+            ? 'LEFT JOIN currencies reference_currency ON reference_currency.id = bt.reference_currency_id'
+            : '';
         $statement = $this->pdo->prepare(
-            <<<'SQL'
+            <<<SQL
             SELECT
               bt.id,
               bt.category_id,
@@ -522,14 +535,13 @@ final readonly class BudgetRepository
               bt.amount_original,
               bt.rate_to_base,
               bt.amount_base,
-              reference_currency.code AS reference_currency,
-              bt.reference_amount_original,
+            {$referenceSelect}
               bt.remark,
               bt.sort_order
             FROM budget_transactions bt
             LEFT JOIN budget_categories bc ON bc.id = bt.category_id
             INNER JOIN currencies currency ON currency.id = bt.currency_id
-            LEFT JOIN currencies reference_currency ON reference_currency.id = bt.reference_currency_id
+            {$referenceJoin}
             WHERE bt.budget_id = :budget_id
             ORDER BY bt.sort_order ASC, bt.id ASC
             SQL
@@ -756,5 +768,21 @@ final readonly class BudgetRepository
             'showControlText' => true,
             'rows' => [],
         ];
+    }
+
+    private function hasTransactionReferenceColumns(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_transactions'
+              AND column_name IN ('reference_currency_id', 'reference_amount_original')
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 2;
     }
 }
