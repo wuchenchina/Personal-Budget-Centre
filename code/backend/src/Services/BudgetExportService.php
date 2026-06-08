@@ -20,6 +20,7 @@ use Throwable;
 final readonly class BudgetExportService
 {
     private const FORMATS = ['pdf'];
+    private const DEFAULT_EXPORT_RETENTION = 3;
 
     public function __construct(
         private PDO $pdo,
@@ -54,7 +55,7 @@ final readonly class BudgetExportService
             ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
 
         $repository = new BudgetExportRepository($this->pdo);
-        $fileName = $this->fileName($budget, $format, $this->nextExportVersion($budgetId, $repository));
+        $fileName = $this->fileName($budget, $format);
         $path = $this->storagePath($fileName);
         $this->ensureStorageDirectory(dirname($path));
 
@@ -85,8 +86,11 @@ final readonly class BudgetExportService
             $this->relativePath($path),
         );
 
-        return $repository->find($exportId)
+        $export = $repository->find($exportId)
             ?? throw new AuthException('EXPORT_FAILED', 'Export record could not be created.', 500);
+        $this->pruneOldExports($budgetId, $format, $repository, $exportId);
+
+        return $export;
     }
 
     public function download(Request $request): FileResponse
@@ -100,9 +104,13 @@ final readonly class BudgetExportService
         $export = (new BudgetExportRepository($this->pdo))->find($id)
             ?? throw new AuthException('EXPORT_NOT_FOUND', 'Export was not found.', 404);
         $this->permissions()->requireBudgetExport((int) $export['budgetId'], (int) $session['user_id']);
+        $path = $this->absolutePath((string) $export['filePath']);
+        if (!is_file($path)) {
+            throw new AuthException('EXPORT_FILE_NOT_FOUND', 'Export file has been removed.', 404);
+        }
 
         return new FileResponse(
-            $this->absolutePath((string) $export['filePath']),
+            $path,
             (string) $export['fileName'],
             $this->contentType((string) $export['format']),
         );
@@ -110,7 +118,7 @@ final readonly class BudgetExportService
 
     private function writePdf(array $budget, string $path): void
     {
-        $tempDir = $this->storagePath('tmp');
+        $tempDir = $this->mpdfTempRoot();
         $this->ensureStorageDirectory($tempDir);
 
         (new BudgetPdfRenderer())->write($budget, $this->templateForBudget($budget), $path, $tempDir);
@@ -135,36 +143,59 @@ final readonly class BudgetExportService
         return new PermissionGuard($this->pdo, $this->authenticator);
     }
 
-    private function fileName(array $budget, string $format, int $version): string
+    private function fileName(array $budget, string $format): string
     {
         $slug = preg_replace('/[^a-z0-9]+/i', '-', strtolower((string) $budget['title'])) ?: 'budget';
+        $slug = trim((string) $slug, '-');
 
-        return 'v' . $version . '-' . trim($slug, '-') . '-' . date('Ymd-His') . '.' . $format;
+        return date('Ymd-His') . '-' . ($slug === '' ? 'budget' : $slug) . '.' . $format;
     }
 
-    private function nextExportVersion(int $budgetId, BudgetExportRepository $repository): int
+    private function pruneOldExports(
+        int $budgetId,
+        string $format,
+        BudgetExportRepository $repository,
+        int $currentExportId,
+    ): void
     {
-        $maxVersion = 0;
-        foreach ($repository->listForBudget($budgetId) as $export) {
-            $fileName = (string) ($export['fileName'] ?? '');
-            if (preg_match('/^v(\d+)-/i', $fileName, $matches) === 1) {
-                $maxVersion = max($maxVersion, (int) $matches[1]);
+        foreach ($repository->staleForBudgetFormat($budgetId, $format, $this->exportRetention()) as $export) {
+            $exportId = (int) ($export['id'] ?? 0);
+            if ($exportId === $currentExportId) {
+                continue;
             }
-        }
 
-        return $maxVersion + 1;
+            $path = $this->absolutePath((string) ($export['filePath'] ?? ''));
+            if ($path !== '' && is_file($path)) {
+                @unlink($path);
+            }
+            $repository->delete($exportId);
+        }
+    }
+
+    private function exportRetention(): int
+    {
+        return max(1, Env::int('EXPORT_RETENTION_PER_BUDGET', self::DEFAULT_EXPORT_RETENTION));
     }
 
     private function storagePath(string $fileName): string
     {
-        return $this->storageRoot() . '/' . ltrim($fileName, '/');
+        return $this->exportStorageRoot() . '/' . ltrim($fileName, '/');
     }
 
-    private function storageRoot(): string
+    private function exportStorageRoot(): string
     {
         return rtrim(
             Env::string('EXPORT_STORAGE_DIR', dirname(__DIR__, 2) . '/storage/exports')
                 ?? dirname(__DIR__, 2) . '/storage/exports',
+            '/',
+        );
+    }
+
+    private function mpdfTempRoot(): string
+    {
+        return rtrim(
+            Env::string('MPDF_TEMP_DIR', dirname(__DIR__, 2) . '/storage/tmp/mpdf')
+                ?? dirname(__DIR__, 2) . '/storage/tmp/mpdf',
             '/',
         );
     }

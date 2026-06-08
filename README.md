@@ -141,10 +141,22 @@ Route /api/* to /www/wwwroot/bc.tool.axchen.top/backend/public/index.php
 /www/wwwroot/bc.tool.axchen.top/backend/storage/exports
 ```
 
+每份預算每種格式預設只保留最近 3 份匯出檔案，新的匯出完成後會自動清理更舊的檔案與資料庫記錄。可在 backend `.env` 調整：
+
+```text
+EXPORT_RETENTION_PER_BUDGET=3
+```
+
 若寶塔面板或 PHP-FPM 使用者無法寫入 backend 目錄，可在 backend `.env` 設定可寫目錄：
 
 ```text
 EXPORT_STORAGE_DIR=/www/wwwroot/bc.tool.axchen.top/storage/exports
+```
+
+PDF 產生時的 mPDF 暫存目錄預設為 `backend/storage/tmp/mpdf`，不要放在公開匯出目錄；如需移動可設定：
+
+```text
+MPDF_TEMP_DIR=/www/wwwroot/bc.tool.axchen.top/backend/storage/tmp/mpdf
 ```
 
 目錄需授權給實際執行 PHP-FPM 的使用者。後台「环境检查」會檢查匯出目錄是否存在、是否可寫，以及常用 PHP extension 是否已啟用。寶塔面板常見需確認的 extension 包含：

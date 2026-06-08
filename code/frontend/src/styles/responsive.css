@@ -77,6 +77,10 @@
   .project-list-grid,
   .project-money-row,
   .budget-info-form-grid,
+  .entry-basic-grid,
+  .currency-field-grid,
+  .currency-transaction-grid,
+  .currency-field-inner-grid,
   .modal-form-grid,
   .signature-custom-field-row,
   .workspace-stat-grid,
@@ -90,9 +94,17 @@
     max-width: calc(100vw - 24px);
   }
 
+  .large-form-modal .ant-modal {
+    max-width: calc(100vw - 18px);
+  }
+
   .budget-info-title-field,
   .budget-info-wide-field {
     grid-column: auto;
+  }
+
+  .budget-info-title-control {
+    grid-template-columns: 1fr;
   }
 
   .workspace-command-select {

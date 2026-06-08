@@ -43,7 +43,6 @@ export interface BudgetFormValues {
   workspaceId: number;
   title: string;
   ownerName?: string;
-  ownerNameHidden?: boolean;
   dateRange?: [Dayjs, Dayjs] | null;
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
@@ -58,15 +57,9 @@ export interface BudgetFormValues {
 export interface BudgetItemFormValues {
   categoryId?: number;
   label: string;
-  currency: CurrencyCode;
-  currencyAmount?: number;
-  rate?: number;
   budgetCurrency: CurrencyCode;
   budgetAmount?: number;
   budgetRate?: number;
-  estimatedCurrency: CurrencyCode;
-  estimatedAmount?: number;
-  estimatedRate?: number;
   bankFee?: number;
   installmentConfig?: BudgetInstallmentFormConfig;
   sortOrder?: number;

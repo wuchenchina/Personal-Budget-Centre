@@ -42,7 +42,36 @@ final readonly class BudgetRepository
             INNER JOIN currencies base ON base.id = b.base_currency_id
             INNER JOIN currencies display ON display.id = b.display_currency_id
             LEFT JOIN budget_templates bt ON bt.id = b.template_id
-            LEFT JOIN v_budget_item_totals bit ON bit.budget_id = b.id
+            LEFT JOIN (
+              SELECT
+                bi.budget_id,
+                SUM(
+                  CASE
+                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
+                      THEN COALESCE(txc.transaction_total_base, 0)
+                    ELSE bi.budget_amount_base
+                  END
+                ) AS total_budget_base,
+                SUM(COALESCE(txc.transaction_total_base, 0)) AS total_estimated_base,
+                SUM(
+                  CASE
+                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
+                      THEN COALESCE(txc.transaction_total_base, 0)
+                    ELSE bi.budget_amount_base
+                  END - COALESCE(txc.transaction_total_base, 0)
+                ) AS total_variance_base
+              FROM budget_items bi
+              LEFT JOIN (
+                SELECT
+                  budget_id,
+                  category_id,
+                  SUM(amount_base) AS transaction_total_base
+                FROM budget_transactions
+                GROUP BY budget_id, category_id
+              ) txc ON txc.budget_id = bi.budget_id
+                AND txc.category_id <=> bi.category_id
+              GROUP BY bi.budget_id
+            ) bit ON bit.budget_id = b.id
             LEFT JOIN (
               SELECT
                 budget_id,
@@ -204,7 +233,36 @@ final readonly class BudgetRepository
             INNER JOIN currencies base ON base.id = b.base_currency_id
             INNER JOIN currencies display ON display.id = b.display_currency_id
             LEFT JOIN budget_templates bt ON bt.id = b.template_id
-            LEFT JOIN v_budget_item_totals bit ON bit.budget_id = b.id
+            LEFT JOIN (
+              SELECT
+                bi.budget_id,
+                SUM(
+                  CASE
+                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
+                      THEN COALESCE(txc.transaction_total_base, 0)
+                    ELSE bi.budget_amount_base
+                  END
+                ) AS total_budget_base,
+                SUM(COALESCE(txc.transaction_total_base, 0)) AS total_estimated_base,
+                SUM(
+                  CASE
+                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
+                      THEN COALESCE(txc.transaction_total_base, 0)
+                    ELSE bi.budget_amount_base
+                  END - COALESCE(txc.transaction_total_base, 0)
+                ) AS total_variance_base
+              FROM budget_items bi
+              LEFT JOIN (
+                SELECT
+                  budget_id,
+                  category_id,
+                  SUM(amount_base) AS transaction_total_base
+                FROM budget_transactions
+                GROUP BY budget_id, category_id
+              ) txc ON txc.budget_id = bi.budget_id
+                AND txc.category_id <=> bi.category_id
+              GROUP BY bi.budget_id
+            ) bit ON bit.budget_id = b.id
             LEFT JOIN (
               SELECT
                 budget_id,
@@ -591,6 +649,9 @@ final readonly class BudgetRepository
             'title' => is_string($decoded['title'] ?? null) && trim($decoded['title']) !== ''
                 ? trim($decoded['title'])
                 : 'Confirmation Signature',
+            'infoLanguage' => in_array($decoded['infoLanguage'] ?? null, ['en', 'sc', 'tc'], true)
+                ? $decoded['infoLanguage']
+                : (in_array($decoded['labelLanguage'] ?? null, ['en', 'sc', 'tc'], true) ? $decoded['labelLanguage'] : 'en'),
             'labelLanguage' => in_array($decoded['labelLanguage'] ?? null, ['en', 'sc', 'tc'], true)
                 ? $decoded['labelLanguage']
                 : 'en',
@@ -659,6 +720,7 @@ final readonly class BudgetRepository
         return [
             'enabled' => false,
             'title' => 'Confirmation Signature',
+            'infoLanguage' => 'en',
             'labelLanguage' => 'en',
             'labelMode' => 'confirmation_signature',
             'labelSeparator' => 'space',

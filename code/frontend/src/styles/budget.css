@@ -170,9 +170,17 @@
   padding-top: 1px;
 }
 
+.budget-inline-money-wrap,
+.budget-inline-money-readonly {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  width: 100%;
+}
+
 .budget-inline-money-cell {
   display: inline-grid;
-  grid-template-columns: auto minmax(72px, 1fr);
+  grid-template-columns: auto minmax(72px, 1fr) auto;
   align-items: center;
   justify-content: end;
   gap: 4px;
@@ -189,6 +197,14 @@
   text-align: right !important;
   font-family: var(--font-mono), var(--font-cjk), monospace;
   font-size: 7.5pt;
+}
+
+.budget-inline-money-wrap small,
+.budget-inline-money-readonly small {
+  color: #595959;
+  font-family: var(--font-mono), var(--font-cjk), monospace;
+  font-size: 7pt;
+  line-height: 1.15;
 }
 
 .budget-table-frame {
@@ -227,6 +243,30 @@
 .budget-section-date {
   background: #fff;
   font-size: 7.5pt;
+}
+
+.budget-section-date::after {
+  content: '';
+}
+
+.budget-category-quick-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.budget-category-quick-cell .budget-installment-summary {
+  grid-column: 1 / -1;
+}
+
+.budget-category-quick-select {
+  min-width: 0;
+}
+
+.budget-category-quick-select .ant-select-selector {
+  padding-inline: 0 !important;
 }
 
 .budget-table-frame .ant-table {
@@ -322,10 +362,14 @@
   border: 0.5pt solid #7e7e7e;
 }
 
+.budget-signature-grid-compact {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
 .budget-signature-card {
   display: grid;
-  grid-template-columns: minmax(0, 0.86fr) minmax(250px, 1.14fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(290px, 1.1fr);
+  gap: 14px;
   align-items: start;
   min-height: 100px;
   padding-bottom: 10px;
@@ -333,9 +377,23 @@
   font-size: 7.5pt;
 }
 
+.budget-signature-card-compact {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  padding: 8px;
+  background: #fafafa;
+  border: 0.5pt solid #d9d9d9;
+}
+
 .budget-signature-card:last-child {
   border-bottom: 0;
   padding-bottom: 0;
+}
+
+.budget-signature-grid-compact .budget-signature-card:last-child,
+.budget-signature-card-compact:last-child {
+  padding-bottom: 8px;
+  border-bottom: 0.5pt solid #d9d9d9;
 }
 
 .budget-signature-section-right .budget-signature-card {
@@ -349,7 +407,7 @@
 
 .budget-signature-meta {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
+  grid-template-columns: 104px minmax(0, 1fr);
   column-gap: 8px;
   align-items: start;
   line-height: 1.28;
@@ -369,10 +427,14 @@
   min-width: 0;
 }
 
+.budget-signature-card-compact .budget-signature-sign {
+  display: none;
+}
+
 .budget-signature-box {
   display: grid;
-  grid-template-rows: minmax(68px, 1fr) auto auto;
-  min-height: 112px;
+  grid-template-rows: minmax(82px, 1fr) auto auto;
+  min-height: 126px;
   color: rgba(17, 17, 17, 0.58);
   background: #fff;
   border: 0.5pt solid #7e7e7e;
@@ -382,7 +444,7 @@
 .budget-signature-box-space {
   display: grid;
   place-items: center;
-  min-height: 68px;
+  min-height: 82px;
 }
 
 .budget-signature-rule {
@@ -393,8 +455,15 @@
 }
 
 .budget-signature-box-label {
-  padding: 4px 6px 5px;
-  white-space: pre-line;
+  display: inline-grid;
+  justify-self: start;
+  max-width: calc(100% - 12px);
+  margin: 3px 6px 5px;
+  padding: 2px 5px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 0.5pt solid #d9d9d9;
+  line-height: 1.15;
+  white-space: normal;
   overflow: hidden;
   text-align: left;
   text-overflow: ellipsis;
@@ -402,7 +471,15 @@
   letter-spacing: 0;
 }
 
+.budget-signature-box-label span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .budget-signature-label-right .budget-signature-box-label {
+  justify-self: end;
   text-align: right;
 }
 
@@ -769,7 +846,10 @@
   align-items: center;
   gap: 8px;
   color: #595959;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.25;
+  max-width: 220px;
+  text-align: right;
 }
 
 .project-money-row,
@@ -874,4 +954,11 @@
   margin: 8px 0 4px;
   font-size: 18px;
   line-height: 1.25;
+}
+
+.budget-signature-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }

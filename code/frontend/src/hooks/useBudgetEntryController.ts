@@ -10,7 +10,7 @@ import {
   updateTransaction,
 } from '../api/budgetEntries';
 import type { SaveBudgetItemPayload, SaveTransactionPayload } from '../api/budgetEntries';
-import { convertCurrency } from '../api/exchangeRates';
+import { convertCurrency, refreshBochkRates } from '../api/exchangeRates';
 import type { BudgetDetail, BudgetItem, CurrencyCode, Transaction } from '../types/budget';
 import type { BudgetItemFormValues, TransactionFormValues } from '../types/forms';
 import { translateCurrent } from '../i18n';
@@ -19,6 +19,9 @@ import {
   installmentConfigFromForm,
   installmentConfigToForm,
 } from '../utils/budgetInstallments';
+import { effectiveBudgetItemAmounts } from '../utils/budgetTemplate';
+
+export type BudgetItemModalFocus = 'category' | 'budget' | 'estimated_actuals' | 'variance' | null;
 
 interface UseBudgetEntryControllerOptions {
   baseCurrency: CurrencyCode;
@@ -36,6 +39,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
   const [isTransactionSaving, setIsTransactionSaving] = useState(false);
   const [editingBudgetItem, setEditingBudgetItem] = useState<BudgetItem | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [budgetItemModalFocus, setBudgetItemModalFocus] = useState<BudgetItemModalFocus>(null);
   const [deletingBudgetItemId, setDeletingBudgetItemId] = useState<number | null>(null);
   const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
 
@@ -53,52 +57,42 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     setEditingBudgetItem(null);
     budgetItemForm.resetFields();
     budgetItemForm.setFieldsValue({
-      currency: budgetBaseCurrency,
       budgetCurrency: budgetBaseCurrency,
-      estimatedCurrency: budgetBaseCurrency,
+      budgetAmount: undefined,
+      budgetRate: undefined,
       installmentConfig: emptyInstallmentConfig(),
       sortOrder: options.selectedBudget.items.length + 1,
     });
+    setBudgetItemModalFocus(null);
     setIsBudgetItemModalOpen(true);
   };
 
-  const openBudgetItemEditModal = (item: BudgetItem) => {
+  const openBudgetItemEditModal = (item: BudgetItem, focus: BudgetItemModalFocus = null) => {
     setEntryError(null);
     setEditingBudgetItem(item);
     budgetItemForm.resetFields();
     budgetItemForm.setFieldsValue({
       categoryId: item.categoryId ?? undefined,
       label: item.label,
-      currency: item.budget.currency,
-      currencyAmount: specifiedAmountFromBase(item.budget.amountBase, item.budget.rateToBase),
       budgetCurrency: item.budget.currency,
+      budgetAmount: item.budget.amountOriginal,
       budgetRate: item.budget.rateToBase,
-      rate: item.budget.rateToBase,
-      estimatedCurrency: item.estimatedActuals.currency,
-      estimatedRate: item.estimatedActuals.rateToBase,
       installmentConfig: installmentConfigToForm(item.installmentConfig),
       sortOrder: item.sortOrder,
     });
+    setBudgetItemModalFocus(focus);
     setIsBudgetItemModalOpen(true);
   };
 
   const closeBudgetItemModal = () => {
     setIsBudgetItemModalOpen(false);
     setEditingBudgetItem(null);
+    setBudgetItemModalFocus(null);
     budgetItemForm.resetFields();
   };
 
-  const previewBudgetItemCurrencyAmount = async (values: BudgetItemFormValues): Promise<number | null> => {
-    const amount = normalizedAmount(values.currencyAmount);
-    if (amount === null) {
-      return null;
-    }
-
-    return baseAmountFromSpecifiedCurrency(values, amount);
-  };
-
   const handleBudgetItemSave = async () => {
-    if (options.selectedBudget === null && editingBudgetItem === null) {
+    if (options.selectedBudget === null) {
       setEntryError(translateCurrent('selectBudgetFirst'));
 
       return;
@@ -114,16 +108,13 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       const payload: SaveBudgetItemPayload = {
         categoryId: values.categoryId,
         label: values.label.trim(),
-        currency: values.currency,
-        currencyAmount: values.currencyAmount,
-        rate: values.rate,
         bankFee: values.bankFee,
-        budgetCurrency: values.currency,
-        budgetAmount: amounts.budgetAmount,
-        budgetRate: values.rate,
-        estimatedCurrency: values.currency,
-        estimatedAmount: amounts.estimatedAmount,
-        estimatedRate: values.rate,
+        budgetCurrency: values.budgetCurrency,
+        budgetAmount: amounts.budgetAmount ?? undefined,
+        budgetRate: amounts.budgetRate ?? values.budgetRate,
+        estimatedCurrency: options.selectedBudget.baseCurrency,
+        estimatedAmount: 0,
+        estimatedRate: 1,
         installmentConfig,
         sortOrder: values.sortOrder ?? 0,
       };
@@ -150,50 +141,91 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
   };
 
   const completeBudgetItemAmounts = async (values: BudgetItemFormValues) => {
-    const specifiedCurrencyAmount = normalizedAmount(values.currencyAmount);
-    const currentBudgetBase = editingBudgetItem?.budget.amountBase ?? null;
-    const currentEstimatedBase = editingBudgetItem?.estimatedActuals.amountBase ?? null;
-
     if (options.selectedBudget === null) {
       throw new Error(translateCurrent('selectBudgetFirst'));
     }
 
-    if (specifiedCurrencyAmount !== null) {
+    const budgetAmount = normalizedAmount(values.budgetAmount);
+    const budgetRate = normalizedAmount(values.budgetRate);
+
+    if (budgetAmount === null) {
       return {
-        budgetAmount: await baseAmountFromSpecifiedCurrency(values, specifiedCurrencyAmount),
-        estimatedAmount: currentEstimatedBase ?? undefined,
+        budgetAmount: undefined,
+        budgetRate: budgetRate ?? undefined,
       };
     }
 
+    const resolvedBudgetRate = budgetRate
+      ?? await resolveRate(values.budgetCurrency, options.selectedBudget.baseCurrency);
+
     return {
-      budgetAmount: currentBudgetBase ?? undefined,
-      estimatedAmount: currentEstimatedBase ?? undefined,
+      budgetAmount,
+      budgetRate: resolvedBudgetRate,
     };
   };
 
-  const baseAmountFromSpecifiedCurrency = async (
-    values: BudgetItemFormValues,
-    specifiedCurrencyAmount: number,
-  ) => {
+  const handleBudgetItemRateRefresh = async () => {
     if (options.selectedBudget === null) {
-      throw new Error(translateCurrent('selectBudgetFirst'));
+      setEntryError(translateCurrent('selectBudgetFirst'));
+
+      return;
     }
 
-    const manualRate = normalizedAmount(values.rate);
-    const multiplier = 1 + (normalizedBankFee(values.bankFee) ?? 0) / 100;
-    if (manualRate !== null) {
-      return roundMoney(specifiedCurrencyAmount * manualRate * multiplier);
+    setIsBudgetItemSaving(true);
+    setEntryError(null);
+
+    try {
+      await refreshBochkRates(options.selectedBudget.workspaceId);
+      const values = budgetItemForm.getFieldsValue();
+      const budgetRate = await resolveRate(values.budgetCurrency, options.selectedBudget.baseCurrency);
+
+      budgetItemForm.setFieldsValue({
+        budgetRate,
+      });
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
+    } finally {
+      setIsBudgetItemSaving(false);
+    }
+  };
+
+  const handleTransactionRateRefresh = async () => {
+    if (options.selectedBudget === null) {
+      setEntryError(translateCurrent('selectBudgetFirst'));
+
+      return;
     }
 
-    const conversion = await convertedAmount({
+    setIsTransactionSaving(true);
+    setEntryError(null);
+
+    try {
+      await refreshBochkRates(options.selectedBudget.workspaceId);
+      const values = transactionForm.getFieldsValue();
+      transactionForm.setFieldValue(
+        'rate',
+        await resolveRate(values.currency, options.selectedBudget.baseCurrency),
+      );
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
+    } finally {
+      setIsTransactionSaving(false);
+    }
+  };
+
+  const resolveRate = async (fromCurrency: CurrencyCode, toCurrency: CurrencyCode): Promise<number> => {
+    if (options.selectedBudget === null || fromCurrency === toCurrency) {
+      return 1;
+    }
+
+    const conversion = await convertCurrency({
       workspaceId: options.selectedBudget.workspaceId,
-      fromCurrency: values.currency,
-      toCurrency: options.selectedBudget.baseCurrency,
-      amount: specifiedCurrencyAmount,
-      multiplier,
+      fromCurrency,
+      toCurrency,
+      amount: 1,
     });
 
-    return roundMoney(conversion);
+    return conversion.rate;
   };
 
   const handleBudgetItemDelete = async (id: number) => {
@@ -218,16 +250,21 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       return;
     }
 
-    const nextBudgetAmount =
-      field === 'budget' ? value : item.budget.amountBase;
-    const nextEstimatedAmount =
-      field === 'estimated_actuals'
-        ? value
-        : field === 'variance'
-          ? nextBudgetAmount - value
-          : item.estimatedActuals.amountBase;
+    const effective = effectiveBudgetItemAmounts(item, options.selectedBudget.transactions);
+    const finalBudgetOriginal = field === 'budget'
+      ? value
+      : field === 'variance'
+      ? originalAmountFromBase(effective.estimatedAmountBase + value, item.budget.rateToBase)
+      : item.budget.amountOriginal;
+    const finalBudgetBase = roundMoney(finalBudgetOriginal * item.budget.rateToBase);
 
-    if (nextBudgetAmount < 0 || nextEstimatedAmount < 0) {
+    if (field === 'estimated_actuals') {
+      setEntryError(translateCurrent('estimatedActualsFromTransactionsOnly'));
+
+      return;
+    }
+
+    if (finalBudgetOriginal < 0 || finalBudgetBase < 0) {
       setEntryError(translateCurrent('amountMin'));
 
       return;
@@ -241,13 +278,12 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         id: item.id,
         categoryId: item.categoryId ?? undefined,
         label: item.label,
-        currency: item.budget.currency,
         budgetCurrency: item.budget.currency,
-        budgetAmount: roundMoney(nextBudgetAmount),
+        budgetAmount: finalBudgetOriginal,
         budgetRate: item.budget.rateToBase,
-        estimatedCurrency: item.budget.currency,
-        estimatedAmount: roundMoney(nextEstimatedAmount),
-        estimatedRate: item.budget.rateToBase,
+        estimatedCurrency: options.selectedBudget.baseCurrency,
+        estimatedAmount: 0,
+        estimatedRate: 1,
         installmentConfig: item.installmentConfig,
         sortOrder: item.sortOrder,
       }));
@@ -356,6 +392,99 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
   };
 
+  const handleBudgetItemCategoryQuickSave = async (
+    item: BudgetItem,
+    categoryId: number | null,
+    label: string,
+  ) => {
+    if (options.selectedBudget === null || label.trim() === '') {
+      return;
+    }
+
+    setIsBudgetItemSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateBudgetItem({
+        id: item.id,
+        categoryId: categoryId ?? undefined,
+        label: label.trim(),
+        budgetCurrency: item.budget.currency,
+        budgetAmount: item.budget.amountOriginal,
+        budgetRate: item.budget.rateToBase,
+        estimatedCurrency: options.selectedBudget.baseCurrency,
+        estimatedAmount: 0,
+        estimatedRate: 1,
+        installmentConfig: item.installmentConfig,
+        sortOrder: item.sortOrder,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsBudgetItemSaving(false);
+    }
+  };
+
+  const handleTransactionQuickAmountSave = async (
+    transaction: Transaction,
+    value: number,
+  ) => {
+    if (options.selectedBudget === null || !Number.isFinite(value) || value < 0) {
+      return;
+    }
+
+    setIsTransactionSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateTransaction({
+        id: transaction.id,
+        categoryId: transaction.categoryId ?? undefined,
+        transactionDate: transaction.transactionDate,
+        details: transaction.details,
+        currency: transaction.currency,
+        amount: value,
+        rate: transaction.rateToBase,
+        remark: transaction.remark,
+        sortOrder: transaction.sortOrder,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsTransactionSaving(false);
+    }
+  };
+
+  const handleTransactionCategoryQuickSave = async (
+    transaction: Transaction,
+    categoryId: number,
+  ) => {
+    if (options.selectedBudget === null || !Number.isInteger(categoryId)) {
+      return;
+    }
+
+    setIsTransactionSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateTransaction({
+        id: transaction.id,
+        categoryId,
+        transactionDate: transaction.transactionDate,
+        details: transaction.details,
+        currency: transaction.currency,
+        amount: transaction.amountOriginal,
+        rate: transaction.rateToBase,
+        remark: transaction.remark,
+        sortOrder: transaction.sortOrder,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsTransactionSaving(false);
+    }
+  };
+
   const handleTransactionDelete = async (id: number) => {
     setDeletingTransactionId(id);
     setEntryError(null);
@@ -383,15 +512,20 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     deletingTransactionId,
     openBudgetItemCreateModal,
     openBudgetItemEditModal,
+    budgetItemModalFocus,
     closeBudgetItemModal,
     handleBudgetItemSave,
-    previewBudgetItemCurrencyAmount,
     handleBudgetItemDelete,
     handleBudgetItemQuickAmountSave,
+    handleBudgetItemCategoryQuickSave,
+    handleBudgetItemRateRefresh,
     openTransactionCreateModal,
     openTransactionEditModal,
     closeTransactionModal,
     handleTransactionSave,
+    handleTransactionRateRefresh,
+    handleTransactionQuickAmountSave,
+    handleTransactionCategoryQuickSave,
     handleTransactionDelete,
   };
 }
@@ -400,42 +534,13 @@ function normalizedAmount(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function normalizedBankFee(value: number | null | undefined): number | null {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
-    return null;
-  }
-
-  return value;
-}
-
-async function convertedAmount(input: {
-  workspaceId: number;
-  fromCurrency: CurrencyCode;
-  toCurrency: CurrencyCode;
-  amount: number;
-  multiplier: number;
-}): Promise<number> {
-  if (input.fromCurrency === input.toCurrency) {
-    return roundMoney(input.amount);
-  }
-
-  const conversion = await convertCurrency({
-    workspaceId: input.workspaceId,
-    fromCurrency: input.fromCurrency,
-    toCurrency: input.toCurrency,
-    amount: input.amount,
-  });
-
-  return roundMoney(conversion.convertedAmount * input.multiplier);
-}
-
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-function specifiedAmountFromBase(amountBase: number, rateToBase: number): number | undefined {
-  if (!Number.isFinite(amountBase) || !Number.isFinite(rateToBase) || rateToBase <= 0) {
-    return undefined;
+function originalAmountFromBase(amountBase: number, rateToBase: number): number {
+  if (!Number.isFinite(rateToBase) || rateToBase <= 0) {
+    return roundMoney(amountBase);
   }
 
   return roundMoney(amountBase / rateToBase);

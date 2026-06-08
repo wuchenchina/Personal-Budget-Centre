@@ -21,54 +21,85 @@ export interface EffectiveBudgetItemAmounts {
   budgetAmountBase: number;
   estimatedAmountOriginal: number;
   estimatedAmountBase: number;
+  estimatedTransactionTotals: TransactionCurrencyTotal[];
+  hasTransactionActuals: boolean;
   varianceBase: number;
+}
+
+export interface TransactionCurrencyTotal {
+  currency: CurrencyCode;
+  amountOriginal: number;
+  amountBase: number;
 }
 
 export function effectiveBudgetItemAmounts(
   item: BudgetItem,
   transactions: Transaction[],
 ): EffectiveBudgetItemAmounts {
-  if (item.budget.amountOriginal !== 0 || item.budget.amountBase !== 0) {
-    return {
-      budgetAmountOriginal: item.budget.amountBase,
-      budgetAmountBase: item.budget.amountBase,
-      estimatedAmountOriginal: item.estimatedActuals.amountBase,
-      estimatedAmountBase: item.estimatedActuals.amountBase,
-      varianceBase: item.varianceBase,
-    };
-  }
+  const transactionTotals = transactionCurrencyTotalsForItem(item, transactions);
+  const transactionBaseTotal = roundMoney(
+    transactionTotals.reduce((total, transaction) => total + transaction.amountBase, 0),
+  );
+  const hasTransactionActuals = transactionTotals.length > 0;
+  const shouldUseTransactionsAsBudget =
+    item.budget.amountOriginal === 0 && item.budget.amountBase === 0 && hasTransactionActuals;
+  const budgetAmountBase = shouldUseTransactionsAsBudget
+    ? transactionBaseTotal
+    : item.budget.amountBase;
+  const budgetAmountOriginal = shouldUseTransactionsAsBudget
+    ? originalAmountFromBase(budgetAmountBase, item.budget.rateToBase)
+    : item.budget.amountOriginal;
+  const estimatedAmountBase = hasTransactionActuals ? transactionBaseTotal : 0;
+  const estimatedAmountOriginal =
+    transactionTotals.length === 1 ? transactionTotals[0].amountOriginal : estimatedAmountBase;
 
+  return {
+    budgetAmountOriginal,
+    budgetAmountBase,
+    estimatedAmountOriginal,
+    estimatedAmountBase,
+    estimatedTransactionTotals: transactionTotals,
+    hasTransactionActuals,
+    varianceBase: roundMoney(budgetAmountBase - estimatedAmountBase),
+  };
+}
+
+export function transactionCurrencyTotalsForItem(
+  item: BudgetItem,
+  transactions: Transaction[],
+): TransactionCurrencyTotal[] {
   const sameCategoryTransactions = transactions.filter((transaction) =>
     item.categoryId === null
       ? transaction.categoryId === null && transaction.category === item.label
       : transaction.categoryId === item.categoryId,
   );
-  if (sameCategoryTransactions.length === 0) {
-    return {
-      budgetAmountOriginal: item.budget.amountBase,
-      budgetAmountBase: item.budget.amountBase,
-      estimatedAmountOriginal: item.estimatedActuals.amountBase,
-      estimatedAmountBase: item.estimatedActuals.amountBase,
-      varianceBase: item.varianceBase,
+  const totals = new Map<CurrencyCode, TransactionCurrencyTotal>();
+
+  sameCategoryTransactions.forEach((transaction) => {
+    const current = totals.get(transaction.currency) ?? {
+      currency: transaction.currency,
+      amountOriginal: 0,
+      amountBase: 0,
     };
-  }
 
-  const baseTotal = sameCategoryTransactions.reduce(
-    (total, transaction) => total + transaction.amountBase,
-    0,
-  );
+    totals.set(transaction.currency, {
+      currency: transaction.currency,
+      amountOriginal: current.amountOriginal + transaction.amountOriginal,
+      amountBase: current.amountBase + transaction.amountBase,
+    });
+  });
 
-  return {
-    budgetAmountOriginal: roundMoney(baseTotal),
-    budgetAmountBase: roundMoney(baseTotal),
-    estimatedAmountOriginal: roundMoney(baseTotal),
-    estimatedAmountBase: roundMoney(baseTotal),
-    varianceBase: 0,
-  };
+  return Array.from(totals.values())
+    .map((total) => ({
+      ...total,
+      amountOriginal: roundMoney(total.amountOriginal),
+      amountBase: roundMoney(total.amountBase),
+    }))
+    .sort((left, right) => left.currency.localeCompare(right.currency));
 }
 
 export function effectiveBudgetTotals(budget: BudgetDetail) {
-  return budget.items.reduce(
+  const totals = budget.items.reduce(
     (totals, item) => {
       const effective = effectiveBudgetItemAmounts(item, budget.transactions);
 
@@ -80,6 +111,12 @@ export function effectiveBudgetTotals(budget: BudgetDetail) {
     },
     { totalBudgetBase: 0, totalEstimatedBase: 0, totalVarianceBase: 0 },
   );
+
+  return {
+    totalBudgetBase: roundMoney(totals.totalBudgetBase),
+    totalEstimatedBase: roundMoney(totals.totalEstimatedBase),
+    totalVarianceBase: roundMoney(totals.totalVarianceBase),
+  };
 }
 
 export function createBudgetItemColumns(
@@ -106,18 +143,17 @@ export function createBudgetItemColumns(
       if (column.key === 'budget') {
         return createMoneyWithSecondary(
           baseCurrency,
-          effective.budgetAmountOriginal,
+          effective.budgetAmountBase,
           row.budget.currency,
           row.budget.rateToBase,
         );
       }
 
       if (column.key === 'estimated_actuals') {
-        return createMoneyWithSecondary(
+        return createMoneyWithBreakdown(
           baseCurrency,
-          effective.estimatedAmountOriginal,
-          row.budget.currency,
-          row.budget.rateToBase,
+          effective.estimatedAmountBase,
+          effective.estimatedTransactionTotals,
         );
       }
 
@@ -153,6 +189,34 @@ function createMoneyWithSecondary(
   );
 }
 
+function createMoneyWithBreakdown(
+  primaryCurrency: CurrencyCode,
+  primaryAmount: number,
+  transactionTotals: TransactionCurrencyTotal[],
+) {
+  const primary = formatBudgetMoney(primaryCurrency, primaryAmount);
+  const secondaryTotals =
+    transactionTotals.length === 1 && transactionTotals[0].currency === primaryCurrency
+      ? []
+      : transactionTotals;
+  if (secondaryTotals.length === 0) {
+    return primary;
+  }
+
+  return createElement(
+    'div',
+    { className: 'budget-money-stack' },
+    createElement('span', null, primary),
+    ...secondaryTotals.map((total) =>
+      createElement(
+        'span',
+        { className: 'budget-money-secondary', key: total.currency },
+        formatBudgetMoney(total.currency, total.amountOriginal),
+      ),
+    ),
+  );
+}
+
 function budgetInstallmentSummary(row: BudgetItem) {
   const summary = installmentSummary(row.installmentConfig);
   if (!summary.isEnabled || summary.monthlyAmount === null || row.installmentConfig.months === null) {
@@ -176,6 +240,14 @@ function budgetInstallmentSummary(row: BudgetItem) {
 
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function originalAmountFromBase(amountBase: number, rateToBase: number): number {
+  if (!Number.isFinite(rateToBase) || rateToBase <= 0) {
+    return roundMoney(amountBase);
+  }
+
+  return roundMoney(amountBase / rateToBase);
 }
 
 export function createTransactionColumns(

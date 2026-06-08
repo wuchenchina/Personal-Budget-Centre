@@ -8,6 +8,7 @@ import {
   InputNumber,
   Popconfirm,
   Segmented,
+  Select,
   Space,
   Table,
   Tag,
@@ -23,6 +24,7 @@ import {
   Pencil,
   Plus,
   Share2,
+  Signature,
   Trash2,
   X,
 } from 'lucide-react';
@@ -48,9 +50,16 @@ import {
   effectiveBudgetItemAmounts,
   effectiveBudgetTotals,
   formatBudgetMoney,
+  type TransactionCurrencyTotal,
 } from '../../utils/budgetTemplate';
-import { formatBudgetPeriod } from '../../utils/budgetPeriod';
-import { signatureLabelForConfig, signatureRoleForDisplay } from '../../utils/budgetSignature';
+import { formatBudgetPeriodEnglish } from '../../utils/budgetPeriod';
+import { installmentSummary } from '../../utils/budgetInstallments';
+import {
+  signatureInfoLanguage,
+  signatureLabelForConfig,
+  signatureMetaLabelsForLanguage,
+  signatureRoleForDisplay,
+} from '../../utils/budgetSignature';
 
 interface BudgetDocumentPreviewProps {
   selectedBudget: BudgetDetail | null;
@@ -65,9 +74,12 @@ interface BudgetDocumentPreviewProps {
   isBudgetSaving: boolean;
   isTemplateLoading: boolean;
   onEditBudget?: () => void;
+  onEditSignature?: () => void;
   onInlineHeaderSave?: (values: { title?: string; ownerName?: string }) => Promise<void>;
   onOpenShare?: () => void;
   operations: OperationsController;
+  categoryOptions: Array<{ label: string; value: number }>;
+  transactionCategoryOptions: Array<{ label: string; value: number }>;
 }
 
 export function BudgetDocumentPreview({
@@ -83,9 +95,12 @@ export function BudgetDocumentPreview({
   isBudgetSaving,
   isTemplateLoading,
   onEditBudget,
+  onEditSignature,
   onInlineHeaderSave,
   onOpenShare,
   operations,
+  categoryOptions,
+  transactionCategoryOptions,
 }: BudgetDocumentPreviewProps) {
   const { language, t } = useI18n();
   const budgetHighlights = template?.sections.find(
@@ -104,11 +119,12 @@ export function BudgetDocumentPreview({
 
       return appendBudgetItemActions(
         appendQuickAmountEditors(
-          columns,
+          appendBudgetItemCategoryEditors(columns, canWriteBudgets, entry, categoryOptions),
           selectedBudget?.transactions ?? [],
           canWriteBudgets,
           entry,
           selectedBudget?.baseCurrency ?? baseCurrency,
+          t('edit'),
         ),
         canWriteBudgets,
         entry,
@@ -124,6 +140,7 @@ export function BudgetDocumentPreview({
       baseCurrency,
       budgetHighlights,
       canWriteBudgets,
+      categoryOptions,
       entry,
       selectedBudget?.baseCurrency,
       selectedBudget?.transactions,
@@ -133,7 +150,13 @@ export function BudgetDocumentPreview({
   const transactionColumns = useMemo(
     () =>
       appendTransactionActions(
-        createTransactionColumns(transactionBreakdown?.columns ?? []),
+        appendTransactionQuickEditors(
+          createTransactionColumns(transactionBreakdown?.columns ?? []),
+          canWriteBudgets,
+          entry,
+          transactionCategoryOptions,
+          selectedBudget?.baseCurrency ?? baseCurrency,
+        ),
         canWriteBudgets,
         entry,
         {
@@ -143,11 +166,19 @@ export function BudgetDocumentPreview({
           edit: t('edit'),
         },
       ),
-    [canWriteBudgets, entry, t, transactionBreakdown],
+    [
+      baseCurrency,
+      canWriteBudgets,
+      entry,
+      selectedBudget?.baseCurrency,
+      t,
+      transactionBreakdown,
+      transactionCategoryOptions,
+    ],
   );
   const budgetTitle = selectedBudget?.title ?? t('noBudgetSelected');
   const budgetSubtitle = selectedBudget?.ownerName.trim() ?? '';
-  const budgetDateText = selectedBudget ? formatBudgetPeriod(selectedBudget, language) : null;
+  const budgetDateText = selectedBudget ? formatBudgetPeriodEnglish(selectedBudget) : null;
   const canInlineEditHeader =
     selectedBudget !== null
     && canWriteBudgets
@@ -170,6 +201,13 @@ export function BudgetDocumentPreview({
             onClick={onEditBudget}
           >
             {t('projectInfo')}
+          </Button>
+          <Button
+            disabled={selectedBudget === null || !canWriteBudgets}
+            icon={<Signature size={16} />}
+            onClick={onEditSignature}
+          >
+            {t('signatureSettings')}
           </Button>
           <Button
             disabled={selectedBudget === null || onOpenShare === undefined}
@@ -271,7 +309,7 @@ export function BudgetDocumentPreview({
             </div>
             {budgetDateText ? (
               <div className="budget-section-date">
-                {t('datePrefix')}
+                Date:
                 {budgetDateText}
               </div>
             ) : null}
@@ -284,7 +322,7 @@ export function BudgetDocumentPreview({
               pagination={false}
               rowKey="id"
               size="small"
-              summary={() => renderBudgetSummary(budgetColumns, selectedBudget, t('summary'))}
+              summary={() => renderBudgetSummary(budgetColumns, selectedBudget, 'Total')}
               tableLayout="fixed"
             />
           </div>
@@ -305,7 +343,7 @@ export function BudgetDocumentPreview({
             </div>
             {budgetDateText ? (
               <div className="budget-section-date">
-                {t('datePrefix')}
+                Date:
                 {budgetDateText}
               </div>
             ) : null}
@@ -325,13 +363,7 @@ export function BudgetDocumentPreview({
           <BudgetSignatureSection
             config={selectedBudget.signatureConfig}
             fallbackTitle={t('signatureSectionTitle')}
-            labels={{
-              capacity: t('capacity'),
-              dateTime: t('dateTime'),
-              email: t('email'),
-              participant: t('signatureParticipant'),
-              position: t('position'),
-            }}
+            onEdit={canWriteBudgets ? onEditSignature : undefined}
           />
         </section>
       )}
@@ -531,23 +563,19 @@ function BudgetEditableHeader({
 function BudgetSignatureSection({
   config,
   fallbackTitle,
-  labels,
+  onEdit,
 }: {
   config: BudgetSignatureConfig;
   fallbackTitle: string;
-  labels: {
-    capacity: string;
-    dateTime: string;
-    email: string;
-    participant: string;
-    position: string;
-  };
+  onEdit?: () => void;
 }) {
   if (!config.enabled || config.rows.length === 0) {
     return null;
   }
 
   const isSingleFullWidth = config.rows.length === 1 && config.sectionAlign !== 'right';
+  const labels = signatureMetaLabelsForLanguage(signatureInfoLanguage(config));
+  const hasSignatureBoxes = config.rows.some((row) => row.showSignature !== false);
 
   return (
     <div
@@ -557,8 +585,20 @@ function BudgetSignatureSection({
         isSingleFullWidth ? 'budget-signature-section-single' : '',
       ].filter(Boolean).join(' ')}
     >
-      <div className="budget-signature-title">{config.title || fallbackTitle}</div>
-      <div className="budget-signature-grid">
+      <div className="budget-signature-title">
+        <span>{config.title || fallbackTitle}</span>
+        {onEdit ? (
+          <Tooltip title="Edit">
+            <Button
+              icon={<Pencil size={12} />}
+              size="small"
+              type="text"
+              onClick={onEdit}
+            />
+          </Tooltip>
+        ) : null}
+      </div>
+      <div className={`budget-signature-grid${hasSignatureBoxes ? '' : ' budget-signature-grid-compact'}`}>
         {config.rows.map((row) => (
           <BudgetSignatureCard
             config={config}
@@ -578,6 +618,7 @@ function appendQuickAmountEditors(
   canWriteBudgets: boolean,
   entry: BudgetEntryController,
   baseCurrency: CurrencyCode,
+  editLabel: string,
 ): TableProps<BudgetItem>['columns'] {
   if (columns === undefined) {
     return columns;
@@ -594,19 +635,24 @@ function appendQuickAmountEditors(
       render: (_value: unknown, row: BudgetItem) => {
         const effective = effectiveBudgetItemAmounts(row, transactions);
         const editable = canWriteBudgets;
-        const currency = baseCurrency;
+        const isEstimatedActuals = key === 'estimated_actuals';
+        const currency = key === 'budget' ? row.budget.currency : baseCurrency;
         const value = key === 'budget'
           ? effective.budgetAmountOriginal
           : key === 'estimated_actuals'
-            ? effective.estimatedAmountOriginal
-            : effective.budgetAmountOriginal - effective.estimatedAmountOriginal;
+            ? effective.estimatedAmountBase
+            : effective.varianceBase;
+        const editFocus = key === 'budget' ? 'budget' : key === 'variance' ? 'variance' : null;
 
         return (
           <InlineMoneyCell
             currency={currency}
             disabled={entry.isBudgetItemSaving}
-            editable={editable}
+            editable={editable && !isEstimatedActuals}
+            editLabel={editLabel}
+            secondaryText={secondaryTextForBudgetCell(row, key, effective, baseCurrency, value)}
             value={value}
+            onEdit={isEstimatedActuals ? undefined : () => entry.openBudgetItemEditModal(row, editFocus)}
             onCommit={(nextValue) => {
               void entry.handleBudgetItemQuickAmountSave(row, key, nextValue);
             }}
@@ -617,17 +663,132 @@ function appendQuickAmountEditors(
   });
 }
 
+function appendBudgetItemCategoryEditors(
+  columns: TableProps<BudgetItem>['columns'],
+  canWriteBudgets: boolean,
+  entry: BudgetEntryController,
+  categoryOptions: Array<{ label: string; value: number }>,
+): TableProps<BudgetItem>['columns'] {
+  if (columns === undefined) {
+    return columns;
+  }
+
+  return columns.map((column) => {
+    if (String(column.key ?? '') !== 'category') {
+      return column;
+    }
+
+    return {
+      ...column,
+      render: (_value: unknown, row: BudgetItem) => (
+        <InlineCategoryCell
+          categoryOptions={categoryOptions}
+          disabled={entry.isBudgetItemSaving}
+          editable={canWriteBudgets}
+          row={row}
+          onEdit={() => entry.openBudgetItemEditModal(row, 'category')}
+          onSave={(categoryId, label) => {
+            void entry.handleBudgetItemCategoryQuickSave(row, categoryId, label);
+          }}
+        />
+      ),
+    };
+  });
+}
+
+function InlineCategoryCell({
+  categoryOptions,
+  disabled,
+  editable,
+  row,
+  onEdit,
+  onSave,
+}: {
+  categoryOptions: Array<{ label: string; value: number }>;
+  disabled: boolean;
+  editable: boolean;
+  row: BudgetItem;
+  onEdit: () => void;
+  onSave: (categoryId: number | null, label: string) => void;
+}) {
+  const { t } = useI18n();
+  const label = row.category ?? row.label;
+  const summary = budgetInstallmentNode(row);
+
+  if (!editable) {
+    return (
+      <div className="budget-item-category-cell">
+        <span>{label}</span>
+        {summary}
+      </div>
+    );
+  }
+
+  return (
+    <div className="budget-category-quick-cell">
+      <Select
+        allowClear
+        className="budget-category-quick-select"
+        disabled={disabled}
+        optionFilterProp="label"
+        options={categoryOptions}
+        placeholder={t('selectCategory')}
+        showSearch
+        size="small"
+        value={row.categoryId ?? undefined}
+        variant="borderless"
+        onChange={(value) => {
+          const option = categoryOptions.find((item) => item.value === value);
+          onSave(value ?? null, option?.label ?? row.label);
+        }}
+      />
+      <Tooltip title={t('edit')}>
+        <Button
+          icon={<Pencil size={12} />}
+          size="small"
+          type="text"
+          onClick={onEdit}
+        />
+      </Tooltip>
+      {summary}
+    </div>
+  );
+}
+
+function budgetInstallmentNode(row: BudgetItem) {
+  const summary = installmentSummary(row.installmentConfig);
+  if (!summary.isEnabled || summary.monthlyAmount === null || row.installmentConfig.months === null) {
+    return null;
+  }
+
+  return (
+    <span className="budget-installment-summary">
+      {`${formatBudgetMoney(row.budget.currency, summary.monthlyAmount)} / month, ${
+        row.installmentConfig.paidMonths
+      }/${row.installmentConfig.months} paid${
+        summary.remainingMonths === null ? '' : `, ${summary.remainingMonths} remaining`
+      }`}
+    </span>
+  );
+}
+
 function InlineMoneyCell({
   currency,
   disabled,
   editable,
+  editLabel,
+  secondaryText,
   value,
+  onEdit,
   onCommit,
 }: {
   currency: CurrencyCode;
   disabled: boolean;
   editable: boolean;
+  secondaryText?: string | null;
   value: number;
+  onEdit?: () => void;
+  editLabel?: string;
   onCommit: (value: number) => void;
 }) {
   const [draftState, setDraftState] = useState<{ sourceValue: number; draftValue: number | null }>({
@@ -640,7 +801,12 @@ function InlineMoneyCell({
   };
 
   if (!editable) {
-    return formatBudgetMoney(currency, value);
+    return (
+      <span className="budget-inline-money-readonly">
+        <span>{formatBudgetMoney(currency, value)}</span>
+        {secondaryText ? <small>{secondaryText}</small> : null}
+      </span>
+    );
   }
 
   const commit = () => {
@@ -656,22 +822,196 @@ function InlineMoneyCell({
   };
 
   return (
-    <span className="budget-inline-money-cell">
-      <span>{currency}</span>
-      <InputNumber
-        changeOnWheel={false}
-        className="budget-inline-money-input"
-        controls={false}
-        disabled={disabled}
-        precision={2}
-        size="small"
-        value={draftValue}
-        variant="borderless"
-        onBlur={commit}
-        onChange={(nextValue) => setDraftValue(typeof nextValue === 'number' ? nextValue : null)}
-        onPressEnter={commit}
-      />
+    <span className="budget-inline-money-wrap">
+      <span className="budget-inline-money-cell">
+        <span>{currency}</span>
+        <InputNumber
+          changeOnWheel={false}
+          className="budget-inline-money-input"
+          controls={false}
+          disabled={disabled}
+          precision={2}
+          size="small"
+          value={draftValue}
+          variant="borderless"
+          onBlur={commit}
+          onChange={(nextValue) => setDraftValue(typeof nextValue === 'number' ? nextValue : null)}
+          onPressEnter={commit}
+        />
+        {onEdit ? (
+          <Tooltip title={editLabel ?? 'Edit'}>
+            <Button
+              icon={<Pencil size={12} />}
+              size="small"
+              type="text"
+              onClick={onEdit}
+            />
+          </Tooltip>
+        ) : null}
+      </span>
+      {secondaryText ? <small>{secondaryText}</small> : null}
     </span>
+  );
+}
+
+function secondaryTextForBudgetCell(
+  row: BudgetItem,
+  key: string,
+  effective: ReturnType<typeof effectiveBudgetItemAmounts>,
+  baseCurrency: CurrencyCode,
+  value: number,
+): string | null {
+  if (key === 'variance') {
+    return null;
+  }
+
+  if (key === 'estimated_actuals') {
+    return transactionTotalsText(effective.estimatedTransactionTotals, baseCurrency);
+  }
+
+  const leg = key === 'budget' ? row.budget : row.estimatedActuals;
+  if (leg.currency === baseCurrency) {
+    return null;
+  }
+
+  const baseAmount = key === 'budget'
+    ? effective.budgetAmountBase
+    : effective.estimatedAmountBase;
+  const expectedBase = roundMoney(value * leg.rateToBase);
+  if (Math.abs(baseAmount - expectedBase) < 0.005) {
+    return formatBudgetMoney(baseCurrency, expectedBase);
+  }
+
+  return formatBudgetMoney(baseCurrency, baseAmount);
+}
+
+function transactionTotalsText(
+  totals: TransactionCurrencyTotal[],
+  baseCurrency: CurrencyCode,
+): string | null {
+  if (totals.length === 0) {
+    return null;
+  }
+
+  if (totals.length === 1 && totals[0].currency === baseCurrency) {
+    return null;
+  }
+
+  return totals
+    .map((total) => formatBudgetMoney(total.currency, total.amountOriginal))
+    .join(' · ');
+}
+
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function appendTransactionQuickEditors(
+  columns: TableProps<Transaction>['columns'],
+  canWriteBudgets: boolean,
+  entry: BudgetEntryController,
+  categoryOptions: Array<{ label: string; value: number }>,
+  baseCurrency: CurrencyCode,
+): TableProps<Transaction>['columns'] {
+  if (columns === undefined) {
+    return columns;
+  }
+
+  return columns.map((column) => {
+    const key = String(column.key ?? '');
+    if (key === 'category') {
+      return {
+        ...column,
+        render: (_value: unknown, row: Transaction) => (
+          <InlineTransactionCategoryCell
+            categoryOptions={categoryOptions}
+            disabled={entry.isTransactionSaving}
+            editable={canWriteBudgets}
+            row={row}
+            onEdit={() => entry.openTransactionEditModal(row)}
+            onSave={(categoryId) => {
+              void entry.handleTransactionCategoryQuickSave(row, categoryId);
+            }}
+          />
+        ),
+      };
+    }
+
+    if (key !== 'amount') {
+      return column;
+    }
+
+    return {
+      ...column,
+      render: (_value: unknown, row: Transaction) => (
+        <InlineMoneyCell
+          currency={row.currency}
+          disabled={entry.isTransactionSaving}
+          editable={canWriteBudgets}
+          secondaryText={
+            row.currency === baseCurrency
+              ? null
+              : formatBudgetMoney(baseCurrency, row.amountBase)
+          }
+          value={row.amountOriginal}
+          onEdit={() => entry.openTransactionEditModal(row)}
+          onCommit={(nextValue) => {
+            void entry.handleTransactionQuickAmountSave(row, nextValue);
+          }}
+        />
+      ),
+    };
+  });
+}
+
+function InlineTransactionCategoryCell({
+  categoryOptions,
+  disabled,
+  editable,
+  row,
+  onEdit,
+  onSave,
+}: {
+  categoryOptions: Array<{ label: string; value: number }>;
+  disabled: boolean;
+  editable: boolean;
+  row: Transaction;
+  onEdit: () => void;
+  onSave: (categoryId: number) => void;
+}) {
+  const { t } = useI18n();
+
+  if (!editable) {
+    return row.category ?? '';
+  }
+
+  return (
+    <div className="budget-category-quick-cell">
+      <Select
+        className="budget-category-quick-select"
+        disabled={disabled}
+        optionFilterProp="label"
+        options={categoryOptions}
+        placeholder={t('selectCategory')}
+        showSearch
+        size="small"
+        value={row.categoryId ?? undefined}
+        variant="borderless"
+        onChange={(value) => {
+          if (typeof value === 'number') {
+            onSave(value);
+          }
+        }}
+      />
+      <Tooltip title={t('edit')}>
+        <Button
+          icon={<Pencil size={12} />}
+          size="small"
+          type="text"
+          onClick={onEdit}
+        />
+      </Tooltip>
+    </div>
   );
 }
 
@@ -682,19 +1022,22 @@ function BudgetSignatureCard({
 }: {
   config: BudgetSignatureConfig;
   labels: {
+    name: string;
     capacity: string;
     dateTime: string;
     email: string;
-    participant: string;
     position: string;
+    telephone: string;
+    mobile: string;
   };
   row: BudgetSignatureRow;
 }) {
   const signatureLabel = signatureLabelForConfig(config);
+  const signatureLabelLines = signatureLabel.split('\n');
   const dateTimeText = row.signedAt ?? currentDateTimeText();
   const metaRows = [
     row.showName && row.displayName
-      ? { label: labels.participant, value: row.displayName }
+      ? { label: labels.name, value: row.displayName }
       : null,
     row.showRole && row.roleLabel
       ? { label: labels.capacity, value: signatureRoleForDisplay(config, row.roleLabel) }
@@ -714,7 +1057,7 @@ function BudgetSignatureCard({
   ].filter((item): item is { label: string; value: string } => item !== null);
 
   return (
-    <div className="budget-signature-card">
+    <div className={`budget-signature-card${row.showSignature === false ? ' budget-signature-card-compact' : ''}`}>
       <div className="budget-signature-info">
         {metaRows.map((item, index) => (
           <div className="budget-signature-meta" key={`${item.label}-${index}`}>
@@ -728,7 +1071,11 @@ function BudgetSignatureCard({
           <div className={`budget-signature-box budget-signature-label-${config.labelAlign}`}>
             <span className="budget-signature-box-space" />
             <span className="budget-signature-rule" />
-            <span className="budget-signature-box-label">{signatureLabel}</span>
+            <span className="budget-signature-box-label">
+              {signatureLabelLines.map((line, index) => (
+                <span key={`${line}-${index}`}>{line}</span>
+              ))}
+            </span>
           </div>
         ) : null}
       </div>

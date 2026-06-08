@@ -397,6 +397,7 @@ final readonly class BudgetService
         return [
             'enabled' => ($input['enabled'] ?? false) === true,
             'title' => $title,
+            'infoLanguage' => $this->signatureLabelLanguage($input['infoLanguage'] ?? $input['info_language'] ?? $input['labelLanguage'] ?? $input['label_language'] ?? null),
             'labelLanguage' => $this->signatureLabelLanguage($input['labelLanguage'] ?? $input['label_language'] ?? null),
             'labelMode' => $this->signatureLabelMode($input['labelMode'] ?? $input['label_mode'] ?? null),
             'labelSeparator' => $this->signatureLabelSeparator($input['labelSeparator'] ?? $input['label_separator'] ?? null),
@@ -554,6 +555,7 @@ final readonly class BudgetService
         return [
             'enabled' => false,
             'title' => 'Confirmation Signature',
+            'infoLanguage' => 'en',
             'labelLanguage' => 'en',
             'labelMode' => 'confirmation_signature',
             'labelSeparator' => 'space',

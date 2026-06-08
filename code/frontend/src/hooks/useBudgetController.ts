@@ -36,6 +36,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
   const [selectedBudget, setSelectedBudget] = useState<BudgetDetail | null>(null);
   const [budgetError, setBudgetError] = useState<string | null>(null);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [isBudgetLoading, setIsBudgetLoading] = useState(false);
   const [isBudgetDetailLoading, setIsBudgetDetailLoading] = useState(false);
   const [isBudgetSaving, setIsBudgetSaving] = useState(false);
@@ -138,7 +139,6 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       workspaceId: activeWorkspaceId ?? undefined,
       title: defaultBudgetTitle(dateRange),
       ownerName: session?.user.displayName ?? '',
-      ownerNameHidden: false,
       dateRange,
       baseCurrency,
       displayCurrency: baseCurrency,
@@ -147,6 +147,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       signatureConfig: {
         ...emptySignatureConfig(),
         title: signatureTitleForLanguage(language),
+        infoLanguage: language,
         labelLanguage: language,
         labelSeparator: language === 'en' ? 'space' : 'none',
         rows: [
@@ -166,7 +167,6 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       workspaceId: budget.workspaceId,
       title: budget.title,
       ownerName: budget.ownerName,
-      ownerNameHidden: budget.ownerName.trim() === '',
       dateRange:
         budget.startDate && budget.endDate
           ? [dayjs(budget.startDate), dayjs(budget.endDate)]
@@ -179,6 +179,28 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       signatureConfig: signatureConfigToForm(budget.signatureConfig),
     });
     setIsBudgetModalOpen(true);
+  };
+
+  const openBudgetSignatureModal = (budget: BudgetSummary) => {
+    setBudgetError(null);
+    setEditingBudgetId(budget.id);
+    budgetForm.resetFields();
+    budgetForm.setFieldsValue({
+      workspaceId: budget.workspaceId,
+      title: budget.title,
+      ownerName: budget.ownerName,
+      dateRange:
+        budget.startDate && budget.endDate
+          ? [dayjs(budget.startDate), dayjs(budget.endDate)]
+          : null,
+      baseCurrency: budget.baseCurrency,
+      displayCurrency: budget.displayCurrency,
+      visibility: budget.visibility,
+      status: budget.status,
+      note: budget.note ?? undefined,
+      signatureConfig: signatureConfigToForm(budget.signatureConfig),
+    });
+    setIsSignatureModalOpen(true);
   };
 
   const handleBudgetSave = async () => {
@@ -199,7 +221,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       const payload = {
         workspaceId,
         title: values.title.trim(),
-        ownerName: values.ownerNameHidden ? '' : (values.ownerName?.trim() ?? ''),
+        ownerName: values.ownerName?.trim() ?? '',
         startDate: values.dateRange?.[0]?.format('YYYY-MM-DD') ?? null,
         endDate: values.dateRange?.[1]?.format('YYYY-MM-DD') ?? null,
         baseCurrency: values.baseCurrency,
@@ -236,11 +258,56 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       ]);
       setSelectedBudget(savedBudget);
       setIsBudgetModalOpen(false);
+      setIsSignatureModalOpen(false);
       setEditingBudgetId(null);
       budgetForm.resetFields();
       if (isCreatingBudget) {
         options.onCreated?.();
       }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setBudgetError(error.message);
+      }
+    } finally {
+      setIsBudgetSaving(false);
+    }
+  };
+
+  const handleBudgetSignatureSave = async () => {
+    if (selectedBudget === null || editingBudgetId === null) {
+      setBudgetError(translateCurrent('selectBudgetFirst'));
+
+      return;
+    }
+
+    try {
+      const values = await budgetForm.validateFields([['signatureConfig']]);
+      setIsBudgetSaving(true);
+      setBudgetError(null);
+      const savedBudget = await updateBudget({
+        id: selectedBudget.id,
+        title: selectedBudget.title,
+        ownerName: selectedBudget.ownerName,
+        startDate: selectedBudget.startDate,
+        endDate: selectedBudget.endDate,
+        baseCurrency: selectedBudget.baseCurrency,
+        displayCurrency: selectedBudget.displayCurrency,
+        visibility: selectedBudget.visibility,
+        status: selectedBudget.status,
+        note: selectedBudget.note,
+        signatureConfig: signatureConfigFromForm(values.signatureConfig),
+      });
+
+      requestedBudgetId.current = savedBudget.id;
+      setSelectedBudget(savedBudget);
+      setBudgets((currentBudgets) =>
+        currentBudgets.map((budget) =>
+          budget.id === savedBudget.id ? savedBudget : budget,
+        ),
+      );
+      setIsSignatureModalOpen(false);
+      setEditingBudgetId(null);
+      budgetForm.resetFields();
     } catch (error: unknown) {
       if (error instanceof Error) {
         setBudgetError(error.message);
@@ -367,6 +434,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     budgetError,
     isBudgetModalOpen,
     setIsBudgetModalOpen,
+    isSignatureModalOpen,
+    setIsSignatureModalOpen,
     isBudgetLoading,
     isBudgetDetailLoading,
     isBudgetSaving,
@@ -374,8 +443,10 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     deletingBudgetId,
     openBudgetModal,
     openBudgetEditModal,
+    openBudgetSignatureModal,
     handleBudgetHeaderSave,
     handleBudgetSave,
+    handleBudgetSignatureSave,
     handleBudgetSelect,
     handleBudgetDelete,
     replaceBudgetDetail,

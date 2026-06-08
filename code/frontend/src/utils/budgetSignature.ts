@@ -30,10 +30,44 @@ const signatureLabelText: Record<BudgetSignatureLabelLanguage, Record<'confirmat
   },
 };
 
+const signatureMetaLabelText: Record<
+  BudgetSignatureLabelLanguage,
+  Record<'name' | 'capacity' | 'position' | 'email' | 'dateTime' | 'telephone' | 'mobile', string>
+> = {
+  en: {
+    name: 'Name',
+    capacity: 'Capacity',
+    position: 'Position',
+    email: 'Email',
+    dateTime: 'Date & Time',
+    telephone: 'Tel. No.',
+    mobile: 'Mobile No.',
+  },
+  sc: {
+    name: '姓名',
+    capacity: '身份',
+    position: '职务',
+    email: '电子邮件',
+    dateTime: '日期及时间',
+    telephone: '电话号码',
+    mobile: '流动电话号码',
+  },
+  tc: {
+    name: '姓名',
+    capacity: '身份',
+    position: '職務',
+    email: '電子郵件',
+    dateTime: '日期及時間',
+    telephone: '電話號碼',
+    mobile: '流動電話號碼',
+  },
+};
+
 export function emptySignatureConfig(): BudgetSignatureConfig {
   return {
     enabled: false,
     title: defaultSignatureTitle,
+    infoLanguage: 'en',
     labelLanguage: 'en',
     labelMode: 'confirmation_signature',
     labelSeparator: 'space',
@@ -67,10 +101,17 @@ export function createSignatureRow(
 }
 
 export function createSignatureCustomField(): BudgetSignatureCustomField {
+  return createSignatureCustomFieldWithValue();
+}
+
+export function createSignatureCustomFieldWithValue(
+  label = '',
+  value = '',
+): BudgetSignatureCustomField {
   return {
     id: signatureCustomFieldId(),
-    label: '',
-    value: '',
+    label,
+    value,
     show: true,
   };
 }
@@ -96,6 +137,7 @@ export function signatureConfigToForm(
   return {
     enabled: normalized.enabled,
     title: normalized.title,
+    infoLanguage: normalized.infoLanguage,
     labelLanguage: normalized.labelLanguage,
     labelMode: normalized.labelMode,
     labelSeparator: normalized.labelSeparator,
@@ -119,6 +161,7 @@ export function signatureConfigFromForm(
   return normalizeSignatureConfig({
     enabled: config.enabled === true,
     title: config.title,
+    infoLanguage: config.infoLanguage,
     labelLanguage: config.labelLanguage,
     labelMode: config.labelMode,
     labelSeparator: config.labelSeparator,
@@ -142,6 +185,7 @@ export function normalizeSignatureConfig(
   return {
     enabled: config.enabled === true,
     title: normalizeText(config.title) ?? defaultSignatureTitle,
+    infoLanguage: normalizeLabelLanguage(config.infoLanguage ?? config.labelLanguage),
     labelLanguage: normalizeLabelLanguage(config.labelLanguage),
     labelMode: normalizeLabelMode(config.labelMode),
     labelSeparator: normalizeLabelSeparator(config.labelSeparator),
@@ -181,7 +225,7 @@ export function signatureLabelForConfig(config: BudgetSignatureConfig): string {
 }
 
 export function signatureRoleForDisplay(config: BudgetSignatureConfig, value: string): string {
-  const language = normalizeLabelLanguage(config.labelLanguage);
+  const language = signatureInfoLanguage(config);
   const trimmed = value.trim();
   const defaultRole: Record<BudgetSignatureLabelLanguage, string> = {
     en: 'Confirmed by',
@@ -192,15 +236,32 @@ export function signatureRoleForDisplay(config: BudgetSignatureConfig, value: st
     return defaultRole[language];
   }
 
-  const legacyRoleLabels: Record<BudgetSignatureLabelLanguage, string[]> = {
-    en: ['Confirmation Signature', 'Confirmation / Signature', 'Participant', 'Signer / Confirmer'],
-    sc: ['确认签署', '确认 / 签署', '签核/确认人'],
-    tc: ['確認簽署', '確認 / 簽署', '簽核/確認人'],
-  };
+  const legacyRoleLabels = [
+    'Confirmation Signature',
+    'Confirmation / Signature',
+    'Participant',
+    'Signer / Confirmer',
+    '确认签署',
+    '确认 / 签署',
+    '签核/确认人',
+    '確認簽署',
+    '確認 / 簽署',
+    '簽核/確認人',
+  ];
 
-  return legacyRoleLabels[language].includes(trimmed) || trimmed === signatureLabelForConfig(config)
+  return legacyRoleLabels.includes(trimmed) || trimmed === signatureLabelForConfig(config)
     ? defaultRole[language]
     : trimmed;
+}
+
+export function signatureInfoLanguage(config: BudgetSignatureConfig): BudgetSignatureLabelLanguage {
+  return normalizeLabelLanguage(config.infoLanguage ?? config.labelLanguage);
+}
+
+export function signatureMetaLabelsForLanguage(
+  language: BudgetSignatureLabelLanguage,
+): Record<'name' | 'capacity' | 'position' | 'email' | 'dateTime' | 'telephone' | 'mobile', string> {
+  return signatureMetaLabelText[normalizeLabelLanguage(language)];
 }
 
 export function signatureTitleForLanguage(language: BudgetSignatureLabelLanguage): string {
@@ -331,6 +392,7 @@ function signatureCustomFieldId(): string {
 interface BudgetFormSignatureConfig {
   enabled: boolean;
   title: string;
+  infoLanguage: BudgetSignatureLabelLanguage;
   labelLanguage: BudgetSignatureLabelLanguage;
   labelMode: BudgetSignatureLabelMode;
   labelSeparator: BudgetSignatureLabelSeparator;

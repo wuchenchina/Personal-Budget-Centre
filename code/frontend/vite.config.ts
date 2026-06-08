@@ -18,19 +18,9 @@ export default defineConfig({
               priority: 40,
             },
             {
-              name: 'vendor-antd',
-              test: /node_modules[\\/]antd[\\/]/,
+              name: 'vendor-antd-core',
+              test: /node_modules[\\/](antd|@ant-design|@rc-component|rc-[^\\/]+|react-draggable|scroll-into-view-if-needed|compute-scroll-into-view)[\\/]/,
               priority: 35,
-            },
-            {
-              name: 'vendor-rc',
-              test: /node_modules[\\/](@rc-component|rc-[^\\/]+|react-draggable|scroll-into-view-if-needed|compute-scroll-into-view)[\\/]/,
-              priority: 34,
-            },
-            {
-              name: 'vendor-ant-design',
-              test: /node_modules[\\/]@ant-design[\\/]/,
-              priority: 33,
             },
             {
               name: 'vendor-utils',

@@ -32,6 +32,7 @@ final readonly class BudgetPdfDocumentRenderer
             . $this->tableRenderer->css()
             . $this->signatureRenderer->css()
             . '</style></head><body>'
+            . '<htmlpagefooter name="budgetPageFooter"><div class="page-footer">Page {PAGENO} of {nbpg}</div></htmlpagefooter>'
             . '<div class="title">' . $title . '</div>'
             . $subtitleHtml
             . $this->tableRenderer->render(
@@ -54,11 +55,12 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function baseCss(): string
     {
-        return '@page{margin:29mm 29mm 22mm;}'
+        return '@page{margin:29mm 29mm 22mm;footer:html_budgetPageFooter;}'
             . 'body{font-family:"SF-Mono",TCSongti,monospace;color:#000;font-size:7.5pt;}'
             . '.title{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 4mm;}'
             . '.title sup{font-size:7pt;line-height:0;vertical-align:super;}'
-            . '.subtitle{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 7mm;}';
+            . '.subtitle{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 7mm;}'
+            . '.page-footer{font-family:"SF-Mono",TCSongti,monospace;font-size:7pt;color:#666;text-align:center;}';
     }
 
     private function budgetRows(array $budget, array $transactions): array
@@ -69,8 +71,8 @@ final readonly class BudgetPdfDocumentRenderer
 
                 return [
                     $this->itemLabelWithInstallment($item),
-                    $this->moneyWithSecondary((string) $budget['baseCurrency'], $effective['budgetBase'], $item),
-                    $this->moneyWithSecondary((string) $budget['baseCurrency'], $effective['estimatedBase'], $item),
+                    $this->moneyWithSecondary((string) $budget['baseCurrency'], $effective['budgetBase'], $item['budget'] ?? []),
+                    $this->moneyWithTransactionBreakdown((string) $budget['baseCurrency'], $effective['estimatedBase'], $effective['estimatedTransactionTotals']),
                     $this->formatter->templateMoney((string) $budget['baseCurrency'], $effective['varianceBase']),
                 ];
             },
@@ -133,10 +135,10 @@ final readonly class BudgetPdfDocumentRenderer
             . ' remaining';
     }
 
-    private function moneyWithSecondary(string $baseCurrency, float $baseAmount, array $item): string
+    private function moneyWithSecondary(string $baseCurrency, float $baseAmount, array $leg): string
     {
-        $currency = (string) ($item['budget']['currency'] ?? $baseCurrency);
-        $rate = (float) ($item['budget']['rateToBase'] ?? 0);
+        $currency = (string) ($leg['currency'] ?? $baseCurrency);
+        $rate = (float) ($leg['rateToBase'] ?? 0);
         $primary = $this->formatter->templateMoney($baseCurrency, $baseAmount);
         if ($currency === $baseCurrency || $rate <= 0.0) {
             return $primary;
@@ -147,41 +149,96 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function effectiveItemAmounts(array $item, array $transactions): array
     {
+        $transactionTotals = $this->transactionCurrencyTotalsForItem($item, $transactions);
+        $estimatedBase = round(
+            array_reduce($transactionTotals, static fn (float $total, array $transaction): float => $total + $transaction['amountBase'], 0.0),
+            2,
+        );
         $budgetOriginal = (float) ($item['budget']['amountOriginal'] ?? 0);
-        $budgetBase = (float) ($item['budget']['amountBase'] ?? 0);
-        if ($budgetOriginal !== 0.0 || $budgetBase !== 0.0) {
-            return [
-                'budgetOriginal' => $budgetBase,
-                'budgetBase' => $budgetBase,
-                'estimatedOriginal' => (float) ($item['estimatedActuals']['amountBase'] ?? 0),
-                'estimatedBase' => (float) ($item['estimatedActuals']['amountBase'] ?? 0),
-                'varianceBase' => (float) ($item['varianceBase'] ?? 0),
-            ];
-        }
-
-        $categoryId = $item['categoryId'] ?? null;
-        $matches = array_values(array_filter($transactions, static function (array $transaction) use ($categoryId): bool {
-            return ($transaction['categoryId'] ?? null) === $categoryId;
-        }));
-        if ($matches === []) {
-            return [
-                'budgetOriginal' => $budgetBase,
-                'budgetBase' => $budgetBase,
-                'estimatedOriginal' => (float) ($item['estimatedActuals']['amountBase'] ?? 0),
-                'estimatedBase' => (float) ($item['estimatedActuals']['amountBase'] ?? 0),
-                'varianceBase' => (float) ($item['varianceBase'] ?? 0),
-            ];
-        }
-
-        $baseTotal = array_reduce($matches, static fn (float $total, array $transaction): float => $total + (float) ($transaction['amountBase'] ?? 0), 0.0);
+        $storedBudgetBase = (float) ($item['budget']['amountBase'] ?? 0);
+        $hasTransactionActuals = $transactionTotals !== [];
+        $budgetBase = $budgetOriginal === 0.0 && $storedBudgetBase === 0.0 && $hasTransactionActuals
+            ? $estimatedBase
+            : round($storedBudgetBase, 2);
+        $budgetRate = (float) ($item['budget']['rateToBase'] ?? 0);
 
         return [
-            'budgetOriginal' => round($baseTotal, 2),
-            'budgetBase' => round($baseTotal, 2),
-            'estimatedOriginal' => round($baseTotal, 2),
-            'estimatedBase' => round($baseTotal, 2),
-            'varianceBase' => 0.0,
+            'budgetOriginal' => $this->originalAmountFromBase($budgetBase, $budgetRate),
+            'budgetBase' => $budgetBase,
+            'estimatedBase' => $estimatedBase,
+            'estimatedTransactionTotals' => $transactionTotals,
+            'varianceBase' => round($budgetBase - $estimatedBase, 2),
         ];
+    }
+
+    private function transactionCurrencyTotalsForItem(array $item, array $transactions): array
+    {
+        $categoryId = $item['categoryId'] ?? null;
+        $label = (string) ($item['label'] ?? '');
+        $totals = [];
+
+        foreach ($transactions as $transaction) {
+            $transactionCategoryId = $transaction['categoryId'] ?? null;
+            $matches = $categoryId === null
+                ? $transactionCategoryId === null && (string) ($transaction['category'] ?? '') === $label
+                : $transactionCategoryId === $categoryId;
+            if (!$matches) {
+                continue;
+            }
+
+            $currency = (string) ($transaction['currency'] ?? '');
+            if ($currency === '') {
+                continue;
+            }
+
+            $current = $totals[$currency] ?? [
+                'currency' => $currency,
+                'amountOriginal' => 0.0,
+                'amountBase' => 0.0,
+            ];
+            $current['amountOriginal'] += (float) ($transaction['amountOriginal'] ?? 0);
+            $current['amountBase'] += (float) ($transaction['amountBase'] ?? 0);
+            $totals[$currency] = $current;
+        }
+
+        ksort($totals);
+
+        return array_map(
+            static fn (array $total): array => [
+                'currency' => $total['currency'],
+                'amountOriginal' => round((float) $total['amountOriginal'], 2),
+                'amountBase' => round((float) $total['amountBase'], 2),
+            ],
+            array_values($totals),
+        );
+    }
+
+    private function moneyWithTransactionBreakdown(string $baseCurrency, float $baseAmount, array $transactionTotals): string
+    {
+        $primary = $this->formatter->templateMoney($baseCurrency, $baseAmount);
+        if ($transactionTotals === []) {
+            return $primary;
+        }
+
+        if (count($transactionTotals) === 1 && (string) $transactionTotals[0]['currency'] === $baseCurrency) {
+            return $primary;
+        }
+
+        $breakdown = array_map(
+            fn (array $total): string => $this->formatter->templateMoney((string) $total['currency'], (float) $total['amountOriginal']),
+            $transactionTotals,
+        );
+
+        return $primary . "\n" . implode("\n", $breakdown);
+    }
+
+    private function originalAmountFromBase(float $amountBase, float $rateToBase): float
+    {
+        if ($rateToBase <= 0.0) {
+            return round($amountBase, 2);
+        }
+
+        return round($amountBase / $rateToBase, 2);
     }
 
     private function effectiveTotal(array $budget, string $key): float
@@ -189,11 +246,13 @@ final readonly class BudgetPdfDocumentRenderer
         $items = is_array($budget['items'] ?? null) ? $budget['items'] : [];
         $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
 
-        return array_reduce(
+        $total = array_reduce(
             $items,
             fn (float $total, array $item): float => $total + $this->effectiveItemAmounts($item, $transactions)[$key],
             0.0,
         );
+
+        return round($total, 2);
     }
 
     private function sectionsByKey(array $template): array

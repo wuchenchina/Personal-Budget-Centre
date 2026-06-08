@@ -1,23 +1,15 @@
-import { Alert, Button, Checkbox, DatePicker, Form, Input, Modal, Select, Space } from 'antd';
+import { useState } from 'react';
+import { Alert, Button, DatePicker, Form, Input, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
-import { Plus, Trash2 } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
+import { ModalFullscreenButton } from '../common/ModalFullscreenButton';
 import {
   budgetStatusLabelsByLanguage,
-  languageOptions,
   useI18n,
   visibilityLabelsByLanguage,
 } from '../../i18n';
-import type { WorkspaceMember } from '../../types/auth';
 import type { BudgetStatus, Visibility } from '../../types/budget';
 import type { BudgetFormValues } from '../../types/forms';
-import {
-  createSignatureCustomField,
-  createSignatureRow,
-  memberOptions,
-  signatureLabelForConfig,
-  signatureRowFromMember,
-} from '../../utils/budgetSignature';
 import { defaultBudgetTitle } from '../../utils/budgetTitle';
 
 const { RangePicker } = DatePicker;
@@ -28,7 +20,6 @@ interface BudgetCreateModalProps {
   isEditing: boolean;
   error: string | null;
   workspaceOptions: Array<{ label: string; value: number }>;
-  workspaceMembers: WorkspaceMember[];
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
@@ -40,19 +31,13 @@ export function BudgetCreateModal({
   isEditing,
   error,
   workspaceOptions,
-  workspaceMembers,
   confirmLoading,
   onCancel,
   onOk,
 }: BudgetCreateModalProps) {
+  const [fullscreen, setFullscreen] = useState(false);
   const { language, t } = useI18n();
   const dateRange = Form.useWatch('dateRange', form);
-  const ownerNameHidden = Form.useWatch('ownerNameHidden', form) === true;
-  const signatureEnabled = Form.useWatch(['signatureConfig', 'enabled'], form) === true;
-  const signatureLabelLanguage = Form.useWatch(['signatureConfig', 'labelLanguage'], form) ?? 'en';
-  const signatureLabelMode = Form.useWatch(['signatureConfig', 'labelMode'], form) ?? 'confirmation_signature';
-  const signatureLabelSeparator = Form.useWatch(['signatureConfig', 'labelSeparator'], form) ?? 'space';
-  const onlineMemberOptions = memberOptions(workspaceMembers);
   const visibilityOptions: Array<{ label: string; value: Visibility }> = [
     { label: visibilityLabelsByLanguage[language].private, value: 'private' },
     { label: visibilityLabelsByLanguage[language].workspace, value: 'workspace' },
@@ -64,37 +49,8 @@ export function BudgetCreateModal({
     { label: budgetStatusLabelsByLanguage[language].closed, value: 'closed' },
     { label: budgetStatusLabelsByLanguage[language].archived, value: 'archived' },
   ];
-  const signatureLabelPreview = signatureLabelForConfig({
-    enabled: true,
-    title: '',
-    labelLanguage: signatureLabelLanguage,
-    labelMode: signatureLabelMode,
-    labelSeparator: signatureLabelSeparator,
-    sectionAlign: 'full',
-    labelAlign: 'left',
-    showControlText: true,
-    rows: [],
-  });
   const handleResetTitle = () => {
     form.setFieldValue('title', defaultBudgetTitle(dateRange ?? null));
-  };
-  const syncSignatureMember = (fieldName: number, memberUserId: number | null | undefined) => {
-    const member = workspaceMembers.find((item) => item.userId === memberUserId);
-    if (member === undefined) {
-      return;
-    }
-
-    const currentRows = form.getFieldValue(['signatureConfig', 'rows']) ?? [];
-    const current = currentRows[fieldName] ?? {};
-    const memberRow = signatureRowFromMember(member, current.roleLabel ?? '');
-    form.setFieldValue(['signatureConfig', 'rows', fieldName], {
-      ...current,
-      id: current.id ?? memberRow.id,
-      participantType: memberRow.participantType,
-      memberUserId: memberRow.memberUserId,
-      displayName: memberRow.displayName,
-      email: memberRow.email,
-    });
   };
 
   return (
@@ -104,10 +60,15 @@ export function BudgetCreateModal({
       confirmLoading={confirmLoading}
       okText={isEditing ? t('save') : t('create')}
       open={open}
-      title={isEditing ? t('editBudget') : t('createBudget')}
-      width="min(1120px, calc(100vw - 48px))"
-      style={{ top: 18 }}
-      wrapClassName="budget-info-modal"
+      title={
+        <div className="modal-title-with-tools">
+          <span>{isEditing ? t('editBudget') : t('createBudget')}</span>
+          <ModalFullscreenButton fullscreen={fullscreen} setFullscreen={setFullscreen} />
+        </div>
+      }
+      width={fullscreen ? 'calc(100vw - 24px)' : 'min(1120px, calc(100vw - 48px))'}
+      style={{ top: 12 }}
+      wrapClassName={`budget-info-modal large-form-modal${fullscreen ? ' modal-fullscreen' : ''}`}
       onCancel={onCancel}
       onOk={onOk}
     >
@@ -142,27 +103,23 @@ export function BudgetCreateModal({
               { max: 255, message: t('budgetTitleMax') },
             ]}
           >
-            <Input
-              autoComplete="off"
-              addonAfter={
-                <Button size="small" type="link" onClick={handleResetTitle}>
-                  {t('reset')}
-                </Button>
-              }
-            />
+            <div className="budget-info-title-control">
+              <Input.TextArea
+                autoComplete="off"
+                autoSize={{ maxRows: 3, minRows: 1 }}
+              />
+              <Button size="small" type="link" onClick={handleResetTitle}>
+                {t('reset')}
+              </Button>
+            </div>
           </Form.Item>
-          <Form.Item className="budget-info-inline-check" name="ownerNameHidden" valuePropName="checked">
-            <Checkbox>{t('hideDisplayName')}</Checkbox>
+          <Form.Item
+            label={t('name')}
+            name="ownerName"
+            rules={[{ max: 160, message: t('displayNameMax') }]}
+          >
+            <Input autoComplete="name" />
           </Form.Item>
-          {ownerNameHidden ? null : (
-            <Form.Item
-              label={t('displayName')}
-              name="ownerName"
-              rules={[{ max: 160, message: t('displayNameMax') }]}
-            >
-              <Input autoComplete="name" />
-            </Form.Item>
-          )}
           <Form.Item
             label={t('period')}
             name="dateRange"
@@ -205,241 +162,6 @@ export function BudgetCreateModal({
           >
             <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} />
           </Form.Item>
-        </div>
-        <div className="signature-config-panel">
-          <Form.Item name={['signatureConfig', 'enabled']} valuePropName="checked">
-            <Checkbox>{t('showSignatureSection')}</Checkbox>
-          </Form.Item>
-          {signatureEnabled ? (
-            <>
-              <Form.Item
-                label={t('signatureSectionTitle')}
-                name={['signatureConfig', 'title']}
-                rules={[{ max: 120, message: t('signatureConfigTextMax') }]}
-              >
-                <Input autoComplete="off" />
-              </Form.Item>
-              <div className="modal-form-grid">
-                <Form.Item
-                  label={t('signatureLabelLanguage')}
-                  name={['signatureConfig', 'labelLanguage']}
-                >
-                  <Select options={languageOptions} />
-                </Form.Item>
-                <Form.Item label={t('signatureLabelMode')} name={['signatureConfig', 'labelMode']}>
-                  <Select
-                    options={[
-                      { label: t('confirmationSignature'), value: 'confirmation_signature' },
-                      { label: t('confirmationOnly'), value: 'confirmation' },
-                      { label: t('signatureOnly'), value: 'signature' },
-                    ]}
-                  />
-                </Form.Item>
-              </div>
-              <div className="modal-form-grid">
-                <Form.Item
-                  label={t('signatureLabelSeparator')}
-                  name={['signatureConfig', 'labelSeparator']}
-                >
-                  <Select
-                    options={[
-                      { label: t('noneSeparator'), value: 'none' },
-                      { label: t('spaceSeparator'), value: 'space' },
-                      { label: t('slashSeparator'), value: 'slash' },
-                      { label: t('lineSeparator'), value: 'line' },
-                    ]}
-                  />
-                </Form.Item>
-                <Form.Item label={t('signatureSectionAlign')} name={['signatureConfig', 'sectionAlign']}>
-                  <Select
-                    options={[
-                      { label: t('alignFullWidth'), value: 'full' },
-                      { label: t('alignRightWhenNotFull'), value: 'right' },
-                    ]}
-                  />
-                </Form.Item>
-                <Form.Item label={t('signatureLabelAlign')} name={['signatureConfig', 'labelAlign']}>
-                  <Select
-                    options={[
-                      { label: t('alignLeft'), value: 'left' },
-                      { label: t('alignRight'), value: 'right' },
-                    ]}
-                  />
-                </Form.Item>
-              </div>
-              <div className="signature-label-preview">
-                <span>{t('preview')}</span>
-                <strong>{signatureLabelPreview}</strong>
-              </div>
-              <Form.List name={['signatureConfig', 'rows']}>
-                {(fields, { add, remove }) => (
-                  <div className="signature-row-list">
-                    {fields.map((field) => (
-                      <div className="signature-config-row" key={field.key}>
-                        <div className="signature-config-row-head">
-                          <strong>
-                            {t('signatureParticipant')} {field.name + 1}
-                          </strong>
-                          <Button
-                            danger
-                            icon={<Trash2 size={14} />}
-                            size="small"
-                            type="text"
-                            onClick={() => remove(field.name)}
-                          >
-                            {t('remove')}
-                          </Button>
-                        </div>
-                        <div className="modal-form-grid">
-                          <Form.Item
-                            label={t('participantSource')}
-                            name={[field.name, 'participantType']}
-                          >
-                            <Select
-                              options={[
-                                { label: t('workspaceMember'), value: 'workspace_member' },
-                                { label: t('manualEntry'), value: 'manual' },
-                              ]}
-                            />
-                          </Form.Item>
-                          <Form.Item
-                            label={t('workspaceMember')}
-                            name={[field.name, 'memberUserId']}
-                          >
-                            <Select
-                              allowClear
-                              showSearch
-                              optionFilterProp="label"
-                              options={onlineMemberOptions}
-                              placeholder={t('selectWorkspaceMember')}
-                              onChange={(value) => syncSignatureMember(field.name, value)}
-                            />
-                          </Form.Item>
-                        </div>
-                        <div className="modal-form-grid">
-                          <Form.Item
-                            label={t('roleLabel')}
-                            name={[field.name, 'roleLabel']}
-                            rules={[{ max: 120, message: t('signatureConfigTextMax') }]}
-                          >
-                            <Input autoComplete="off" placeholder={t('preparedBy')} />
-                          </Form.Item>
-                          <Form.Item
-                            label={t('displayName')}
-                            name={[field.name, 'displayName']}
-                            rules={[{ max: 160, message: t('displayNameMax') }]}
-                          >
-                            <Input autoComplete="off" />
-                          </Form.Item>
-                        </div>
-                        <div className="modal-form-grid">
-                          <Form.Item
-                            label={t('email')}
-                            name={[field.name, 'email']}
-                            rules={[{ max: 190, message: t('signatureConfigTextMax') }]}
-                          >
-                            <Input autoComplete="off" />
-                          </Form.Item>
-                          <Form.Item
-                            label={t('position')}
-                            name={[field.name, 'position']}
-                            rules={[{ max: 160, message: t('signatureConfigTextMax') }]}
-                          >
-                            <Input autoComplete="off" />
-                          </Form.Item>
-                        </div>
-                        <Form.List name={[field.name, 'customFields']}>
-                          {(customFields, { add: addCustomField, remove: removeCustomField }) => (
-                            <div className="signature-custom-field-list">
-                              <div className="signature-custom-field-head">
-                                <strong>{t('customSignatureFields')}</strong>
-                                <Button
-                                  icon={<Plus size={14} />}
-                                  size="small"
-                                  type="dashed"
-                                  onClick={() => addCustomField(createSignatureCustomField())}
-                                >
-                                  {t('addSignatureCustomField')}
-                                </Button>
-                              </div>
-                              {customFields.map((customField) => (
-                                <div className="signature-custom-field-row" key={customField.key}>
-                                  <Form.Item
-                                    className="signature-custom-field-input"
-                                    label={t('customFieldLabel')}
-                                    name={[customField.name, 'label']}
-                                    rules={[{ max: 80, message: t('signatureConfigTextMax') }]}
-                                  >
-                                    <Input autoComplete="off" placeholder={t('phoneNumber')} />
-                                  </Form.Item>
-                                  <Form.Item
-                                    className="signature-custom-field-input"
-                                    label={t('customFieldValue')}
-                                    name={[customField.name, 'value']}
-                                    rules={[{ max: 240, message: t('signatureConfigTextMax') }]}
-                                  >
-                                    <Input autoComplete="off" placeholder={t('remark')} />
-                                  </Form.Item>
-                                  <Form.Item name={[customField.name, 'show']} valuePropName="checked">
-                                    <Checkbox>{t('showCustomField')}</Checkbox>
-                                  </Form.Item>
-                                  <Button
-                                    danger
-                                    icon={<Trash2 size={14} />}
-                                    size="small"
-                                    type="text"
-                                    onClick={() => removeCustomField(customField.name)}
-                                  >
-                                    {t('remove')}
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </Form.List>
-                        <Form.Item label={t('dateTime')} name={[field.name, 'signedAt']}>
-                          <DatePicker
-                            allowClear
-                            className="form-full-width"
-                            format="YYYY-MM-DD HH:mm:ss"
-                            showTime
-                          />
-                        </Form.Item>
-                        <Space className="signature-option-grid" wrap>
-                          <Form.Item name={[field.name, 'showRole']} valuePropName="checked">
-                            <Checkbox>{t('showRole')}</Checkbox>
-                          </Form.Item>
-                          <Form.Item name={[field.name, 'showName']} valuePropName="checked">
-                            <Checkbox>{t('showName')}</Checkbox>
-                          </Form.Item>
-                          <Form.Item name={[field.name, 'showEmail']} valuePropName="checked">
-                            <Checkbox>{t('showEmail')}</Checkbox>
-                          </Form.Item>
-                          <Form.Item name={[field.name, 'showPosition']} valuePropName="checked">
-                            <Checkbox>{t('showPosition')}</Checkbox>
-                          </Form.Item>
-                          <Form.Item name={[field.name, 'showSignature']} valuePropName="checked">
-                            <Checkbox>{t('showSignatureBox')}</Checkbox>
-                          </Form.Item>
-                          <Form.Item name={[field.name, 'showDateTime']} valuePropName="checked">
-                            <Checkbox>{t('showDateTime')}</Checkbox>
-                          </Form.Item>
-                        </Space>
-                      </div>
-                    ))}
-                    <Button
-                      block
-                      icon={<Plus size={14} />}
-                      type="dashed"
-                      onClick={() => add(createSignatureRow('manual'))}
-                    >
-                      {t('addSignatureParticipant')}
-                    </Button>
-                  </div>
-                )}
-              </Form.List>
-            </>
-          ) : null}
         </div>
       </Form>
     </Modal>

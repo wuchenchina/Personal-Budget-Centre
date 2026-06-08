@@ -10,6 +10,7 @@ import { BudgetItemModal } from './components/budget/BudgetItemModal';
 import { BudgetMetrics } from './components/budget/BudgetMetrics';
 import { BudgetProjectDashboard } from './components/budget/BudgetProjectDashboard';
 import { BudgetProjectList } from './components/budget/BudgetProjectList';
+import { BudgetSignatureModal } from './components/budget/BudgetSignatureModal';
 import { TransactionModal } from './components/budget/TransactionModal';
 import { AppShell } from './components/layout/AppShell';
 import { ProfilePage } from './components/profile/ProfilePage';
@@ -263,6 +264,11 @@ function App() {
       budget.openBudgetEditModal(budget.selectedBudget);
     }
   };
+  const openSelectedBudgetSignatureSettings = () => {
+    if (budget.selectedBudget !== null) {
+      budget.openBudgetSignatureModal(budget.selectedBudget);
+    }
+  };
   const budgetMetrics = (
     <BudgetMetrics
       selectedBudget={budget.selectedBudget}
@@ -285,8 +291,11 @@ function App() {
       isBudgetSaving={budget.isBudgetSaving}
       isTemplateLoading={template.isTemplateLoading}
       onEditBudget={budget.selectedBudget === null ? undefined : openSelectedBudgetSettings}
+      onEditSignature={budget.selectedBudget === null ? undefined : openSelectedBudgetSignatureSettings}
       onInlineHeaderSave={budget.handleBudgetHeaderSave}
       onOpenShare={canManageWorkspaceMembers ? () => setIsShareModalOpen(true) : undefined}
+      categoryOptions={entryCategoryOptions}
+      transactionCategoryOptions={transactionCategoryOptions}
     />
   );
   const governancePanel = (
@@ -313,13 +322,24 @@ function App() {
         isEditing={budget.editingBudgetId !== null}
         error={budget.budgetError}
         workspaceOptions={workspace.workspaceOptions}
-        workspaceMembers={workspace.workspaceMembers}
         confirmLoading={budget.isBudgetSaving}
         onCancel={() => {
           budget.setIsBudgetModalOpen(false);
           budget.budgetForm.resetFields();
         }}
         onOk={budget.handleBudgetSave}
+      />
+      <BudgetSignatureModal
+        form={budget.budgetForm}
+        open={budget.isSignatureModalOpen}
+        error={budget.budgetError}
+        workspaceMembers={workspace.workspaceMembers}
+        confirmLoading={budget.isBudgetSaving}
+        onCancel={() => {
+          budget.setIsSignatureModalOpen(false);
+          budget.budgetForm.resetFields();
+        }}
+        onOk={budget.handleBudgetSignatureSave}
       />
       <BudgetItemModal
         form={budgetEntry.budgetItemForm}
@@ -328,8 +348,10 @@ function App() {
         error={budgetEntry.entryError}
         categoryOptions={entryCategoryOptions}
         baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
+        focus={budgetEntry.budgetItemModalFocus}
+        transactions={budget.selectedBudget?.transactions ?? []}
         confirmLoading={budgetEntry.isBudgetItemSaving}
-        onPreviewCurrencyAmount={budgetEntry.previewBudgetItemCurrencyAmount}
+        onRefreshRates={budgetEntry.handleBudgetItemRateRefresh}
         onCancel={budgetEntry.closeBudgetItemModal}
         onOk={budgetEntry.handleBudgetItemSave}
       />
@@ -339,7 +361,9 @@ function App() {
         open={budgetEntry.isTransactionModalOpen}
         error={budgetEntry.entryError}
         categoryOptions={transactionCategoryOptions}
+        baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
         confirmLoading={budgetEntry.isTransactionSaving}
+        onRefreshRates={budgetEntry.handleTransactionRateRefresh}
         onCancel={budgetEntry.closeTransactionModal}
         onOk={budgetEntry.handleTransactionSave}
       />

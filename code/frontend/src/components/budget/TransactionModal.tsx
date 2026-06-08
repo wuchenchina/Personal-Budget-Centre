@@ -1,8 +1,11 @@
-import { Alert, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
+import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
+import { useState } from 'react';
+import { RefreshCcw } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
 import { useI18n } from '../../i18n';
-import type { Transaction } from '../../types/budget';
+import { ModalFullscreenButton } from '../common/ModalFullscreenButton';
+import type { CurrencyCode, Transaction } from '../../types/budget';
 import type { TransactionFormValues } from '../../types/forms';
 
 interface TransactionModalProps {
@@ -11,9 +14,11 @@ interface TransactionModalProps {
   open: boolean;
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
+  baseCurrency: CurrencyCode;
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
+  onRefreshRates: () => void;
 }
 
 export function TransactionModal({
@@ -22,11 +27,21 @@ export function TransactionModal({
   open,
   error,
   categoryOptions,
+  baseCurrency,
   confirmLoading,
   onCancel,
   onOk,
+  onRefreshRates,
 }: TransactionModalProps) {
+  const [fullscreen, setFullscreen] = useState(false);
   const { t } = useI18n();
+  const currency = Form.useWatch('currency', form) ?? baseCurrency;
+  const amount = Form.useWatch('amount', form);
+  const rate = Form.useWatch('rate', form);
+  const basePreview =
+    typeof amount === 'number' && Number.isFinite(amount)
+      ? amount * (typeof rate === 'number' && Number.isFinite(rate) && rate > 0 ? rate : 1)
+      : null;
 
   return (
     <Modal
@@ -34,8 +49,15 @@ export function TransactionModal({
       confirmLoading={confirmLoading}
       okText={editingTransaction === null ? t('create') : t('save')}
       open={open}
-      title={editingTransaction === null ? t('transaction') : t('editTransaction')}
-      width={720}
+      title={
+        <div className="modal-title-with-tools">
+          <span>{editingTransaction === null ? t('transaction') : t('editTransaction')}</span>
+          <ModalFullscreenButton fullscreen={fullscreen} setFullscreen={setFullscreen} />
+        </div>
+      }
+      width={fullscreen ? 'calc(100vw - 24px)' : 'min(920px, calc(100vw - 40px))'}
+      style={{ top: 24 }}
+      wrapClassName={`large-form-modal${fullscreen ? ' modal-fullscreen' : ''}`}
       onCancel={onCancel}
       onOk={onOk}
     >
@@ -46,16 +68,22 @@ export function TransactionModal({
         name="budget-centre-transaction"
         requiredMark={false}
       >
-        <Form.Item
-          label={t('transactionDetails')}
-          name="details"
-          rules={[
-            { required: true, message: t('transactionDetailsRequired') },
-            { max: 500, message: t('transactionDetailsMax') },
-          ]}
-        >
-          <Input autoComplete="off" />
-        </Form.Item>
+        <div className="entry-basic-grid">
+          <Form.Item
+            label={t('transactionDetails')}
+            name="details"
+            rules={[
+              { required: true, message: t('transactionDetailsRequired') },
+              { max: 500, message: t('transactionDetailsMax') },
+            ]}
+          >
+            <Input autoComplete="off" />
+          </Form.Item>
+
+          <Form.Item label={t('date')} name="transactionDate">
+            <DatePicker className="form-full-width" />
+          </Form.Item>
+        </div>
 
         <Form.Item
           label={t('category')}
@@ -71,51 +99,79 @@ export function TransactionModal({
           />
         </Form.Item>
 
-        <div className="modal-form-grid">
-          <Form.Item label={t('date')} name="transactionDate">
-            <DatePicker className="form-full-width" />
-          </Form.Item>
-          <Form.Item
-            label={t('budgetCurrency')}
-            name="currency"
-            rules={[{ required: true, message: t('selectBaseCurrency') }]}
-          >
-            <Select options={currencyOptions} />
-          </Form.Item>
+        <div className="currency-config-panel">
+          <div className="currency-config-header">
+            <div>
+              <div className="currency-config-title">{t('transactionAmountCurrency')}</div>
+              <div className="currency-config-subtitle">
+                {t('transactionAmountCurrencyHelp', { currency: baseCurrency })}
+              </div>
+            </div>
+            <Button
+              icon={<RefreshCcw size={14} />}
+              loading={confirmLoading}
+              size="small"
+              onClick={onRefreshRates}
+            >
+              {t('refreshBochkRates')}
+            </Button>
+          </div>
+          <div className="currency-transaction-grid">
+            <Form.Item
+              label={t('currency')}
+              name="currency"
+              rules={[{ required: true, message: t('selectCurrency') }]}
+            >
+              <Select options={currencyOptions} />
+            </Form.Item>
+            <Form.Item
+              label={t('amount')}
+              name="amount"
+              rules={[{ required: true, message: t('amountRequired') }]}
+            >
+              <InputNumber
+                addonBefore={currency}
+                className="form-full-width"
+                precision={2}
+                step={100}
+              />
+            </Form.Item>
+            <Form.Item
+              label={t('rateToBaseCurrency', { currency: baseCurrency })}
+              name="rate"
+              extra={t('manualRateOptional')}
+              rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
+            >
+              <InputNumber className="form-full-width" precision={6} step={0.01} />
+            </Form.Item>
+          </div>
+          <div className="currency-field-preview">
+            <span>{t('baseCurrencyPreview')}</span>
+            <strong>
+              {basePreview === null
+                ? `${baseCurrency} --`
+                : `${baseCurrency} ${basePreview.toFixed(2)}`}
+            </strong>
+          </div>
         </div>
 
         <div className="modal-form-grid">
           <Form.Item
-            label={t('amount')}
-            name="amount"
-            rules={[{ required: true, message: t('amountRequired') }]}
+            label={t('sortOrder')}
+            name="sortOrder"
+            rules={[{ type: 'number', min: 0, message: t('sortOrderMin') }]}
           >
-            <InputNumber className="form-full-width" precision={2} step={100} />
+            <InputNumber className="form-full-width" precision={0} step={1} />
           </Form.Item>
+
           <Form.Item
-            label={t('toBaseRate')}
-            name="rate"
-            rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
+            label={t('note')}
+            name="remark"
+            rules={[{ max: 500, message: t('transactionRemarkMax') }]}
           >
-            <InputNumber className="form-full-width" precision={6} step={0.01} />
+            <Input.TextArea autoSize={{ minRows: 1, maxRows: 3 }} />
           </Form.Item>
         </div>
-
-        <Form.Item
-          label={t('sortOrder')}
-          name="sortOrder"
-          rules={[{ type: 'number', min: 0, message: t('sortOrderMin') }]}
-        >
-          <InputNumber className="form-full-width" precision={0} step={1} />
-        </Form.Item>
-
-        <Form.Item
-          label={t('note')}
-          name="remark"
-          rules={[{ max: 500, message: t('transactionRemarkMax') }]}
-        >
-          <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} />
-        </Form.Item>
       </Form>
     </Modal>
   );

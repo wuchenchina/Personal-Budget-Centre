@@ -100,16 +100,20 @@ final readonly class BudgetPdfSignatureRenderer
     private function rowHeight(array $row, array $config, float $width): float
     {
         $fieldCount = max(1, count($this->signatureFields($row, $config)));
+        if (($row['showSignature'] ?? true) === false) {
+            return max($width <= 80.0 ? 14.0 : 11.0, 5.5 + ($fieldCount * 4.2));
+        }
+
         if ($width <= 80.0) {
             return max($this->minimumRowHeight($width), max(29.0, 5.0 + ($fieldCount * 5.0)) + 28.0);
         }
 
-        return max($this->minimumRowHeight($width), 9.0 + ($fieldCount * 5.0));
+        return max($this->minimumRowHeight($width), 10.5 + ($fieldCount * 5.0));
     }
 
     private function minimumRowHeight(float $width): float
     {
-        return $width <= 80.0 ? 58.0 : 34.0;
+        return $width <= 80.0 ? 62.0 : 39.0;
     }
 
     private function signatureFields(array $row, array $config): array
@@ -156,8 +160,8 @@ final readonly class BudgetPdfSignatureRenderer
     private function metaSvg(array $fields, float $rowTop, float $width): string
     {
         $labelX = 3.0;
-        $valueX = $width <= 80.0 ? 23.0 : 27.0;
-        $valueWidth = $width <= 80.0 ? 48.0 : 43.0;
+        $valueX = $width <= 80.0 ? 25.0 : 30.0;
+        $valueWidth = $width <= 80.0 ? 46.0 : 42.0;
         $baseline = $rowTop + 4.0;
         $svg = '';
         foreach (array_slice($fields, 0, 18) as $index => [$label, $value]) {
@@ -171,20 +175,73 @@ final readonly class BudgetPdfSignatureRenderer
 
     private function signatureBoxSvg(array $config, float $rowTop, float $width, int $fieldCount): string
     {
-        $boxWidth = $width <= 80.0 ? 66.0 : 74.0;
-        $boxHeight = $width <= 80.0 ? 23.0 : 24.0;
-        $boxX = $width <= 80.0 ? 5.0 : $width - $boxWidth - 7.0;
-        $boxY = $width <= 80.0 ? $rowTop + max(29.0, 5.0 + ($fieldCount * 5.0)) : $rowTop + 4.0;
+        $boxWidth = $width <= 80.0 ? 66.0 : 78.0;
+        $boxHeight = $width <= 80.0 ? 26.0 : 29.0;
+        $boxX = $width <= 80.0 ? 5.0 : $width - $boxWidth - 6.0;
+        $boxY = $width <= 80.0 ? $rowTop + max(31.0, 5.0 + ($fieldCount * 5.0)) : $rowTop + 4.5;
         $label = $this->formatter->signatureLabel($config);
-        $lineY = $boxY + $boxHeight - 5.0;
-        $caption = $this->fitText($label, $boxWidth - 8.0);
+        $captionLines = $this->signatureLabelLines($label);
+        $captionLineHeight = 2.45;
+        $captionBoxHeight = 1.6 + (count($captionLines) * $captionLineHeight);
         $captionAlign = ($config['labelAlign'] ?? null) === 'right' ? 'right' : 'left';
-        $captionX = $captionAlign === 'right' ? $boxX + $boxWidth - 4.0 : $boxX + 4.0;
+        $captionBoxWidth = $this->signatureLabelBoxWidth($captionLines, $boxWidth - 8.0);
+        $captionBoxX = $captionAlign === 'right' ? $boxX + $boxWidth - 4.0 - $captionBoxWidth : $boxX + 4.0;
+        $captionBoxY = $boxY + $boxHeight - $captionBoxHeight - 1.0;
+        $captionX = $captionAlign === 'right' ? $captionBoxX + $captionBoxWidth - 1.4 : $captionBoxX + 1.4;
+        $captionY = $captionBoxY + 2.35;
+        $lineY = max($boxY + 8.0, $captionBoxY - 1.2);
 
         $svg = '<rect x="' . $this->number($boxX) . '" y="' . $this->number($boxY) . '" width="' . $this->number($boxWidth) . '" height="' . $this->number($boxHeight) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>'
             . $this->securityPatternSvg($boxX, $boxY, $boxWidth, $boxHeight)
             . '<line x1="' . $this->number($boxX + 4.0) . '" y1="' . $this->number($lineY) . '" x2="' . $this->number($boxX + $boxWidth - 4.0) . '" y2="' . $this->number($lineY) . '" stroke="#8f8f8f" stroke-width="0.16"/>'
-            . $this->text($captionX, $boxY + $boxHeight - 1.6, $caption, 1.75, '#555', 'sf-mono-light', $captionAlign === 'right' ? 'end' : 'start');
+            . '<rect x="' . $this->number($captionBoxX) . '" y="' . $this->number($captionBoxY) . '" width="' . $this->number($captionBoxWidth) . '" height="' . $this->number($captionBoxHeight) . '" fill="#fff" stroke="#d9d9d9" stroke-width="0.14"/>'
+            . $this->signatureLabelTextSvg($captionLines, $captionX, $captionY, $captionLineHeight, $captionBoxWidth - 2.8, $captionAlign);
+
+        return $svg;
+    }
+
+    private function signatureLabelLines(string $label): array
+    {
+        $lines = preg_split('/\R/u', $label) ?: [$label];
+        $lines = array_values(array_filter(array_map(
+            static fn (string $line): string => trim($line),
+            $lines,
+        ), static fn (string $line): bool => $line !== ''));
+
+        return array_slice($lines === [] ? [trim($label)] : $lines, 0, 3);
+    }
+
+    private function signatureLabelBoxWidth(array $lines, float $maxWidth): float
+    {
+        $longest = 0;
+        foreach ($lines as $line) {
+            $length = function_exists('mb_strlen') ? mb_strlen((string) $line, 'UTF-8') : strlen((string) $line);
+            $longest = max($longest, $length);
+        }
+
+        return min($maxWidth, max(20.0, ($longest * 1.25) + 5.0));
+    }
+
+    private function signatureLabelTextSvg(
+        array $lines,
+        float $x,
+        float $y,
+        float $lineHeight,
+        float $maxWidth,
+        string $align,
+    ): string {
+        $svg = '';
+        foreach ($lines as $index => $line) {
+            $svg .= $this->text(
+                $x,
+                $y + ($index * $lineHeight),
+                $this->fitText((string) $line, $maxWidth),
+                1.75,
+                '#555',
+                'sf-mono-light',
+                $align === 'right' ? 'end' : 'start',
+            );
+        }
 
         return $svg;
     }

@@ -107,6 +107,56 @@ final readonly class BudgetExportRepository
         return $row === false ? null : $this->fromRow($row);
     }
 
+    public function staleForBudgetFormat(int $budgetId, string $format, int $keepCount): array
+    {
+        $limit = max(1, $keepCount);
+        $statement = $this->pdo->prepare(
+            <<<SQL
+            SELECT
+              id,
+              budget_id,
+              user_id,
+              format,
+              file_name,
+              file_path,
+              status,
+              error_message,
+              created_at
+            FROM budget_exports
+            WHERE budget_id = :budget_id
+              AND format = :format
+              AND id NOT IN (
+                SELECT id
+                FROM (
+                  SELECT id
+                  FROM budget_exports
+                  WHERE budget_id = :inner_budget_id
+                    AND format = :inner_format
+                  ORDER BY created_at DESC, id DESC
+                  LIMIT {$limit}
+                ) recent_exports
+              )
+            ORDER BY created_at ASC, id ASC
+            SQL
+        );
+        $statement->bindValue('budget_id', $budgetId, PDO::PARAM_INT);
+        $statement->bindValue('format', $format);
+        $statement->bindValue('inner_budget_id', $budgetId, PDO::PARAM_INT);
+        $statement->bindValue('inner_format', $format);
+        $statement->execute();
+
+        return array_map(
+            fn (array $row): array => $this->fromRow($row),
+            $statement->fetchAll(),
+        );
+    }
+
+    public function delete(int $id): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM budget_exports WHERE id = :id');
+        $statement->execute(['id' => $id]);
+    }
+
     private function fromRow(array $row): array
     {
         return [

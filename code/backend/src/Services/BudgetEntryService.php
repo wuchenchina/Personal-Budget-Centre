@@ -138,7 +138,6 @@ final readonly class BudgetEntryService
     {
         $label = Input::string($input['label'] ?? null);
         $budgetAmount = $this->number($input['budgetAmount'] ?? $input['budget_amount'] ?? null);
-        $estimatedAmount = $this->number($input['estimatedAmount'] ?? $input['estimated_amount'] ?? null);
         $specifiedAmount = $this->number($input['currencyAmount'] ?? $input['currency_amount'] ?? null);
         $bankFeeMultiplier = 1 + (($this->number($input['bankFee'] ?? $input['bank_fee'] ?? null) ?? 0.0) / 100);
         $usesUnifiedCurrencyPayload = array_key_exists('currency', $input) || array_key_exists('currency_amount', $input) || array_key_exists('currencyAmount', $input);
@@ -153,6 +152,8 @@ final readonly class BudgetEntryService
             $input['currency'] ?? $input['estimatedCurrency'] ?? $input['estimated_currency'] ?? $currencyInput,
         );
         $categoryId = $this->budgetItemCategoryId($workspaceId, $userId, $input, $label);
+        $transactionTotalBase = (new BudgetEntryRepository($this->pdo))
+            ->transactionTotalBaseForCategory($budgetId, $categoryId);
         $rateDate = Input::date($input['rateDate'] ?? $input['rate_date'] ?? null);
         $budgetRate = $this->rateToBase(
             $workspaceId,
@@ -172,28 +173,22 @@ final readonly class BudgetEntryService
         if ($specifiedAmount !== null) {
             $budgetAmount = $specifiedAmount;
             $budgetBase = $budgetAmount * $budgetRate * $bankFeeMultiplier;
-            $estimatedBase = $estimatedAmount ?? 0.0;
+            $estimatedBase = $transactionTotalBase;
             $estimatedAmount = $this->originalAmountFromBase($estimatedBase, $estimatedRate);
         } elseif ($usesUnifiedCurrencyPayload && $budgetAmount !== null) {
             $budgetBase = $budgetAmount;
             $budgetAmount = $this->originalAmountFromBase($budgetBase, $budgetRate);
-            $estimatedBase = $estimatedAmount ?? 0.0;
+            $estimatedBase = $transactionTotalBase;
             $estimatedAmount = $this->originalAmountFromBase($estimatedBase, $estimatedRate);
         } elseif ($budgetAmount === null) {
-            $transactionTotalBase = (new BudgetEntryRepository($this->pdo))
-                ->transactionTotalBaseForCategory($budgetId, $categoryId);
             $budgetBase = $transactionTotalBase;
             $estimatedBase = $transactionTotalBase;
             $budgetAmount = $this->originalAmountFromBase($budgetBase, $budgetRate);
             $estimatedAmount = $this->originalAmountFromBase($estimatedBase, $estimatedRate);
         } else {
             $budgetBase = $budgetAmount * $budgetRate;
-            if ($estimatedAmount === null) {
-                $estimatedBase = $budgetBase;
-                $estimatedAmount = $this->originalAmountFromBase($estimatedBase, $estimatedRate);
-            } else {
-                $estimatedBase = $estimatedAmount * $estimatedRate;
-            }
+            $estimatedBase = $transactionTotalBase;
+            $estimatedAmount = $this->originalAmountFromBase($estimatedBase, $estimatedRate);
         }
 
         return [

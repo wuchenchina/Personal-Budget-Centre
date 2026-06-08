@@ -75,33 +75,33 @@ final readonly class BudgetPdfFormatter
     {
         return [
             'en' => [
-                'participant' => 'Participant',
+                'participant' => 'Name',
                 'capacity' => 'Capacity',
                 'position' => 'Position',
                 'email' => 'Email',
                 'dateTime' => 'Date & Time',
             ],
             'sc' => [
-                'participant' => '参与人',
+                'participant' => '姓名',
                 'capacity' => '身份',
                 'position' => '职务',
                 'email' => '电子邮件',
                 'dateTime' => '日期及时间',
             ],
             'tc' => [
-                'participant' => '參與人',
+                'participant' => '姓名',
                 'capacity' => '身份',
                 'position' => '職務',
                 'email' => '電子郵件',
                 'dateTime' => '日期及時間',
             ],
-        ][$this->signatureLanguage($config)][$key];
+        ][$this->signatureInfoLanguage($config)][$key];
     }
 
     public function signatureRoleForDisplay(array $config, string $value): string
     {
         $trimmed = trim($value);
-        $language = $this->signatureLanguage($config);
+        $language = $this->signatureInfoLanguage($config);
         $defaultRole = [
             'en' => 'Confirmed by',
             'sc' => '确认人',
@@ -112,10 +112,17 @@ final readonly class BudgetPdfFormatter
         }
 
         $legacyRoleLabels = [
-            'en' => ['Confirmation Signature', 'Confirmation / Signature', 'Participant', 'Signer / Confirmer'],
-            'sc' => ['确认签署', '确认 / 签署', '签核/确认人'],
-            'tc' => ['確認簽署', '確認 / 簽署', '簽核/確認人'],
-        ][$language];
+            'Confirmation Signature',
+            'Confirmation / Signature',
+            'Participant',
+            'Signer / Confirmer',
+            '确认签署',
+            '确认 / 签署',
+            '签核/确认人',
+            '確認簽署',
+            '確認 / 簽署',
+            '簽核/確認人',
+        ];
 
         return in_array($trimmed, $legacyRoleLabels, true) || $trimmed === $this->signatureLabel($config)
             ? $defaultRole
@@ -132,6 +139,15 @@ final readonly class BudgetPdfFormatter
         return in_array($config['labelLanguage'] ?? null, ['en', 'sc', 'tc'], true)
             ? $config['labelLanguage']
             : 'en';
+    }
+
+    private function signatureInfoLanguage(array $config): string
+    {
+        if (in_array($config['infoLanguage'] ?? null, ['en', 'sc', 'tc'], true)) {
+            return $config['infoLanguage'];
+        }
+
+        return $this->signatureLanguage($config);
     }
 
     private function signatureDateTime(string $value): string

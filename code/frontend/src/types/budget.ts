@@ -110,6 +110,7 @@ export interface BudgetSignatureRow {
 export interface BudgetSignatureConfig {
   enabled: boolean;
   title: string;
+  infoLanguage: BudgetSignatureLabelLanguage;
   labelLanguage: BudgetSignatureLabelLanguage;
   labelMode: BudgetSignatureLabelMode;
   labelSeparator: BudgetSignatureLabelSeparator;
