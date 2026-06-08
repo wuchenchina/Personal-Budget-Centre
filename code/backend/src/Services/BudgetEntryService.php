@@ -482,6 +482,7 @@ final readonly class BudgetEntryService
                 'monthlyAmount' => null,
                 'totalAmount' => null,
                 'startMonth' => null,
+                'periodUnit' => 'month',
                 'remark' => null,
             ];
         }
@@ -516,8 +517,14 @@ final readonly class BudgetEntryService
             'monthlyAmount' => $monthlyAmount,
             'totalAmount' => $totalAmount,
             'startMonth' => $startMonth,
+            'periodUnit' => $this->installmentPeriodUnit($input['periodUnit'] ?? $input['period_unit'] ?? null),
             'remark' => $remark,
         ];
+    }
+
+    private function installmentPeriodUnit(mixed $value): string
+    {
+        return in_array($value, ['day', 'week', 'month', 'year'], true) ? (string) $value : 'month';
     }
 
     private function monthFromInput(mixed $value): ?string

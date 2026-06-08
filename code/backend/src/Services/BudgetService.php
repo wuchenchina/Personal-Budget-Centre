@@ -20,6 +20,8 @@ final readonly class BudgetService
 {
     private const VISIBILITIES = ['private', 'workspace', 'custom'];
     private const STATUSES = ['draft', 'active', 'closed', 'archived'];
+    private const BUDGET_TYPES = ['regular', 'installment'];
+    private const INSTALLMENT_PERIOD_UNITS = ['day', 'week', 'month', 'year'];
     private const SIGNATURE_ROW_LIMIT = 50;
     private const SIGNATURE_CUSTOM_FIELD_LIMIT = 12;
 
@@ -63,6 +65,10 @@ final readonly class BudgetService
             Input::string($input['displayCurrency'] ?? $input['display_currency'] ?? null)
                 ?? $baseCurrencyCode,
         );
+        $budgetType = Input::string($input['budgetType'] ?? $input['budget_type'] ?? null) ?? 'regular';
+        $installmentPeriodUnit = Input::string(
+            $input['installmentPeriodUnit'] ?? $input['installment_period_unit'] ?? null,
+        ) ?? 'month';
         $visibility = Input::string($input['visibility'] ?? null) ?? 'private';
         $status = Input::string($input['status'] ?? null) ?? 'draft';
         $note = Input::string($input['note'] ?? null);
@@ -77,7 +83,17 @@ final readonly class BudgetService
             (int) $session['user_id'],
             PermissionGuard::WRITE_ROLES,
         );
-        $this->validateBudgetInput($title, $ownerName, $startDate, $endDate, $visibility, $status, $note);
+        $this->validateBudgetInput(
+            $title,
+            $ownerName,
+            $startDate,
+            $endDate,
+            $budgetType,
+            $installmentPeriodUnit,
+            $visibility,
+            $status,
+            $note,
+        );
 
         $currencies = new CurrencyRepository($this->pdo);
         $baseCurrencyId = $currencies->findIdByCode($baseCurrencyCode);
@@ -105,6 +121,8 @@ final readonly class BudgetService
                 $endDate,
                 $baseCurrencyId,
                 $displayCurrencyId,
+                $budgetType,
+                $installmentPeriodUnit,
                 $visibility,
                 $status,
                 $note,
@@ -125,6 +143,8 @@ final readonly class BudgetService
             'endDate' => $endDate,
             'baseCurrency' => $baseCurrencyCode,
             'displayCurrency' => $displayCurrencyCode,
+            'budgetType' => $budgetType,
+            'installmentPeriodUnit' => $installmentPeriodUnit,
             'visibility' => $visibility,
             'status' => $status,
             'note' => $note,
@@ -195,6 +215,8 @@ final readonly class BudgetService
             $payload['endDate'],
             $baseCurrencyId,
             $displayCurrencyId,
+            $payload['budgetType'],
+            $payload['installmentPeriodUnit'],
             $payload['visibility'],
             $payload['status'],
             $payload['note'],
@@ -240,12 +262,26 @@ final readonly class BudgetService
             Input::string($input['displayCurrency'] ?? $input['display_currency'] ?? null)
                 ?? $baseCurrencyCode,
         );
+        $budgetType = Input::string($input['budgetType'] ?? $input['budget_type'] ?? null) ?? 'regular';
+        $installmentPeriodUnit = Input::string(
+            $input['installmentPeriodUnit'] ?? $input['installment_period_unit'] ?? null,
+        ) ?? 'month';
         $visibility = Input::string($input['visibility'] ?? null) ?? 'private';
         $status = Input::string($input['status'] ?? null) ?? 'draft';
         $note = Input::string($input['note'] ?? null);
         $signatureConfig = $this->signatureConfigJsonFromInput($input);
 
-        $this->validateBudgetInput($title, $ownerName, $startDate, $endDate, $visibility, $status, $note);
+        $this->validateBudgetInput(
+            $title,
+            $ownerName,
+            $startDate,
+            $endDate,
+            $budgetType,
+            $installmentPeriodUnit,
+            $visibility,
+            $status,
+            $note,
+        );
 
         return [
             'title' => $title,
@@ -254,6 +290,8 @@ final readonly class BudgetService
             'endDate' => $endDate,
             'baseCurrency' => $baseCurrencyCode,
             'displayCurrency' => $displayCurrencyCode,
+            'budgetType' => $budgetType,
+            'installmentPeriodUnit' => $installmentPeriodUnit,
             'visibility' => $visibility,
             'status' => $status,
             'note' => $note,
@@ -266,6 +304,8 @@ final readonly class BudgetService
         string $ownerName,
         ?string $startDate,
         ?string $endDate,
+        string $budgetType,
+        string $installmentPeriodUnit,
         string $visibility,
         string $status,
         ?string $note,
@@ -284,6 +324,14 @@ final readonly class BudgetService
 
         if ($startDate !== null && $endDate !== null && $startDate > $endDate) {
             throw new AuthException('VALIDATION_ERROR', 'Start date must be before or equal to end date.', 422);
+        }
+
+        if (!in_array($budgetType, self::BUDGET_TYPES, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget type must be regular or installment.', 422);
+        }
+
+        if (!in_array($installmentPeriodUnit, self::INSTALLMENT_PERIOD_UNITS, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment period unit must be day, week, month, or year.', 422);
         }
 
         if (!in_array($visibility, self::VISIBILITIES, true)) {

@@ -36,6 +36,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
   const [selectedBudget, setSelectedBudget] = useState<BudgetDetail | null>(null);
   const [budgetError, setBudgetError] = useState<string | null>(null);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isInstallmentModalOpen, setIsInstallmentModalOpen] = useState(false);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [isBudgetLoading, setIsBudgetLoading] = useState(false);
   const [isBudgetDetailLoading, setIsBudgetDetailLoading] = useState(false);
@@ -142,6 +143,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       dateRange,
       baseCurrency,
       displayCurrency: baseCurrency,
+      budgetType: 'regular',
+      installmentPeriodUnit: 'month',
       visibility: 'private',
       status: 'draft',
       signatureConfig: {
@@ -173,6 +176,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
           : null,
       baseCurrency: budget.baseCurrency,
       displayCurrency: budget.displayCurrency,
+      budgetType: budget.budgetType,
+      installmentPeriodUnit: budget.installmentPeriodUnit,
       visibility: budget.visibility,
       status: budget.status,
       note: budget.note ?? undefined,
@@ -195,12 +200,38 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
           : null,
       baseCurrency: budget.baseCurrency,
       displayCurrency: budget.displayCurrency,
+      budgetType: budget.budgetType,
+      installmentPeriodUnit: budget.installmentPeriodUnit,
       visibility: budget.visibility,
       status: budget.status,
       note: budget.note ?? undefined,
       signatureConfig: signatureConfigToForm(budget.signatureConfig, currentLanguage()),
     });
     setIsSignatureModalOpen(true);
+  };
+
+  const openBudgetInstallmentModal = (budget: BudgetSummary) => {
+    setBudgetError(null);
+    setEditingBudgetId(budget.id);
+    budgetForm.resetFields();
+    budgetForm.setFieldsValue({
+      workspaceId: budget.workspaceId,
+      title: budget.title,
+      ownerName: budget.ownerName,
+      dateRange:
+        budget.startDate && budget.endDate
+          ? [dayjs(budget.startDate), dayjs(budget.endDate)]
+          : null,
+      baseCurrency: budget.baseCurrency,
+      displayCurrency: budget.displayCurrency,
+      budgetType: budget.budgetType,
+      installmentPeriodUnit: budget.installmentPeriodUnit,
+      visibility: budget.visibility,
+      status: budget.status,
+      note: budget.note ?? undefined,
+      signatureConfig: signatureConfigToForm(budget.signatureConfig, currentLanguage()),
+    });
+    setIsInstallmentModalOpen(true);
   };
 
   const handleBudgetSave = async () => {
@@ -226,6 +257,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         endDate: values.dateRange?.[1]?.format('YYYY-MM-DD') ?? null,
         baseCurrency: values.baseCurrency,
         displayCurrency: values.displayCurrency,
+        budgetType: values.budgetType ?? 'regular',
+        installmentPeriodUnit: values.installmentPeriodUnit ?? 'month',
         visibility: values.visibility,
         status: values.status ?? 'draft',
         note: values.note?.trim() || null,
@@ -241,6 +274,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
               endDate: payload.endDate,
               baseCurrency: payload.baseCurrency,
               displayCurrency: payload.displayCurrency,
+              budgetType: payload.budgetType,
+              installmentPeriodUnit: payload.installmentPeriodUnit,
               visibility: payload.visibility,
               status: payload.status,
               note: payload.note,
@@ -292,6 +327,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         endDate: selectedBudget.endDate,
         baseCurrency: selectedBudget.baseCurrency,
         displayCurrency: selectedBudget.displayCurrency,
+        budgetType: selectedBudget.budgetType,
+        installmentPeriodUnit: selectedBudget.installmentPeriodUnit,
         visibility: selectedBudget.visibility,
         status: selectedBudget.status,
         note: selectedBudget.note,
@@ -306,6 +343,52 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         ),
       );
       setIsSignatureModalOpen(false);
+      setEditingBudgetId(null);
+      budgetForm.resetFields();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setBudgetError(error.message);
+      }
+    } finally {
+      setIsBudgetSaving(false);
+    }
+  };
+
+  const handleBudgetInstallmentSave = async () => {
+    if (selectedBudget === null || editingBudgetId === null) {
+      setBudgetError(translateCurrent('selectBudgetFirst'));
+
+      return;
+    }
+
+    try {
+      const values = await budgetForm.validateFields(['budgetType', 'installmentPeriodUnit']);
+      setIsBudgetSaving(true);
+      setBudgetError(null);
+      const savedBudget = await updateBudget({
+        id: selectedBudget.id,
+        title: selectedBudget.title,
+        ownerName: selectedBudget.ownerName,
+        startDate: selectedBudget.startDate,
+        endDate: selectedBudget.endDate,
+        baseCurrency: selectedBudget.baseCurrency,
+        displayCurrency: selectedBudget.displayCurrency,
+        budgetType: values.budgetType ?? 'regular',
+        installmentPeriodUnit: values.installmentPeriodUnit ?? 'month',
+        visibility: selectedBudget.visibility,
+        status: selectedBudget.status,
+        note: selectedBudget.note,
+        signatureConfig: selectedBudget.signatureConfig,
+      });
+
+      requestedBudgetId.current = savedBudget.id;
+      setSelectedBudget(savedBudget);
+      setBudgets((currentBudgets) =>
+        currentBudgets.map((budget) =>
+          budget.id === savedBudget.id ? savedBudget : budget,
+        ),
+      );
+      setIsInstallmentModalOpen(false);
       setEditingBudgetId(null);
       budgetForm.resetFields();
     } catch (error: unknown) {
@@ -346,6 +429,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         endDate: selectedBudget.endDate,
         baseCurrency: selectedBudget.baseCurrency,
         displayCurrency: selectedBudget.displayCurrency,
+        budgetType: selectedBudget.budgetType,
+        installmentPeriodUnit: selectedBudget.installmentPeriodUnit,
         visibility: selectedBudget.visibility,
         status: selectedBudget.status,
         note: selectedBudget.note,
@@ -390,6 +475,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         endDate: sourceBudget.endDate,
         baseCurrency: sourceBudget.baseCurrency,
         displayCurrency: sourceBudget.displayCurrency,
+        budgetType: sourceBudget.budgetType,
+        installmentPeriodUnit: sourceBudget.installmentPeriodUnit,
         visibility: sourceBudget.visibility,
         status: nextStatus,
         note: sourceBudget.note,
@@ -480,6 +567,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     budgetError,
     isBudgetModalOpen,
     setIsBudgetModalOpen,
+    isInstallmentModalOpen,
+    setIsInstallmentModalOpen,
     isSignatureModalOpen,
     setIsSignatureModalOpen,
     isBudgetLoading,
@@ -489,8 +578,10 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     deletingBudgetId,
     openBudgetModal,
     openBudgetEditModal,
+    openBudgetInstallmentModal,
     openBudgetSignatureModal,
     handleBudgetHeaderSave,
+    handleBudgetInstallmentSave,
     handleBudgetStatusChange,
     handleBudgetSave,
     handleBudgetSignatureSave,

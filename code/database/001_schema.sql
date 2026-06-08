@@ -262,6 +262,8 @@ CREATE TABLE IF NOT EXISTS budgets (
   end_date DATE NULL,
   base_currency_id BIGINT UNSIGNED NOT NULL,
   display_currency_id BIGINT UNSIGNED NOT NULL,
+  budget_type ENUM('regular', 'installment') NOT NULL DEFAULT 'regular',
+  installment_period_unit ENUM('day', 'week', 'month', 'year') NOT NULL DEFAULT 'month',
   visibility ENUM('private', 'workspace', 'custom') NOT NULL DEFAULT 'private',
   status ENUM('draft', 'active', 'closed', 'archived') NOT NULL DEFAULT 'draft',
   note TEXT NULL,

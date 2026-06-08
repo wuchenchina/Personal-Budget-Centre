@@ -328,6 +328,20 @@
   font-size: 13px;
 }
 
+.installment-options-panel {
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.installment-options-panel p {
+  margin: 0 0 12px;
+  color: #595959;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .currency-config-panel {
   margin: 8px 0 16px;
   padding: 12px;

@@ -10,6 +10,7 @@ export function emptyInstallmentConfig(): BudgetInstallmentConfig {
     monthlyAmount: null,
     totalAmount: null,
     startMonth: null,
+    periodUnit: 'month',
     remark: null,
   };
 }
@@ -52,6 +53,7 @@ export function normalizeInstallmentConfig(
   const monthlyAmount = normalizeNonNegativeNumber(config.monthlyAmount);
   const totalAmount = normalizeNonNegativeNumber(config.totalAmount);
   const startMonth = normalizeMonth(config.startMonth);
+  const periodUnit = normalizePeriodUnit(config.periodUnit);
   const remark = normalizeText(config.remark);
 
   if (!enabled) {
@@ -65,6 +67,7 @@ export function normalizeInstallmentConfig(
     monthlyAmount,
     totalAmount,
     startMonth,
+    periodUnit,
     remark,
   };
 }
@@ -155,4 +158,10 @@ function normalizeText(value: unknown): string | null {
   const trimmed = value.trim();
 
   return trimmed === '' ? null : trimmed;
+}
+
+function normalizePeriodUnit(value: unknown): BudgetInstallmentConfig['periodUnit'] {
+  return value === 'day' || value === 'week' || value === 'month' || value === 'year'
+    ? value
+    : 'month';
 }

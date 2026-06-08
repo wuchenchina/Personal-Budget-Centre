@@ -6,6 +6,7 @@ import { EmailVerificationScreen } from './components/auth/EmailVerificationScre
 import { AuthScreen } from './components/auth/AuthScreen';
 import { BudgetCreateModal } from './components/budget/BudgetCreateModal';
 import { BudgetDocumentPreview } from './components/budget/BudgetDocumentPreview';
+import { BudgetInstallmentModal } from './components/budget/BudgetInstallmentModal';
 import { BudgetItemModal } from './components/budget/BudgetItemModal';
 import { BudgetMetrics } from './components/budget/BudgetMetrics';
 import { BudgetProjectDashboard } from './components/budget/BudgetProjectDashboard';
@@ -280,6 +281,11 @@ function App() {
       budget.openBudgetSignatureModal(budget.selectedBudget);
     }
   };
+  const openSelectedBudgetInstallmentSettings = () => {
+    if (budget.selectedBudget !== null) {
+      budget.openBudgetInstallmentModal(budget.selectedBudget);
+    }
+  };
   const budgetMetrics = (
     <BudgetMetrics
       selectedBudget={budget.selectedBudget}
@@ -302,6 +308,7 @@ function App() {
       isBudgetSaving={budget.isBudgetSaving}
       isTemplateLoading={template.isTemplateLoading}
       onEditBudget={budget.selectedBudget === null ? undefined : openSelectedBudgetSettings}
+      onEditInstallments={budget.selectedBudget === null ? undefined : openSelectedBudgetInstallmentSettings}
       onEditSignature={budget.selectedBudget === null ? undefined : openSelectedBudgetSignatureSettings}
       onInlineHeaderSave={budget.handleBudgetHeaderSave}
       onOpenShare={canManageWorkspaceMembers ? () => setIsShareModalOpen(true) : undefined}
@@ -351,6 +358,17 @@ function App() {
           budget.budgetForm.resetFields();
         }}
         onOk={budget.handleBudgetSignatureSave}
+      />
+      <BudgetInstallmentModal
+        form={budget.budgetForm}
+        open={budget.isInstallmentModalOpen}
+        error={budget.budgetError}
+        confirmLoading={budget.isBudgetSaving}
+        onCancel={() => {
+          budget.setIsInstallmentModalOpen(false);
+          budget.budgetForm.resetFields();
+        }}
+        onOk={budget.handleBudgetInstallmentSave}
       />
       <BudgetItemModal
         form={budgetEntry.budgetItemForm}

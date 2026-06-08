@@ -22,6 +22,10 @@ export type CurrencyCode =
 
 export type BudgetStatus = 'draft' | 'active' | 'closed' | 'archived';
 
+export type BudgetType = 'regular' | 'installment';
+
+export type BudgetInstallmentPeriodUnit = 'day' | 'week' | 'month' | 'year';
+
 export type Visibility = 'private' | 'workspace' | 'custom';
 
 export type PrincipalType = 'user' | 'workgroup' | 'workspace';
@@ -127,6 +131,7 @@ export interface BudgetInstallmentConfig {
   monthlyAmount: number | null;
   totalAmount: number | null;
   startMonth: string | null;
+  periodUnit: BudgetInstallmentPeriodUnit;
   remark: string | null;
 }
 
@@ -286,6 +291,8 @@ export interface BudgetSummary {
   endDate: string | null;
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
+  budgetType: BudgetType;
+  installmentPeriodUnit: BudgetInstallmentPeriodUnit;
   visibility: Visibility;
   status: BudgetStatus;
   note: string | null;
