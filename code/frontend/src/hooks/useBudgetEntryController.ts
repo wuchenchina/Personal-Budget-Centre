@@ -317,6 +317,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       categoryId: firstCategoryId,
       transactionDate: dayjs(),
       currency: entryCurrency,
+      referenceCurrency: undefined,
+      referenceAmount: undefined,
       sortOrder: options.selectedBudget.transactions.length + 1,
     });
     setIsTransactionModalOpen(true);
@@ -334,6 +336,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       currency: transaction.currency,
       amount: transaction.amountOriginal,
       rate: transaction.rateToBase,
+      referenceCurrency: transaction.referenceCurrency ?? undefined,
+      referenceAmount: transaction.referenceAmountOriginal ?? undefined,
       remark: transaction.remark ?? undefined,
       sortOrder: transaction.sortOrder,
     });
@@ -357,6 +361,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       const values = await transactionForm.validateFields();
       setIsTransactionSaving(true);
       setEntryError(null);
+      const referenceAmount = normalizedAmount(values.referenceAmount);
 
       const payload: SaveTransactionPayload = {
         categoryId: values.categoryId,
@@ -364,6 +369,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         details: values.details.trim(),
         currency: values.currency,
         amount: values.amount,
+        referenceCurrency: referenceAmount === null ? undefined : values.referenceCurrency,
+        referenceAmount,
         remark: values.remark?.trim() || null,
         sortOrder: values.sortOrder ?? 0,
       };
@@ -445,6 +452,39 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         currency: transaction.currency,
         amount: value,
         rate: transaction.rateToBase,
+        referenceCurrency: transaction.referenceCurrency ?? undefined,
+        referenceAmount: transaction.referenceAmountOriginal,
+        remark: transaction.remark,
+        sortOrder: transaction.sortOrder,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsTransactionSaving(false);
+    }
+  };
+
+  const handleTransactionQuickCurrencySave = async (
+    transaction: Transaction,
+    currency: CurrencyCode,
+  ) => {
+    if (options.selectedBudget === null || transaction.currency === currency) {
+      return;
+    }
+
+    setIsTransactionSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateTransaction({
+        id: transaction.id,
+        categoryId: transaction.categoryId ?? undefined,
+        transactionDate: transaction.transactionDate,
+        details: transaction.details,
+        currency,
+        amount: transaction.amountOriginal,
+        referenceCurrency: transaction.referenceCurrency ?? undefined,
+        referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
         sortOrder: transaction.sortOrder,
       }));
@@ -475,7 +515,47 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         currency: transaction.currency,
         amount: transaction.amountOriginal,
         rate: transaction.rateToBase,
+        referenceCurrency: transaction.referenceCurrency ?? undefined,
+        referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
+        sortOrder: transaction.sortOrder,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsTransactionSaving(false);
+    }
+  };
+
+  const handleTransactionQuickRemarkSave = async (
+    transaction: Transaction,
+    remark: string,
+  ) => {
+    if (options.selectedBudget === null) {
+      return;
+    }
+
+    const nextRemark = remark.trim();
+    const normalizedRemark = nextRemark === '' ? null : nextRemark;
+    if ((transaction.remark ?? null) === normalizedRemark) {
+      return;
+    }
+
+    setIsTransactionSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateTransaction({
+        id: transaction.id,
+        categoryId: transaction.categoryId ?? undefined,
+        transactionDate: transaction.transactionDate,
+        details: transaction.details,
+        currency: transaction.currency,
+        amount: transaction.amountOriginal,
+        rate: transaction.rateToBase,
+        referenceCurrency: transaction.referenceCurrency ?? undefined,
+        referenceAmount: transaction.referenceAmountOriginal,
+        remark: normalizedRemark,
         sortOrder: transaction.sortOrder,
       }));
     } catch (error: unknown) {
@@ -525,7 +605,9 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     handleTransactionSave,
     handleTransactionRateRefresh,
     handleTransactionQuickAmountSave,
+    handleTransactionQuickCurrencySave,
     handleTransactionCategoryQuickSave,
+    handleTransactionQuickRemarkSave,
     handleTransactionDelete,
   };
 }

@@ -162,6 +162,8 @@ export interface Transaction {
   amountOriginal: number;
   rateToBase: number;
   amountBase: number;
+  referenceCurrency: CurrencyCode | null;
+  referenceAmountOriginal: number | null;
   remark: string | null;
   sortOrder: number;
 }

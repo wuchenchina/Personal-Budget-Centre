@@ -213,6 +213,7 @@ final readonly class BudgetEntryService
     {
         $details = Input::string($input['details'] ?? null);
         $amount = $this->number($input['amount'] ?? null);
+        $referenceAmount = $this->number($input['referenceAmount'] ?? $input['reference_amount'] ?? null);
 
         if ($details === null || strlen($details) > 500) {
             throw new AuthException('VALIDATION_ERROR', 'Transaction details are required and must be 500 characters or less.', 422);
@@ -222,7 +223,19 @@ final readonly class BudgetEntryService
             throw new AuthException('VALIDATION_ERROR', 'Transaction amount is required.', 422);
         }
 
+        if ($referenceAmount !== null && $referenceAmount < 0.0) {
+            throw new AuthException('VALIDATION_ERROR', 'Reference amount cannot be less than 0.', 422);
+        }
+
         $currencyId = $this->currencyId($input['currency'] ?? null);
+        $referenceCurrencyInput = $input['referenceCurrency'] ?? $input['reference_currency'] ?? null;
+        if ($referenceAmount !== null && Input::string($referenceCurrencyInput) === null) {
+            throw new AuthException('VALIDATION_ERROR', 'Reference currency is required when reference amount is filled.', 422);
+        }
+
+        $referenceCurrencyId = $referenceAmount === null
+            ? null
+            : $this->currencyId($referenceCurrencyInput);
         $transactionDate = Input::date($input['transactionDate'] ?? $input['transaction_date'] ?? null);
         $rateDate = Input::date($input['rateDate'] ?? $input['rate_date'] ?? null) ?? $transactionDate;
         $rate = $this->rateToBase(
@@ -242,6 +255,8 @@ final readonly class BudgetEntryService
             'amount_original' => $amount,
             'rate_to_base' => $rate,
             'amount_base' => $amount * $rate,
+            'reference_currency_id' => $referenceCurrencyId,
+            'reference_amount_original' => $referenceAmount,
             'remark' => Input::string($input['remark'] ?? null),
             'sort_order' => Input::positiveInt($input['sortOrder'] ?? $input['sort_order'] ?? null) ?? 0,
         ];

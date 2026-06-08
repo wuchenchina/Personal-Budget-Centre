@@ -28,6 +28,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { currencyOptions } from '../../config/appConfig';
 import type { BudgetEntryController } from '../../hooks/useBudgetEntryController';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import {
@@ -159,6 +160,7 @@ export function BudgetDocumentPreview({
           entry,
           transactionCategoryOptions,
           selectedBudget?.baseCurrency ?? baseCurrency,
+          t('referenceShort'),
         ),
         canWriteBudgets,
         entry,
@@ -782,19 +784,23 @@ function budgetInstallmentNode(row: BudgetItem) {
 
 function InlineMoneyCell({
   currency,
+  currencyOptions,
   disabled,
   editable,
   editLabel,
   secondaryText,
   value,
+  onCurrencyCommit,
   onEdit,
   onCommit,
 }: {
   currency: CurrencyCode;
+  currencyOptions?: Array<{ label: string; value: CurrencyCode }>;
   disabled: boolean;
   editable: boolean;
   secondaryText?: string | null;
   value: number;
+  onCurrencyCommit?: (currency: CurrencyCode) => void;
   onEdit?: () => void;
   editLabel?: string;
   onCommit: (value: number) => void;
@@ -832,7 +838,19 @@ function InlineMoneyCell({
   return (
     <span className="budget-inline-money-wrap">
       <span className="budget-inline-money-cell">
-        <span>{currency}</span>
+        {currencyOptions && onCurrencyCommit ? (
+          <Select<CurrencyCode>
+            className="budget-inline-currency-select"
+            disabled={disabled}
+            options={currencyOptions}
+            size="small"
+            value={currency}
+            variant="borderless"
+            onChange={(nextCurrency) => onCurrencyCommit(nextCurrency)}
+          />
+        ) : (
+          <span>{currency}</span>
+        )}
         <InputNumber
           changeOnWheel={false}
           className="budget-inline-money-input"
@@ -910,6 +928,23 @@ function transactionTotalsText(
     .join(' · ');
 }
 
+function transactionSecondaryText(
+  row: Transaction,
+  baseCurrency: CurrencyCode,
+  referenceLabel: string,
+): string | null {
+  const lines: string[] = [];
+  if (row.currency !== baseCurrency) {
+    lines.push(formatBudgetMoney(baseCurrency, row.amountBase));
+  }
+
+  if (typeof row.referenceCurrency === 'string' && typeof row.referenceAmountOriginal === 'number') {
+    lines.push(`${referenceLabel} ${formatBudgetMoney(row.referenceCurrency, row.referenceAmountOriginal)}`);
+  }
+
+  return lines.length === 0 ? null : lines.join(' · ');
+}
+
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -920,6 +955,7 @@ function appendTransactionQuickEditors(
   entry: BudgetEntryController,
   categoryOptions: Array<{ label: string; value: number }>,
   baseCurrency: CurrencyCode,
+  referenceLabel: string,
 ): TableProps<Transaction>['columns'] {
   if (columns === undefined) {
     return columns;
@@ -944,6 +980,22 @@ function appendTransactionQuickEditors(
       };
     }
 
+    if (key === 'remark') {
+      return {
+        ...column,
+        render: (_value: unknown, row: Transaction) => (
+          <InlineTransactionRemarkCell
+            disabled={entry.isTransactionSaving}
+            editable={canWriteBudgets}
+            value={row.remark ?? ''}
+            onCommit={(nextValue) => {
+              void entry.handleTransactionQuickRemarkSave(row, nextValue);
+            }}
+          />
+        ),
+      };
+    }
+
     if (key !== 'amount') {
       return column;
     }
@@ -953,14 +1005,14 @@ function appendTransactionQuickEditors(
       render: (_value: unknown, row: Transaction) => (
         <InlineMoneyCell
           currency={row.currency}
+          currencyOptions={currencyOptions}
           disabled={entry.isTransactionSaving}
           editable={canWriteBudgets}
-          secondaryText={
-            row.currency === baseCurrency
-              ? null
-              : formatBudgetMoney(baseCurrency, row.amountBase)
-          }
+          secondaryText={transactionSecondaryText(row, baseCurrency, referenceLabel)}
           value={row.amountOriginal}
+          onCurrencyCommit={(nextCurrency) => {
+            void entry.handleTransactionQuickCurrencySave(row, nextCurrency);
+          }}
           onEdit={() => entry.openTransactionEditModal(row)}
           onCommit={(nextValue) => {
             void entry.handleTransactionQuickAmountSave(row, nextValue);
@@ -1009,6 +1061,68 @@ function InlineTransactionCategoryCell({
         }}
       />
     </div>
+  );
+}
+
+function InlineTransactionRemarkCell({
+  disabled,
+  editable,
+  value,
+  onCommit,
+}: {
+  disabled: boolean;
+  editable: boolean;
+  value: string;
+  onCommit: (value: string) => void;
+}) {
+  const { t } = useI18n();
+  const [draftState, setDraftState] = useState({ sourceValue: value, draftValue: value });
+  const draftValue = draftState.sourceValue === value ? draftState.draftValue : value;
+  const normalizedValue = value.trim();
+  const setDraftValue = (nextValue: string) => {
+    setDraftState({ sourceValue: value, draftValue: nextValue });
+  };
+
+  if (!editable) {
+    return <span className="budget-inline-remark-readonly">{value}</span>;
+  }
+
+  const commit = () => {
+    const nextValue = draftValue.trim();
+    if (nextValue !== normalizedValue) {
+      onCommit(draftValue);
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      commit();
+      event.currentTarget.blur();
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setDraftValue(value);
+      event.currentTarget.blur();
+    }
+  };
+
+  return (
+    <Input.TextArea
+      allowClear
+      autoComplete="off"
+      autoSize={{ maxRows: 3, minRows: 1 }}
+      className="budget-inline-remark-input"
+      disabled={disabled}
+      maxLength={500}
+      placeholder={t('remark')}
+      value={draftValue}
+      variant="borderless"
+      onBlur={commit}
+      onChange={(event) => setDraftValue(event.target.value)}
+      onKeyDown={handleKeyDown}
+    />
   );
 }
 

@@ -379,6 +379,8 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
   amount_original DECIMAL(18, 4) NOT NULL,
   rate_to_base DECIMAL(20, 10) NOT NULL DEFAULT 1,
   amount_base DECIMAL(18, 4) NOT NULL,
+  reference_currency_id BIGINT UNSIGNED NULL,
+  reference_amount_original DECIMAL(18, 4) NULL,
   remark VARCHAR(500) NULL,
   sort_order INT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -388,7 +390,8 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
   CONSTRAINT fk_budget_transactions_budget FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE,
   CONSTRAINT fk_budget_transactions_category FOREIGN KEY (category_id) REFERENCES budget_categories(id) ON DELETE SET NULL,
   CONSTRAINT fk_budget_transactions_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL,
-  CONSTRAINT fk_budget_transactions_currency FOREIGN KEY (currency_id) REFERENCES currencies(id)
+  CONSTRAINT fk_budget_transactions_currency FOREIGN KEY (currency_id) REFERENCES currencies(id),
+  CONSTRAINT fk_budget_transactions_reference_currency FOREIGN KEY (reference_currency_id) REFERENCES currencies(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS budget_exports (

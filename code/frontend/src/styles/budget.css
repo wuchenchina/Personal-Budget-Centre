@@ -180,11 +180,19 @@
 
 .budget-inline-money-cell {
   display: inline-grid;
-  grid-template-columns: auto minmax(72px, 1fr) auto;
+  grid-template-columns: minmax(44px, auto) minmax(72px, 1fr) auto;
   align-items: center;
   justify-content: end;
   gap: 4px;
   width: 100%;
+}
+
+.budget-inline-currency-select {
+  width: 58px;
+}
+
+.budget-inline-currency-select .ant-select-selector {
+  padding-inline: 0 !important;
 }
 
 .budget-inline-money-input {
@@ -267,6 +275,21 @@
 
 .budget-category-quick-select .ant-select-selector {
   padding-inline: 0 !important;
+}
+
+.budget-inline-remark-input.ant-input {
+  width: 100%;
+  min-height: 22px;
+  padding: 0 2px;
+  resize: none;
+  font-size: 7.5pt;
+  line-height: 1.35;
+}
+
+.budget-inline-remark-readonly {
+  display: inline-block;
+  min-height: 18px;
+  white-space: pre-wrap;
 }
 
 .budget-table-frame .ant-table {

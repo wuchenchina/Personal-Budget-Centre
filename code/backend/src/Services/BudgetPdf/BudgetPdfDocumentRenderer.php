@@ -121,10 +121,24 @@ final readonly class BudgetPdfDocumentRenderer
         $amountBase = (float) ($transaction['amountBase'] ?? 0);
         $primary = $this->formatter->templateMoney($currency, $amountOriginal);
         if ($currency === $baseCurrency) {
+            return $this->amountWithReference($primary, $transaction);
+        }
+
+        return $this->amountWithReference(
+            $primary . "\n" . $this->formatter->templateMoney($baseCurrency, $amountBase),
+            $transaction,
+        );
+    }
+
+    private function amountWithReference(string $primary, array $transaction): string
+    {
+        $referenceCurrency = $transaction['referenceCurrency'] ?? null;
+        $referenceAmount = $transaction['referenceAmountOriginal'] ?? null;
+        if (!is_string($referenceCurrency) || !is_numeric($referenceAmount)) {
             return $primary;
         }
 
-        return $primary . "\n" . $this->formatter->templateMoney($baseCurrency, $amountBase);
+        return $primary . "\nRef " . $this->formatter->templateMoney($referenceCurrency, (float) $referenceAmount);
     }
 
     private function summaryRow(array $budget): array

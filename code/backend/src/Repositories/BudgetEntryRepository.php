@@ -104,6 +104,8 @@ final readonly class BudgetEntryRepository
               amount_original,
               rate_to_base,
               amount_base,
+              reference_currency_id,
+              reference_amount_original,
               remark,
               sort_order
             ) VALUES (
@@ -115,6 +117,8 @@ final readonly class BudgetEntryRepository
               :amount_original,
               :rate_to_base,
               :amount_base,
+              :reference_currency_id,
+              :reference_amount_original,
               :remark,
               :sort_order
             )
@@ -139,6 +143,8 @@ final readonly class BudgetEntryRepository
               amount_original = :amount_original,
               rate_to_base = :rate_to_base,
               amount_base = :amount_base,
+              reference_currency_id = :reference_currency_id,
+              reference_amount_original = :reference_amount_original,
               remark = :remark,
               sort_order = :sort_order
             WHERE id = :id

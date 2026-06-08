@@ -38,9 +38,23 @@ export function TransactionModal({
   const currency = Form.useWatch('currency', form) ?? baseCurrency;
   const amount = Form.useWatch('amount', form);
   const rate = Form.useWatch('rate', form);
+  const referenceCurrency = Form.useWatch('referenceCurrency', form);
+  const referenceAmount = Form.useWatch('referenceAmount', form);
   const basePreview =
     typeof amount === 'number' && Number.isFinite(amount)
       ? amount * (typeof rate === 'number' && Number.isFinite(rate) && rate > 0 ? rate : 1)
+      : null;
+  const referencePreview =
+    typeof referenceAmount === 'number' && Number.isFinite(referenceAmount) && referenceCurrency
+      ? `${referenceCurrency} ${referenceAmount.toFixed(2)}`
+      : null;
+  const impliedReferenceRate =
+    typeof amount === 'number'
+    && Number.isFinite(amount)
+    && typeof referenceAmount === 'number'
+    && Number.isFinite(referenceAmount)
+    && referenceAmount > 0
+      ? `${referenceCurrency ?? t('currency')} 1 = ${currency} ${(amount / referenceAmount).toFixed(6)}`
       : null;
 
   return (
@@ -151,6 +165,47 @@ export function TransactionModal({
               {basePreview === null
                 ? `${baseCurrency} --`
                 : `${baseCurrency} ${basePreview.toFixed(2)}`}
+            </strong>
+          </div>
+          <div className="currency-reference-grid">
+            <Form.Item
+              label={t('referenceCurrency')}
+              name="referenceCurrency"
+              extra={t('referenceAmountHelp')}
+            >
+              <Select allowClear options={currencyOptions} />
+            </Form.Item>
+            <Form.Item
+              label={t('referenceAmount')}
+              name="referenceAmount"
+              rules={[
+                { type: 'number', min: 0, message: t('referenceAmountMin') },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (typeof value !== 'number' || !Number.isFinite(value)) {
+                      return Promise.resolve();
+                    }
+
+                    return getFieldValue('referenceCurrency')
+                      ? Promise.resolve()
+                      : Promise.reject(new Error(t('selectReferenceCurrency')));
+                  },
+                }),
+              ]}
+            >
+              <InputNumber
+                addonBefore={referenceCurrency ?? t('currency')}
+                className="form-full-width"
+                precision={2}
+                step={100}
+              />
+            </Form.Item>
+          </div>
+          <div className="currency-field-preview currency-reference-preview">
+            <span>{t('referenceAmountPreview')}</span>
+            <strong>
+              {referencePreview ?? '--'}
+              {impliedReferenceRate ? <small>{impliedReferenceRate}</small> : null}
             </strong>
           </div>
         </div>

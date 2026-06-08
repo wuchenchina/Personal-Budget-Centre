@@ -72,6 +72,8 @@ export interface TransactionFormValues {
   currency: CurrencyCode;
   amount: number;
   rate?: number;
+  referenceCurrency?: CurrencyCode;
+  referenceAmount?: number;
   remark?: string;
   sortOrder?: number;
 }

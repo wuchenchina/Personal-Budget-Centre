@@ -522,11 +522,14 @@ final readonly class BudgetRepository
               bt.amount_original,
               bt.rate_to_base,
               bt.amount_base,
+              reference_currency.code AS reference_currency,
+              bt.reference_amount_original,
               bt.remark,
               bt.sort_order
             FROM budget_transactions bt
             LEFT JOIN budget_categories bc ON bc.id = bt.category_id
             INNER JOIN currencies currency ON currency.id = bt.currency_id
+            LEFT JOIN currencies reference_currency ON reference_currency.id = bt.reference_currency_id
             WHERE bt.budget_id = :budget_id
             ORDER BY bt.sort_order ASC, bt.id ASC
             SQL
@@ -544,6 +547,10 @@ final readonly class BudgetRepository
                 'amountOriginal' => $this->decimal($row['amount_original']),
                 'rateToBase' => $this->decimal($row['rate_to_base']),
                 'amountBase' => $this->decimal($row['amount_base']),
+                'referenceCurrency' => $row['reference_currency'],
+                'referenceAmountOriginal' => $row['reference_amount_original'] === null
+                    ? null
+                    : $this->decimal($row['reference_amount_original']),
                 'remark' => $row['remark'],
                 'sortOrder' => (int) $row['sort_order'],
             ],

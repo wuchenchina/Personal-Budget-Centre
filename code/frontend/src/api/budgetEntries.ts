@@ -34,6 +34,8 @@ export interface SaveTransactionPayload {
   currency: CurrencyCode;
   amount: number;
   rate?: number;
+  referenceCurrency?: CurrencyCode;
+  referenceAmount?: number | null;
   remark?: string | null;
   sortOrder?: number;
 }
