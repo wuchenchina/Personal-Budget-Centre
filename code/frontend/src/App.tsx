@@ -186,6 +186,17 @@ function App() {
       left.label.localeCompare(right.label),
     );
   }, [budget.selectedBudget?.items, operations.categoryOptions]);
+  const budgetItemPresetCategoryOptions = useMemo(() => {
+    const editingItemId = budgetEntry.editingBudgetItem?.id ?? null;
+    const usedCategoryIds = new Set(
+      budget.selectedBudget?.items
+        .filter((item) => item.id !== editingItemId)
+        .map((item) => item.categoryId)
+        .filter((categoryId): categoryId is number => categoryId !== null) ?? [],
+    );
+
+    return operations.categoryOptions.filter((option) => !usedCategoryIds.has(option.value));
+  }, [budget.selectedBudget?.items, budgetEntry.editingBudgetItem?.id, operations.categoryOptions]);
   const transactionCategoryOptions = useMemo(() => {
     const optionMap = new Map<number, { label: string; value: number }>();
 
@@ -346,7 +357,7 @@ function App() {
         editingItem={budgetEntry.editingBudgetItem}
         open={budgetEntry.isBudgetItemModalOpen}
         error={budgetEntry.entryError}
-        categoryOptions={operations.categoryOptions}
+        categoryOptions={budgetItemPresetCategoryOptions}
         baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
         focus={budgetEntry.budgetItemModalFocus}
         transactions={budget.selectedBudget?.transactions ?? []}

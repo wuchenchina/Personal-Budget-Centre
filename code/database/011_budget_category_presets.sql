@@ -20,7 +20,8 @@ SET @sql := IF(
   @column_exists = 0,
   'UPDATE budget_categories bc
    SET bc.is_preset = 0
-   WHERE bc.default_currency_id IS NULL
+   WHERE LOWER(TRIM(bc.name)) LIKE ''top up %''
+     AND bc.default_currency_id IS NULL
      AND NOT EXISTS (
        SELECT 1
        FROM budget_category_aliases bca
