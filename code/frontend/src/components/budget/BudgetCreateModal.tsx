@@ -50,7 +50,8 @@ export function BudgetCreateModal({
     { label: budgetStatusLabelsByLanguage[language].archived, value: 'archived' },
   ];
   const handleResetTitle = () => {
-    form.setFieldValue('title', defaultBudgetTitle(dateRange ?? null));
+    const currentDateRange = form.getFieldValue('dateRange') ?? dateRange ?? null;
+    form.setFieldValue('title', defaultBudgetTitle(currentDateRange));
   };
 
   return (
@@ -97,18 +98,22 @@ export function BudgetCreateModal({
           <Form.Item
             className="budget-info-title-field"
             label={t('title')}
-            name="title"
-            rules={[
-              { required: true, message: t('budgetTitleRequired') },
-              { max: 255, message: t('budgetTitleMax') },
-            ]}
           >
             <div className="budget-info-title-control">
-              <Input.TextArea
-                autoComplete="off"
-                autoSize={{ maxRows: 3, minRows: 1 }}
-              />
-              <Button size="small" type="link" onClick={handleResetTitle}>
+              <Form.Item
+                noStyle
+                name="title"
+                rules={[
+                  { required: true, message: t('budgetTitleRequired') },
+                  { max: 255, message: t('budgetTitleMax') },
+                ]}
+              >
+                <Input.TextArea
+                  autoComplete="off"
+                  autoSize={{ maxRows: 3, minRows: 1 }}
+                />
+              </Form.Item>
+              <Button htmlType="button" size="small" type="link" onClick={handleResetTitle}>
                 {t('reset')}
               </Button>
             </div>

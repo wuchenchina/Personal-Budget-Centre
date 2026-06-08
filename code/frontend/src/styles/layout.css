@@ -121,7 +121,7 @@
 }
 
 .language-switcher {
-  width: 84px;
+  min-width: 132px;
 }
 
 .app-content {

@@ -51,7 +51,6 @@ export function AuthScreen({
         aria-label="Language"
         className="auth-language-switcher"
         options={languageOptions}
-        size="small"
         value={language}
         onChange={onLanguageChange}
       />

@@ -105,7 +105,6 @@ export function AppShell({
               aria-label="Language"
               className="language-switcher"
               options={languageOptions}
-              size="small"
               value={language}
               onChange={onLanguageChange}
             />
