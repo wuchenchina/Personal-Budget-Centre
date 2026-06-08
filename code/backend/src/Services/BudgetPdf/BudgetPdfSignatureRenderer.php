@@ -412,7 +412,8 @@ final readonly class BudgetPdfSignatureRenderer
         $captionLines = $this->signatureLabelLines($label);
         $captionLineHeight = 2.45;
         $captionAlign = ($config['labelAlign'] ?? null) === 'right' ? 'right' : 'left';
-        $captionX = $boxX + 4.0;
+        $captionLeft = $boxX + 4.0;
+        $captionRight = $boxX + $boxWidth - 4.0;
         $captionBottomY = $boxY + $boxHeight - 1.6;
         $captionY = $captionBottomY - ((count($captionLines) - 1) * $captionLineHeight);
         $lineY = max($boxY + 8.0, $captionY - 2.0);
@@ -420,7 +421,7 @@ final readonly class BudgetPdfSignatureRenderer
         $svg = '<rect x="' . $this->number($boxX) . '" y="' . $this->number($boxY) . '" width="' . $this->number($boxWidth) . '" height="' . $this->number($boxHeight) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>'
             . $this->securityPatternSvg($boxX, $boxY, $boxWidth, $boxHeight)
             . '<line x1="' . $this->number($boxX + 4.0) . '" y1="' . $this->number($lineY) . '" x2="' . $this->number($boxX + $boxWidth - 4.0) . '" y2="' . $this->number($lineY) . '" stroke="#8f8f8f" stroke-width="0.16"/>'
-            . $this->signatureLabelTextSvg($captionLines, $captionX, $captionY, $captionLineHeight, $boxWidth - 8.0, $captionAlign);
+            . $this->signatureLabelTextSvg($captionLines, $captionLeft, $captionRight, $captionY, $captionLineHeight, $captionAlign);
 
         return $svg;
     }
@@ -438,18 +439,18 @@ final readonly class BudgetPdfSignatureRenderer
 
     private function signatureLabelTextSvg(
         array $lines,
-        float $x,
+        float $left,
+        float $right,
         float $y,
         float $lineHeight,
-        float $maxWidth,
         string $align,
     ): string {
         $svg = '';
+        $maxWidth = $right - $left;
         foreach ($lines as $index => $line) {
             $text = $this->fitText((string) $line, $maxWidth);
-            $textX = $align === 'right'
-                ? $this->signatureCaptionStartX($text, $x, $maxWidth, 1.75)
-                : $x;
+            $textWidth = min($maxWidth, $this->estimatedCaptionWidth($text, 1.75) + 0.35);
+            $textX = $align === 'right' ? $right - $textWidth : $left;
             $svg .= $this->text(
                 $textX,
                 $y + ($index * $lineHeight),
@@ -457,15 +458,14 @@ final readonly class BudgetPdfSignatureRenderer
                 1.75,
                 '#555',
                 'sf-mono-light',
+                'start',
+                $align === 'right'
+                    ? ' textLength="' . $this->number($textWidth) . '" lengthAdjust="spacingAndGlyphs"'
+                    : '',
             );
         }
 
         return $svg;
-    }
-
-    private function signatureCaptionStartX(string $text, float $lineLeft, float $maxWidth, float $fontSize): float
-    {
-        return max($lineLeft, $lineLeft + $maxWidth - $this->estimatedCaptionWidth($text, $fontSize));
     }
 
     private function estimatedCaptionWidth(string $text, float $fontSize): float
@@ -473,13 +473,13 @@ final readonly class BudgetPdfSignatureRenderer
         $width = 0.0;
         $chars = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY);
         if ($chars === false) {
-            return strlen($text) * $fontSize * 0.54;
+            return strlen($text) * $fontSize * 0.64;
         }
 
         foreach ($chars as $char) {
             $width += preg_match('/[\x{3400}-\x{9fff}\x{f900}-\x{faff}]/u', $char) === 1
                 ? $fontSize
-                : $fontSize * 0.54;
+                : $fontSize * 0.64;
         }
 
         return $width;
@@ -532,6 +532,7 @@ final readonly class BudgetPdfSignatureRenderer
         string $color,
         string $font = 'sf-mono',
         string $anchor = 'start',
+        string $extraAttributes = '',
     ): string {
         $anchorAttribute = $anchor === 'start' ? '' : ' text-anchor="' . $anchor . '"';
 
@@ -540,6 +541,7 @@ final readonly class BudgetPdfSignatureRenderer
             . ' font-size="' . $this->number($size) . '"'
             . ' fill="' . $color . '"'
             . $anchorAttribute
+            . $extraAttributes
             . '>'
             . $this->svgEscape($value)
             . '</text>';

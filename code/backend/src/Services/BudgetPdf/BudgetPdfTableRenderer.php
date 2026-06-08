@@ -28,6 +28,7 @@ final readonly class BudgetPdfTableRenderer
             . '.align-right{text-align:right;}'
             . '.align-center{text-align:center;}'
             . '.money-cell{white-space:normal;}'
+            . '.cell-line{display:block;}'
             . '.empty{text-align:center;color:#595959;}';
     }
 

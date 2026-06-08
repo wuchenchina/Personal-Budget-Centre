@@ -19,7 +19,7 @@ final readonly class BudgetPdfDocumentRenderer
         $subtitle = trim((string) $budget['ownerName']);
         $subtitleHtml = $subtitle === ''
             ? ''
-            : '<div class="subtitle">' . $this->formatter->escapeHtml($subtitle) . '</div>';
+            : '<div class="subtitle">' . $this->subtitleText($subtitle) . '</div>';
         $periodText = $this->formatter->periodText($budget);
         $sections = $this->sectionsByKey($template);
         $budgetSection = $sections['budget_highlights'] ?? $this->defaultBudgetSection();
@@ -60,7 +60,24 @@ final readonly class BudgetPdfDocumentRenderer
             . '.title{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 4mm;}'
             . '.title sup{font-size:7pt;line-height:0;vertical-align:super;}'
             . '.subtitle{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 7mm;}'
+            . '.subtitle-line{display:block;}'
             . '.page-footer{font-family:"SF-Mono",TCSongti,monospace;font-size:7pt;color:#666;text-align:center;}';
+    }
+
+    private function subtitleText(string $value): string
+    {
+        $lines = preg_split('/\R/u', $value);
+        if ($lines === false) {
+            return $this->formatter->escapeHtml($value);
+        }
+
+        return implode('', array_map(
+            fn (string $line): string => '<span class="subtitle-line">' . $this->formatter->escapeHtml($line) . '</span>',
+            array_values(array_filter(
+                array_map(static fn (string $line): string => trim($line), $lines),
+                static fn (string $line): bool => $line !== '',
+            )),
+        ));
     }
 
     private function budgetRows(array $budget, array $transactions): array

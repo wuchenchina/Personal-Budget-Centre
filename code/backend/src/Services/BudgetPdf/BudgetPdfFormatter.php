@@ -15,7 +15,15 @@ final readonly class BudgetPdfFormatter
 
     public function templateCellText(string $value): string
     {
-        return nl2br($this->escapeHtml($value), false);
+        $lines = preg_split('/\R/u', $value);
+        if ($lines === false || count($lines) <= 1) {
+            return $this->escapeHtml($value);
+        }
+
+        return implode('', array_map(
+            fn (string $line): string => '<span class="cell-line">' . $this->escapeHtml($line) . '</span>',
+            $lines,
+        ));
     }
 
     public function periodText(array $budget): string
