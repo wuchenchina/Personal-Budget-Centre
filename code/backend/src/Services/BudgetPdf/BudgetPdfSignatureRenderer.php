@@ -158,15 +158,16 @@ final readonly class BudgetPdfSignatureRenderer
 
     private function signatureBoxSvg(array $config, float $rowTop, float $width, int $fieldCount): string
     {
-        $boxWidth = $width <= 80.0 ? 66.0 : 74.0;
-        $boxHeight = $width <= 80.0 ? 21.0 : 21.5;
+        $boxWidth = $width <= 80.0 ? 62.0 : 68.0;
+        $boxHeight = $width <= 80.0 ? 19.5 : 20.0;
         $boxX = $width <= 80.0 ? 5.0 : $width - $boxWidth - 7.0;
         $boxY = $width <= 80.0 ? $rowTop + max(29.0, 5.0 + ($fieldCount * 5.0)) : $rowTop + 4.0;
         $label = $this->formatter->signatureLabel($config);
         $watermarkX = $boxX + ($boxWidth * 0.38);
-        $watermarkY = $boxY + 8.7;
+        $watermarkY = $boxY + 8.2;
         $lineY = $boxY + $boxHeight - 5.0;
-        $captionX = $boxX + $boxWidth - 15.0;
+        $captionX = $boxX + $boxWidth - 3.2;
+        $caption = $this->fitText($label, $boxWidth - 8.0);
 
         $svg = '<rect x="' . $this->number($boxX) . '" y="' . $this->number($boxY) . '" width="' . $this->number($boxWidth) . '" height="' . $this->number($boxHeight) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>'
             . $this->securityPatternSvg($boxX, $boxY, $boxWidth, $boxHeight)
@@ -175,7 +176,7 @@ final readonly class BudgetPdfSignatureRenderer
                 : '')
             . $this->text($watermarkX, $watermarkY, 'CONFIRM', 2.45, '#e8e8e8', 'sf-mono-light')
             . '<line x1="' . $this->number($boxX + 4.0) . '" y1="' . $this->number($lineY) . '" x2="' . $this->number($boxX + $boxWidth - 4.0) . '" y2="' . $this->number($lineY) . '" stroke="#8f8f8f" stroke-width="0.16"/>'
-            . $this->text($captionX, $boxY + $boxHeight - 1.6, $label, 1.95, '#555', 'sf-mono-light');
+            . $this->text($captionX, $boxY + $boxHeight - 1.6, $caption, 1.75, '#555', 'sf-mono-light', 'end');
 
         return $svg;
     }
