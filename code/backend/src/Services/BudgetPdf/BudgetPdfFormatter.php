@@ -71,6 +71,28 @@ final readonly class BudgetPdfFormatter
         };
     }
 
+    public function signatureSectionTitle(array $config): string
+    {
+        $language = $this->signatureInfoLanguage($config);
+        $title = is_string($config['title'] ?? null) && trim($config['title']) !== ''
+            ? trim($config['title'])
+            : 'Preparation & Review Record';
+        $legacyTitles = [
+            'Confirmation Signature',
+            '签核确认信息',
+            '簽核確認資訊',
+        ];
+        if (in_array($title, $legacyTitles, true)) {
+            return [
+                'en' => 'Preparation & Review Record',
+                'sc' => '制表及复核记录',
+                'tc' => '製表及覆核記錄',
+            ][$language];
+        }
+
+        return $title;
+    }
+
     public function signatureMetaLabel(array $config, string $key): string
     {
         return [
@@ -124,9 +146,36 @@ final readonly class BudgetPdfFormatter
             '簽核/確認人',
         ];
 
-        return in_array($trimmed, $legacyRoleLabels, true) || $trimmed === $this->signatureLabel($config)
-            ? $defaultRole
-            : $trimmed;
+        if (in_array($trimmed, $legacyRoleLabels, true) || $trimmed === $this->signatureLabel($config)) {
+            return $defaultRole;
+        }
+
+        return $this->translateSignaturePhrase($trimmed, $this->signatureRolePhrases(), $language);
+    }
+
+    public function signaturePositionForDisplay(array $config, string $value): string
+    {
+        return $this->translateSignaturePhrase(
+            trim($value),
+            $this->signaturePositionPhrases(),
+            $this->signatureInfoLanguage($config),
+        );
+    }
+
+    public function signatureCustomFieldLabelForDisplay(array $config, string $value): string
+    {
+        $trimmed = trim($value);
+        $language = $this->signatureInfoLanguage($config);
+        foreach ($this->signatureMetaLabels() as $labels) {
+            if ($labels['telephone'] === $trimmed) {
+                return $this->signatureMetaLabels()[$language]['telephone'];
+            }
+            if ($labels['mobile'] === $trimmed) {
+                return $this->signatureMetaLabels()[$language]['mobile'];
+            }
+        }
+
+        return $value;
     }
 
     public function signatureDateTimeForDisplay(string $value): string
@@ -155,6 +204,66 @@ final readonly class BudgetPdfFormatter
         $trimmed = trim($value);
 
         return $trimmed === '' ? date('Y-m-d H:i:s') : $trimmed;
+    }
+
+    private function signatureMetaLabels(): array
+    {
+        return [
+            'en' => ['telephone' => 'Tel. No.', 'mobile' => 'Mobile No.'],
+            'sc' => ['telephone' => '电话号码', 'mobile' => '流动电话号码'],
+            'tc' => ['telephone' => '電話號碼', 'mobile' => '流動電話號碼'],
+        ];
+    }
+
+    private function translateSignaturePhrase(string $value, array $phrases, string $language): string
+    {
+        foreach ($phrases as $phrase) {
+            if ($phrase['en'] === $value || $phrase['sc'] === $value || $phrase['tc'] === $value) {
+                return $phrase[$language] ?? $value;
+            }
+        }
+
+        return $value;
+    }
+
+    private function signatureRolePhrases(): array
+    {
+        return [
+            ['en' => 'Prepared by', 'sc' => '制表', 'tc' => '製表'],
+            ['en' => 'Handled by', 'sc' => '经办', 'tc' => '經辦'],
+            ['en' => 'Checked by', 'sc' => '复核', 'tc' => '覆核'],
+            ['en' => 'Reviewed by', 'sc' => '审核', 'tc' => '審核'],
+            ['en' => 'Approved by', 'sc' => '审批', 'tc' => '審批'],
+            ['en' => 'Audited by', 'sc' => '审计', 'tc' => '審計'],
+            ['en' => 'Confirmed by', 'sc' => '确认', 'tc' => '確認'],
+            ['en' => 'Verified by', 'sc' => '核验', 'tc' => '核驗'],
+            ['en' => 'Authorised by', 'sc' => '授权', 'tc' => '授權'],
+            ['en' => 'Accepted by', 'sc' => '接纳', 'tc' => '接納'],
+            ['en' => 'Acknowledged by', 'sc' => '知悉确认', 'tc' => '知悉確認'],
+            ['en' => 'Reconciled by', 'sc' => '对账', 'tc' => '對賬'],
+            ['en' => 'Documented by', 'sc' => '记录', 'tc' => '記錄'],
+            ['en' => 'Processed by', 'sc' => '处理', 'tc' => '處理'],
+            ['en' => 'Finance reviewed by', 'sc' => '财务复核', 'tc' => '財務覆核'],
+        ];
+    }
+
+    private function signaturePositionPhrases(): array
+    {
+        return [
+            ['en' => 'Account Holder', 'sc' => '账户持有人', 'tc' => '帳戶持有人'],
+            ['en' => 'Budget Owner', 'sc' => '预算负责人', 'tc' => '預算負責人'],
+            ['en' => 'Finance Owner', 'sc' => '财务负责人', 'tc' => '財務負責人'],
+            ['en' => 'Finance Officer', 'sc' => '财务专员', 'tc' => '財務專員'],
+            ['en' => 'Accounts Officer', 'sc' => '会计专员', 'tc' => '會計專員'],
+            ['en' => 'Relationship Manager', 'sc' => '客户经理', 'tc' => '客戶經理'],
+            ['en' => 'Operations Officer', 'sc' => '运营专员', 'tc' => '營運專員'],
+            ['en' => 'Compliance Reviewer', 'sc' => '合规复核', 'tc' => '合規覆核'],
+            ['en' => 'Reviewer', 'sc' => '复核人', 'tc' => '覆核人'],
+            ['en' => 'Approver', 'sc' => '审批人', 'tc' => '審批人'],
+            ['en' => 'Internal Auditor', 'sc' => '内部审计', 'tc' => '內部審計'],
+            ['en' => 'External Auditor', 'sc' => '外部审计', 'tc' => '外部審計'],
+            ['en' => 'Authorised Representative', 'sc' => '授权代表', 'tc' => '授權代表'],
+        ];
     }
 
     private function periodDate(DateTimeImmutable $date): string

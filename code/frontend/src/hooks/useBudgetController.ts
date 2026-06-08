@@ -176,7 +176,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       visibility: budget.visibility,
       status: budget.status,
       note: budget.note ?? undefined,
-      signatureConfig: signatureConfigToForm(budget.signatureConfig),
+      signatureConfig: signatureConfigToForm(budget.signatureConfig, currentLanguage()),
     });
     setIsBudgetModalOpen(true);
   };
@@ -198,7 +198,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       visibility: budget.visibility,
       status: budget.status,
       note: budget.note ?? undefined,
-      signatureConfig: signatureConfigToForm(budget.signatureConfig),
+      signatureConfig: signatureConfigToForm(budget.signatureConfig, currentLanguage()),
     });
     setIsSignatureModalOpen(true);
   };

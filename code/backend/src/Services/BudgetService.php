@@ -380,7 +380,8 @@ final readonly class BudgetService
 
     private function signatureConfigFromArray(array $input): array
     {
-        $title = $this->limitedString($input['title'] ?? null, 120) ?? 'Confirmation Signature';
+        $infoLanguage = $this->signatureLabelLanguage($input['infoLanguage'] ?? $input['info_language'] ?? $input['labelLanguage'] ?? $input['label_language'] ?? null);
+        $title = $this->signatureSectionTitle($this->limitedString($input['title'] ?? null, 120), $infoLanguage);
         $rows = [];
         $rawRows = is_array($input['rows'] ?? null) ? array_slice($input['rows'], 0, self::SIGNATURE_ROW_LIMIT) : [];
         foreach ($rawRows as $row) {
@@ -397,7 +398,7 @@ final readonly class BudgetService
         return [
             'enabled' => ($input['enabled'] ?? false) === true,
             'title' => $title,
-            'infoLanguage' => $this->signatureLabelLanguage($input['infoLanguage'] ?? $input['info_language'] ?? $input['labelLanguage'] ?? $input['label_language'] ?? null),
+            'infoLanguage' => $infoLanguage,
             'labelLanguage' => $this->signatureLabelLanguage($input['labelLanguage'] ?? $input['label_language'] ?? null),
             'labelMode' => $this->signatureLabelMode($input['labelMode'] ?? $input['label_mode'] ?? null),
             'labelSeparator' => $this->signatureLabelSeparator($input['labelSeparator'] ?? $input['label_separator'] ?? null),
@@ -550,11 +551,30 @@ final readonly class BudgetService
         return $value === 'right' ? 'right' : 'left';
     }
 
+    private function signatureSectionTitle(?string $title, string $language): string
+    {
+        $value = $title ?? 'Preparation & Review Record';
+        $legacyTitles = [
+            'Confirmation Signature',
+            '签核确认信息',
+            '簽核確認資訊',
+        ];
+        if (!in_array($value, $legacyTitles, true)) {
+            return $value;
+        }
+
+        return [
+            'en' => 'Preparation & Review Record',
+            'sc' => '制表及复核记录',
+            'tc' => '製表及覆核記錄',
+        ][$language] ?? 'Preparation & Review Record';
+    }
+
     private function emptySignatureConfig(): array
     {
         return [
             'enabled' => false,
-            'title' => 'Confirmation Signature',
+            'title' => 'Preparation & Review Record',
             'infoLanguage' => 'en',
             'labelLanguage' => 'en',
             'labelMode' => 'confirmation_signature',

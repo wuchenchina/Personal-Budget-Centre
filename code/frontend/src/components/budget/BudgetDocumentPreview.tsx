@@ -58,7 +58,10 @@ import {
   signatureInfoLanguage,
   signatureLabelForConfig,
   signatureMetaLabelsForLanguage,
+  signatureCustomFieldLabelForDisplay,
+  signaturePositionForDisplay,
   signatureRoleForDisplay,
+  signatureTitleForDisplay,
 } from '../../utils/budgetSignature';
 
 interface BudgetDocumentPreviewProps {
@@ -575,7 +578,9 @@ function BudgetSignatureSection({
 
   const isSingleFullWidth = config.rows.length === 1 && config.sectionAlign !== 'right';
   const labels = signatureMetaLabelsForLanguage(signatureInfoLanguage(config));
-  const hasSignatureBoxes = config.rows.some((row) => row.showSignature !== false);
+  const signingRows = config.rows.filter((row) => row.showSignature !== false);
+  const noteRows = config.rows.filter((row) => row.showSignature === false);
+  const title = signatureTitleForDisplay(config, fallbackTitle);
 
   return (
     <div
@@ -586,7 +591,7 @@ function BudgetSignatureSection({
       ].filter(Boolean).join(' ')}
     >
       <div className="budget-signature-title">
-        <span>{config.title || fallbackTitle}</span>
+        <span>{title}</span>
         {onEdit ? (
           <Tooltip title="Edit">
             <Button
@@ -598,8 +603,8 @@ function BudgetSignatureSection({
           </Tooltip>
         ) : null}
       </div>
-      <div className={`budget-signature-grid${hasSignatureBoxes ? '' : ' budget-signature-grid-compact'}`}>
-        {config.rows.map((row) => (
+      <div className="budget-signature-grid">
+        {signingRows.map((row) => (
           <BudgetSignatureCard
             config={config}
             key={row.id}
@@ -607,6 +612,9 @@ function BudgetSignatureSection({
             row={row}
           />
         ))}
+        {noteRows.length > 0 ? (
+          <BudgetSignatureNotesBlock config={config} labels={labels} rows={noteRows} />
+        ) : null}
       </div>
     </div>
   );
@@ -1021,43 +1029,15 @@ function BudgetSignatureCard({
   row,
 }: {
   config: BudgetSignatureConfig;
-  labels: {
-    name: string;
-    capacity: string;
-    dateTime: string;
-    email: string;
-    position: string;
-    telephone: string;
-    mobile: string;
-  };
+  labels: SignatureMetaLabels;
   row: BudgetSignatureRow;
 }) {
   const signatureLabel = signatureLabelForConfig(config);
   const signatureLabelLines = signatureLabel.split('\n');
-  const dateTimeText = row.signedAt ?? currentDateTimeText();
-  const metaRows = [
-    row.showName && row.displayName
-      ? { label: labels.name, value: row.displayName }
-      : null,
-    row.showRole && row.roleLabel
-      ? { label: labels.capacity, value: signatureRoleForDisplay(config, row.roleLabel) }
-      : null,
-    row.showPosition && row.position
-      ? { label: labels.position, value: row.position }
-      : null,
-    row.showEmail && row.email
-      ? { label: labels.email, value: row.email }
-      : null,
-    ...(row.customFields ?? [])
-      .filter((field) => field.show !== false && (field.label.trim() !== '' || field.value.trim() !== ''))
-      .map((field) => ({ label: field.label, value: field.value })),
-    row.showDateTime
-      ? { label: labels.dateTime, value: dateTimeText }
-      : null,
-  ].filter((item): item is { label: string; value: string } => item !== null);
+  const metaRows = signatureMetaRows(row, labels, config);
 
   return (
-    <div className={`budget-signature-card${row.showSignature === false ? ' budget-signature-card-compact' : ''}`}>
+    <div className="budget-signature-card">
       <div className="budget-signature-info">
         {metaRows.map((item, index) => (
           <div className="budget-signature-meta" key={`${item.label}-${index}`}>
@@ -1081,6 +1061,86 @@ function BudgetSignatureCard({
       </div>
     </div>
   );
+}
+
+function BudgetSignatureNotesBlock({
+  config,
+  labels,
+  rows,
+}: {
+  config: BudgetSignatureConfig;
+  labels: SignatureMetaLabels;
+  rows: BudgetSignatureRow[];
+}) {
+  return (
+    <div className="budget-signature-notes-block">
+      {rows.map((row) => {
+        const metaRows = signatureMetaRows(row, labels, config);
+
+        return (
+          <div className="budget-signature-note-row" key={row.id}>
+            {metaRows.map((item, index) => (
+              <BudgetSignatureNoteField item={item} key={`${item.label}-${index}`} />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function BudgetSignatureNoteField({ item }: { item: { label: string; value: string } }) {
+  const label = item.label.trim();
+  const value = item.value.trim();
+
+  return (
+    <span className="budget-signature-note-field">
+      {label ? <span className="budget-signature-note-label">{label}</span> : null}
+      {value ? <span className="budget-signature-note-value">{value}</span> : null}
+    </span>
+  );
+}
+
+type SignatureMetaLabels = {
+  name: string;
+  capacity: string;
+  dateTime: string;
+  email: string;
+  position: string;
+  telephone: string;
+  mobile: string;
+};
+
+function signatureMetaRows(
+  row: BudgetSignatureRow,
+  labels: SignatureMetaLabels,
+  config: BudgetSignatureConfig,
+): Array<{ label: string; value: string }> {
+  const dateTimeText = row.signedAt ?? currentDateTimeText();
+
+  return [
+    row.showName && row.displayName
+      ? { label: labels.name, value: row.displayName }
+      : null,
+    row.showRole && row.roleLabel
+      ? { label: labels.capacity, value: signatureRoleForDisplay(config, row.roleLabel) }
+      : null,
+    row.showPosition && row.position
+      ? { label: labels.position, value: signaturePositionForDisplay(config, row.position) }
+      : null,
+    row.showEmail && row.email
+      ? { label: labels.email, value: row.email }
+      : null,
+    ...(row.customFields ?? [])
+      .filter((field) => field.show !== false && (field.label.trim() !== '' || field.value.trim() !== ''))
+      .map((field) => ({
+        label: signatureCustomFieldLabelForDisplay(config, field.label),
+        value: field.value,
+      })),
+    row.showDateTime
+      ? { label: labels.dateTime, value: dateTimeText }
+      : null,
+  ].filter((item): item is { label: string; value: string } => item !== null);
 }
 
 function currentDateTimeText(): string {

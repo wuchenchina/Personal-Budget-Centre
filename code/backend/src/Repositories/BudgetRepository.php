@@ -643,15 +643,17 @@ final readonly class BudgetRepository
         if (!is_array($decoded)) {
             return $this->emptySignatureConfig();
         }
+        $infoLanguage = in_array($decoded['infoLanguage'] ?? null, ['en', 'sc', 'tc'], true)
+            ? $decoded['infoLanguage']
+            : (in_array($decoded['labelLanguage'] ?? null, ['en', 'sc', 'tc'], true) ? $decoded['labelLanguage'] : 'en');
+        $title = is_string($decoded['title'] ?? null) && trim($decoded['title']) !== ''
+            ? trim($decoded['title'])
+            : 'Preparation & Review Record';
 
         return [
             'enabled' => ($decoded['enabled'] ?? false) === true,
-            'title' => is_string($decoded['title'] ?? null) && trim($decoded['title']) !== ''
-                ? trim($decoded['title'])
-                : 'Confirmation Signature',
-            'infoLanguage' => in_array($decoded['infoLanguage'] ?? null, ['en', 'sc', 'tc'], true)
-                ? $decoded['infoLanguage']
-                : (in_array($decoded['labelLanguage'] ?? null, ['en', 'sc', 'tc'], true) ? $decoded['labelLanguage'] : 'en'),
+            'title' => $this->signatureSectionTitle($title, $infoLanguage),
+            'infoLanguage' => $infoLanguage,
             'labelLanguage' => in_array($decoded['labelLanguage'] ?? null, ['en', 'sc', 'tc'], true)
                 ? $decoded['labelLanguage']
                 : 'en',
@@ -715,11 +717,29 @@ final readonly class BudgetRepository
         ];
     }
 
+    private function signatureSectionTitle(string $title, string $language): string
+    {
+        $legacyTitles = [
+            'Confirmation Signature',
+            '签核确认信息',
+            '簽核確認資訊',
+        ];
+        if (!in_array($title, $legacyTitles, true)) {
+            return $title;
+        }
+
+        return [
+            'en' => 'Preparation & Review Record',
+            'sc' => '制表及复核记录',
+            'tc' => '製表及覆核記錄',
+        ][$language] ?? 'Preparation & Review Record';
+    }
+
     private function emptySignatureConfig(): array
     {
         return [
             'enabled' => false,
-            'title' => 'Confirmation Signature',
+            'title' => 'Preparation & Review Record',
             'infoLanguage' => 'en',
             'labelLanguage' => 'en',
             'labelMode' => 'confirmation_signature',

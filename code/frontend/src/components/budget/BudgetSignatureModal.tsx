@@ -11,12 +11,14 @@ import {
 import type { WorkspaceMember } from '../../types/auth';
 import type { BudgetFormValues } from '../../types/forms';
 import {
-  createSignatureCustomFieldWithValue,
   createSignatureCustomField,
   createSignatureRow,
   memberOptions,
+  signatureCustomFieldLabelOptions,
   signatureMetaLabelsForLanguage,
   signatureLabelForConfig,
+  signaturePositionPhraseOptions,
+  signatureRolePhraseOptions,
   signatureRowFromMember,
 } from '../../utils/budgetSignature';
 
@@ -30,48 +32,6 @@ interface BudgetSignatureModalProps {
   onOk: () => void;
 }
 
-const rolePhrasesByLanguage: Record<AppLanguage, string[]> = {
-  en: [
-    'Prepared by',
-    'Handled by',
-    'Checked by',
-    'Reviewed by',
-    'Approved by',
-    'Audited by',
-    'Confirmed by',
-    'Verified by',
-    'Authorised by',
-    'Accepted by',
-    'Acknowledged by',
-    'Reconciled by',
-    'Documented by',
-    'Processed by',
-    'Finance reviewed by',
-  ],
-  sc: ['制表', '经办', '复核', '审核', '审批', '审计', '确认', '核验', '授权', '接纳', '知悉确认', '对账', '记录', '处理', '财务复核'],
-  tc: ['製表', '經辦', '覆核', '審核', '審批', '審計', '確認', '核驗', '授權', '接納', '知悉確認', '對賬', '記錄', '處理', '財務覆核'],
-};
-
-const positionPhrasesByLanguage: Record<AppLanguage, string[]> = {
-  en: [
-    'Account Holder',
-    'Budget Owner',
-    'Finance Owner',
-    'Finance Officer',
-    'Accounts Officer',
-    'Relationship Manager',
-    'Operations Officer',
-    'Compliance Reviewer',
-    'Reviewer',
-    'Approver',
-    'Internal Auditor',
-    'External Auditor',
-    'Authorised Representative',
-  ],
-  sc: ['账户持有人', '预算负责人', '财务负责人', '财务专员', '会计专员', '客户经理', '运营专员', '合规复核', '复核人', '审批人', '内部审计', '外部审计', '授权代表'],
-  tc: ['帳戶持有人', '預算負責人', '財務負責人', '財務專員', '會計專員', '客戶經理', '營運專員', '合規覆核', '覆核人', '審批人', '內部審計', '外部審計', '授權代表'],
-};
-
 export function BudgetSignatureModal({
   form,
   open,
@@ -82,7 +42,7 @@ export function BudgetSignatureModal({
   onOk,
 }: BudgetSignatureModalProps) {
   const [fullscreen, setFullscreen] = useState(false);
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const signatureEnabled = Form.useWatch(['signatureConfig', 'enabled'], form) === true;
   const signatureInfoLanguage = normalizeSignatureLanguage(
     Form.useWatch(['signatureConfig', 'infoLanguage'], form),
@@ -91,9 +51,10 @@ export function BudgetSignatureModal({
   const signatureLabelMode = Form.useWatch(['signatureConfig', 'labelMode'], form) ?? 'confirmation_signature';
   const signatureLabelSeparator = Form.useWatch(['signatureConfig', 'labelSeparator'], form) ?? 'space';
   const onlineMemberOptions = memberOptions(workspaceMembers);
-  const signatureInfoLabels = signatureMetaLabelsForLanguage(signatureInfoLanguage);
-  const rolePhraseOptions = rolePhrasesByLanguage[signatureInfoLanguage].map((value) => ({ value }));
-  const positionPhraseOptions = positionPhrasesByLanguage[signatureInfoLanguage].map((value) => ({ value }));
+  const signatureUiLabels = signatureMetaLabelsForLanguage(language);
+  const rolePhraseOptions = signatureRolePhraseOptions(language);
+  const positionPhraseOptions = signaturePositionPhraseOptions(language);
+  const customFieldLabelOptions = signatureCustomFieldLabelOptions(language);
   const signatureLabelPreview = signatureLabelForConfig({
     enabled: true,
     title: '',
@@ -312,32 +273,14 @@ export function BudgetSignatureModal({
                             <div className="signature-custom-field-list">
                               <div className="signature-custom-field-head">
                                 <strong>{t('customSignatureFields')}</strong>
-                                <Space className="signature-custom-field-actions" wrap>
-                                  <Button
-                                    icon={<Plus size={14} />}
-                                    size="small"
-                                    type="dashed"
-                                    onClick={() => addCustomField(createSignatureCustomFieldWithValue(signatureInfoLabels.telephone))}
-                                  >
-                                    {t('addTelephoneNumber')}
-                                  </Button>
-                                  <Button
-                                    icon={<Plus size={14} />}
-                                    size="small"
-                                    type="dashed"
-                                    onClick={() => addCustomField(createSignatureCustomFieldWithValue(signatureInfoLabels.mobile))}
-                                  >
-                                    {t('addMobileNumber')}
-                                  </Button>
-                                  <Button
-                                    icon={<Plus size={14} />}
-                                    size="small"
-                                    type="dashed"
-                                    onClick={() => addCustomField(createSignatureCustomField())}
-                                  >
-                                    {t('addSignatureCustomField')}
-                                  </Button>
-                                </Space>
+                                <Button
+                                  icon={<Plus size={14} />}
+                                  size="small"
+                                  type="dashed"
+                                  onClick={() => addCustomField(createSignatureCustomField())}
+                                >
+                                  {t('addSignatureCustomField')}
+                                </Button>
                               </div>
                               {customFields.map((customField) => (
                                 <div className="signature-custom-field-row" key={customField.key}>
@@ -347,7 +290,11 @@ export function BudgetSignatureModal({
                                     name={[customField.name, 'label']}
                                     rules={[{ max: 80, message: t('signatureConfigTextMax') }]}
                                   >
-                                    <Input autoComplete="off" placeholder={signatureInfoLabels.telephone} />
+                                    <AutoComplete
+                                      allowClear
+                                      options={customFieldLabelOptions}
+                                      placeholder={signatureUiLabels.telephone}
+                                    />
                                   </Form.Item>
                                   <Form.Item
                                     className="signature-custom-field-input"

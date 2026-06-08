@@ -362,10 +362,6 @@
   border: 0.5pt solid #7e7e7e;
 }
 
-.budget-signature-grid-compact {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-
 .budget-signature-card {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(290px, 1.1fr);
@@ -377,23 +373,9 @@
   font-size: 7.5pt;
 }
 
-.budget-signature-card-compact {
-  grid-template-columns: minmax(0, 1fr);
-  min-height: 0;
-  padding: 8px;
-  background: #fafafa;
-  border: 0.5pt solid #d9d9d9;
-}
-
 .budget-signature-card:last-child {
   border-bottom: 0;
   padding-bottom: 0;
-}
-
-.budget-signature-grid-compact .budget-signature-card:last-child,
-.budget-signature-card-compact:last-child {
-  padding-bottom: 8px;
-  border-bottom: 0.5pt solid #d9d9d9;
 }
 
 .budget-signature-section-right .budget-signature-card {
@@ -427,10 +409,6 @@
   min-width: 0;
 }
 
-.budget-signature-card-compact .budget-signature-sign {
-  display: none;
-}
-
 .budget-signature-box {
   display: grid;
   grid-template-rows: minmax(82px, 1fr) auto auto;
@@ -458,10 +436,10 @@
   display: inline-grid;
   justify-self: start;
   max-width: calc(100% - 12px);
-  margin: 3px 6px 5px;
-  padding: 2px 5px;
-  background: rgba(255, 255, 255, 0.94);
-  border: 0.5pt solid #d9d9d9;
+  margin: 4px 6px 5px;
+  padding: 0;
+  background: transparent;
+  border: 0;
   line-height: 1.15;
   white-space: normal;
   overflow: hidden;
@@ -481,6 +459,44 @@
 .budget-signature-label-right .budget-signature-box-label {
   justify-self: end;
   text-align: right;
+}
+
+.budget-signature-notes-block {
+  display: grid;
+  gap: 4px;
+  padding: 6px 8px;
+  color: #111;
+  background: #fafafa;
+  border: 0.5pt solid #d9d9d9;
+  font-size: 7pt;
+  line-height: 1.25;
+}
+
+.budget-signature-note-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  min-width: 0;
+}
+
+.budget-signature-note-row + .budget-signature-note-row {
+  padding-top: 4px;
+  border-top: 0.5pt solid #ededed;
+}
+
+.budget-signature-note-field {
+  display: inline-flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+.budget-signature-note-label {
+  color: #595959;
+  white-space: nowrap;
+}
+
+.budget-signature-note-value {
+  overflow-wrap: anywhere;
 }
 
 .budget-list {

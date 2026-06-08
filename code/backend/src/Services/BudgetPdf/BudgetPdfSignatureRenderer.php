@@ -52,13 +52,13 @@ final readonly class BudgetPdfSignatureRenderer
     private function svg(array $config, float $width): string
     {
         $height = $this->svgHeight($config, $width);
-        $title = is_string($config['title'] ?? null) && trim($config['title']) !== ''
-            ? trim($config['title'])
-            : 'Confirmation Signature';
+        $title = $this->formatter->signatureSectionTitle($config);
         $rows = array_values(array_filter(
             $config['rows'],
             static fn (mixed $row): bool => is_array($row),
         ));
+        $signingRows = $this->signingRows($rows);
+        $noteRows = $this->noteRows($rows);
 
         $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $this->number($width) . 'mm" height="' . $this->number($height) . 'mm" viewBox="0 0 ' . $this->number($width) . ' ' . $this->number($height) . '">'
             . '<rect x="0" y="0" width="' . $this->number($width) . '" height="6" fill="#a4a4a4" stroke="#7e7e7e" stroke-width="0.2"/>'
@@ -66,7 +66,7 @@ final readonly class BudgetPdfSignatureRenderer
             . '<rect x="0" y="6" width="' . $this->number($width) . '" height="' . $this->number($height - 6) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>';
 
         $rowTop = 8.0;
-        foreach ($rows as $index => $row) {
+        foreach ($signingRows as $index => $row) {
             $rowHeight = $this->rowHeight($row, $config, $width);
             if ($index > 0) {
                 $svg .= '<line x1="2" y1="' . $this->number($rowTop - 1.1) . '" x2="' . $this->number($width - 2) . '" y2="' . $this->number($rowTop - 1.1) . '" stroke="#bfbfbf" stroke-width="0.16"/>';
@@ -77,6 +77,12 @@ final readonly class BudgetPdfSignatureRenderer
                 $svg .= $this->signatureBoxSvg($config, $rowTop, $width, max(1, count($fields)));
             }
             $rowTop += $rowHeight;
+        }
+        if ($noteRows !== []) {
+            if ($signingRows !== []) {
+                $svg .= '<line x1="2" y1="' . $this->number($rowTop - 1.1) . '" x2="' . $this->number($width - 2) . '" y2="' . $this->number($rowTop - 1.1) . '" stroke="#d9d9d9" stroke-width="0.14"/>';
+            }
+            $svg .= $this->notesBlockSvg($noteRows, $config, $rowTop, $width);
         }
 
         return $svg . '</svg>';
@@ -91,10 +97,13 @@ final readonly class BudgetPdfSignatureRenderer
             return 10.0 + $this->minimumRowHeight($width);
         }
 
+        $signingRows = $this->signingRows($rows);
+        $noteRows = $this->noteRows($rows);
+
         return 10.0 + array_sum(array_map(
             fn (array $row): float => $this->rowHeight($row, $config, $width),
-            $rows,
-        ));
+            $signingRows,
+        )) + $this->notesBlockHeight($noteRows);
     }
 
     private function rowHeight(array $row, array $config, float $width): float
@@ -129,7 +138,10 @@ final readonly class BudgetPdfSignatureRenderer
             ];
         }
         if (($row['showPosition'] ?? false) === true && trim((string) ($row['position'] ?? '')) !== '') {
-            $fields[] = [$this->formatter->signatureMetaLabel($config, 'position'), (string) $row['position']];
+            $fields[] = [
+                $this->formatter->signatureMetaLabel($config, 'position'),
+                $this->formatter->signaturePositionForDisplay($config, (string) $row['position']),
+            ];
         }
         if (($row['showEmail'] ?? false) === true && trim((string) ($row['email'] ?? '')) !== '') {
             $fields[] = [$this->formatter->signatureMetaLabel($config, 'email'), (string) $row['email']];
@@ -145,7 +157,7 @@ final readonly class BudgetPdfSignatureRenderer
                 continue;
             }
 
-            $fields[] = [$label, $value];
+            $fields[] = [$this->formatter->signatureCustomFieldLabelForDisplay($config, $label), $value];
         }
         if (($row['showDateTime'] ?? true) !== false) {
             $fields[] = [
@@ -173,6 +185,75 @@ final readonly class BudgetPdfSignatureRenderer
         return $svg;
     }
 
+    private function notesBlockSvg(array $rows, array $config, float $rowTop, float $width): string
+    {
+        $height = $this->notesBlockHeight($rows);
+        $x = 2.0;
+        $innerWidth = $width - 4.0;
+        $svg = '<rect x="' . $this->number($x) . '" y="' . $this->number($rowTop) . '" width="' . $this->number($innerWidth) . '" height="' . $this->number($height) . '" fill="#fafafa" stroke="#d9d9d9" stroke-width="0.14"/>';
+        $baseline = $rowTop + 4.2;
+        foreach (array_values($rows) as $index => $row) {
+            $y = $baseline + ($index * 4.4);
+            if ($index > 0) {
+                $lineY = $y - 3.0;
+                $svg .= '<line x1="' . $this->number($x + 1.5) . '" y1="' . $this->number($lineY) . '" x2="' . $this->number($x + $innerWidth - 1.5) . '" y2="' . $this->number($lineY) . '" stroke="#ededed" stroke-width="0.12"/>';
+            }
+            $svg .= $this->text(
+                $x + 2.0,
+                $y,
+                $this->fitText($this->compactNoteLine($row, $config), $innerWidth - 4.0),
+                2.25,
+                '#111',
+                'sf-mono',
+            );
+        }
+
+        return $svg;
+    }
+
+    private function notesBlockHeight(array $rows): float
+    {
+        return $rows === [] ? 0.0 : max(8.0, 3.6 + (count($rows) * 4.4));
+    }
+
+    private function compactNoteLine(array $row, array $config): string
+    {
+        $parts = array_map(
+            static function (array $field): string {
+                $label = trim((string) ($field[0] ?? ''));
+                $value = trim((string) ($field[1] ?? ''));
+                if ($label === '') {
+                    return $value;
+                }
+                if ($value === '') {
+                    return $label;
+                }
+
+                return trim($label . ' ' . $value);
+            },
+            $this->signatureFields($row, $config),
+        );
+        $parts = array_values(array_filter($parts, static fn (string $part): bool => $part !== ''));
+
+        return implode(' · ', $parts);
+    }
+
+    private function signingRows(array $rows): array
+    {
+        return array_values(array_filter(
+            $rows,
+            static fn (array $row): bool => ($row['showSignature'] ?? true) !== false,
+        ));
+    }
+
+    private function noteRows(array $rows): array
+    {
+        return array_values(array_filter(
+            $rows,
+            static fn (array $row): bool => ($row['showSignature'] ?? true) === false,
+        ));
+    }
+
     private function signatureBoxSvg(array $config, float $rowTop, float $width, int $fieldCount): string
     {
         $boxWidth = $width <= 80.0 ? 66.0 : 78.0;
@@ -182,20 +263,16 @@ final readonly class BudgetPdfSignatureRenderer
         $label = $this->formatter->signatureLabel($config);
         $captionLines = $this->signatureLabelLines($label);
         $captionLineHeight = 2.45;
-        $captionBoxHeight = 1.6 + (count($captionLines) * $captionLineHeight);
         $captionAlign = ($config['labelAlign'] ?? null) === 'right' ? 'right' : 'left';
-        $captionBoxWidth = $this->signatureLabelBoxWidth($captionLines, $boxWidth - 8.0);
-        $captionBoxX = $captionAlign === 'right' ? $boxX + $boxWidth - 4.0 - $captionBoxWidth : $boxX + 4.0;
-        $captionBoxY = $boxY + $boxHeight - $captionBoxHeight - 1.0;
-        $captionX = $captionAlign === 'right' ? $captionBoxX + $captionBoxWidth - 1.4 : $captionBoxX + 1.4;
-        $captionY = $captionBoxY + 2.35;
-        $lineY = max($boxY + 8.0, $captionBoxY - 1.2);
+        $captionX = $captionAlign === 'right' ? $boxX + $boxWidth - 4.0 : $boxX + 4.0;
+        $captionBottomY = $boxY + $boxHeight - 1.6;
+        $captionY = $captionBottomY - ((count($captionLines) - 1) * $captionLineHeight);
+        $lineY = max($boxY + 8.0, $captionY - 2.0);
 
         $svg = '<rect x="' . $this->number($boxX) . '" y="' . $this->number($boxY) . '" width="' . $this->number($boxWidth) . '" height="' . $this->number($boxHeight) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>'
             . $this->securityPatternSvg($boxX, $boxY, $boxWidth, $boxHeight)
             . '<line x1="' . $this->number($boxX + 4.0) . '" y1="' . $this->number($lineY) . '" x2="' . $this->number($boxX + $boxWidth - 4.0) . '" y2="' . $this->number($lineY) . '" stroke="#8f8f8f" stroke-width="0.16"/>'
-            . '<rect x="' . $this->number($captionBoxX) . '" y="' . $this->number($captionBoxY) . '" width="' . $this->number($captionBoxWidth) . '" height="' . $this->number($captionBoxHeight) . '" fill="#fff" stroke="#d9d9d9" stroke-width="0.14"/>'
-            . $this->signatureLabelTextSvg($captionLines, $captionX, $captionY, $captionLineHeight, $captionBoxWidth - 2.8, $captionAlign);
+            . $this->signatureLabelTextSvg($captionLines, $captionX, $captionY, $captionLineHeight, $boxWidth - 8.0, $captionAlign);
 
         return $svg;
     }
@@ -209,17 +286,6 @@ final readonly class BudgetPdfSignatureRenderer
         ), static fn (string $line): bool => $line !== ''));
 
         return array_slice($lines === [] ? [trim($label)] : $lines, 0, 3);
-    }
-
-    private function signatureLabelBoxWidth(array $lines, float $maxWidth): float
-    {
-        $longest = 0;
-        foreach ($lines as $line) {
-            $length = function_exists('mb_strlen') ? mb_strlen((string) $line, 'UTF-8') : strlen((string) $line);
-            $longest = max($longest, $length);
-        }
-
-        return min($maxWidth, max(20.0, ($longest * 1.25) + 5.0));
     }
 
     private function signatureLabelTextSvg(
