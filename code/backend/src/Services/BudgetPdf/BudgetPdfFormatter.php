@@ -26,6 +26,36 @@ final readonly class BudgetPdfFormatter
         ));
     }
 
+    public function templateMoneyCellText(string $value): string
+    {
+        $lines = preg_split('/\R/u', $value);
+        if ($lines === false) {
+            return $this->escapeHtml($value);
+        }
+
+        return implode('', array_map(
+            fn (string $line): string => $this->moneyLineHtml($line),
+            $lines,
+        ));
+    }
+
+    private function moneyLineHtml(string $value): string
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return '<div class="cell-line money-line">&nbsp;</div>';
+        }
+
+        if (preg_match('/^([A-Z]{3})\s+(.+)$/u', $trimmed, $matches) !== 1) {
+            return '<div class="cell-line">' . $this->escapeHtml($trimmed) . '</div>';
+        }
+
+        return '<div class="cell-line money-line">'
+            . '<span class="money-code">' . $this->escapeHtml($matches[1]) . '</span>'
+            . '<span class="money-amount">' . $this->escapeHtml(trim($matches[2])) . '</span>'
+            . '</div>';
+    }
+
     public function periodText(array $budget): string
     {
         $start = $this->parseDate((string) $budget['startDate']);

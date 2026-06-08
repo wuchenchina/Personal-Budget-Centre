@@ -807,8 +807,8 @@ function InlineMoneyCell({
   if (!editable) {
     return (
       <span className="budget-inline-money-readonly">
-        <span>{formatBudgetMoney(currency, value)}</span>
-        {secondaryText ? <small>{secondaryText}</small> : null}
+        <MoneyValue amount={value} currency={currency} />
+        {secondaryText ? <MoneyBreakdownText value={secondaryText} /> : null}
       </span>
     );
   }
@@ -828,7 +828,7 @@ function InlineMoneyCell({
   return (
     <span className="budget-inline-money-wrap">
       <span className="budget-inline-money-cell">
-        <span>{currency}</span>
+        <span className="budget-money-code">{currency}</span>
         <InputNumber
           changeOnWheel={false}
           className="budget-inline-money-input"
@@ -853,8 +853,39 @@ function InlineMoneyCell({
           </Tooltip>
         ) : null}
       </span>
-      {secondaryText ? <small>{secondaryText}</small> : null}
+      {secondaryText ? <MoneyBreakdownText value={secondaryText} /> : null}
     </span>
+  );
+}
+
+function MoneyValue({ amount, currency }: { amount: number; currency: CurrencyCode }) {
+  return (
+    <span className="budget-money-value">
+      <span className="budget-money-code">{currency}</span>
+      <span className="budget-money-amount">{amount.toFixed(2)}</span>
+    </span>
+  );
+}
+
+function MoneyBreakdownText({ value }: { value: string }) {
+  const parts = value.split(' · ').filter((part) => part.trim() !== '');
+
+  return (
+    <small className="budget-money-breakdown">
+      {parts.map((part, index) => {
+        const match = /^([A-Z]{3})\s+(.+)$/.exec(part.trim());
+        if (match === null) {
+          return <span key={`${part}-${index}`}>{part}</span>;
+        }
+
+        return (
+          <span className="budget-money-breakdown-item" key={`${part}-${index}`}>
+            <span className="budget-money-code">{match[1]}</span>
+            <span className="budget-money-amount">{match[2]}</span>
+          </span>
+        );
+      })}
+    </small>
   );
 }
 

@@ -187,6 +187,36 @@
   width: 100%;
 }
 
+.budget-money-value {
+  display: inline-grid;
+  grid-template-columns: auto minmax(52px, 1fr);
+  align-items: baseline;
+  justify-content: end;
+  gap: 6px;
+  width: 100%;
+  font-family: var(--font-mono), var(--font-cjk), monospace;
+}
+
+.budget-money-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 0 3px;
+  color: #4f5b57;
+  background: #eef2f0;
+  border: 0.5pt solid #d8dfdc;
+  border-radius: 3px;
+  font-size: 6.4pt;
+  line-height: 1.35;
+}
+
+.budget-money-amount {
+  color: #111;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .budget-inline-money-input {
   width: 92px;
   text-align: right;
@@ -205,6 +235,27 @@
   font-family: var(--font-mono), var(--font-cjk), monospace;
   font-size: 7pt;
   line-height: 1.15;
+}
+
+.budget-money-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px 8px;
+}
+
+.budget-money-breakdown-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.budget-money-breakdown .budget-money-code {
+  min-width: 24px;
+  padding-inline: 2px;
+  color: #626f6a;
+  background: #f5f7f6;
+  font-size: 5.8pt;
 }
 
 .budget-table-frame {

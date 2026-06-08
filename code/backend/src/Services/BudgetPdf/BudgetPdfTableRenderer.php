@@ -29,6 +29,9 @@ final readonly class BudgetPdfTableRenderer
             . '.align-center{text-align:center;}'
             . '.money-cell{white-space:normal;}'
             . '.cell-line{display:block;margin:0;padding:0;line-height:1.24;}'
+            . '.money-line{white-space:nowrap;}'
+            . '.money-code{display:inline-block;min-width:5.8mm;margin-right:1.1mm;color:#4f5b57;text-align:center;background:#eef2f0;border:0.1mm solid #d8dfdc;font-family:"SF-Mono-Light",TCSongti,monospace;font-size:5.8pt;line-height:1.15;}'
+            . '.money-amount{display:inline-block;min-width:13mm;color:#000;text-align:right;}'
             . '.empty{text-align:center;color:#595959;}';
     }
 
@@ -74,7 +77,7 @@ final readonly class BudgetPdfTableRenderer
                 $html .= '<td class="' . $this->columnClass($column) . '"'
                     . $this->cellWidthStyle($column)
                     . '>'
-                    . $this->formatter->templateCellText((string) $cell)
+                    . $this->cellText($cell, $column)
                     . '</td>';
             }
             $html .= '</tr>';
@@ -88,7 +91,7 @@ final readonly class BudgetPdfTableRenderer
                 $html .= '<td class="' . $this->columnClass($column) . '"'
                     . $this->cellWidthStyle($column)
                     . '>'
-                    . $this->formatter->templateCellText((string) $cell)
+                    . $this->cellText($cell, $column)
                     . '</td>';
             }
             $html .= '</tr></tbody></table>';
@@ -135,5 +138,15 @@ final readonly class BudgetPdfTableRenderer
         }
 
         return implode(' ', $classes);
+    }
+
+    private function cellText(mixed $cell, array $column): string
+    {
+        $value = (string) $cell;
+        if (($column['dataType'] ?? null) === 'money') {
+            return $this->formatter->templateMoneyCellText($value);
+        }
+
+        return $this->formatter->templateCellText($value);
     }
 }
