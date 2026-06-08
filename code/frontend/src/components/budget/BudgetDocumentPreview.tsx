@@ -1084,13 +1084,7 @@ function BudgetSignatureNotesBlock({
   }
 
   return (
-    <div
-      className={[
-        'budget-signature-notes-block',
-        `budget-signature-notes-align-${config.labelAlign}`,
-      ].join(' ')}
-      style={noteGridStyle}
-    >
+    <div className="budget-signature-notes-block" style={noteGridStyle}>
       {noteItems.map((item) => (
         <div className="budget-signature-note-row" key={item.id}>
           <BudgetSignatureNoteField
