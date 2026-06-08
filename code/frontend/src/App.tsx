@@ -346,7 +346,7 @@ function App() {
         editingItem={budgetEntry.editingBudgetItem}
         open={budgetEntry.isBudgetItemModalOpen}
         error={budgetEntry.entryError}
-        categoryOptions={entryCategoryOptions}
+        categoryOptions={operations.categoryOptions}
         baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
         focus={budgetEntry.budgetItemModalFocus}
         transactions={budget.selectedBudget?.transactions ?? []}

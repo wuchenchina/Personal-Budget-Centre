@@ -23,11 +23,13 @@ final readonly class BudgetCategoryRepository
               bc.name,
               bc.parent_id,
               bc.sort_order,
+              bc.is_preset,
               bc.is_active,
               c.code AS default_currency
             FROM budget_categories bc
             LEFT JOIN currencies c ON c.id = bc.default_currency_id
             WHERE bc.workspace_id = :workspace_id
+              AND bc.is_preset = 1
             ORDER BY bc.sort_order ASC, bc.name ASC, bc.id ASC
             SQL
         );
@@ -41,6 +43,7 @@ final readonly class BudgetCategoryRepository
                 'parentId' => $row['parent_id'] === null ? null : (int) $row['parent_id'],
                 'defaultCurrency' => $row['default_currency'],
                 'sortOrder' => (int) $row['sort_order'],
+                'isPreset' => (bool) $row['is_preset'],
                 'isActive' => (bool) $row['is_active'],
                 'aliases' => [],
             ],
@@ -61,6 +64,7 @@ final readonly class BudgetCategoryRepository
         string $name,
         ?int $defaultCurrencyId,
         int $sortOrder,
+        bool $isPreset = true,
     ): int {
         $statement = $this->pdo->prepare(
             <<<'SQL'
@@ -69,13 +73,15 @@ final readonly class BudgetCategoryRepository
               user_id,
               name,
               default_currency_id,
-              sort_order
+              sort_order,
+              is_preset
             ) VALUES (
               :workspace_id,
               :user_id,
               :name,
               :default_currency_id,
-              :sort_order
+              :sort_order,
+              :is_preset
             )
             SQL
         );
@@ -85,9 +91,39 @@ final readonly class BudgetCategoryRepository
             'name' => $name,
             'default_currency_id' => $defaultCurrencyId,
             'sort_order' => $sortOrder,
+            'is_preset' => $isPreset ? 1 : 0,
         ]);
 
         return (int) $this->pdo->lastInsertId();
+    }
+
+    public function createPreset(
+        int $workspaceId,
+        int $userId,
+        string $name,
+        ?int $defaultCurrencyId,
+        int $sortOrder,
+    ): int {
+        $normalizedName = trim($name);
+        $existingId = $this->findIdByName($workspaceId, $normalizedName);
+        if ($existingId !== null) {
+            $this->promoteToPreset($existingId, $normalizedName, $defaultCurrencyId, $sortOrder);
+
+            return $existingId;
+        }
+
+        try {
+            return $this->create($workspaceId, $userId, $normalizedName, $defaultCurrencyId, $sortOrder);
+        } catch (PDOException $exception) {
+            $existingId = $this->findIdByName($workspaceId, $normalizedName);
+            if ($existingId !== null) {
+                $this->promoteToPreset($existingId, $normalizedName, $defaultCurrencyId, $sortOrder);
+
+                return $existingId;
+            }
+
+            throw $exception;
+        }
     }
 
     public function update(int $id, string $name, ?int $defaultCurrencyId, int $sortOrder, bool $isActive): void
@@ -217,7 +253,7 @@ final readonly class BudgetCategoryRepository
         return $aliasId === false ? null : (int) $aliasId;
     }
 
-    public function findOrCreateForName(int $workspaceId, int $userId, string $name): int
+    public function findOrCreateForBudgetItemName(int $workspaceId, int $userId, string $name): int
     {
         $normalizedName = trim($name);
         $existingId = $this->findIdByName($workspaceId, $normalizedName);
@@ -226,7 +262,7 @@ final readonly class BudgetCategoryRepository
         }
 
         try {
-            return $this->create($workspaceId, $userId, $normalizedName, null, 0);
+            return $this->create($workspaceId, $userId, $normalizedName, null, 0, false);
         } catch (PDOException $exception) {
             $existingId = $this->findIdByName($workspaceId, $normalizedName);
             if ($existingId !== null) {
@@ -255,6 +291,28 @@ final readonly class BudgetCategoryRepository
         $id = $statement->fetchColumn();
 
         return $id === false ? null : (int) $id;
+    }
+
+    private function promoteToPreset(int $id, string $name, ?int $defaultCurrencyId, int $sortOrder): void
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            UPDATE budget_categories
+            SET
+              name = :name,
+              default_currency_id = :default_currency_id,
+              sort_order = :sort_order,
+              is_preset = 1,
+              is_active = 1
+            WHERE id = :id
+            SQL
+        );
+        $statement->execute([
+            'id' => $id,
+            'name' => $name,
+            'default_currency_id' => $defaultCurrencyId,
+            'sort_order' => $sortOrder,
+        ]);
     }
 
     private function aliasesForWorkspace(int $workspaceId): array

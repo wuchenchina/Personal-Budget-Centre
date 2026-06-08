@@ -52,6 +52,7 @@ export function BudgetItemModal({
   const budgetCurrency = Form.useWatch('budgetCurrency', form) ?? baseCurrency;
   const budgetAmount = Form.useWatch('budgetAmount', form);
   const budgetRate = Form.useWatch('budgetRate', form);
+  const selectedCategoryId = Form.useWatch('categoryId', form);
   const installmentEnabled = Form.useWatch(['installmentConfig', 'enabled'], form) === true;
   const installmentTotal = Form.useWatch(['installmentConfig', 'totalAmount'], form);
   const installmentMonths = Form.useWatch(['installmentConfig', 'months'], form);
@@ -102,6 +103,17 @@ export function BudgetItemModal({
       target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }, 80);
   }, [focus, open]);
+
+  useEffect(() => {
+    if (!open || selectedCategoryId === null || selectedCategoryId === undefined) {
+      return;
+    }
+
+    const selectedOption = categoryOptions.find((option) => option.value === selectedCategoryId);
+    if (selectedOption === undefined) {
+      form.setFieldValue('categoryId', undefined);
+    }
+  }, [categoryOptions, form, open, selectedCategoryId]);
 
   const handleCategoryChange = (categoryId: number | null | undefined) => {
     if (categoryId === null || categoryId === undefined) {
@@ -180,7 +192,7 @@ export function BudgetItemModal({
               showSearch
               optionFilterProp="label"
               options={categoryOptions}
-              placeholder={t('selectCategory')}
+              placeholder={t('selectPresetCategory')}
               onChange={handleCategoryChange}
             />
           </Form.Item>

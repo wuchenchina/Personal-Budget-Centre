@@ -210,6 +210,7 @@ export interface BudgetCategory {
   parentId: number | null;
   defaultCurrency: CurrencyCode | null;
   sortOrder: number;
+  isPreset: boolean;
   isActive: boolean;
   aliases: BudgetCategoryAlias[];
 }

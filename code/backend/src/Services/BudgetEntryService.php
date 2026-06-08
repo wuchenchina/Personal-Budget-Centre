@@ -351,7 +351,7 @@ final readonly class BudgetEntryService
             return $categoryId;
         }
 
-        return $categories->findOrCreateForName($workspaceId, $userId, $label);
+        return $categories->findOrCreateForBudgetItemName($workspaceId, $userId, $label);
     }
 
     private function rateToBase(

@@ -59,7 +59,7 @@ final readonly class BudgetCategoryService
         $repository = new BudgetCategoryRepository($this->pdo);
         $this->pdo->beginTransaction();
         try {
-            $repository->create($workspaceId, (int) $session['user_id'], $name, $currencyId, $sortOrder);
+            $repository->createPreset($workspaceId, (int) $session['user_id'], $name, $currencyId, $sortOrder);
             $this->pdo->commit();
         } catch (Throwable $exception) {
             $this->pdo->rollBack();
