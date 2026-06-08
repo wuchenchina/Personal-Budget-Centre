@@ -27,7 +27,7 @@ final readonly class BudgetPdfTableRenderer
             . '.summary-table td{background:#d7d7d7;}'
             . '.align-right{text-align:right;}'
             . '.align-center{text-align:center;}'
-            . '.nowrap{white-space:nowrap;}'
+            . '.money-cell{white-space:normal;}'
             . '.empty{text-align:center;color:#595959;}';
     }
 
@@ -130,7 +130,7 @@ final readonly class BudgetPdfTableRenderer
             default => [],
         };
         if (($column['dataType'] ?? null) === 'money') {
-            $classes[] = 'nowrap';
+            $classes[] = 'money-cell';
         }
 
         return implode(' ', $classes);

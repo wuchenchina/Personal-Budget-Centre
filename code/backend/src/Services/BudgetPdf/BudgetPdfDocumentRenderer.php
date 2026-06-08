@@ -45,7 +45,7 @@ final readonly class BudgetPdfDocumentRenderer
             . $this->tableRenderer->render(
                 $transactionSection,
                 $periodText,
-                $this->transactionRows($transactions),
+                $this->transactionRows($transactions, (string) $budget['baseCurrency']),
                 null,
                 'No transactions',
             )
@@ -80,17 +80,30 @@ final readonly class BudgetPdfDocumentRenderer
         );
     }
 
-    private function transactionRows(array $transactions): array
+    private function transactionRows(array $transactions, string $baseCurrency): array
     {
         return array_map(
             fn (array $transaction): array => [
                 $transaction['details'],
                 $transaction['category'] ?? '',
-                $this->formatter->templateMoney((string) $transaction['currency'], (float) $transaction['amountOriginal']),
+                $this->transactionAmountText($transaction, $baseCurrency),
                 $transaction['remark'] ?? '',
             ],
             $transactions,
         );
+    }
+
+    private function transactionAmountText(array $transaction, string $baseCurrency): string
+    {
+        $currency = (string) ($transaction['currency'] ?? $baseCurrency);
+        $amountOriginal = (float) ($transaction['amountOriginal'] ?? 0);
+        $amountBase = (float) ($transaction['amountBase'] ?? 0);
+        $primary = $this->formatter->templateMoney($currency, $amountOriginal);
+        if ($currency === $baseCurrency) {
+            return $primary;
+        }
+
+        return $primary . "\n" . $this->formatter->templateMoney($baseCurrency, $amountBase);
     }
 
     private function summaryRow(array $budget): array

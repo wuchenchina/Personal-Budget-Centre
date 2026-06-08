@@ -447,18 +447,42 @@ final readonly class BudgetPdfSignatureRenderer
         $svg = '';
         foreach ($lines as $index => $line) {
             $text = $this->fitText((string) $line, $maxWidth);
+            $textX = $align === 'right'
+                ? $this->signatureCaptionStartX($text, $x, $maxWidth, 1.75)
+                : $x;
             $svg .= $this->text(
-                $align === 'right' ? $x + $maxWidth : $x,
+                $textX,
                 $y + ($index * $lineHeight),
                 $text,
                 1.75,
                 '#555',
                 'sf-mono-light',
-                $align === 'right' ? 'end' : 'start',
             );
         }
 
         return $svg;
+    }
+
+    private function signatureCaptionStartX(string $text, float $lineLeft, float $maxWidth, float $fontSize): float
+    {
+        return max($lineLeft, $lineLeft + $maxWidth - $this->estimatedCaptionWidth($text, $fontSize));
+    }
+
+    private function estimatedCaptionWidth(string $text, float $fontSize): float
+    {
+        $width = 0.0;
+        $chars = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY);
+        if ($chars === false) {
+            return strlen($text) * $fontSize * 0.54;
+        }
+
+        foreach ($chars as $char) {
+            $width += preg_match('/[\x{3400}-\x{9fff}\x{f900}-\x{faff}]/u', $char) === 1
+                ? $fontSize
+                : $fontSize * 0.54;
+        }
+
+        return $width;
     }
 
     private function securityPatternSvg(float $x, float $y, float $width, float $height): string
