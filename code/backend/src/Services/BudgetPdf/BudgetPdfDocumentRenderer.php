@@ -69,8 +69,8 @@ final readonly class BudgetPdfDocumentRenderer
 
                 return [
                     $this->itemLabelWithInstallment($item),
-                    $this->formatter->templateMoney((string) $item['budget']['currency'], $effective['budgetOriginal']),
-                    $this->formatter->templateMoney((string) $item['estimatedActuals']['currency'], $effective['estimatedOriginal']),
+                    $this->moneyWithSecondary((string) $budget['baseCurrency'], $effective['budgetBase'], $item),
+                    $this->moneyWithSecondary((string) $budget['baseCurrency'], $effective['estimatedBase'], $item),
                     $this->formatter->templateMoney((string) $budget['baseCurrency'], $effective['varianceBase']),
                 ];
             },
@@ -133,15 +133,27 @@ final readonly class BudgetPdfDocumentRenderer
             . ' remaining';
     }
 
+    private function moneyWithSecondary(string $baseCurrency, float $baseAmount, array $item): string
+    {
+        $currency = (string) ($item['budget']['currency'] ?? $baseCurrency);
+        $rate = (float) ($item['budget']['rateToBase'] ?? 0);
+        $primary = $this->formatter->templateMoney($baseCurrency, $baseAmount);
+        if ($currency === $baseCurrency || $rate <= 0.0) {
+            return $primary;
+        }
+
+        return $primary . "\n" . $this->formatter->templateMoney($currency, $baseAmount / $rate);
+    }
+
     private function effectiveItemAmounts(array $item, array $transactions): array
     {
         $budgetOriginal = (float) ($item['budget']['amountOriginal'] ?? 0);
         $budgetBase = (float) ($item['budget']['amountBase'] ?? 0);
         if ($budgetOriginal !== 0.0 || $budgetBase !== 0.0) {
             return [
-                'budgetOriginal' => $budgetOriginal,
+                'budgetOriginal' => $budgetBase,
                 'budgetBase' => $budgetBase,
-                'estimatedOriginal' => (float) ($item['estimatedActuals']['amountOriginal'] ?? 0),
+                'estimatedOriginal' => (float) ($item['estimatedActuals']['amountBase'] ?? 0),
                 'estimatedBase' => (float) ($item['estimatedActuals']['amountBase'] ?? 0),
                 'varianceBase' => (float) ($item['varianceBase'] ?? 0),
             ];
@@ -153,29 +165,20 @@ final readonly class BudgetPdfDocumentRenderer
         }));
         if ($matches === []) {
             return [
-                'budgetOriginal' => $budgetOriginal,
+                'budgetOriginal' => $budgetBase,
                 'budgetBase' => $budgetBase,
-                'estimatedOriginal' => (float) ($item['estimatedActuals']['amountOriginal'] ?? 0),
+                'estimatedOriginal' => (float) ($item['estimatedActuals']['amountBase'] ?? 0),
                 'estimatedBase' => (float) ($item['estimatedActuals']['amountBase'] ?? 0),
                 'varianceBase' => (float) ($item['varianceBase'] ?? 0),
             ];
         }
 
-        $budgetCurrency = (string) ($item['budget']['currency'] ?? '');
-        $sameCurrency = array_reduce(
-            $matches,
-            static fn (bool $carry, array $transaction): bool => $carry && (string) ($transaction['currency'] ?? '') === $budgetCurrency,
-            true,
-        );
-        $originalTotal = $sameCurrency
-            ? array_reduce($matches, static fn (float $total, array $transaction): float => $total + (float) ($transaction['amountOriginal'] ?? 0), 0.0)
-            : $budgetOriginal;
         $baseTotal = array_reduce($matches, static fn (float $total, array $transaction): float => $total + (float) ($transaction['amountBase'] ?? 0), 0.0);
 
         return [
-            'budgetOriginal' => round($originalTotal, 2),
+            'budgetOriginal' => round($baseTotal, 2),
             'budgetBase' => round($baseTotal, 2),
-            'estimatedOriginal' => $sameCurrency ? round($originalTotal, 2) : (float) ($item['estimatedActuals']['amountOriginal'] ?? 0),
+            'estimatedOriginal' => round($baseTotal, 2),
             'estimatedBase' => round($baseTotal, 2),
             'varianceBase' => 0.0,
         ];

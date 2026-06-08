@@ -3,6 +3,7 @@ import type { WorkspaceMember } from '../types/auth';
 import type {
   BudgetSignatureCustomField,
   BudgetSignatureLabelLanguage,
+  BudgetSignatureLabelAlign,
   BudgetSignatureLabelMode,
   BudgetSignatureLabelSeparator,
   BudgetSignatureConfig,
@@ -37,6 +38,7 @@ export function emptySignatureConfig(): BudgetSignatureConfig {
     labelMode: 'confirmation_signature',
     labelSeparator: 'space',
     sectionAlign: 'full',
+    labelAlign: 'left',
     showControlText: true,
     rows: [],
   };
@@ -98,6 +100,7 @@ export function signatureConfigToForm(
     labelMode: normalized.labelMode,
     labelSeparator: normalized.labelSeparator,
     sectionAlign: normalized.sectionAlign,
+    labelAlign: normalized.labelAlign,
     showControlText: normalized.showControlText,
     rows: normalized.rows.map((row) => ({
       ...row,
@@ -120,6 +123,7 @@ export function signatureConfigFromForm(
     labelMode: config.labelMode,
     labelSeparator: config.labelSeparator,
     sectionAlign: config.sectionAlign,
+    labelAlign: config.labelAlign,
     showControlText: config.showControlText !== false,
     rows: (config.rows ?? []).map((row) => ({
       ...row,
@@ -142,6 +146,7 @@ export function normalizeSignatureConfig(
     labelMode: normalizeLabelMode(config.labelMode),
     labelSeparator: normalizeLabelSeparator(config.labelSeparator),
     sectionAlign: normalizeSectionAlign(config.sectionAlign),
+    labelAlign: normalizeLabelAlign(config.labelAlign),
     showControlText: config.showControlText !== false,
     rows: Array.isArray(config.rows)
       ? config.rows.map(normalizeSignatureRow).filter((row) => row !== null)
@@ -311,6 +316,10 @@ function normalizeSectionAlign(value: unknown): BudgetSignatureSectionAlign {
   return value === 'right' ? 'right' : 'full';
 }
 
+function normalizeLabelAlign(value: unknown): BudgetSignatureLabelAlign {
+  return value === 'right' ? 'right' : 'left';
+}
+
 function signatureRowId(): string {
   return `sig_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -326,6 +335,7 @@ interface BudgetFormSignatureConfig {
   labelMode: BudgetSignatureLabelMode;
   labelSeparator: BudgetSignatureLabelSeparator;
   sectionAlign: BudgetSignatureSectionAlign;
+  labelAlign: BudgetSignatureLabelAlign;
   showControlText: boolean;
   rows: BudgetSignatureFormRow[];
 }

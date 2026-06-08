@@ -139,13 +139,19 @@ final readonly class BudgetEntryService
         $label = Input::string($input['label'] ?? null);
         $budgetAmount = $this->number($input['budgetAmount'] ?? $input['budget_amount'] ?? null);
         $estimatedAmount = $this->number($input['estimatedAmount'] ?? $input['estimated_amount'] ?? null);
+        $specifiedAmount = $this->number($input['currencyAmount'] ?? $input['currency_amount'] ?? null);
+        $bankFeeMultiplier = 1 + (($this->number($input['bankFee'] ?? $input['bank_fee'] ?? null) ?? 0.0) / 100);
+        $usesUnifiedCurrencyPayload = array_key_exists('currency', $input) || array_key_exists('currency_amount', $input) || array_key_exists('currencyAmount', $input);
 
         if ($label === null || strlen($label) > 160) {
             throw new AuthException('VALIDATION_ERROR', 'Category name is required and must be 160 characters or less.', 422);
         }
 
-        $budgetCurrencyId = $this->currencyId($input['budgetCurrency'] ?? $input['budget_currency'] ?? null);
-        $estimatedCurrencyId = $this->currencyId($input['estimatedCurrency'] ?? $input['estimated_currency'] ?? null);
+        $currencyInput = $input['currency'] ?? $input['budgetCurrency'] ?? $input['budget_currency'] ?? null;
+        $budgetCurrencyId = $this->currencyId($currencyInput);
+        $estimatedCurrencyId = $this->currencyId(
+            $input['currency'] ?? $input['estimatedCurrency'] ?? $input['estimated_currency'] ?? $currencyInput,
+        );
         $categoryId = $this->budgetItemCategoryId($workspaceId, $userId, $input, $label);
         $rateDate = Input::date($input['rateDate'] ?? $input['rate_date'] ?? null);
         $budgetRate = $this->rateToBase(
@@ -153,17 +159,27 @@ final readonly class BudgetEntryService
             $budgetCurrencyId,
             $budget,
             $rateDate,
-            $this->rateInput($input, ['budgetRate', 'budget_rate'], 'Budget rate'),
+            $this->rateInput($input, ['rate', 'budgetRate', 'budget_rate'], 'Budget rate'),
         );
         $estimatedRate = $this->rateToBase(
             $workspaceId,
             $estimatedCurrencyId,
             $budget,
             $rateDate,
-            $this->rateInput($input, ['estimatedRate', 'estimated_rate'], 'Estimated rate'),
+            $this->rateInput($input, ['rate', 'estimatedRate', 'estimated_rate'], 'Estimated rate'),
         );
 
-        if ($budgetAmount === null) {
+        if ($specifiedAmount !== null) {
+            $budgetAmount = $specifiedAmount;
+            $budgetBase = $budgetAmount * $budgetRate * $bankFeeMultiplier;
+            $estimatedBase = $estimatedAmount ?? 0.0;
+            $estimatedAmount = $this->originalAmountFromBase($estimatedBase, $estimatedRate);
+        } elseif ($usesUnifiedCurrencyPayload && $budgetAmount !== null) {
+            $budgetBase = $budgetAmount;
+            $budgetAmount = $this->originalAmountFromBase($budgetBase, $budgetRate);
+            $estimatedBase = $estimatedAmount ?? 0.0;
+            $estimatedAmount = $this->originalAmountFromBase($estimatedBase, $estimatedRate);
+        } elseif ($budgetAmount === null) {
             $transactionTotalBase = (new BudgetEntryRepository($this->pdo))
                 ->transactionTotalBaseForCategory($budgetId, $categoryId);
             $budgetBase = $transactionTotalBase;

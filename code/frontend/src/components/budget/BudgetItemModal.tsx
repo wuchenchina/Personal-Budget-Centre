@@ -1,6 +1,7 @@
 import { Alert, Button, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import type { ChangeEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { currencyOptions } from '../../config/appConfig';
 import { useI18n } from '../../i18n';
 import type { BudgetItem } from '../../types/budget';
@@ -12,7 +13,9 @@ interface BudgetItemModalProps {
   open: boolean;
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
+  baseCurrency: string;
   confirmLoading: boolean;
+  onPreviewCurrencyAmount: (values: BudgetItemFormValues) => Promise<number | null>;
   onCancel: () => void;
   onOk: () => void;
 }
@@ -23,13 +26,16 @@ export function BudgetItemModal({
   open,
   error,
   categoryOptions,
+  baseCurrency,
   confirmLoading,
+  onPreviewCurrencyAmount,
   onCancel,
   onOk,
 }: BudgetItemModalProps) {
   const { t } = useI18n();
-  const budgetCurrency = Form.useWatch('budgetCurrency', form);
-  const estimatedCurrency = Form.useWatch('estimatedCurrency', form);
+  const currency = Form.useWatch('currency', form);
+  const currencyAmount = Form.useWatch('currencyAmount', form);
+  const rate = Form.useWatch('rate', form);
   const installmentEnabled = Form.useWatch(['installmentConfig', 'enabled'], form) === true;
   const installmentTotal = Form.useWatch(['installmentConfig', 'totalAmount'], form);
   const installmentMonths = Form.useWatch(['installmentConfig', 'months'], form);
@@ -46,6 +52,49 @@ export function BudgetItemModal({
       && installmentMonths > 0
       ? installmentTotal / installmentMonths
       : null);
+  const [previewState, setPreviewState] = useState<{
+    amount: number | null;
+    error: string | null;
+    loading: boolean;
+  }>({
+    amount: null,
+    error: null,
+    loading: false,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    const amount = typeof currencyAmount === 'number' ? currencyAmount : null;
+    const timer = window.setTimeout(() => {
+      if (amount === null || amount <= 0) {
+        setPreviewState({ amount: null, error: null, loading: false });
+
+        return;
+      }
+
+      setPreviewState((current) => ({ ...current, error: null, loading: true }));
+      void onPreviewCurrencyAmount(form.getFieldsValue()).then((nextAmount) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setPreviewState({ amount: nextAmount, error: null, loading: false });
+      }).catch((error: unknown) => {
+        if (isMounted) {
+          setPreviewState({
+            amount: null,
+            error: error instanceof Error ? error.message : t('loadingExchangeRatesFailed'),
+            loading: false,
+          });
+        }
+      });
+    }, 250);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timer);
+    };
+  }, [currency, currencyAmount, form, onPreviewCurrencyAmount, rate, t]);
   const handleCategoryChange = (categoryId: number | null | undefined) => {
     if (categoryId === null || categoryId === undefined) {
       return;
@@ -73,7 +122,7 @@ export function BudgetItemModal({
     }
 
     form.setFieldsValue({
-      budgetAmount: Number(derivedMonthlyInstallment.toFixed(2)),
+      currencyAmount: Number(derivedMonthlyInstallment.toFixed(2)),
       installmentConfig: {
         ...form.getFieldValue('installmentConfig'),
         monthlyAmount: Number(derivedMonthlyInstallment.toFixed(2)),
@@ -131,26 +180,54 @@ export function BudgetItemModal({
           />
         </Form.Item>
 
-        <div className="modal-form-grid">
+        <div className="currency-config-panel">
+          <div className="currency-config-title">{t('currencySettings')}</div>
+          <div className="currency-config-base">
+            <span>{t('baseCurrency')}</span>
+            <strong>{baseCurrency}</strong>
+          </div>
+          <div className="modal-form-grid">
+            <Form.Item
+              label={t('specifiedCurrency')}
+              name="currency"
+              rules={[{ required: true, message: t('selectCurrency') }]}
+              extra={t('specifiedCurrencyHelp')}
+            >
+              <Select options={currencyOptions} />
+            </Form.Item>
+            <Form.Item
+              label={t('specifiedRateToBase')}
+              name="rate"
+              rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
+              extra={t('manualRateOptional')}
+            >
+              <InputNumber className="form-full-width" precision={6} step={0.01} />
+            </Form.Item>
+          </div>
           <Form.Item
-            label={t('budgetCurrency')}
-            name="budgetCurrency"
-            rules={[{ required: true, message: t('selectBaseCurrency') }]}
-          >
-            <Select options={currencyOptions} />
-          </Form.Item>
-          <Form.Item
-            label={t('budgetAmount')}
-            name="budgetAmount"
+            label={t('specifiedCurrencyAmount')}
+            name="currencyAmount"
             rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+            extra={t('specifiedCurrencyAmountHelp')}
           >
             <InputNumber
-              addonBefore={budgetCurrency ?? t('currency')}
+              addonBefore={currency ?? t('currency')}
               className="form-full-width"
               precision={2}
               step={100}
             />
           </Form.Item>
+          <div className="currency-config-preview">
+            <span>{t('preview')}</span>
+            <strong>
+              {previewState.loading
+                ? t('loading')
+                : previewState.amount === null
+                  ? `${baseCurrency} --`
+                  : `${baseCurrency} ${previewState.amount.toFixed(2)}`}
+            </strong>
+            {previewState.error ? <small>{previewState.error}</small> : null}
+          </div>
         </div>
 
         <div className="installment-config-panel">
@@ -166,7 +243,7 @@ export function BudgetItemModal({
                   rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
                 >
                   <InputNumber
-                    addonBefore={budgetCurrency ?? t('currency')}
+                    addonBefore={currency ?? t('currency')}
                     className="form-full-width"
                     precision={2}
                     step={100}
@@ -192,7 +269,7 @@ export function BudgetItemModal({
                   ]}
                 >
                   <InputNumber
-                    addonBefore={budgetCurrency ?? t('currency')}
+                    addonBefore={currency ?? t('currency')}
                     className="form-full-width"
                     precision={2}
                     step={100}
@@ -226,22 +303,14 @@ export function BudgetItemModal({
                 {derivedMonthlyInstallment === null
                   ? t('applyInstallmentMonthly')
                   : t('applyInstallmentMonthlyWithAmount', {
-                    amount: `${budgetCurrency ?? t('currency')} ${derivedMonthlyInstallment.toFixed(2)}`,
+                    amount: `${currency ?? t('currency')} ${derivedMonthlyInstallment.toFixed(2)}`,
                   })}
               </Button>
             </>
           ) : null}
         </div>
 
-        <div className="modal-form-grid">
-          <Form.Item
-            label={t('budgetRateToBase')}
-            name="budgetRate"
-            rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
-            extra={t('manualRateOptional')}
-          >
-            <InputNumber className="form-full-width" precision={6} step={0.01} />
-          </Form.Item>
+        <div className="modal-form-grid modal-form-grid-single">
           <Form.Item
             label="Bank Fee (%)"
             name="bankFee"
@@ -255,36 +324,6 @@ export function BudgetItemModal({
         </div>
 
         <div className="modal-form-grid">
-          <Form.Item
-            label={t('estimatedCurrency')}
-            name="estimatedCurrency"
-            rules={[{ required: true, message: t('selectDisplayCurrency') }]}
-          >
-            <Select options={currencyOptions} />
-          </Form.Item>
-          <Form.Item
-            label={t('estimatedAmount')}
-            name="estimatedAmount"
-            rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
-          >
-            <InputNumber
-              addonBefore={estimatedCurrency ?? t('currency')}
-              className="form-full-width"
-              precision={2}
-              step={100}
-            />
-          </Form.Item>
-        </div>
-
-        <div className="modal-form-grid">
-          <Form.Item
-            label={t('estimatedRateToBase')}
-            name="estimatedRate"
-            rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
-            extra={t('manualRateOptional')}
-          >
-            <InputNumber className="form-full-width" precision={6} step={0.01} />
-          </Form.Item>
           <Form.Item
             label={t('sortOrder')}
             name="sortOrder"

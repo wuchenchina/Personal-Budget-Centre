@@ -14,7 +14,6 @@ final readonly class BudgetPdfSignatureRenderer
     public function css(): string
     {
         return '.signature-section{width:100%;margin-top:4mm;page-break-inside:avoid;}'
-            . '.signature-section-right{width:76mm;margin-left:auto;}'
             . '.signature-svg{display:block;width:100%;height:auto;}';
     }
 
@@ -29,11 +28,25 @@ final readonly class BudgetPdfSignatureRenderer
         $svg = $this->svg($config, $width);
         $height = $this->svgHeight($config, $width);
 
-        return '<div class="template-section signature-section'
-            . (($config['sectionAlign'] ?? null) === 'right' ? ' signature-section-right' : '')
-            . '"><img class="signature-svg" src="data:image/svg+xml;base64,'
+        $image = $this->imageHtml($svg, $width, $height, 'block');
+
+        if (($config['sectionAlign'] ?? null) === 'right') {
+            return '<div class="template-section signature-section" style="text-align:right">'
+                . $this->imageHtml($svg, $width, $height, 'inline-block')
+                . '</div>';
+        }
+
+        return '<div class="template-section signature-section">' . $image . '</div>';
+    }
+
+    private function imageHtml(string $svg, float $width, float $height, string $display): string
+    {
+        return '<img class="signature-svg" src="data:image/svg+xml;base64,'
             . base64_encode($svg)
-            . '" style="width:' . $this->number($width) . 'mm;height:' . $this->number($height) . 'mm" alt=""></div>';
+            . '" style="display:' . $display
+            . ';width:' . $this->number($width)
+            . 'mm;height:' . $this->number($height)
+            . 'mm" alt="">';
     }
 
     private function svg(array $config, float $width): string
@@ -143,13 +156,13 @@ final readonly class BudgetPdfSignatureRenderer
     private function metaSvg(array $fields, float $rowTop, float $width): string
     {
         $labelX = 3.0;
-        $valueX = $width <= 80.0 ? 23.0 : 22.0;
-        $valueWidth = $width <= 80.0 ? 48.0 : 44.0;
+        $valueX = $width <= 80.0 ? 23.0 : 27.0;
+        $valueWidth = $width <= 80.0 ? 48.0 : 43.0;
         $baseline = $rowTop + 4.0;
         $svg = '';
         foreach (array_slice($fields, 0, 18) as $index => [$label, $value]) {
             $y = $baseline + ($index * 5.0);
-            $svg .= $this->text($labelX, $y, $label, 2.25, '#555', 'sf-mono-light');
+            $svg .= $this->text($labelX, $y, $this->fitText((string) $label, $valueX - $labelX - 2.0), 2.25, '#555', 'sf-mono-light');
             $svg .= $this->text($valueX, $y, $this->fitText((string) $value, $valueWidth), 2.55, '#111');
         }
 
@@ -158,25 +171,20 @@ final readonly class BudgetPdfSignatureRenderer
 
     private function signatureBoxSvg(array $config, float $rowTop, float $width, int $fieldCount): string
     {
-        $boxWidth = $width <= 80.0 ? 62.0 : 68.0;
-        $boxHeight = $width <= 80.0 ? 19.5 : 20.0;
+        $boxWidth = $width <= 80.0 ? 66.0 : 74.0;
+        $boxHeight = $width <= 80.0 ? 23.0 : 24.0;
         $boxX = $width <= 80.0 ? 5.0 : $width - $boxWidth - 7.0;
         $boxY = $width <= 80.0 ? $rowTop + max(29.0, 5.0 + ($fieldCount * 5.0)) : $rowTop + 4.0;
         $label = $this->formatter->signatureLabel($config);
-        $watermarkX = $boxX + ($boxWidth * 0.38);
-        $watermarkY = $boxY + 8.2;
         $lineY = $boxY + $boxHeight - 5.0;
-        $captionX = $boxX + $boxWidth - 3.2;
         $caption = $this->fitText($label, $boxWidth - 8.0);
+        $captionAlign = ($config['labelAlign'] ?? null) === 'right' ? 'right' : 'left';
+        $captionX = $captionAlign === 'right' ? $boxX + $boxWidth - 4.0 : $boxX + 4.0;
 
         $svg = '<rect x="' . $this->number($boxX) . '" y="' . $this->number($boxY) . '" width="' . $this->number($boxWidth) . '" height="' . $this->number($boxHeight) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>'
             . $this->securityPatternSvg($boxX, $boxY, $boxWidth, $boxHeight)
-            . (($config['showControlText'] ?? true) !== false
-                ? $this->text($boxX + 2.2, $boxY + 3.0, 'BUDGETCENTRE CONFIRMATION CONTROL', 1.35, '#c6c6c6', 'sf-mono-light')
-                : '')
-            . $this->text($watermarkX, $watermarkY, 'CONFIRM', 2.45, '#e8e8e8', 'sf-mono-light')
             . '<line x1="' . $this->number($boxX + 4.0) . '" y1="' . $this->number($lineY) . '" x2="' . $this->number($boxX + $boxWidth - 4.0) . '" y2="' . $this->number($lineY) . '" stroke="#8f8f8f" stroke-width="0.16"/>'
-            . $this->text($captionX, $boxY + $boxHeight - 1.6, $caption, 1.75, '#555', 'sf-mono-light', 'end');
+            . $this->text($captionX, $boxY + $boxHeight - 1.6, $caption, 1.75, '#555', 'sf-mono-light', $captionAlign === 'right' ? 'end' : 'start');
 
         return $svg;
     }

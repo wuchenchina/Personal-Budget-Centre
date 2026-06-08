@@ -58,6 +58,9 @@ export interface BudgetFormValues {
 export interface BudgetItemFormValues {
   categoryId?: number;
   label: string;
+  currency: CurrencyCode;
+  currencyAmount?: number;
+  rate?: number;
   budgetCurrency: CurrencyCode;
   budgetAmount?: number;
   budgetRate?: number;

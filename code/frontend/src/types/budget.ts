@@ -80,6 +80,7 @@ export type BudgetSignatureLabelLanguage = 'en' | 'sc' | 'tc';
 export type BudgetSignatureLabelMode = 'confirmation_signature' | 'confirmation' | 'signature';
 export type BudgetSignatureLabelSeparator = 'none' | 'space' | 'slash' | 'line';
 export type BudgetSignatureSectionAlign = 'full' | 'right';
+export type BudgetSignatureLabelAlign = 'left' | 'right';
 
 export interface BudgetSignatureCustomField {
   id: string;
@@ -113,6 +114,7 @@ export interface BudgetSignatureConfig {
   labelMode: BudgetSignatureLabelMode;
   labelSeparator: BudgetSignatureLabelSeparator;
   sectionAlign: BudgetSignatureSectionAlign;
+  labelAlign: BudgetSignatureLabelAlign;
   showControlText: boolean;
   rows: BudgetSignatureRow[];
 }

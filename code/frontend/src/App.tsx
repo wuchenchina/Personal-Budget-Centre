@@ -327,7 +327,9 @@ function App() {
         open={budgetEntry.isBudgetItemModalOpen}
         error={budgetEntry.entryError}
         categoryOptions={entryCategoryOptions}
+        baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
         confirmLoading={budgetEntry.isBudgetItemSaving}
+        onPreviewCurrencyAmount={budgetEntry.previewBudgetItemCurrencyAmount}
         onCancel={budgetEntry.closeBudgetItemModal}
         onOk={budgetEntry.handleBudgetItemSave}
       />

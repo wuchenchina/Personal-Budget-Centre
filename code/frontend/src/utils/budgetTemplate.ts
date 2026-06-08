@@ -30,9 +30,9 @@ export function effectiveBudgetItemAmounts(
 ): EffectiveBudgetItemAmounts {
   if (item.budget.amountOriginal !== 0 || item.budget.amountBase !== 0) {
     return {
-      budgetAmountOriginal: item.budget.amountOriginal,
+      budgetAmountOriginal: item.budget.amountBase,
       budgetAmountBase: item.budget.amountBase,
-      estimatedAmountOriginal: item.estimatedActuals.amountOriginal,
+      estimatedAmountOriginal: item.estimatedActuals.amountBase,
       estimatedAmountBase: item.estimatedActuals.amountBase,
       varianceBase: item.varianceBase,
     };
@@ -45,31 +45,23 @@ export function effectiveBudgetItemAmounts(
   );
   if (sameCategoryTransactions.length === 0) {
     return {
-      budgetAmountOriginal: item.budget.amountOriginal,
+      budgetAmountOriginal: item.budget.amountBase,
       budgetAmountBase: item.budget.amountBase,
-      estimatedAmountOriginal: item.estimatedActuals.amountOriginal,
+      estimatedAmountOriginal: item.estimatedActuals.amountBase,
       estimatedAmountBase: item.estimatedActuals.amountBase,
       varianceBase: item.varianceBase,
     };
   }
 
-  const allSameBudgetCurrency = sameCategoryTransactions.every(
-    (transaction) => transaction.currency === item.budget.currency,
-  );
-  const originalTotal = allSameBudgetCurrency
-    ? sameCategoryTransactions.reduce((total, transaction) => total + transaction.amountOriginal, 0)
-    : item.budget.amountOriginal;
   const baseTotal = sameCategoryTransactions.reduce(
     (total, transaction) => total + transaction.amountBase,
     0,
   );
 
   return {
-    budgetAmountOriginal: allSameBudgetCurrency ? roundMoney(originalTotal) : item.budget.amountOriginal,
+    budgetAmountOriginal: roundMoney(baseTotal),
     budgetAmountBase: roundMoney(baseTotal),
-    estimatedAmountOriginal: allSameBudgetCurrency
-      ? roundMoney(originalTotal)
-      : item.estimatedActuals.amountOriginal,
+    estimatedAmountOriginal: roundMoney(baseTotal),
     estimatedAmountBase: roundMoney(baseTotal),
     varianceBase: 0,
   };
@@ -112,11 +104,21 @@ export function createBudgetItemColumns(
       const effective = effectiveBudgetItemAmounts(row, transactions);
 
       if (column.key === 'budget') {
-        return formatBudgetMoney(row.budget.currency, effective.budgetAmountOriginal);
+        return createMoneyWithSecondary(
+          baseCurrency,
+          effective.budgetAmountOriginal,
+          row.budget.currency,
+          row.budget.rateToBase,
+        );
       }
 
       if (column.key === 'estimated_actuals') {
-        return formatBudgetMoney(row.estimatedActuals.currency, effective.estimatedAmountOriginal);
+        return createMoneyWithSecondary(
+          baseCurrency,
+          effective.estimatedAmountOriginal,
+          row.budget.currency,
+          row.budget.rateToBase,
+        );
       }
 
       if (column.key === 'variance') {
@@ -127,6 +129,28 @@ export function createBudgetItemColumns(
     },
     width: `${column.widthPercent}%`,
   }));
+}
+
+function createMoneyWithSecondary(
+  primaryCurrency: CurrencyCode,
+  primaryAmount: number,
+  secondaryCurrency: CurrencyCode,
+  rateToBase: number,
+) {
+  if (secondaryCurrency === primaryCurrency || rateToBase <= 0) {
+    return formatBudgetMoney(primaryCurrency, primaryAmount);
+  }
+
+  return createElement(
+    'div',
+    { className: 'budget-money-stack' },
+    createElement('span', null, formatBudgetMoney(primaryCurrency, primaryAmount)),
+    createElement(
+      'span',
+      { className: 'budget-money-secondary' },
+      formatBudgetMoney(secondaryCurrency, primaryAmount / rateToBase),
+    ),
+  );
 }
 
 function budgetInstallmentSummary(row: BudgetItem) {

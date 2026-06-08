@@ -8,6 +8,10 @@ interface BudgetResponse {
 export interface SaveBudgetItemPayload {
   categoryId?: number;
   label: string;
+  currency?: CurrencyCode;
+  currencyAmount?: number;
+  rate?: number;
+  bankFee?: number;
   budgetCurrency: CurrencyCode;
   budgetAmount?: number;
   budgetRate?: number;

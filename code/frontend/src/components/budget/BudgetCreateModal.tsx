@@ -71,6 +71,7 @@ export function BudgetCreateModal({
     labelMode: signatureLabelMode,
     labelSeparator: signatureLabelSeparator,
     sectionAlign: 'full',
+    labelAlign: 'left',
     showControlText: true,
     rows: [],
   });
@@ -257,12 +258,15 @@ export function BudgetCreateModal({
                     ]}
                   />
                 </Form.Item>
-              </div>
-              <Space className="signature-option-grid" wrap>
-                <Form.Item name={['signatureConfig', 'showControlText']} valuePropName="checked">
-                  <Checkbox>{t('showSignatureControlText')}</Checkbox>
+                <Form.Item label={t('signatureLabelAlign')} name={['signatureConfig', 'labelAlign']}>
+                  <Select
+                    options={[
+                      { label: t('alignLeft'), value: 'left' },
+                      { label: t('alignRight'), value: 'right' },
+                    ]}
+                  />
                 </Form.Item>
-              </Space>
+              </div>
               <div className="signature-label-preview">
                 <span>{t('preview')}</span>
                 <strong>{signatureLabelPreview}</strong>

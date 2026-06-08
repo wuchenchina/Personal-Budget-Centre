@@ -601,6 +601,7 @@ final readonly class BudgetRepository
                 ? $decoded['labelSeparator']
                 : 'space',
             'sectionAlign' => ($decoded['sectionAlign'] ?? null) === 'right' ? 'right' : 'full',
+            'labelAlign' => ($decoded['labelAlign'] ?? $decoded['label_align'] ?? null) === 'right' ? 'right' : 'left',
             'showControlText' => ($decoded['showControlText'] ?? $decoded['show_control_text'] ?? true) !== false,
             'rows' => is_array($decoded['rows'] ?? null)
                 ? array_values(array_filter(array_map(
@@ -662,6 +663,7 @@ final readonly class BudgetRepository
             'labelMode' => 'confirmation_signature',
             'labelSeparator' => 'space',
             'sectionAlign' => 'full',
+            'labelAlign' => 'left',
             'showControlText' => true,
             'rows' => [],
         ];

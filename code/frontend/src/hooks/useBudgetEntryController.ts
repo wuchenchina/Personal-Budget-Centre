@@ -39,6 +39,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
   const [deletingBudgetItemId, setDeletingBudgetItemId] = useState<number | null>(null);
   const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
 
+  const budgetBaseCurrency = options.selectedBudget?.baseCurrency ?? options.baseCurrency;
   const entryCurrency = options.selectedBudget?.displayCurrency ?? options.baseCurrency;
 
   const openBudgetItemCreateModal = () => {
@@ -52,8 +53,9 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     setEditingBudgetItem(null);
     budgetItemForm.resetFields();
     budgetItemForm.setFieldsValue({
-      budgetCurrency: entryCurrency,
-      estimatedCurrency: entryCurrency,
+      currency: budgetBaseCurrency,
+      budgetCurrency: budgetBaseCurrency,
+      estimatedCurrency: budgetBaseCurrency,
       installmentConfig: emptyInstallmentConfig(),
       sortOrder: options.selectedBudget.items.length + 1,
     });
@@ -67,11 +69,12 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     budgetItemForm.setFieldsValue({
       categoryId: item.categoryId ?? undefined,
       label: item.label,
+      currency: item.budget.currency,
+      currencyAmount: specifiedAmountFromBase(item.budget.amountBase, item.budget.rateToBase),
       budgetCurrency: item.budget.currency,
-      budgetAmount: item.budget.amountOriginal,
       budgetRate: item.budget.rateToBase,
+      rate: item.budget.rateToBase,
       estimatedCurrency: item.estimatedActuals.currency,
-      estimatedAmount: item.estimatedActuals.amountOriginal,
       estimatedRate: item.estimatedActuals.rateToBase,
       installmentConfig: installmentConfigToForm(item.installmentConfig),
       sortOrder: item.sortOrder,
@@ -83,6 +86,15 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     setIsBudgetItemModalOpen(false);
     setEditingBudgetItem(null);
     budgetItemForm.resetFields();
+  };
+
+  const previewBudgetItemCurrencyAmount = async (values: BudgetItemFormValues): Promise<number | null> => {
+    const amount = normalizedAmount(values.currencyAmount);
+    if (amount === null) {
+      return null;
+    }
+
+    return baseAmountFromSpecifiedCurrency(values, amount);
   };
 
   const handleBudgetItemSave = async () => {
@@ -102,12 +114,16 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       const payload: SaveBudgetItemPayload = {
         categoryId: values.categoryId,
         label: values.label.trim(),
-        budgetCurrency: values.budgetCurrency,
+        currency: values.currency,
+        currencyAmount: values.currencyAmount,
+        rate: values.rate,
+        bankFee: values.bankFee,
+        budgetCurrency: values.currency,
         budgetAmount: amounts.budgetAmount,
-        budgetRate: values.budgetRate,
-        estimatedCurrency: values.estimatedCurrency,
+        budgetRate: values.rate,
+        estimatedCurrency: values.currency,
         estimatedAmount: amounts.estimatedAmount,
-        estimatedRate: values.estimatedRate,
+        estimatedRate: values.rate,
         installmentConfig,
         sortOrder: values.sortOrder ?? 0,
       };
@@ -134,51 +150,50 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
   };
 
   const completeBudgetItemAmounts = async (values: BudgetItemFormValues) => {
-    const budgetAmount = normalizedAmount(values.budgetAmount);
-    const estimatedAmount = normalizedAmount(values.estimatedAmount);
-    const budgetRate = normalizedAmount(values.budgetRate);
-    const estimatedRate = normalizedAmount(values.estimatedRate);
-
-    if (budgetAmount === null) {
-      return {
-        budgetAmount: undefined,
-        estimatedAmount: estimatedAmount ?? undefined,
-      };
-    }
-
-    if (budgetAmount !== null && estimatedAmount !== null) {
-      return { budgetAmount, estimatedAmount };
-    }
+    const specifiedCurrencyAmount = normalizedAmount(values.currencyAmount);
+    const currentBudgetBase = editingBudgetItem?.budget.amountBase ?? null;
+    const currentEstimatedBase = editingBudgetItem?.estimatedActuals.amountBase ?? null;
 
     if (options.selectedBudget === null) {
       throw new Error(translateCurrent('selectBudgetFirst'));
     }
 
-    const bankFeeMultiplier = 1 + (normalizedBankFee(values.bankFee) ?? 0) / 100;
-    if (budgetRate !== null || estimatedRate !== null) {
-      if (budgetRate !== null && estimatedRate !== null) {
-        return {
-          budgetAmount,
-          estimatedAmount: roundMoney((budgetAmount * budgetRate * bankFeeMultiplier) / estimatedRate),
-        };
-      }
-
+    if (specifiedCurrencyAmount !== null) {
       return {
-        budgetAmount,
-        estimatedAmount: undefined,
+        budgetAmount: await baseAmountFromSpecifiedCurrency(values, specifiedCurrencyAmount),
+        estimatedAmount: currentEstimatedBase ?? undefined,
       };
     }
 
     return {
-      budgetAmount,
-      estimatedAmount: await convertedAmount({
-        workspaceId: options.selectedBudget.workspaceId,
-        fromCurrency: values.budgetCurrency,
-        toCurrency: values.estimatedCurrency,
-        amount: budgetAmount,
-        multiplier: bankFeeMultiplier,
-      }),
+      budgetAmount: currentBudgetBase ?? undefined,
+      estimatedAmount: currentEstimatedBase ?? undefined,
     };
+  };
+
+  const baseAmountFromSpecifiedCurrency = async (
+    values: BudgetItemFormValues,
+    specifiedCurrencyAmount: number,
+  ) => {
+    if (options.selectedBudget === null) {
+      throw new Error(translateCurrent('selectBudgetFirst'));
+    }
+
+    const manualRate = normalizedAmount(values.rate);
+    const multiplier = 1 + (normalizedBankFee(values.bankFee) ?? 0) / 100;
+    if (manualRate !== null) {
+      return roundMoney(specifiedCurrencyAmount * manualRate * multiplier);
+    }
+
+    const conversion = await convertedAmount({
+      workspaceId: options.selectedBudget.workspaceId,
+      fromCurrency: values.currency,
+      toCurrency: options.selectedBudget.baseCurrency,
+      amount: specifiedCurrencyAmount,
+      multiplier,
+    });
+
+    return roundMoney(conversion);
   };
 
   const handleBudgetItemDelete = async (id: number) => {
@@ -204,13 +219,13 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
 
     const nextBudgetAmount =
-      field === 'budget' ? value : item.budget.amountOriginal;
+      field === 'budget' ? value : item.budget.amountBase;
     const nextEstimatedAmount =
       field === 'estimated_actuals'
         ? value
         : field === 'variance'
           ? nextBudgetAmount - value
-          : item.estimatedActuals.amountOriginal;
+          : item.estimatedActuals.amountBase;
 
     if (nextBudgetAmount < 0 || nextEstimatedAmount < 0) {
       setEntryError(translateCurrent('amountMin'));
@@ -226,12 +241,13 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         id: item.id,
         categoryId: item.categoryId ?? undefined,
         label: item.label,
+        currency: item.budget.currency,
         budgetCurrency: item.budget.currency,
         budgetAmount: roundMoney(nextBudgetAmount),
         budgetRate: item.budget.rateToBase,
-        estimatedCurrency: item.estimatedActuals.currency,
+        estimatedCurrency: item.budget.currency,
         estimatedAmount: roundMoney(nextEstimatedAmount),
-        estimatedRate: item.estimatedActuals.rateToBase,
+        estimatedRate: item.budget.rateToBase,
         installmentConfig: item.installmentConfig,
         sortOrder: item.sortOrder,
       }));
@@ -369,6 +385,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     openBudgetItemEditModal,
     closeBudgetItemModal,
     handleBudgetItemSave,
+    previewBudgetItemCurrencyAmount,
     handleBudgetItemDelete,
     handleBudgetItemQuickAmountSave,
     openTransactionCreateModal,
@@ -414,6 +431,14 @@ async function convertedAmount(input: {
 
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function specifiedAmountFromBase(amountBase: number, rateToBase: number): number | undefined {
+  if (!Number.isFinite(amountBase) || !Number.isFinite(rateToBase) || rateToBase <= 0) {
+    return undefined;
+  }
+
+  return roundMoney(amountBase / rateToBase);
 }
 
 export type BudgetEntryController = ReturnType<typeof useBudgetEntryController>;

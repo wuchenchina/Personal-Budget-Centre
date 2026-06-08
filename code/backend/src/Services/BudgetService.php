@@ -401,6 +401,7 @@ final readonly class BudgetService
             'labelMode' => $this->signatureLabelMode($input['labelMode'] ?? $input['label_mode'] ?? null),
             'labelSeparator' => $this->signatureLabelSeparator($input['labelSeparator'] ?? $input['label_separator'] ?? null),
             'sectionAlign' => ($input['sectionAlign'] ?? $input['section_align'] ?? null) === 'right' ? 'right' : 'full',
+            'labelAlign' => $this->signatureLabelAlign($input['labelAlign'] ?? $input['label_align'] ?? null),
             'showControlText' => ($input['showControlText'] ?? $input['show_control_text'] ?? true) !== false,
             'rows' => $rows,
         ];
@@ -543,6 +544,11 @@ final readonly class BudgetService
         return in_array($value, ['none', 'space', 'slash', 'line'], true) ? $value : 'space';
     }
 
+    private function signatureLabelAlign(mixed $value): string
+    {
+        return $value === 'right' ? 'right' : 'left';
+    }
+
     private function emptySignatureConfig(): array
     {
         return [
@@ -552,6 +558,7 @@ final readonly class BudgetService
             'labelMode' => 'confirmation_signature',
             'labelSeparator' => 'space',
             'sectionAlign' => 'full',
+            'labelAlign' => 'left',
             'showControlText' => true,
             'rows' => [],
         ];

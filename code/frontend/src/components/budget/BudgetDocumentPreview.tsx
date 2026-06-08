@@ -108,6 +108,7 @@ export function BudgetDocumentPreview({
           selectedBudget?.transactions ?? [],
           canWriteBudgets,
           entry,
+          selectedBudget?.baseCurrency ?? baseCurrency,
         ),
         canWriteBudgets,
         entry,
@@ -576,6 +577,7 @@ function appendQuickAmountEditors(
   transactions: Transaction[],
   canWriteBudgets: boolean,
   entry: BudgetEntryController,
+  baseCurrency: CurrencyCode,
 ): TableProps<BudgetItem>['columns'] {
   if (columns === undefined) {
     return columns;
@@ -591,11 +593,8 @@ function appendQuickAmountEditors(
       ...column,
       render: (_value: unknown, row: BudgetItem) => {
         const effective = effectiveBudgetItemAmounts(row, transactions);
-        const isSameCurrency = row.budget.currency === row.estimatedActuals.currency;
-        const editable = canWriteBudgets && isSameCurrency;
-        const currency = key === 'variance' ? row.budget.currency : (
-          key === 'budget' ? row.budget.currency : row.estimatedActuals.currency
-        );
+        const editable = canWriteBudgets;
+        const currency = baseCurrency;
         const value = key === 'budget'
           ? effective.budgetAmountOriginal
           : key === 'estimated_actuals'
@@ -726,13 +725,8 @@ function BudgetSignatureCard({
       </div>
       <div className="budget-signature-sign">
         {row.showSignature ? (
-          <div className="budget-signature-box">
-            {config.showControlText !== false ? (
-              <span className="budget-signature-security">BUDGETCENTRE CONFIRMATION CONTROL</span>
-            ) : null}
-            <span className="budget-signature-box-space">
-              <span className="budget-signature-watermark">CONFIRMATION</span>
-            </span>
+          <div className={`budget-signature-box budget-signature-label-${config.labelAlign}`}>
+            <span className="budget-signature-box-space" />
             <span className="budget-signature-rule" />
             <span className="budget-signature-box-label">{signatureLabel}</span>
           </div>
