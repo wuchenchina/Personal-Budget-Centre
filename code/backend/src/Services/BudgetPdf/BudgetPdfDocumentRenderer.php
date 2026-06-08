@@ -15,11 +15,14 @@ final readonly class BudgetPdfDocumentRenderer
 
     public function render(array $budget, array $template): string
     {
-        $title = $this->formatter->escapeHtml((string) $budget['title']);
+        $title = trim((string) $budget['title']);
         $subtitle = trim((string) $budget['ownerName']);
+        $titleHtml = $title === ''
+            ? ''
+            : $this->multilineBlockHtml($title, 'title-line');
         $subtitleHtml = $subtitle === ''
             ? ''
-            : '<div class="subtitle">' . $this->subtitleText($subtitle) . '</div>';
+            : '<div class="subtitle">' . $this->multilineBlockHtml($subtitle, 'subtitle-line') . '</div>';
         $periodText = $this->formatter->periodText($budget);
         $sections = $this->sectionsByKey($template);
         $budgetSection = $sections['budget_highlights'] ?? $this->defaultBudgetSection();
@@ -33,7 +36,7 @@ final readonly class BudgetPdfDocumentRenderer
             . $this->signatureRenderer->css()
             . '</style></head><body>'
             . '<htmlpagefooter name="budgetPageFooter"><div class="page-footer">Page {PAGENO} of {nbpg}</div></htmlpagefooter>'
-            . '<div class="title">' . $title . '</div>'
+            . '<div class="title">' . $titleHtml . '</div>'
             . $subtitleHtml
             . $this->tableRenderer->render(
                 $budgetSection,
@@ -58,13 +61,14 @@ final readonly class BudgetPdfDocumentRenderer
         return '@page{margin:29mm 29mm 22mm;footer:html_budgetPageFooter;}'
             . 'body{font-family:"SF-Mono",TCSongti,monospace;color:#000;font-size:7.5pt;}'
             . '.title{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 4mm;}'
+            . '.title-line{display:block;line-height:1.25;}'
             . '.title sup{font-size:7pt;line-height:0;vertical-align:super;}'
             . '.subtitle{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 7mm;}'
-            . '.subtitle-line{display:block;}'
+            . '.subtitle-line{display:block;line-height:1.25;}'
             . '.page-footer{font-family:"SF-Mono",TCSongti,monospace;font-size:7pt;color:#666;text-align:center;}';
     }
 
-    private function subtitleText(string $value): string
+    private function multilineBlockHtml(string $value, string $lineClass): string
     {
         $lines = preg_split('/\R/u', $value);
         if ($lines === false) {
@@ -72,7 +76,7 @@ final readonly class BudgetPdfDocumentRenderer
         }
 
         return implode('', array_map(
-            fn (string $line): string => '<span class="subtitle-line">' . $this->formatter->escapeHtml($line) . '</span>',
+            fn (string $line): string => '<div class="' . $lineClass . '">' . $this->formatter->escapeHtml($line) . '</div>',
             array_values(array_filter(
                 array_map(static fn (string $line): string => trim($line), $lines),
                 static fn (string $line): bool => $line !== '',
