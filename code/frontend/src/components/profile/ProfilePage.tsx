@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Flex, Form, Input, Modal, Space, Tabs, Tag, Typography } from 'antd';
+import { Alert, Avatar, Button, Form, Input, Modal, Space, Tabs, Tag, Typography } from 'antd';
 import { KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import { resendEmailVerification, updatePassword, updateProfile } from '../../api/auth';
 import type { OperationsController } from '../../hooks/useOperationsController';
@@ -122,13 +122,23 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
 
   return (
     <div className="profile-page">
-      <Flex align="flex-start" justify="space-between" gap="middle" wrap>
-        <div>
-          <Tag color="blue">{t('profile')}</Tag>
-          <Title level={3}>{session.user.displayName}</Title>
-          <Text type="secondary">{session.user.email}</Text>
+      <section className="profile-hero">
+        <div className="profile-identity">
+          <Avatar className="profile-avatar" size={64}>
+            {getProfileInitial(session.user.displayName, session.user.email)}
+          </Avatar>
+          <div className="profile-identity-copy">
+            <Text className="profile-eyebrow">{t('profile')}</Text>
+            <Title className="profile-title" level={2}>
+              {session.user.displayName}
+            </Title>
+            <span className="profile-email-line">
+              <Mail size={15} />
+              <Text type="secondary">{session.user.email}</Text>
+            </span>
+          </div>
         </div>
-        <Space wrap>
+        <Space className="profile-status-row" wrap>
           {session.user.emailVerifiedAt === null ? (
             <Tag color="warning">{t('emailPending')}</Tag>
           ) : (
@@ -136,19 +146,22 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
           )}
           {session.user.isAdmin ? <Tag color="purple">{t('administrator')}</Tag> : null}
         </Space>
-      </Flex>
+      </section>
 
       <Tabs
+        className="profile-tabs"
+        size="large"
         items={[
           {
             key: 'details',
-            label: t('profile'),
+            label: (
+              <span className="profile-tab-label">
+                <UserRound size={15} />
+                {t('profile')}
+              </span>
+            ),
             children: (
-              <Flex className="profile-section" vertical gap="middle">
-                <Space>
-                  <UserRound size={16} />
-                  <Text strong>{t('accountDetails')}</Text>
-                </Space>
+              <div className="profile-details-grid">
                 {profileError ? (
                   <Alert className="side-alert" type="error" showIcon message={profileError} />
                 ) : null}
@@ -173,9 +186,19 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                     }
                   />
                 ) : null}
-                <div className="profile-account-panel">
+                <section className="profile-panel profile-account-panel">
+                  <div className="profile-panel-header">
+                    <span className="profile-panel-icon">
+                      <UserRound size={16} />
+                    </span>
+                    <div>
+                      <Text strong>{t('accountDetails')}</Text>
+                      <Text type="secondary">{t('nickname')}</Text>
+                    </div>
+                  </div>
                   <Form<ProfileFormValues>
                     form={profileForm}
+                    className="profile-form"
                     layout="vertical"
                     name="budget-centre-profile"
                     requiredMark={false}
@@ -195,34 +218,60 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                       {t('saveProfile')}
                     </Button>
                   </Form>
-                  <div className="profile-email-card">
-                    <span>{t('email')}</span>
+                </section>
+
+                <section className="profile-panel profile-email-card">
+                  <div className="profile-panel-header">
+                    <span className="profile-panel-icon">
+                      <Mail size={16} />
+                    </span>
+                    <div>
+                      <Text strong>{t('email')}</Text>
+                      <Text type="secondary">
+                        {session.user.emailVerifiedAt === null
+                          ? t('emailPending')
+                          : t('emailVerified')}
+                      </Text>
+                    </div>
+                  </div>
+                  <div className="profile-readonly-value">
                     <strong>{session.user.email}</strong>
                     <small>{t('emailChangeNote')}</small>
-                    <Button
-                      icon={<Mail size={15} />}
-                      onClick={() => {
-                        emailChangeForm.resetFields();
-                        setIsEmailChangeOpen(true);
-                      }}
-                    >
-                      {t('emailChange')}
-                    </Button>
                   </div>
-                </div>
-              </Flex>
+                  <Button
+                    className="profile-email-action"
+                    icon={<Mail size={15} />}
+                    onClick={() => {
+                      emailChangeForm.resetFields();
+                      setIsEmailChangeOpen(true);
+                    }}
+                  >
+                    {t('emailChange')}
+                  </Button>
+                </section>
+              </div>
             ),
           },
           {
             key: 'security',
-            label: t('security'),
+            label: (
+              <span className="profile-tab-label">
+                <ShieldCheck size={15} />
+                {t('security')}
+              </span>
+            ),
             children: (
               <div className="profile-security-grid">
-                <Flex className="profile-section" vertical gap="middle">
-                  <Space>
-                    <ShieldCheck size={16} />
-                    <Text strong>{t('passwordHeading')}</Text>
-                  </Space>
+                <section className="profile-panel">
+                  <div className="profile-panel-header">
+                    <span className="profile-panel-icon">
+                      <ShieldCheck size={16} />
+                    </span>
+                    <div>
+                      <Text strong>{t('passwordHeading')}</Text>
+                      <Text type="secondary">{t('newPassword')}</Text>
+                    </div>
+                  </div>
                   {passwordError ? (
                     <Alert className="side-alert" type="error" showIcon message={passwordError} />
                   ) : null}
@@ -231,6 +280,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                   ) : null}
                   <Form<PasswordFormValues>
                     form={passwordForm}
+                    className="profile-form"
                     layout="vertical"
                     name="budget-centre-password"
                     requiredMark={false}
@@ -276,13 +326,18 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                       {t('updatePassword')}
                     </Button>
                   </Form>
-                </Flex>
+                </section>
 
-                <Flex className="profile-section profile-passkey-section" vertical gap="middle">
-                  <Space>
-                    <KeyRound size={16} />
-                    <Text strong>{t('passkey')}</Text>
-                  </Space>
+                <section className="profile-panel profile-passkey-section">
+                  <div className="profile-panel-header">
+                    <span className="profile-panel-icon">
+                      <KeyRound size={16} />
+                    </span>
+                    <div>
+                      <Text strong>{t('passkey')}</Text>
+                      <Text type="secondary">{t('deviceName')}</Text>
+                    </div>
+                  </div>
                   {operations.operationsError ? (
                     <Alert
                       className="side-alert"
@@ -292,7 +347,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                     />
                   ) : null}
                   <PasskeySideSection operations={operations} compactTitle />
-                </Flex>
+                </section>
               </div>
             ),
           },
@@ -362,4 +417,9 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
       </Modal>
     </div>
   );
+}
+
+function getProfileInitial(displayName: string, email: string): string {
+  const source = displayName.trim() || email.trim();
+  return Array.from(source)[0]?.toLocaleUpperCase() ?? 'B';
 }

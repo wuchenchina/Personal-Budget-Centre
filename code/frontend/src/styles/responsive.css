@@ -85,10 +85,19 @@
   .modal-form-grid,
   .signature-custom-field-row,
   .workspace-stat-grid,
-  .profile-account-panel,
-  .profile-form-grid,
+  .profile-details-grid,
   .profile-security-grid {
     grid-template-columns: 1fr;
+  }
+
+  .profile-hero,
+  .profile-identity {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profile-status-row {
+    justify-content: flex-start;
   }
 
   .budget-info-modal .ant-modal {
