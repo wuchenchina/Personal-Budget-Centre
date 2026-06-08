@@ -34,26 +34,12 @@ final readonly class BudgetPdfFormatter
         }
 
         return implode('', array_map(
-            fn (string $line): string => $this->moneyLineHtml($line),
+            fn (string $line, int $index): string => '<div class="cell-line money-line'
+                . ($index > 0 ? ' money-line-secondary' : '')
+                . '">' . $this->escapeHtml(trim($line)) . '</div>',
             $lines,
+            array_keys($lines),
         ));
-    }
-
-    private function moneyLineHtml(string $value): string
-    {
-        $trimmed = trim($value);
-        if ($trimmed === '') {
-            return '<div class="cell-line money-line">&nbsp;</div>';
-        }
-
-        if (preg_match('/^([A-Z]{3})\s+(.+)$/u', $trimmed, $matches) !== 1) {
-            return '<div class="cell-line">' . $this->escapeHtml($trimmed) . '</div>';
-        }
-
-        return '<div class="cell-line money-line">'
-            . '<span class="money-code">' . $this->escapeHtml($matches[1]) . '</span>'
-            . '<span class="money-amount">' . $this->escapeHtml(trim($matches[2])) . '</span>'
-            . '</div>';
     }
 
     public function periodText(array $budget): string

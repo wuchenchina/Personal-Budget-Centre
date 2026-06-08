@@ -187,38 +187,6 @@
   width: 100%;
 }
 
-.budget-money-value {
-  display: inline-grid;
-  grid-template-columns: auto minmax(52px, 1fr);
-  align-items: baseline;
-  justify-content: end;
-  gap: 6px;
-  width: 100%;
-  font-family: var(--font-mono), var(--font-cjk), monospace;
-}
-
-.budget-money-code {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 30px;
-  padding: 0;
-  color: #66726d;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  font-size: 6.2pt;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0;
-}
-
-.budget-money-amount {
-  color: #111;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
 .budget-inline-money-input {
   width: 92px;
   text-align: right;
@@ -235,28 +203,8 @@
 .budget-inline-money-readonly small {
   color: #595959;
   font-family: var(--font-mono), var(--font-cjk), monospace;
-  font-size: 7pt;
+  font-size: 6.2pt;
   line-height: 1.15;
-}
-
-.budget-money-breakdown {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 2px 8px;
-}
-
-.budget-money-breakdown-item {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-}
-
-.budget-money-breakdown .budget-money-code {
-  min-width: 26px;
-  padding-inline: 0;
-  color: #626f6a;
-  font-size: 5.8pt;
 }
 
 .budget-table-frame {
