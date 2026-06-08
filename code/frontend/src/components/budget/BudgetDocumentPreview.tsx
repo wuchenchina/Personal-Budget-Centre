@@ -82,6 +82,7 @@ interface BudgetDocumentPreviewProps {
   onOpenShare?: () => void;
   operations: OperationsController;
   categoryOptions: Array<{ label: string; value: number }>;
+  transactionCategoryOptions: Array<{ label: string; value: number }>;
 }
 
 export function BudgetDocumentPreview({
@@ -102,6 +103,7 @@ export function BudgetDocumentPreview({
   onOpenShare,
   operations,
   categoryOptions,
+  transactionCategoryOptions,
 }: BudgetDocumentPreviewProps) {
   const { language, t } = useI18n();
   const budgetHighlights = template?.sections.find(
@@ -155,6 +157,7 @@ export function BudgetDocumentPreview({
           createTransactionColumns(transactionBreakdown?.columns ?? []),
           canWriteBudgets,
           entry,
+          transactionCategoryOptions,
           selectedBudget?.baseCurrency ?? baseCurrency,
         ),
         canWriteBudgets,
@@ -173,6 +176,7 @@ export function BudgetDocumentPreview({
       selectedBudget?.baseCurrency,
       t,
       transactionBreakdown,
+      transactionCategoryOptions,
     ],
   );
   const budgetTitle = selectedBudget?.title ?? t('noBudgetSelected');
@@ -945,6 +949,7 @@ function appendTransactionQuickEditors(
   columns: TableProps<Transaction>['columns'],
   canWriteBudgets: boolean,
   entry: BudgetEntryController,
+  categoryOptions: Array<{ label: string; value: number }>,
   baseCurrency: CurrencyCode,
 ): TableProps<Transaction>['columns'] {
   if (columns === undefined) {
@@ -953,6 +958,23 @@ function appendTransactionQuickEditors(
 
   return columns.map((column) => {
     const key = String(column.key ?? '');
+    if (key === 'category') {
+      return {
+        ...column,
+        render: (_value: unknown, row: Transaction) => (
+          <InlineTransactionCategoryCell
+            categoryOptions={categoryOptions}
+            disabled={entry.isTransactionSaving}
+            editable={canWriteBudgets}
+            row={row}
+            onSave={(categoryId) => {
+              void entry.handleTransactionCategoryQuickSave(row, categoryId);
+            }}
+          />
+        ),
+      };
+    }
+
     if (key !== 'amount') {
       return column;
     }
@@ -978,6 +1000,47 @@ function appendTransactionQuickEditors(
       ),
     };
   });
+}
+
+function InlineTransactionCategoryCell({
+  categoryOptions,
+  disabled,
+  editable,
+  row,
+  onSave,
+}: {
+  categoryOptions: Array<{ label: string; value: number }>;
+  disabled: boolean;
+  editable: boolean;
+  row: Transaction;
+  onSave: (categoryId: number) => void;
+}) {
+  const { t } = useI18n();
+
+  if (!editable) {
+    return row.category ?? '';
+  }
+
+  return (
+    <div className="budget-category-quick-cell">
+      <Select
+        className="budget-category-quick-select"
+        disabled={disabled}
+        optionFilterProp="label"
+        options={categoryOptions}
+        placeholder={t('selectCategory')}
+        showSearch
+        size="small"
+        value={row.categoryId ?? undefined}
+        variant="borderless"
+        onChange={(value) => {
+          if (typeof value === 'number') {
+            onSave(value);
+          }
+        }}
+      />
+    </div>
+  );
 }
 
 function BudgetSignatureCard({

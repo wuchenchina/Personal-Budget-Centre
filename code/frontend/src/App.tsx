@@ -295,6 +295,7 @@ function App() {
       onInlineHeaderSave={budget.handleBudgetHeaderSave}
       onOpenShare={canManageWorkspaceMembers ? () => setIsShareModalOpen(true) : undefined}
       categoryOptions={entryCategoryOptions}
+      transactionCategoryOptions={transactionCategoryOptions}
     />
   );
   const governancePanel = (
