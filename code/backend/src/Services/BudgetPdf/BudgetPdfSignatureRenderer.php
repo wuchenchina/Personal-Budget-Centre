@@ -196,6 +196,7 @@ final readonly class BudgetPdfSignatureRenderer
             return $svg;
         }
         $columns = $this->noteColumnCount($items, $innerWidth);
+        $align = ($config['labelAlign'] ?? null) === 'right' ? 'right' : 'left';
         $gapX = 3.2;
         $gapY = 1.8;
         $cellWidth = ($innerWidth - (($columns - 1) * $gapX)) / $columns;
@@ -205,9 +206,10 @@ final readonly class BudgetPdfSignatureRenderer
                 fn (array $item): float => $this->noteItemHeight($item),
                 $gridRow,
             ));
+            $startColumn = $align === 'right' ? $columns - count($gridRow) : 0;
             foreach ($gridRow as $columnIndex => $item) {
-                $cellX = $x + 2.0 + ($columnIndex * ($cellWidth + $gapX));
-                $svg .= $this->noteItemSvg($item, $cellX, $y, $cellWidth);
+                $cellX = $x + 2.0 + (($startColumn + $columnIndex) * ($cellWidth + $gapX));
+                $svg .= $this->noteItemSvg($item, $cellX, $y, $cellWidth, $align);
             }
             $y += $rowHeight + $gapY;
         }
@@ -355,26 +357,30 @@ final readonly class BudgetPdfSignatureRenderer
         return max(1, min($maxColumns, 2));
     }
 
-    private function noteItemSvg(array $item, float $x, float $y, float $width): string
+    private function noteItemSvg(array $item, float $x, float $y, float $width, string $align): string
     {
         $primary = trim((string) ($item['primary'] ?? ''));
         $details = trim((string) ($item['details'] ?? ''));
-        $svg = $this->text(
+        $svg = $this->alignedText(
             $x,
             $y + 2.4,
             $this->fitText($primary, $width),
+            $width,
             2.2,
             '#111',
             'sf-mono',
+            $align,
         );
         if ($details !== '') {
-            $svg .= $this->text(
+            $svg .= $this->alignedText(
                 $x,
                 $y + 5.0,
                 $this->fitText($details, $width),
+                $width,
                 1.85,
                 '#555',
                 'sf-mono-light',
+                $align,
             );
         }
 
@@ -412,7 +418,7 @@ final readonly class BudgetPdfSignatureRenderer
         $captionLines = $this->signatureLabelLines($label);
         $captionLineHeight = 2.45;
         $captionAlign = ($config['labelAlign'] ?? null) === 'right' ? 'right' : 'left';
-        $captionX = $captionAlign === 'right' ? $boxX + $boxWidth - 4.0 : $boxX + 4.0;
+        $captionX = $boxX + 4.0;
         $captionBottomY = $boxY + $boxHeight - 1.6;
         $captionY = $captionBottomY - ((count($captionLines) - 1) * $captionLineHeight);
         $lineY = max($boxY + 8.0, $captionY - 2.0);
@@ -447,13 +453,14 @@ final readonly class BudgetPdfSignatureRenderer
         $svg = '';
         foreach ($lines as $index => $line) {
             $svg .= $this->text(
-                $x,
+                $align === 'right'
+                    ? $this->alignedTextX($this->fitText((string) $line, $maxWidth), $x, $maxWidth, 1.75)
+                    : $x,
                 $y + ($index * $lineHeight),
                 $this->fitText((string) $line, $maxWidth),
                 1.75,
                 '#555',
                 'sf-mono-light',
-                $align === 'right' ? 'end' : 'start',
             );
         }
 
@@ -518,6 +525,50 @@ final readonly class BudgetPdfSignatureRenderer
             . '>'
             . $this->svgEscape($value)
             . '</text>';
+    }
+
+    private function alignedText(
+        float $x,
+        float $y,
+        string $value,
+        float $maxWidth,
+        float $size,
+        string $color,
+        string $font,
+        string $align,
+    ): string {
+        return $this->text(
+            $align === 'right' ? $this->alignedTextX($value, $x, $maxWidth, $size) : $x,
+            $y,
+            $value,
+            $size,
+            $color,
+            $font,
+        );
+    }
+
+    private function alignedTextX(string $value, float $x, float $maxWidth, float $size): float
+    {
+        $estimatedWidth = min($maxWidth, $this->estimatedTextWidth($value, $size));
+
+        return max($x, $x + $maxWidth - $estimatedWidth);
+    }
+
+    private function estimatedTextWidth(string $value, float $size): float
+    {
+        $width = 0.0;
+        $chars = preg_split('//u', $value, -1, PREG_SPLIT_NO_EMPTY);
+        if ($chars === false) {
+            return strlen($value) * $size * 0.56;
+        }
+
+        foreach ($chars as $char) {
+            $width += preg_match('/[\x{3400}-\x{9fff}\x{f900}-\x{faff}]/u', $char) === 1
+                ? $size
+                : $size * 0.56;
+        }
+
+        return $width;
     }
 
     private function fitText(string $value, float $maxWidth): string

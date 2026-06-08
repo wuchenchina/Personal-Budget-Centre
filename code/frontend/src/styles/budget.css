@@ -457,7 +457,11 @@
 }
 
 .budget-signature-label-right .budget-signature-box-label {
-  justify-self: end;
+  justify-self: stretch;
+  text-align: right;
+}
+
+.budget-signature-label-right .budget-signature-box-label span {
   text-align: right;
 }
 
@@ -514,6 +518,24 @@
 
 .budget-signature-note-details .budget-signature-note-value {
   color: #111;
+}
+
+.budget-signature-notes-align-right {
+  direction: rtl;
+}
+
+.budget-signature-notes-align-right .budget-signature-note-row {
+  direction: ltr;
+  justify-items: end;
+  text-align: right;
+}
+
+.budget-signature-notes-align-right .budget-signature-note-field {
+  justify-content: flex-end;
+}
+
+.budget-signature-notes-align-right .budget-signature-note-details {
+  justify-content: flex-end;
 }
 
 @media (max-width: 720px) {
