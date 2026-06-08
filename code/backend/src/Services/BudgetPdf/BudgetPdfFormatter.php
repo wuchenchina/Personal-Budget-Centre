@@ -21,7 +21,7 @@ final readonly class BudgetPdfFormatter
         }
 
         return implode('', array_map(
-            fn (string $line): string => '<span class="cell-line">' . $this->escapeHtml($line) . '</span>',
+            fn (string $line): string => '<div class="cell-line">' . $this->escapeHtml($line) . '</div>',
             $lines,
         ));
     }
@@ -42,14 +42,10 @@ final readonly class BudgetPdfFormatter
     public function templateMoney(string $currency, float $amount, bool $trimWhole = false): string
     {
         if (abs($amount) < 0.005) {
-            return $currency . '0';
+            $amount = 0.0;
         }
 
-        if ($trimWhole && abs($amount - round($amount)) < 0.005) {
-            return $currency . (string) (int) round($amount);
-        }
-
-        return $currency . number_format($amount, 2, '.', '');
+        return trim($currency) . ' ' . number_format($amount, 2, '.', '');
     }
 
     public function signatureLabel(array $config): string
