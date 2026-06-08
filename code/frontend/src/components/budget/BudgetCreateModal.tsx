@@ -12,6 +12,7 @@ import type { WorkspaceMember } from '../../types/auth';
 import type { BudgetStatus, Visibility } from '../../types/budget';
 import type { BudgetFormValues } from '../../types/forms';
 import {
+  createSignatureCustomField,
   createSignatureRow,
   memberOptions,
   signatureLabelForConfig,
@@ -70,6 +71,7 @@ export function BudgetCreateModal({
     labelMode: signatureLabelMode,
     labelSeparator: signatureLabelSeparator,
     sectionAlign: 'full',
+    showControlText: true,
     rows: [],
   });
   const handleResetTitle = () => {
@@ -103,6 +105,7 @@ export function BudgetCreateModal({
       open={open}
       title={isEditing ? t('editBudget') : t('createBudget')}
       width="min(1120px, calc(100vw - 48px))"
+      style={{ top: 18 }}
       wrapClassName="budget-info-modal"
       onCancel={onCancel}
       onOk={onOk}
@@ -239,6 +242,7 @@ export function BudgetCreateModal({
                 >
                   <Select
                     options={[
+                      { label: t('noneSeparator'), value: 'none' },
                       { label: t('spaceSeparator'), value: 'space' },
                       { label: t('slashSeparator'), value: 'slash' },
                       { label: t('lineSeparator'), value: 'line' },
@@ -254,6 +258,11 @@ export function BudgetCreateModal({
                   />
                 </Form.Item>
               </div>
+              <Space className="signature-option-grid" wrap>
+                <Form.Item name={['signatureConfig', 'showControlText']} valuePropName="checked">
+                  <Checkbox>{t('showSignatureControlText')}</Checkbox>
+                </Form.Item>
+              </Space>
               <div className="signature-label-preview">
                 <span>{t('preview')}</span>
                 <strong>{signatureLabelPreview}</strong>
@@ -335,6 +344,55 @@ export function BudgetCreateModal({
                             <Input autoComplete="off" />
                           </Form.Item>
                         </div>
+                        <Form.List name={[field.name, 'customFields']}>
+                          {(customFields, { add: addCustomField, remove: removeCustomField }) => (
+                            <div className="signature-custom-field-list">
+                              <div className="signature-custom-field-head">
+                                <strong>{t('customSignatureFields')}</strong>
+                                <Button
+                                  icon={<Plus size={14} />}
+                                  size="small"
+                                  type="dashed"
+                                  onClick={() => addCustomField(createSignatureCustomField())}
+                                >
+                                  {t('addSignatureCustomField')}
+                                </Button>
+                              </div>
+                              {customFields.map((customField) => (
+                                <div className="signature-custom-field-row" key={customField.key}>
+                                  <Form.Item
+                                    className="signature-custom-field-input"
+                                    label={t('customFieldLabel')}
+                                    name={[customField.name, 'label']}
+                                    rules={[{ max: 80, message: t('signatureConfigTextMax') }]}
+                                  >
+                                    <Input autoComplete="off" placeholder={t('phoneNumber')} />
+                                  </Form.Item>
+                                  <Form.Item
+                                    className="signature-custom-field-input"
+                                    label={t('customFieldValue')}
+                                    name={[customField.name, 'value']}
+                                    rules={[{ max: 240, message: t('signatureConfigTextMax') }]}
+                                  >
+                                    <Input autoComplete="off" placeholder={t('remark')} />
+                                  </Form.Item>
+                                  <Form.Item name={[customField.name, 'show']} valuePropName="checked">
+                                    <Checkbox>{t('showCustomField')}</Checkbox>
+                                  </Form.Item>
+                                  <Button
+                                    danger
+                                    icon={<Trash2 size={14} />}
+                                    size="small"
+                                    type="text"
+                                    onClick={() => removeCustomField(customField.name)}
+                                  >
+                                    {t('remove')}
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </Form.List>
                         <Form.Item label={t('dateTime')} name={[field.name, 'signedAt']}>
                           <DatePicker
                             allowClear

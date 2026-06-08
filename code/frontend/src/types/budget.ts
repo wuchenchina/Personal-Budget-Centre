@@ -78,8 +78,15 @@ export interface BudgetShare {
 export type BudgetSignatureParticipantType = 'workspace_member' | 'manual';
 export type BudgetSignatureLabelLanguage = 'en' | 'sc' | 'tc';
 export type BudgetSignatureLabelMode = 'confirmation_signature' | 'confirmation' | 'signature';
-export type BudgetSignatureLabelSeparator = 'space' | 'slash' | 'line';
+export type BudgetSignatureLabelSeparator = 'none' | 'space' | 'slash' | 'line';
 export type BudgetSignatureSectionAlign = 'full' | 'right';
+
+export interface BudgetSignatureCustomField {
+  id: string;
+  label: string;
+  value: string;
+  show: boolean;
+}
 
 export interface BudgetSignatureRow {
   id: string;
@@ -90,6 +97,7 @@ export interface BudgetSignatureRow {
   email: string | null;
   position: string | null;
   signedAt: string | null;
+  customFields: BudgetSignatureCustomField[];
   showRole: boolean;
   showName: boolean;
   showEmail: boolean;
@@ -105,6 +113,7 @@ export interface BudgetSignatureConfig {
   labelMode: BudgetSignatureLabelMode;
   labelSeparator: BudgetSignatureLabelSeparator;
   sectionAlign: BudgetSignatureSectionAlign;
+  showControlText: boolean;
   rows: BudgetSignatureRow[];
 }
 

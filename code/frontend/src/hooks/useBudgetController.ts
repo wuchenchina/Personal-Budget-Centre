@@ -148,6 +148,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         ...emptySignatureConfig(),
         title: signatureTitleForLanguage(language),
         labelLanguage: language,
+        labelSeparator: language === 'en' ? 'space' : 'none',
         rows: [
           { ...createSignatureRow('manual'), roleLabel: translateCurrent('defaultSignatureRole') },
         ],

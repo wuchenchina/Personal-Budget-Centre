@@ -248,6 +248,41 @@
   margin-bottom: 0;
 }
 
+.signature-custom-field-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.signature-custom-field-head,
+.signature-custom-field-row {
+  display: grid;
+  gap: 10px;
+}
+
+.signature-custom-field-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.signature-custom-field-head strong {
+  color: #595959;
+  font-size: 12px;
+}
+
+.signature-custom-field-row {
+  grid-template-columns: minmax(120px, 0.8fr) minmax(180px, 1fr) auto auto;
+  align-items: end;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+}
+
+.signature-custom-field-row .ant-form-item {
+  margin-bottom: 0;
+}
+
 .signature-label-preview {
   display: inline-flex;
   align-items: center;

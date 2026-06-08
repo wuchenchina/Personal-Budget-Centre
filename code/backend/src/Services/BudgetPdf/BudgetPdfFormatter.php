@@ -64,9 +64,10 @@ final readonly class BudgetPdfFormatter
         }
 
         return match ($config['labelSeparator'] ?? null) {
+            'none' => implode('', $parts),
             'slash' => implode(' / ', $parts),
             'line' => implode("\n", $parts),
-            default => implode($language === 'en' ? ' ' : '', $parts),
+            default => implode(' ', $parts),
         };
     }
 

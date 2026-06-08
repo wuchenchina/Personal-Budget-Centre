@@ -706,6 +706,9 @@ function BudgetSignatureCard({
     row.showEmail && row.email
       ? { label: labels.email, value: row.email }
       : null,
+    ...(row.customFields ?? [])
+      .filter((field) => field.show !== false && (field.label.trim() !== '' || field.value.trim() !== ''))
+      .map((field) => ({ label: field.label, value: field.value })),
     row.showDateTime
       ? { label: labels.dateTime, value: dateTimeText }
       : null,
@@ -714,8 +717,8 @@ function BudgetSignatureCard({
   return (
     <div className="budget-signature-card">
       <div className="budget-signature-info">
-        {metaRows.map((item) => (
-          <div className="budget-signature-meta" key={item.label}>
+        {metaRows.map((item, index) => (
+          <div className="budget-signature-meta" key={`${item.label}-${index}`}>
             <span className="budget-signature-meta-label">{item.label}</span>
             <span className="budget-signature-meta-value">{item.value}</span>
           </div>
@@ -724,7 +727,9 @@ function BudgetSignatureCard({
       <div className="budget-signature-sign">
         {row.showSignature ? (
           <div className="budget-signature-box">
-            <span className="budget-signature-security">BUDGETCENTRE CONFIRMATION CONTROL</span>
+            {config.showControlText !== false ? (
+              <span className="budget-signature-security">BUDGETCENTRE CONFIRMATION CONTROL</span>
+            ) : null}
             <span className="budget-signature-box-space">
               <span className="budget-signature-watermark">CONFIRMATION</span>
             </span>

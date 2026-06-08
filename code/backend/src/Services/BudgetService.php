@@ -21,6 +21,7 @@ final readonly class BudgetService
     private const VISIBILITIES = ['private', 'workspace', 'custom'];
     private const STATUSES = ['draft', 'active', 'closed', 'archived'];
     private const SIGNATURE_ROW_LIMIT = 50;
+    private const SIGNATURE_CUSTOM_FIELD_LIMIT = 12;
 
     public function __construct(
         private PDO $pdo,
@@ -400,6 +401,7 @@ final readonly class BudgetService
             'labelMode' => $this->signatureLabelMode($input['labelMode'] ?? $input['label_mode'] ?? null),
             'labelSeparator' => $this->signatureLabelSeparator($input['labelSeparator'] ?? $input['label_separator'] ?? null),
             'sectionAlign' => ($input['sectionAlign'] ?? $input['section_align'] ?? null) === 'right' ? 'right' : 'full',
+            'showControlText' => ($input['showControlText'] ?? $input['show_control_text'] ?? true) !== false,
             'rows' => $rows,
         ];
     }
@@ -412,8 +414,17 @@ final readonly class BudgetService
         $position = $this->limitedString($row['position'] ?? null, 160);
         $signedAt = $this->signatureDateTime($row['signedAt'] ?? $row['signed_at'] ?? null);
         $memberUserId = Input::positiveInt($row['memberUserId'] ?? $row['member_user_id'] ?? null);
+        $customFields = $this->signatureCustomFieldsFromArray($row['customFields'] ?? $row['custom_fields'] ?? null);
 
-        if ($displayName === '' && $roleLabel === '' && $email === null && $position === null && $signedAt === null && $memberUserId === null) {
+        if (
+            $displayName === ''
+            && $roleLabel === ''
+            && $email === null
+            && $position === null
+            && $signedAt === null
+            && $customFields === []
+            && $memberUserId === null
+        ) {
             return null;
         }
 
@@ -428,12 +439,51 @@ final readonly class BudgetService
             'email' => $email,
             'position' => $position,
             'signedAt' => $signedAt,
+            'customFields' => $customFields,
             'showRole' => ($row['showRole'] ?? $row['show_role'] ?? true) !== false,
             'showName' => ($row['showName'] ?? $row['show_name'] ?? true) !== false,
             'showEmail' => ($row['showEmail'] ?? $row['show_email'] ?? false) === true,
             'showPosition' => ($row['showPosition'] ?? $row['show_position'] ?? false) === true,
             'showSignature' => ($row['showSignature'] ?? $row['show_signature'] ?? true) !== false,
             'showDateTime' => ($row['showDateTime'] ?? $row['show_date_time'] ?? true) !== false,
+        ];
+    }
+
+    private function signatureCustomFieldsFromArray(mixed $fields): array
+    {
+        if (!is_array($fields)) {
+            return [];
+        }
+
+        $normalizedFields = [];
+        foreach (array_slice($fields, 0, self::SIGNATURE_CUSTOM_FIELD_LIMIT) as $field) {
+            if (!is_array($field)) {
+                continue;
+            }
+
+            $normalized = $this->signatureCustomFieldFromArray($field);
+            if ($normalized !== null) {
+                $normalizedFields[] = $normalized;
+            }
+        }
+
+        return $normalizedFields;
+    }
+
+    private function signatureCustomFieldFromArray(array $field): ?array
+    {
+        $label = $this->limitedString($field['label'] ?? null, 80) ?? '';
+        $value = $this->limitedString($field['value'] ?? null, 240) ?? '';
+
+        if ($label === '' && $value === '') {
+            return null;
+        }
+
+        return [
+            'id' => $this->limitedString($field['id'] ?? null, 80) ?? bin2hex(random_bytes(8)),
+            'label' => $label,
+            'value' => $value,
+            'show' => ($field['show'] ?? true) !== false,
         ];
     }
 
@@ -490,7 +540,7 @@ final readonly class BudgetService
 
     private function signatureLabelSeparator(mixed $value): string
     {
-        return in_array($value, ['space', 'slash', 'line'], true) ? $value : 'space';
+        return in_array($value, ['none', 'space', 'slash', 'line'], true) ? $value : 'space';
     }
 
     private function emptySignatureConfig(): array
@@ -502,6 +552,7 @@ final readonly class BudgetService
             'labelMode' => 'confirmation_signature',
             'labelSeparator' => 'space',
             'sectionAlign' => 'full',
+            'showControlText' => true,
             'rows' => [],
         ];
     }

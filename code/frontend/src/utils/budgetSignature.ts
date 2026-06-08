@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import type { WorkspaceMember } from '../types/auth';
 import type {
+  BudgetSignatureCustomField,
   BudgetSignatureLabelLanguage,
   BudgetSignatureLabelMode,
   BudgetSignatureLabelSeparator,
@@ -36,6 +37,7 @@ export function emptySignatureConfig(): BudgetSignatureConfig {
     labelMode: 'confirmation_signature',
     labelSeparator: 'space',
     sectionAlign: 'full',
+    showControlText: true,
     rows: [],
   };
 }
@@ -52,12 +54,22 @@ export function createSignatureRow(
     email: null,
     position: null,
     signedAt: null,
+    customFields: [],
     showRole: true,
     showName: true,
     showEmail: false,
     showPosition: false,
     showSignature: true,
     showDateTime: true,
+  };
+}
+
+export function createSignatureCustomField(): BudgetSignatureCustomField {
+  return {
+    id: signatureCustomFieldId(),
+    label: '',
+    value: '',
+    show: true,
   };
 }
 
@@ -86,6 +98,7 @@ export function signatureConfigToForm(
     labelMode: normalized.labelMode,
     labelSeparator: normalized.labelSeparator,
     sectionAlign: normalized.sectionAlign,
+    showControlText: normalized.showControlText,
     rows: normalized.rows.map((row) => ({
       ...row,
       signedAt: row.signedAt === null ? null : dayjs(row.signedAt),
@@ -107,6 +120,7 @@ export function signatureConfigFromForm(
     labelMode: config.labelMode,
     labelSeparator: config.labelSeparator,
     sectionAlign: config.sectionAlign,
+    showControlText: config.showControlText !== false,
     rows: (config.rows ?? []).map((row) => ({
       ...row,
       signedAt: row.signedAt?.format('YYYY-MM-DD HH:mm:ss') ?? null,
@@ -128,6 +142,7 @@ export function normalizeSignatureConfig(
     labelMode: normalizeLabelMode(config.labelMode),
     labelSeparator: normalizeLabelSeparator(config.labelSeparator),
     sectionAlign: normalizeSectionAlign(config.sectionAlign),
+    showControlText: config.showControlText !== false,
     rows: Array.isArray(config.rows)
       ? config.rows.map(normalizeSignatureRow).filter((row) => row !== null)
       : [],
@@ -152,6 +167,9 @@ export function signatureLabelForConfig(config: BudgetSignatureConfig): string {
   }
   if (separator === 'line') {
     return parts.join('\n');
+  }
+  if (separator === 'none') {
+    return parts.join('');
   }
 
   return parts.join(' ');
@@ -183,7 +201,9 @@ export function signatureRoleForDisplay(config: BudgetSignatureConfig, value: st
 export function signatureTitleForLanguage(language: BudgetSignatureLabelLanguage): string {
   const labels = signatureLabelText[language];
 
-  return `${labels.confirmation} ${labels.signature}`;
+  return language === 'en'
+    ? `${labels.confirmation} ${labels.signature}`
+    : `${labels.confirmation}${labels.signature}`;
 }
 
 export function memberOptions(members: WorkspaceMember[]): Array<{ label: string; value: number }> {
@@ -204,6 +224,9 @@ function normalizeSignatureRow(row: Partial<BudgetSignatureRow>): BudgetSignatur
   const email = normalizeText(row.email);
   const position = normalizeText(row.position);
   const signedAt = normalizeText(row.signedAt);
+  const customFields = Array.isArray(row.customFields)
+    ? row.customFields.map(normalizeSignatureCustomField).filter((field) => field !== null).slice(0, 12)
+    : [];
 
   if (
     displayName === ''
@@ -211,6 +234,7 @@ function normalizeSignatureRow(row: Partial<BudgetSignatureRow>): BudgetSignatur
     && email === null
     && position === null
     && signedAt === null
+    && customFields.length === 0
     && row.memberUserId === null
   ) {
     return null;
@@ -225,12 +249,31 @@ function normalizeSignatureRow(row: Partial<BudgetSignatureRow>): BudgetSignatur
     email,
     position,
     signedAt,
+    customFields,
     showRole: row.showRole !== false,
     showName: row.showName !== false,
     showEmail: row.showEmail === true,
     showPosition: row.showPosition === true,
     showSignature: row.showSignature !== false,
     showDateTime: row.showDateTime !== false,
+  };
+}
+
+function normalizeSignatureCustomField(
+  field: Partial<BudgetSignatureCustomField>,
+): BudgetSignatureCustomField | null {
+  const label = normalizeText(field.label) ?? '';
+  const value = normalizeText(field.value) ?? '';
+
+  if (label === '' && value === '') {
+    return null;
+  }
+
+  return {
+    id: normalizeText(field.id) ?? signatureCustomFieldId(),
+    label,
+    value,
+    show: field.show !== false,
   };
 }
 
@@ -257,7 +300,7 @@ function normalizeLabelMode(value: unknown): BudgetSignatureLabelMode {
 }
 
 function normalizeLabelSeparator(value: unknown): BudgetSignatureLabelSeparator {
-  if (value === 'slash' || value === 'line' || value === 'space') {
+  if (value === 'none' || value === 'slash' || value === 'line' || value === 'space') {
     return value;
   }
 
@@ -272,6 +315,10 @@ function signatureRowId(): string {
   return `sig_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function signatureCustomFieldId(): string {
+  return `sig_field_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 interface BudgetFormSignatureConfig {
   enabled: boolean;
   title: string;
@@ -279,5 +326,6 @@ interface BudgetFormSignatureConfig {
   labelMode: BudgetSignatureLabelMode;
   labelSeparator: BudgetSignatureLabelSeparator;
   sectionAlign: BudgetSignatureSectionAlign;
+  showControlText: boolean;
   rows: BudgetSignatureFormRow[];
 }

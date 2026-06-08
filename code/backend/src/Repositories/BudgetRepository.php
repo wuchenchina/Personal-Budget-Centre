@@ -597,10 +597,11 @@ final readonly class BudgetRepository
             'labelMode' => in_array($decoded['labelMode'] ?? null, ['confirmation_signature', 'confirmation', 'signature'], true)
                 ? $decoded['labelMode']
                 : 'confirmation_signature',
-            'labelSeparator' => in_array($decoded['labelSeparator'] ?? null, ['space', 'slash', 'line'], true)
+            'labelSeparator' => in_array($decoded['labelSeparator'] ?? null, ['none', 'space', 'slash', 'line'], true)
                 ? $decoded['labelSeparator']
                 : 'space',
             'sectionAlign' => ($decoded['sectionAlign'] ?? null) === 'right' ? 'right' : 'full',
+            'showControlText' => ($decoded['showControlText'] ?? $decoded['show_control_text'] ?? true) !== false,
             'rows' => is_array($decoded['rows'] ?? null)
                 ? array_values(array_filter(array_map(
                     fn (mixed $row): ?array => is_array($row) ? $this->signatureRow($row) : null,
@@ -621,12 +622,34 @@ final readonly class BudgetRepository
             'email' => is_string($row['email'] ?? null) && trim($row['email']) !== '' ? trim($row['email']) : null,
             'position' => is_string($row['position'] ?? null) && trim($row['position']) !== '' ? trim($row['position']) : null,
             'signedAt' => is_string($row['signedAt'] ?? null) && trim($row['signedAt']) !== '' ? trim($row['signedAt']) : null,
+            'customFields' => is_array($row['customFields'] ?? $row['custom_fields'] ?? null)
+                ? array_values(array_filter(array_map(
+                    fn (mixed $field): ?array => is_array($field) ? $this->signatureCustomField($field) : null,
+                    $row['customFields'] ?? $row['custom_fields'],
+                )))
+                : [],
             'showRole' => ($row['showRole'] ?? true) !== false,
             'showName' => ($row['showName'] ?? true) !== false,
             'showEmail' => ($row['showEmail'] ?? false) === true,
             'showPosition' => ($row['showPosition'] ?? false) === true,
             'showSignature' => ($row['showSignature'] ?? true) !== false,
             'showDateTime' => ($row['showDateTime'] ?? true) !== false,
+        ];
+    }
+
+    private function signatureCustomField(array $field): ?array
+    {
+        $label = is_string($field['label'] ?? null) ? trim($field['label']) : '';
+        $value = is_string($field['value'] ?? null) ? trim($field['value']) : '';
+        if ($label === '' && $value === '') {
+            return null;
+        }
+
+        return [
+            'id' => is_string($field['id'] ?? null) && trim($field['id']) !== '' ? trim($field['id']) : bin2hex(random_bytes(8)),
+            'label' => $label,
+            'value' => $value,
+            'show' => ($field['show'] ?? true) !== false,
         ];
     }
 
@@ -639,6 +662,7 @@ final readonly class BudgetRepository
             'labelMode' => 'confirmation_signature',
             'labelSeparator' => 'space',
             'sectionAlign' => 'full',
+            'showControlText' => true,
             'rows' => [],
         ];
     }

@@ -52,16 +52,18 @@ final readonly class BudgetPdfSignatureRenderer
             . $this->text(2, 4.35, $title, 3.7, '#000')
             . '<rect x="0" y="6" width="' . $this->number($width) . '" height="' . $this->number($height - 6) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>';
 
-        $rowHeight = $this->rowHeight($width);
+        $rowTop = 8.0;
         foreach ($rows as $index => $row) {
-            $rowTop = 8.0 + ($index * $rowHeight);
+            $rowHeight = $this->rowHeight($row, $config, $width);
             if ($index > 0) {
                 $svg .= '<line x1="2" y1="' . $this->number($rowTop - 1.1) . '" x2="' . $this->number($width - 2) . '" y2="' . $this->number($rowTop - 1.1) . '" stroke="#bfbfbf" stroke-width="0.16"/>';
             }
-            $svg .= $this->metaSvg($row, $config, $rowTop, $width);
+            $fields = $this->signatureFields($row, $config);
+            $svg .= $this->metaSvg($fields, $rowTop, $width);
             if (($row['showSignature'] ?? true) !== false) {
-                $svg .= $this->signatureBoxSvg($config, $rowTop, $width);
+                $svg .= $this->signatureBoxSvg($config, $rowTop, $width, max(1, count($fields)));
             }
+            $rowTop += $rowHeight;
         }
 
         return $svg . '</svg>';
@@ -69,17 +71,35 @@ final readonly class BudgetPdfSignatureRenderer
 
     private function svgHeight(array $config, float $width): float
     {
-        $rows = is_array($config['rows'] ?? null) ? max(1, count($config['rows'])) : 1;
+        $rows = is_array($config['rows'] ?? null)
+            ? array_values(array_filter($config['rows'], static fn (mixed $row): bool => is_array($row)))
+            : [];
+        if ($rows === []) {
+            return 10.0 + $this->minimumRowHeight($width);
+        }
 
-        return 10.0 + ($rows * $this->rowHeight($width));
+        return 10.0 + array_sum(array_map(
+            fn (array $row): float => $this->rowHeight($row, $config, $width),
+            $rows,
+        ));
     }
 
-    private function rowHeight(float $width): float
+    private function rowHeight(array $row, array $config, float $width): float
+    {
+        $fieldCount = max(1, count($this->signatureFields($row, $config)));
+        if ($width <= 80.0) {
+            return max($this->minimumRowHeight($width), max(29.0, 5.0 + ($fieldCount * 5.0)) + 28.0);
+        }
+
+        return max($this->minimumRowHeight($width), 9.0 + ($fieldCount * 5.0));
+    }
+
+    private function minimumRowHeight(float $width): float
     {
         return $width <= 80.0 ? 58.0 : 34.0;
     }
 
-    private function metaSvg(array $row, array $config, float $rowTop, float $width): string
+    private function signatureFields(array $row, array $config): array
     {
         $fields = [];
         if (($row['showName'] ?? true) !== false && trim((string) ($row['displayName'] ?? '')) !== '') {
@@ -97,6 +117,19 @@ final readonly class BudgetPdfSignatureRenderer
         if (($row['showEmail'] ?? false) === true && trim((string) ($row['email'] ?? '')) !== '') {
             $fields[] = [$this->formatter->signatureMetaLabel($config, 'email'), (string) $row['email']];
         }
+        foreach (($row['customFields'] ?? []) as $field) {
+            if (!is_array($field) || ($field['show'] ?? true) === false) {
+                continue;
+            }
+
+            $label = trim((string) ($field['label'] ?? ''));
+            $value = trim((string) ($field['value'] ?? ''));
+            if ($label === '' && $value === '') {
+                continue;
+            }
+
+            $fields[] = [$label, $value];
+        }
         if (($row['showDateTime'] ?? true) !== false) {
             $fields[] = [
                 $this->formatter->signatureMetaLabel($config, 'dateTime'),
@@ -104,12 +137,17 @@ final readonly class BudgetPdfSignatureRenderer
             ];
         }
 
+        return $fields;
+    }
+
+    private function metaSvg(array $fields, float $rowTop, float $width): string
+    {
         $labelX = 3.0;
         $valueX = $width <= 80.0 ? 23.0 : 22.0;
         $valueWidth = $width <= 80.0 ? 48.0 : 44.0;
         $baseline = $rowTop + 4.0;
         $svg = '';
-        foreach (array_slice($fields, 0, 5) as $index => [$label, $value]) {
+        foreach (array_slice($fields, 0, 18) as $index => [$label, $value]) {
             $y = $baseline + ($index * 5.0);
             $svg .= $this->text($labelX, $y, $label, 2.25, '#555', 'sf-mono-light');
             $svg .= $this->text($valueX, $y, $this->fitText((string) $value, $valueWidth), 2.55, '#111');
@@ -118,12 +156,12 @@ final readonly class BudgetPdfSignatureRenderer
         return $svg;
     }
 
-    private function signatureBoxSvg(array $config, float $rowTop, float $width): string
+    private function signatureBoxSvg(array $config, float $rowTop, float $width, int $fieldCount): string
     {
         $boxWidth = $width <= 80.0 ? 66.0 : 74.0;
         $boxHeight = $width <= 80.0 ? 21.0 : 21.5;
         $boxX = $width <= 80.0 ? 5.0 : $width - $boxWidth - 7.0;
-        $boxY = $width <= 80.0 ? $rowTop + 29.0 : $rowTop + 4.0;
+        $boxY = $width <= 80.0 ? $rowTop + max(29.0, 5.0 + ($fieldCount * 5.0)) : $rowTop + 4.0;
         $label = $this->formatter->signatureLabel($config);
         $watermarkX = $boxX + ($boxWidth * 0.38);
         $watermarkY = $boxY + 8.7;
@@ -131,9 +169,10 @@ final readonly class BudgetPdfSignatureRenderer
         $captionX = $boxX + $boxWidth - 15.0;
 
         $svg = '<rect x="' . $this->number($boxX) . '" y="' . $this->number($boxY) . '" width="' . $this->number($boxWidth) . '" height="' . $this->number($boxHeight) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>'
-            . '<rect x="' . $this->number($boxX + 1.7) . '" y="' . $this->number($boxY + 1.5) . '" width="' . $this->number($boxWidth - 3.4) . '" height="' . $this->number($boxHeight - 3) . '" fill="none" stroke="#ededed" stroke-width="0.12"/>'
             . $this->securityPatternSvg($boxX, $boxY, $boxWidth, $boxHeight)
-            . $this->text($boxX + 2.2, $boxY + 3.0, 'BUDGETCENTRE CONFIRMATION CONTROL', 1.35, '#c6c6c6', 'sf-mono-light')
+            . (($config['showControlText'] ?? true) !== false
+                ? $this->text($boxX + 2.2, $boxY + 3.0, 'BUDGETCENTRE CONFIRMATION CONTROL', 1.35, '#c6c6c6', 'sf-mono-light')
+                : '')
             . $this->text($watermarkX, $watermarkY, 'CONFIRM', 2.45, '#e8e8e8', 'sf-mono-light')
             . '<line x1="' . $this->number($boxX + 4.0) . '" y1="' . $this->number($lineY) . '" x2="' . $this->number($boxX + $boxWidth - 4.0) . '" y2="' . $this->number($lineY) . '" stroke="#8f8f8f" stroke-width="0.16"/>'
             . $this->text($captionX, $boxY + $boxHeight - 1.6, $label, 1.95, '#555', 'sf-mono-light');
