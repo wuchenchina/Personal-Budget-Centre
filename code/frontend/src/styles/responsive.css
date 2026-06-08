@@ -116,6 +116,17 @@
     width: 100%;
   }
 
+  .project-period {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .project-card-actions,
+  .project-card-actions .ant-btn,
+  .project-status-select {
+    width: 100%;
+  }
+
   .toolbar-row {
     align-items: flex-start;
     flex-direction: column;

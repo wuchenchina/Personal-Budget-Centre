@@ -169,6 +169,10 @@ final readonly class BudgetEntryService
             $rateDate,
             $this->rateInput($input, ['rate', 'estimatedRate', 'estimated_rate'], 'Estimated rate'),
         );
+        $savingMonthlyAmount = $this->installmentMonthlyAmountFromInput($input);
+        if ($savingMonthlyAmount !== null && $specifiedAmount === null) {
+            $budgetAmount = $savingMonthlyAmount;
+        }
 
         if ($specifiedAmount !== null) {
             $budgetAmount = $specifiedAmount;
@@ -430,6 +434,32 @@ final readonly class BudgetEntryService
         return $json;
     }
 
+    private function installmentMonthlyAmountFromInput(array $input): ?float
+    {
+        $raw = $input['installmentConfig'] ?? $input['installment_config'] ?? null;
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : null;
+        }
+
+        if (!is_array($raw) || ($raw['enabled'] ?? false) !== true) {
+            return null;
+        }
+
+        $monthlyAmount = $this->number($raw['monthlyAmount'] ?? $raw['monthly_amount'] ?? null);
+        if ($monthlyAmount !== null && $monthlyAmount > 0.0) {
+            return $monthlyAmount;
+        }
+
+        $totalAmount = $this->number($raw['totalAmount'] ?? $raw['total_amount'] ?? null);
+        $months = Input::positiveInt($raw['months'] ?? $raw['totalMonths'] ?? $raw['total_months'] ?? null);
+        if ($totalAmount === null || $totalAmount <= 0.0 || $months === null || $months > self::INSTALLMENT_MAX_MONTHS) {
+            return null;
+        }
+
+        return $totalAmount / $months;
+    }
+
     private function installmentConfigFromArray(array $input, float $fallbackMonthlyAmount): array
     {
         $enabled = ($input['enabled'] ?? false) === true;
@@ -461,21 +491,22 @@ final readonly class BudgetEntryService
         }
 
         $monthlyAmount ??= $totalAmount === null ? $fallbackMonthlyAmount : $totalAmount / $months;
+        $totalAmount ??= $monthlyAmount * $months;
 
         if ($paidMonths > $months) {
-            throw new AuthException('VALIDATION_ERROR', 'Paid installment months cannot exceed total months.', 422);
+            throw new AuthException('VALIDATION_ERROR', 'Saved months cannot exceed total saving months.', 422);
         }
 
         if ($monthlyAmount <= 0.0) {
-            throw new AuthException('VALIDATION_ERROR', 'Monthly installment amount must be greater than 0.', 422);
+            throw new AuthException('VALIDATION_ERROR', 'Monthly saving amount must be greater than 0.', 422);
         }
 
-        if ($totalAmount !== null && $totalAmount < 0.0) {
-            throw new AuthException('VALIDATION_ERROR', 'Installment total amount cannot be less than 0.', 422);
+        if ($totalAmount < 0.0) {
+            throw new AuthException('VALIDATION_ERROR', 'Saving target amount cannot be less than 0.', 422);
         }
 
         if ($remark !== null && strlen($remark) > 500) {
-            throw new AuthException('VALIDATION_ERROR', 'Installment remark must be 500 characters or less.', 422);
+            throw new AuthException('VALIDATION_ERROR', 'Saving plan remark must be 500 characters or less.', 422);
         }
 
         return [
@@ -483,7 +514,7 @@ final readonly class BudgetEntryService
             'months' => $months,
             'paidMonths' => $paidMonths,
             'monthlyAmount' => $monthlyAmount,
-            'totalAmount' => $totalAmount ?? $monthlyAmount * $months,
+            'totalAmount' => $totalAmount,
             'startMonth' => $startMonth,
             'remark' => $remark,
         ];

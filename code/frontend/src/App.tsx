@@ -464,6 +464,9 @@ function App() {
           onNewProject={budget.openBudgetModal}
           onOpenProject={openBudgetProjectInNewTab}
           onSelectProject={(budgetId) => void budget.handleBudgetSelect(budgetId)}
+          onStatusChange={(budgetSummary, status) =>
+            void budget.handleBudgetStatusChange(budgetSummary, status)
+          }
         />
       );
     }

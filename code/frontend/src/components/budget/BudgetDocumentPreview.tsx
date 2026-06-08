@@ -775,7 +775,7 @@ function budgetInstallmentNode(row: BudgetItem) {
     <span className="budget-installment-summary">
       {`${formatBudgetMoney(row.budget.currency, summary.monthlyAmount)} / month, ${
         row.installmentConfig.paidMonths
-      }/${row.installmentConfig.months} paid${
+      }/${row.installmentConfig.months} saved${
         summary.remainingMonths === null ? '' : `, ${summary.remainingMonths} remaining`
       }`}
     </span>

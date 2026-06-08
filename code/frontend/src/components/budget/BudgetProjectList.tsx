@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Empty, Input, Popconfirm, Segmented, Space, Tag } from 'antd';
+import { Button, Empty, Input, Popconfirm, Segmented, Select, Tag } from 'antd';
 import { CalendarRange, ExternalLink, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { budgetStatusLabelsByLanguage, useI18n } from '../../i18n';
 import type { BudgetStatus, BudgetSummary } from '../../types/budget';
@@ -18,6 +18,7 @@ interface BudgetProjectListProps {
   onNewProject: () => void;
   onOpenProject: (budgetId: number) => void;
   onSelectProject: (budgetId: number) => void;
+  onStatusChange: (budget: BudgetSummary, status: BudgetStatus) => void;
 }
 
 const statusColors: Record<BudgetStatus, string> = {
@@ -37,6 +38,7 @@ export function BudgetProjectList({
   onNewProject,
   onOpenProject,
   onSelectProject,
+  onStatusChange,
 }: BudgetProjectListProps) {
   const { language, t } = useI18n();
   const [statusFilter, setStatusFilter] = useState<ProjectFilter>('all');
@@ -45,6 +47,12 @@ export function BudgetProjectList({
     { label: t('all'), value: 'all' },
     { label: budgetStatusLabelsByLanguage[language].active, value: 'active' },
     { label: budgetStatusLabelsByLanguage[language].draft, value: 'draft' },
+    { label: budgetStatusLabelsByLanguage[language].closed, value: 'closed' },
+    { label: budgetStatusLabelsByLanguage[language].archived, value: 'archived' },
+  ];
+  const statusOptions: Array<{ label: string; value: BudgetStatus }> = [
+    { label: budgetStatusLabelsByLanguage[language].draft, value: 'draft' },
+    { label: budgetStatusLabelsByLanguage[language].active, value: 'active' },
     { label: budgetStatusLabelsByLanguage[language].closed, value: 'closed' },
     { label: budgetStatusLabelsByLanguage[language].archived, value: 'archived' },
   ];
@@ -119,9 +127,18 @@ export function BudgetProjectList({
               >
                 <div className="project-list-card-main">
                   <div>
-                    <Tag color={statusColors[budget.status]}>
-                      {budgetStatusLabelsByLanguage[language][budget.status]}
-                    </Tag>
+                    {canWriteBudgets ? (
+                      <Select
+                        className="project-status-select"
+                        options={statusOptions}
+                        value={budget.status}
+                        onChange={(nextStatus) => onStatusChange(budget, nextStatus)}
+                      />
+                    ) : (
+                      <Tag color={statusColors[budget.status]}>
+                        {budgetStatusLabelsByLanguage[language][budget.status]}
+                      </Tag>
+                    )}
                     <h2>{budget.title}</h2>
                     {ownerName ? <p>{ownerName}</p> : null}
                   </div>
@@ -157,7 +174,7 @@ export function BudgetProjectList({
                   />
                 </div>
 
-                <Space wrap>
+                <div className="project-card-actions">
                   <Button
                     type="primary"
                     icon={<ExternalLink size={15} />}
@@ -188,7 +205,7 @@ export function BudgetProjectList({
                       </Button>
                     </Popconfirm>
                   ) : null}
-                </Space>
+                </div>
               </article>
             );
           })}

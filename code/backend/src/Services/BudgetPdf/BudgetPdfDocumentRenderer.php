@@ -172,13 +172,13 @@ final readonly class BudgetPdfDocumentRenderer
         $remaining = max(0, $months - max(0, min($paidMonths, $months)));
 
         return $label
-            . "\nInstallment: "
+            . "\nSaving plan: "
             . $this->formatter->templateMoney((string) $item['budget']['currency'], $monthlyAmount)
             . ' / month, '
             . max(0, min($paidMonths, $months))
             . '/'
             . $months
-            . ' paid, '
+            . ' saved, '
             . $remaining
             . ' remaining';
     }

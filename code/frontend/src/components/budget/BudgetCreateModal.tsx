@@ -4,11 +4,10 @@ import type { FormInstance } from 'antd';
 import { currencyOptions } from '../../config/appConfig';
 import { ModalFullscreenButton } from '../common/ModalFullscreenButton';
 import {
-  budgetStatusLabelsByLanguage,
   useI18n,
   visibilityLabelsByLanguage,
 } from '../../i18n';
-import type { BudgetStatus, Visibility } from '../../types/budget';
+import type { Visibility } from '../../types/budget';
 import type { BudgetFormValues } from '../../types/forms';
 import { defaultBudgetTitle } from '../../utils/budgetTitle';
 
@@ -42,12 +41,6 @@ export function BudgetCreateModal({
     { label: visibilityLabelsByLanguage[language].private, value: 'private' },
     { label: visibilityLabelsByLanguage[language].workspace, value: 'workspace' },
     { label: visibilityLabelsByLanguage[language].custom, value: 'custom' },
-  ];
-  const statusOptions: Array<{ label: string; value: BudgetStatus }> = [
-    { label: budgetStatusLabelsByLanguage[language].draft, value: 'draft' },
-    { label: budgetStatusLabelsByLanguage[language].active, value: 'active' },
-    { label: budgetStatusLabelsByLanguage[language].closed, value: 'closed' },
-    { label: budgetStatusLabelsByLanguage[language].archived, value: 'archived' },
   ];
   const handleResetTitle = () => {
     const currentDateRange = form.getFieldValue('dateRange') ?? dateRange ?? null;
@@ -151,13 +144,6 @@ export function BudgetCreateModal({
             rules={[{ required: true, message: t('selectVisibility') }]}
           >
             <Select options={visibilityOptions} />
-          </Form.Item>
-          <Form.Item
-            label={t('status')}
-            name="status"
-            rules={[{ required: true, message: t('selectStatus') }]}
-          >
-            <Select options={statusOptions} />
           </Form.Item>
           <Form.Item
             className="budget-info-wide-field"

@@ -926,12 +926,18 @@
 .project-period {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 8px;
   color: #595959;
   font-size: 12px;
   line-height: 1.25;
-  max-width: 220px;
+  min-width: 250px;
   text-align: right;
+  white-space: nowrap;
+}
+
+.project-period span {
+  white-space: nowrap;
 }
 
 .project-money-row,
@@ -1032,10 +1038,25 @@
   gap: 14px;
 }
 
+.project-list-card-main > div:first-child {
+  min-width: 0;
+}
+
 .project-list-card h2 {
   margin: 8px 0 4px;
   font-size: 18px;
   line-height: 1.25;
+}
+
+.project-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-status-select {
+  width: 116px;
 }
 
 .budget-signature-title {

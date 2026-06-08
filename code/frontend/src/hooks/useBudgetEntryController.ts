@@ -102,21 +102,27 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       const values = await budgetItemForm.validateFields();
       setIsBudgetItemSaving(true);
       setEntryError(null);
-      const amounts = await completeBudgetItemAmounts(values);
       const installmentConfig = installmentConfigFromForm(values.installmentConfig);
+      const valuesWithInstallmentBudget = {
+        ...values,
+        budgetAmount: installmentConfig.enabled && installmentConfig.monthlyAmount !== null
+          ? installmentConfig.monthlyAmount
+          : values.budgetAmount,
+      };
+      const amounts = await completeBudgetItemAmounts(valuesWithInstallmentBudget);
 
       const payload: SaveBudgetItemPayload = {
-        categoryId: values.categoryId,
-        label: values.label.trim(),
-        bankFee: values.bankFee,
-        budgetCurrency: values.budgetCurrency,
+        categoryId: valuesWithInstallmentBudget.categoryId,
+        label: valuesWithInstallmentBudget.label.trim(),
+        bankFee: valuesWithInstallmentBudget.bankFee,
+        budgetCurrency: valuesWithInstallmentBudget.budgetCurrency,
         budgetAmount: amounts.budgetAmount ?? undefined,
-        budgetRate: amounts.budgetRate ?? values.budgetRate,
+        budgetRate: amounts.budgetRate ?? valuesWithInstallmentBudget.budgetRate,
         estimatedCurrency: options.selectedBudget.baseCurrency,
         estimatedAmount: 0,
         estimatedRate: 1,
         installmentConfig,
-        sortOrder: values.sortOrder ?? 0,
+        sortOrder: valuesWithInstallmentBudget.sortOrder ?? 0,
       };
       const savedBudget =
         editingBudgetItem === null

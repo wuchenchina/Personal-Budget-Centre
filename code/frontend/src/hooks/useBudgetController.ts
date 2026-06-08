@@ -9,7 +9,7 @@ import {
   updateBudget,
 } from '../api/budgets';
 import type { AuthSession } from '../types/auth';
-import type { BudgetDetail, BudgetSummary, CurrencyCode } from '../types/budget';
+import type { BudgetDetail, BudgetStatus, BudgetSummary, CurrencyCode } from '../types/budget';
 import type { BudgetFormValues } from '../types/forms';
 import { currentLanguage, translateCurrent } from '../i18n';
 import {
@@ -227,7 +227,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         baseCurrency: values.baseCurrency,
         displayCurrency: values.displayCurrency,
         visibility: values.visibility,
-        status: values.status,
+        status: values.status ?? 'draft',
         note: values.note?.trim() || null,
         signatureConfig,
       };
@@ -367,6 +367,52 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     }
   };
 
+  const handleBudgetStatusChange = async (
+    budgetSummary: BudgetSummary,
+    nextStatus: BudgetStatus,
+  ) => {
+    if (budgetSummary.status === nextStatus) {
+      return;
+    }
+
+    const sourceBudget =
+      selectedBudget?.id === budgetSummary.id ? selectedBudget : budgetSummary;
+
+    setIsBudgetSaving(true);
+    setBudgetError(null);
+
+    try {
+      const savedBudget = await updateBudget({
+        id: sourceBudget.id,
+        title: sourceBudget.title,
+        ownerName: sourceBudget.ownerName,
+        startDate: sourceBudget.startDate,
+        endDate: sourceBudget.endDate,
+        baseCurrency: sourceBudget.baseCurrency,
+        displayCurrency: sourceBudget.displayCurrency,
+        visibility: sourceBudget.visibility,
+        status: nextStatus,
+        note: sourceBudget.note,
+        signatureConfig: sourceBudget.signatureConfig,
+      });
+      requestedBudgetId.current = savedBudget.id;
+      if (selectedBudget?.id === savedBudget.id) {
+        setSelectedBudget(savedBudget);
+      }
+      setBudgets((currentBudgets) =>
+        currentBudgets.map((budget) =>
+          budget.id === savedBudget.id ? savedBudget : budget,
+        ),
+      );
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setBudgetError(error.message);
+      }
+    } finally {
+      setIsBudgetSaving(false);
+    }
+  };
+
   const handleBudgetDelete = async (budgetId: number) => {
     setDeletingBudgetId(budgetId);
     setBudgetError(null);
@@ -445,6 +491,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     openBudgetEditModal,
     openBudgetSignatureModal,
     handleBudgetHeaderSave,
+    handleBudgetStatusChange,
     handleBudgetSave,
     handleBudgetSignatureSave,
     handleBudgetSelect,

@@ -57,6 +57,7 @@ export function BudgetItemModal({
   const installmentTotal = Form.useWatch(['installmentConfig', 'totalAmount'], form);
   const installmentMonths = Form.useWatch(['installmentConfig', 'months'], form);
   const installmentMonthly = Form.useWatch(['installmentConfig', 'monthlyAmount'], form);
+  const installmentPaidMonths = Form.useWatch(['installmentConfig', 'paidMonths'], form);
   const calculatedMonthlyInstallment =
     typeof installmentMonthly === 'number' && installmentMonthly > 0
       ? installmentMonthly
@@ -69,6 +70,22 @@ export function BudgetItemModal({
       && installmentMonths > 0
       ? installmentTotal / installmentMonths
       : null);
+  const installmentRemainingMonths =
+    typeof installmentMonths === 'number' && installmentMonths > 0
+      ? Math.max(
+        0,
+        installmentMonths
+          - (typeof installmentPaidMonths === 'number' && installmentPaidMonths > 0
+            ? installmentPaidMonths
+            : 0),
+      )
+      : null;
+  const installmentPlannedTotal =
+    typeof installmentTotal === 'number' && installmentTotal > 0
+      ? installmentTotal
+      : derivedMonthlyInstallment !== null && typeof installmentMonths === 'number' && installmentMonths > 0
+        ? derivedMonthlyInstallment * installmentMonths
+        : null;
   const transactionActuals = editingItem === null
     ? null
     : effectiveBudgetItemAmounts(editingItem, transactions);
@@ -146,6 +163,12 @@ export function BudgetItemModal({
       installmentConfig: {
         ...form.getFieldValue('installmentConfig'),
         monthlyAmount: Number(derivedMonthlyInstallment.toFixed(2)),
+        totalAmount:
+          typeof installmentTotal === 'number' && installmentTotal > 0
+            ? installmentTotal
+            : installmentPlannedTotal === null
+              ? null
+              : Number(installmentPlannedTotal.toFixed(2)),
       },
     });
   };
@@ -268,6 +291,10 @@ export function BudgetItemModal({
           </Form.Item>
           {installmentEnabled ? (
             <>
+              <div className="installment-config-copy">
+                <strong>{t('installmentSavingsPlanTitle')}</strong>
+                <span>{t('installmentSavingsPlanHelp')}</span>
+              </div>
               <div className="modal-form-grid">
                 <Form.Item
                   label={t('installmentTotalAmount')}
@@ -294,6 +321,7 @@ export function BudgetItemModal({
                 <Form.Item
                   label={t('installmentMonthlyAmount')}
                   name={['installmentConfig', 'monthlyAmount']}
+                  extra={t('installmentMonthlyAmountHelp')}
                   rules={[
                     { type: 'number', min: Number.MIN_VALUE, message: t('installmentMonthlyMin') },
                   ]}
@@ -321,8 +349,22 @@ export function BudgetItemModal({
                   <DatePicker className="form-full-width" picker="month" />
                 </Form.Item>
                 <Form.Item label={t('installmentRemark')} name={['installmentConfig', 'remark']}>
-                  <Input maxLength={500} />
+                  <Input maxLength={500} placeholder={t('installmentRemarkPlaceholder')} />
                 </Form.Item>
+              </div>
+              <div className="installment-config-summary">
+                <span>{t('installmentPlannedTotal')}</span>
+                <strong>
+                  {installmentPlannedTotal === null
+                    ? `${budgetCurrency ?? t('currency')} --`
+                    : `${budgetCurrency ?? t('currency')} ${installmentPlannedTotal.toFixed(2)}`}
+                </strong>
+                <span>{t('installmentRemainingMonths')}</span>
+                <strong>
+                  {installmentRemainingMonths === null
+                    ? '--'
+                    : t('installmentRemaining', { count: installmentRemainingMonths })}
+                </strong>
               </div>
               <Button
                 block

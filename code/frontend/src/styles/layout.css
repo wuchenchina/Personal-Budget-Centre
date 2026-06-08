@@ -296,6 +296,38 @@
   border-radius: 8px;
 }
 
+.installment-config-copy {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 12px;
+  color: #262626;
+}
+
+.installment-config-copy span {
+  color: #595959;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.installment-config-summary {
+  display: grid;
+  grid-template-columns: minmax(120px, max-content) minmax(0, 1fr) minmax(120px, max-content) minmax(0, 1fr);
+  gap: 6px 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  color: #595959;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.installment-config-summary strong {
+  color: #262626;
+  font-size: 13px;
+}
+
 .currency-config-panel {
   margin: 8px 0 16px;
   padding: 12px;
