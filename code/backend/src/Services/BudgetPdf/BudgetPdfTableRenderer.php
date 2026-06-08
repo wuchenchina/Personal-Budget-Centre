@@ -30,8 +30,8 @@ final readonly class BudgetPdfTableRenderer
             . '.money-cell{white-space:normal;}'
             . '.cell-line{display:block;margin:0;padding:0;line-height:1.24;}'
             . '.money-line{white-space:nowrap;}'
-            . '.money-code{display:inline-block;min-width:5.8mm;margin-right:1.1mm;color:#4f5b57;text-align:center;background:#eef2f0;border:0.1mm solid #d8dfdc;font-family:"SF-Mono-Light",TCSongti,monospace;font-size:5.8pt;line-height:1.15;}'
-            . '.money-amount{display:inline-block;min-width:13mm;color:#000;text-align:right;}'
+            . '.money-code{display:inline-block;min-width:6.6mm;margin-right:1.15mm;color:#66726d;text-align:right;font-family:"SF-Mono",TCSongti,monospace;font-size:5.7pt;font-weight:700;line-height:1.15;}'
+            . '.money-amount{display:inline-block;min-width:13mm;color:#000;text-align:right;font-family:"SF-Mono",TCSongti,monospace;}'
             . '.empty{text-align:center;color:#595959;}';
     }
 

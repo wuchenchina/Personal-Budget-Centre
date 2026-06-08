@@ -200,15 +200,17 @@
 .budget-money-code {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  padding: 0 3px;
-  color: #4f5b57;
-  background: #eef2f0;
-  border: 0.5pt solid #d8dfdc;
-  border-radius: 3px;
-  font-size: 6.4pt;
-  line-height: 1.35;
+  justify-content: flex-end;
+  min-width: 30px;
+  padding: 0;
+  color: #66726d;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-size: 6.2pt;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
 }
 
 .budget-money-amount {
@@ -251,10 +253,9 @@
 }
 
 .budget-money-breakdown .budget-money-code {
-  min-width: 24px;
-  padding-inline: 2px;
+  min-width: 26px;
+  padding-inline: 0;
   color: #626f6a;
-  background: #f5f7f6;
   font-size: 5.8pt;
 }
 
