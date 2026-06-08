@@ -1,7 +1,7 @@
 import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import { useState } from 'react';
-import { RefreshCcw } from 'lucide-react';
+import { Calculator, RefreshCcw } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
 import { useI18n } from '../../i18n';
 import { ModalFullscreenButton } from '../common/ModalFullscreenButton';
@@ -19,6 +19,7 @@ interface TransactionModalProps {
   onCancel: () => void;
   onOk: () => void;
   onRefreshRates: () => void;
+  onReferenceConvert: () => void;
 }
 
 export function TransactionModal({
@@ -32,6 +33,7 @@ export function TransactionModal({
   onCancel,
   onOk,
   onRefreshRates,
+  onReferenceConvert,
 }: TransactionModalProps) {
   const [fullscreen, setFullscreen] = useState(false);
   const { t } = useI18n();
@@ -203,10 +205,20 @@ export function TransactionModal({
           </div>
           <div className="currency-field-preview currency-reference-preview">
             <span>{t('referenceAmountPreview')}</span>
-            <strong>
-              {referencePreview ?? '--'}
-              {impliedReferenceRate ? <small>{impliedReferenceRate}</small> : null}
-            </strong>
+            <span className="currency-reference-preview-actions">
+              <strong>
+                {referencePreview ?? '--'}
+                {impliedReferenceRate ? <small>{impliedReferenceRate}</small> : null}
+              </strong>
+              <Button
+                icon={<Calculator size={14} />}
+                loading={confirmLoading}
+                size="small"
+                onClick={onReferenceConvert}
+              >
+                {t('referenceConvert')}
+              </Button>
+            </span>
           </div>
         </div>
 

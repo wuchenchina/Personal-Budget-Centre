@@ -364,6 +364,7 @@ function App() {
         baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
         confirmLoading={budgetEntry.isTransactionSaving}
         onRefreshRates={budgetEntry.handleTransactionRateRefresh}
+        onReferenceConvert={budgetEntry.handleTransactionReferenceConvert}
         onCancel={budgetEntry.closeTransactionModal}
         onOk={budgetEntry.handleTransactionSave}
       />

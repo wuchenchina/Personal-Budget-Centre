@@ -202,10 +202,48 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       await refreshBochkRates(options.selectedBudget.workspaceId);
       const values = transactionForm.getFieldsValue();
-      transactionForm.setFieldValue(
-        'rate',
-        await resolveRate(values.currency, options.selectedBudget.baseCurrency),
-      );
+      const rate = await resolveRate(values.currency, options.selectedBudget.baseCurrency);
+      const referenceAmount = values.referenceCurrency === undefined
+        ? undefined
+        : await convertedTransactionReferenceAmount(values, rate);
+
+      transactionForm.setFieldsValue({
+        rate,
+        ...(referenceAmount === undefined ? {} : { referenceAmount }),
+      });
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
+    } finally {
+      setIsTransactionSaving(false);
+    }
+  };
+
+  const handleTransactionReferenceConvert = async () => {
+    if (options.selectedBudget === null) {
+      setEntryError(translateCurrent('selectBudgetFirst'));
+
+      return;
+    }
+
+    const values = transactionForm.getFieldsValue();
+    if (values.referenceCurrency === undefined) {
+      setEntryError(translateCurrent('selectReferenceCurrency'));
+
+      return;
+    }
+
+    setIsTransactionSaving(true);
+    setEntryError(null);
+
+    try {
+      const rate = normalizedAmount(values.rate)
+        ?? await resolveRate(values.currency, options.selectedBudget.baseCurrency);
+      const referenceAmount = await convertedTransactionReferenceAmount(values, rate);
+
+      transactionForm.setFieldsValue({
+        rate,
+        referenceAmount,
+      });
     } catch (error: unknown) {
       setEntryError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
     } finally {
@@ -226,6 +264,39 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     });
 
     return conversion.rate;
+  };
+
+  const convertedTransactionReferenceAmount = async (
+    values: TransactionFormValues,
+    rateToBase: number,
+  ): Promise<number> => {
+    if (options.selectedBudget === null) {
+      throw new Error(translateCurrent('selectBudgetFirst'));
+    }
+
+    const amount = normalizedAmount(values.amount);
+    if (amount === null) {
+      throw new Error(translateCurrent('amountRequired'));
+    }
+
+    if (values.referenceCurrency === undefined) {
+      throw new Error(translateCurrent('selectReferenceCurrency'));
+    }
+
+    const baseAmount = roundMoney(amount * rateToBase);
+    if (values.referenceCurrency === options.selectedBudget.baseCurrency) {
+      return baseAmount;
+    }
+
+    const conversion = await convertCurrency({
+      workspaceId: options.selectedBudget.workspaceId,
+      fromCurrency: options.selectedBudget.baseCurrency,
+      toCurrency: values.referenceCurrency,
+      amount: baseAmount,
+      rateDate: values.transactionDate?.format('YYYY-MM-DD'),
+    });
+
+    return roundMoney(conversion.convertedAmount);
   };
 
   const handleBudgetItemDelete = async (id: number) => {
@@ -604,6 +675,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     closeTransactionModal,
     handleTransactionSave,
     handleTransactionRateRefresh,
+    handleTransactionReferenceConvert,
     handleTransactionQuickAmountSave,
     handleTransactionQuickCurrencySave,
     handleTransactionCategoryQuickSave,

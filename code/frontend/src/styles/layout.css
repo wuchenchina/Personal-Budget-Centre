@@ -427,6 +427,14 @@
   font-weight: 500;
 }
 
+.currency-reference-preview-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
 .currency-readonly-amount,
 .currency-readonly-ledger {
   display: grid;
