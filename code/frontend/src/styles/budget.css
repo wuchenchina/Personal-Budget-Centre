@@ -463,25 +463,26 @@
 
 .budget-signature-notes-block {
   display: grid;
-  gap: 4px;
-  padding: 6px 8px;
+  grid-template-columns: repeat(var(--signature-note-columns, 2), minmax(0, 1fr));
+  gap: 3px 12px;
+  padding: 5px 8px;
   color: #111;
   background: #fafafa;
   border: 0.5pt solid #d9d9d9;
-  font-size: 7pt;
+  font-size: 6.6pt;
   line-height: 1.25;
 }
 
 .budget-signature-note-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
+  display: grid;
+  gap: 1px;
+  align-content: start;
   min-width: 0;
 }
 
 .budget-signature-note-row + .budget-signature-note-row {
-  padding-top: 4px;
-  border-top: 0.5pt solid #ededed;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .budget-signature-note-field {
@@ -497,6 +498,34 @@
 
 .budget-signature-note-value {
   overflow-wrap: anywhere;
+}
+
+.budget-signature-note-primary {
+  font-weight: 650;
+}
+
+.budget-signature-note-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px 8px;
+  min-width: 0;
+  color: #595959;
+}
+
+.budget-signature-note-details .budget-signature-note-value {
+  color: #111;
+}
+
+@media (max-width: 720px) {
+  .budget-signature-notes-block {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .budget-signature-notes-block {
+    grid-template-columns: 1fr;
+  }
 }
 
 .budget-list {

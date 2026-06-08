@@ -103,7 +103,7 @@ final readonly class BudgetPdfSignatureRenderer
         return 10.0 + array_sum(array_map(
             fn (array $row): float => $this->rowHeight($row, $config, $width),
             $signingRows,
-        )) + $this->notesBlockHeight($noteRows);
+        )) + $this->notesBlockHeight($noteRows, $config, $width);
     }
 
     private function rowHeight(array $row, array $config, float $width): float
@@ -187,55 +187,203 @@ final readonly class BudgetPdfSignatureRenderer
 
     private function notesBlockSvg(array $rows, array $config, float $rowTop, float $width): string
     {
-        $height = $this->notesBlockHeight($rows);
+        $height = $this->notesBlockHeight($rows, $config, $width);
         $x = 2.0;
         $innerWidth = $width - 4.0;
         $svg = '<rect x="' . $this->number($x) . '" y="' . $this->number($rowTop) . '" width="' . $this->number($innerWidth) . '" height="' . $this->number($height) . '" fill="#fafafa" stroke="#d9d9d9" stroke-width="0.14"/>';
-        $baseline = $rowTop + 4.2;
-        foreach (array_values($rows) as $index => $row) {
-            $y = $baseline + ($index * 4.4);
-            if ($index > 0) {
-                $lineY = $y - 3.0;
-                $svg .= '<line x1="' . $this->number($x + 1.5) . '" y1="' . $this->number($lineY) . '" x2="' . $this->number($x + $innerWidth - 1.5) . '" y2="' . $this->number($lineY) . '" stroke="#ededed" stroke-width="0.12"/>';
+        $items = $this->compactNoteItems($rows, $config);
+        if ($items === []) {
+            return $svg;
+        }
+        $columns = $this->noteColumnCount($items, $innerWidth);
+        $gapX = 3.2;
+        $gapY = 1.8;
+        $cellWidth = ($innerWidth - (($columns - 1) * $gapX)) / $columns;
+        $y = $rowTop + 2.3;
+        foreach (array_chunk($items, $columns) as $gridRow) {
+            $rowHeight = max(array_map(
+                fn (array $item): float => $this->noteItemHeight($item),
+                $gridRow,
+            ));
+            foreach ($gridRow as $columnIndex => $item) {
+                $cellX = $x + 2.0 + ($columnIndex * ($cellWidth + $gapX));
+                $svg .= $this->noteItemSvg($item, $cellX, $y, $cellWidth);
             }
+            $y += $rowHeight + $gapY;
+        }
+
+        return $svg;
+    }
+
+    private function notesBlockHeight(array $rows, array $config, float $width): float
+    {
+        $items = $this->compactNoteItems($rows, $config);
+        if ($items === []) {
+            return 0.0;
+        }
+        $innerWidth = $width - 4.0;
+        $columns = $this->noteColumnCount($items, $innerWidth);
+        $gapY = 1.8;
+        $gridRows = array_chunk($items, $columns);
+        $contentHeight = array_sum(array_map(
+            fn (array $gridRow): float => max(array_map(
+                fn (array $item): float => $this->noteItemHeight($item),
+                $gridRow,
+            )),
+            $gridRows,
+        ));
+
+        return max(7.0, 4.6 + $contentHeight + ((count($gridRows) - 1) * $gapY));
+    }
+
+    private function compactNoteItems(array $rows, array $config): array
+    {
+        $items = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $item = $this->compactNoteItem($row, $config);
+            if ($item['primary'] === '' && $item['details'] === '') {
+                continue;
+            }
+            $items[] = $item;
+        }
+
+        return $items;
+    }
+
+    private function compactNoteItem(array $row, array $config): array
+    {
+        $role = (($row['showRole'] ?? true) !== false && trim((string) ($row['roleLabel'] ?? '')) !== '')
+            ? $this->formatter->signatureRoleForDisplay($config, (string) $row['roleLabel'])
+            : '';
+        $name = (($row['showName'] ?? true) !== false && trim((string) ($row['displayName'] ?? '')) !== '')
+            ? trim((string) $row['displayName'])
+            : '';
+        $details = [];
+        if (($row['showPosition'] ?? false) === true && trim((string) ($row['position'] ?? '')) !== '') {
+            $details[] = $this->noteFieldText(
+                $this->formatter->signatureMetaLabel($config, 'position'),
+                $this->formatter->signaturePositionForDisplay($config, (string) $row['position']),
+            );
+        }
+        if (($row['showEmail'] ?? false) === true && trim((string) ($row['email'] ?? '')) !== '') {
+            $details[] = $this->noteFieldText($this->formatter->signatureMetaLabel($config, 'email'), (string) $row['email']);
+        }
+        foreach (($row['customFields'] ?? []) as $field) {
+            if (!is_array($field) || ($field['show'] ?? true) === false) {
+                continue;
+            }
+
+            $label = trim((string) ($field['label'] ?? ''));
+            $value = trim((string) ($field['value'] ?? ''));
+            if ($label === '' && $value === '') {
+                continue;
+            }
+
+            $details[] = $this->noteFieldText(
+                $this->formatter->signatureCustomFieldLabelForDisplay($config, $label),
+                $value,
+            );
+        }
+        $hasDateTime = ($row['showDateTime'] ?? true) !== false;
+        if ($hasDateTime) {
+            $details[] = $this->noteFieldText(
+                $this->formatter->signatureMetaLabel($config, 'dateTime'),
+                $this->formatter->signatureDateTimeForDisplay((string) ($row['signedAt'] ?? '')),
+            );
+        }
+
+        if ($role !== '' && $name !== '') {
+            $primary = $this->noteFieldText($role, $name);
+        } elseif ($name !== '') {
+            $primary = $this->noteFieldText($this->formatter->signatureMetaLabel($config, 'participant'), $name);
+        } else {
+            $primary = $role;
+        }
+
+        if ($primary === '' && $details !== []) {
+            $primary = array_shift($details);
+        }
+
+        return [
+            'primary' => $primary,
+            'details' => implode(' · ', array_values(array_filter($details, static fn (string $part): bool => $part !== ''))),
+            'hasDateTime' => $hasDateTime,
+        ];
+    }
+
+    private function noteFieldText(string $label, string $value): string
+    {
+        $label = trim($label);
+        $value = trim($value);
+        if ($label === '') {
+            return $value;
+        }
+        if ($value === '') {
+            return $label;
+        }
+
+        return $label . ' ' . $value;
+    }
+
+    private function noteColumnCount(array $items, float $innerWidth): int
+    {
+        $maxColumns = max(1, min(4, count($items), (int) floor($innerWidth / 32.0)));
+        $hasDateTime = count(array_filter(
+            $items,
+            static fn (array $item): bool => ($item['hasDateTime'] ?? false) === true,
+        )) > 0;
+        if ($hasDateTime) {
+            return max(1, min($maxColumns, (int) floor($innerWidth / 56.0), 2));
+        }
+
+        $longest = 0;
+        foreach ($items as $item) {
+            $length = $this->textLength(trim((string) ($item['primary'] ?? '') . ' ' . (string) ($item['details'] ?? '')));
+            $longest = max($longest, $length);
+        }
+
+        if ($longest <= 28) {
+            return $maxColumns;
+        }
+        if ($longest <= 48) {
+            return max(1, min($maxColumns, 3));
+        }
+
+        return max(1, min($maxColumns, 2));
+    }
+
+    private function noteItemSvg(array $item, float $x, float $y, float $width): string
+    {
+        $primary = trim((string) ($item['primary'] ?? ''));
+        $details = trim((string) ($item['details'] ?? ''));
+        $svg = $this->text(
+            $x,
+            $y + 2.4,
+            $this->fitText($primary, $width),
+            2.2,
+            '#111',
+            'sf-mono',
+        );
+        if ($details !== '') {
             $svg .= $this->text(
-                $x + 2.0,
-                $y,
-                $this->fitText($this->compactNoteLine($row, $config), $innerWidth - 4.0),
-                2.25,
-                '#111',
-                'sf-mono',
+                $x,
+                $y + 5.0,
+                $this->fitText($details, $width),
+                1.85,
+                '#555',
+                'sf-mono-light',
             );
         }
 
         return $svg;
     }
 
-    private function notesBlockHeight(array $rows): float
+    private function noteItemHeight(array $item): float
     {
-        return $rows === [] ? 0.0 : max(8.0, 3.6 + (count($rows) * 4.4));
-    }
-
-    private function compactNoteLine(array $row, array $config): string
-    {
-        $parts = array_map(
-            static function (array $field): string {
-                $label = trim((string) ($field[0] ?? ''));
-                $value = trim((string) ($field[1] ?? ''));
-                if ($label === '') {
-                    return $value;
-                }
-                if ($value === '') {
-                    return $label;
-                }
-
-                return trim($label . ' ' . $value);
-            },
-            $this->signatureFields($row, $config),
-        );
-        $parts = array_values(array_filter($parts, static fn (string $part): bool => $part !== ''));
-
-        return implode(' · ', $parts);
+        return trim((string) ($item['details'] ?? '')) === '' ? 3.2 : 5.8;
     }
 
     private function signingRows(array $rows): array
@@ -385,6 +533,11 @@ final readonly class BudgetPdfSignatureRenderer
             ? mb_substr($trimmed, 0, $limit - 1, 'UTF-8')
             : substr($trimmed, 0, $limit - 1))
             . '...';
+    }
+
+    private function textLength(string $value): int
+    {
+        return function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
     }
 
     private function svgEscape(string $value): string

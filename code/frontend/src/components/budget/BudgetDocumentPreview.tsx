@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 import { useMemo, useState } from 'react';
 import {
   Alert,
@@ -1072,34 +1072,63 @@ function BudgetSignatureNotesBlock({
   labels: SignatureMetaLabels;
   rows: BudgetSignatureRow[];
 }) {
-  return (
-    <div className="budget-signature-notes-block">
-      {rows.map((row) => {
-        const metaRows = signatureMetaRows(row, labels, config);
+  const noteItems = rows
+    .map((row) => signatureCompactNoteItem(row, labels, config))
+    .filter((item) => item.primaryValue || item.details.length > 0);
+  const noteGridStyle = {
+    '--signature-note-columns': String(signatureNoteColumnCount(noteItems)),
+  } as CSSProperties;
 
-        return (
-          <div className="budget-signature-note-row" key={row.id}>
-            {metaRows.map((item, index) => (
-              <BudgetSignatureNoteField item={item} key={`${item.label}-${index}`} />
-            ))}
-          </div>
-        );
-      })}
+  if (noteItems.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="budget-signature-notes-block" style={noteGridStyle}>
+      {noteItems.map((item) => (
+        <div className="budget-signature-note-row" key={item.id}>
+          <BudgetSignatureNoteField
+            className="budget-signature-note-primary"
+            item={{ label: item.primaryLabel, value: item.primaryValue }}
+          />
+          {item.details.length > 0 ? (
+            <span className="budget-signature-note-details">
+              {item.details.map((detail, index) => (
+                <BudgetSignatureNoteField item={detail} key={`${detail.label}-${index}`} />
+              ))}
+            </span>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }
 
-function BudgetSignatureNoteField({ item }: { item: { label: string; value: string } }) {
+function BudgetSignatureNoteField({
+  className,
+  item,
+}: {
+  className?: string;
+  item: { label: string; value: string };
+}) {
   const label = item.label.trim();
   const value = item.value.trim();
 
   return (
-    <span className="budget-signature-note-field">
+    <span className={['budget-signature-note-field', className].filter(Boolean).join(' ')}>
       {label ? <span className="budget-signature-note-label">{label}</span> : null}
       {value ? <span className="budget-signature-note-value">{value}</span> : null}
     </span>
   );
 }
+
+type SignatureNoteItem = {
+  id: string;
+  primaryLabel: string;
+  primaryValue: string;
+  details: Array<{ label: string; value: string }>;
+  hasDateTime: boolean;
+};
 
 type SignatureMetaLabels = {
   name: string;
@@ -1141,6 +1170,100 @@ function signatureMetaRows(
       ? { label: labels.dateTime, value: dateTimeText }
       : null,
   ].filter((item): item is { label: string; value: string } => item !== null);
+}
+
+function signatureCompactNoteItem(
+  row: BudgetSignatureRow,
+  labels: SignatureMetaLabels,
+  config: BudgetSignatureConfig,
+): SignatureNoteItem {
+  const role = row.showRole && row.roleLabel
+    ? signatureRoleForDisplay(config, row.roleLabel)
+    : '';
+  const name = row.showName && row.displayName ? row.displayName : '';
+  const details = [
+    row.showPosition && row.position
+      ? { label: labels.position, value: signaturePositionForDisplay(config, row.position) }
+      : null,
+    row.showEmail && row.email
+      ? { label: labels.email, value: row.email }
+      : null,
+    ...(row.customFields ?? [])
+      .filter((field) => field.show !== false && (field.label.trim() !== '' || field.value.trim() !== ''))
+      .map((field) => ({
+        label: signatureCustomFieldLabelForDisplay(config, field.label),
+        value: field.value,
+      })),
+    row.showDateTime
+      ? { label: labels.dateTime, value: row.signedAt ?? currentDateTimeText() }
+      : null,
+  ].filter((item): item is { label: string; value: string } => item !== null);
+
+  if (role && name) {
+    return {
+      id: row.id,
+      primaryLabel: role,
+      primaryValue: name,
+      details,
+      hasDateTime: row.showDateTime,
+    };
+  }
+
+  if (name) {
+    return {
+      id: row.id,
+      primaryLabel: labels.name,
+      primaryValue: name,
+      details,
+      hasDateTime: row.showDateTime,
+    };
+  }
+
+  if (role) {
+    return {
+      id: row.id,
+      primaryLabel: '',
+      primaryValue: role,
+      details,
+      hasDateTime: row.showDateTime,
+    };
+  }
+
+  const [firstDetail, ...restDetails] = details;
+
+  return {
+    id: row.id,
+    primaryLabel: firstDetail?.label ?? '',
+    primaryValue: firstDetail?.value ?? '',
+    details: restDetails,
+    hasDateTime: row.showDateTime,
+  };
+}
+
+function signatureNoteColumnCount(items: SignatureNoteItem[]): number {
+  const maxColumns = Math.min(4, Math.max(1, items.length));
+  const hasDateTime = items.some((item) => item.hasDateTime);
+  if (hasDateTime) {
+    return Math.min(maxColumns, 2);
+  }
+
+  const longestTextLength = Math.max(
+    0,
+    ...items.map((item) => [
+      item.primaryLabel,
+      item.primaryValue,
+      ...item.details.flatMap((detail) => [detail.label, detail.value]),
+    ].join(' ').length),
+  );
+
+  if (longestTextLength <= 28) {
+    return maxColumns;
+  }
+  if (longestTextLength <= 48) {
+    return Math.min(maxColumns, 3);
+  }
+
+  return Math.min(maxColumns, 2);
 }
 
 function currentDateTimeText(): string {
