@@ -125,6 +125,7 @@ const documentTableText = {
       year: '每年',
     },
     installmentsTitle: '分期明细',
+    remainingLabel: '剩余',
     totalLabel: '总计',
     transactionBreakdownTitle: '交易明细',
   },
@@ -151,6 +152,7 @@ const documentTableText = {
       year: '每年',
     },
     installmentsTitle: '分期明細',
+    remainingLabel: '剩餘',
     totalLabel: '總計',
     transactionBreakdownTitle: '交易明細',
   },
@@ -162,6 +164,7 @@ const documentTableText = {
     datePrefix: string;
     installmentPeriodLabels: Record<BudgetDetail['installmentPeriodUnit'], string>;
     installmentsTitle: string;
+    remainingLabel: string;
     totalLabel: string;
     transactionBreakdownTitle: string;
   }
@@ -301,6 +304,7 @@ export function BudgetDocumentPreview({
     documentLabels.installmentsTitle,
     tableLanguageMode,
   );
+  const remainingLabel = documentText('Remaining', documentLabels.remainingLabel, tableLanguageMode);
   const totalLabel = documentText('Total', documentLabels.totalLabel, tableLanguageMode);
   const columnLabelStyle: BudgetColumnLabelStyle =
     tableLanguageMode === 'bilingual' ? 'bilingual' : 'single';
@@ -386,7 +390,8 @@ export function BudgetDocumentPreview({
     { label: visibilityLabelsByLanguage[language].workspace, value: 'workspace' },
     { label: visibilityLabelsByLanguage[language].custom, value: 'custom' },
   ];
-  const installmentRows = selectedBudget === null ? [] : createInstallmentPeriodRows(selectedBudget);
+  const installmentRows =
+    selectedBudget === null ? [] : createInstallmentPeriodRows(selectedBudget, remainingLabel);
   const showInstallmentCategory = selectedBudget?.installmentDisplayMode !== 'overall';
   const installmentColumns = createInstallmentPeriodColumns(
     showInstallmentCategory,
@@ -863,15 +868,21 @@ function createInstallmentPeriodColumns(
   return columns;
 }
 
-function createInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow[] {
+function createInstallmentPeriodRows(
+  budget: BudgetDetail,
+  remainingLabel: string,
+): InstallmentPeriodRow[] {
   if (budget.installmentDisplayMode === 'overall') {
-    return createOverallInstallmentPeriodRows(budget);
+    return createOverallInstallmentPeriodRows(budget, remainingLabel);
   }
 
-  return createInstallmentItemPeriodRows(budget);
+  return createInstallmentItemPeriodRows(budget, remainingLabel);
 }
 
-function createInstallmentItemPeriodRows(budget: BudgetDetail): InstallmentItemPeriodRow[] {
+function createInstallmentItemPeriodRows(
+  budget: BudgetDetail,
+  remainingLabel: string,
+): InstallmentItemPeriodRow[] {
   return budget.items.flatMap((item) => {
     const configuredMonths = item.installmentConfig.enabled ? item.installmentConfig.months : null;
     const durationMonths =
@@ -893,7 +904,7 @@ function createInstallmentItemPeriodRows(budget: BudgetDetail): InstallmentItemP
     const targetProgress = installmentTargetProgressText(
       item.budget.currency,
       Math.max(0, target.original - progressAmount),
-      target.original,
+      remainingLabel,
     );
 
     return Array.from({ length: periodCount }, (_, index) => {
@@ -925,7 +936,10 @@ function createInstallmentItemPeriodRows(budget: BudgetDetail): InstallmentItemP
   });
 }
 
-function createOverallInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow[] {
+function createOverallInstallmentPeriodRows(
+  budget: BudgetDetail,
+  remainingLabel: string,
+): InstallmentPeriodRow[] {
   const targetTotal = effectiveBudgetTotals(budget).totalBudgetBase;
   if (targetTotal <= 0) {
     return [];
@@ -951,7 +965,7 @@ function createOverallInstallmentPeriodRows(budget: BudgetDetail): InstallmentPe
   const targetProgress = installmentTargetProgressText(
     budget.baseCurrency,
     Math.max(0, targetTotal - progressAmount),
-    targetTotal,
+    remainingLabel,
   );
 
   return Array.from({ length: periodCount }, (_, index) => {
@@ -1037,12 +1051,9 @@ function installmentTarget(
 function installmentTargetProgressText(
   currency: CurrencyCode,
   remainingAmount: number,
-  targetAmount: number,
+  remainingLabel: string,
 ): string {
-  return `${formatBudgetMoney(currency, roundMoney(remainingAmount))} / ${formatBudgetMoney(
-    currency,
-    roundMoney(targetAmount),
-  )}`;
+  return `${remainingLabel} ${formatBudgetMoney(currency, roundMoney(remainingAmount))}`;
 }
 
 function renderInstallmentSummary(
