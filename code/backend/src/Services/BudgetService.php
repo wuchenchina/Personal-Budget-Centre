@@ -21,6 +21,7 @@ final readonly class BudgetService
     private const VISIBILITIES = ['private', 'workspace', 'custom'];
     private const STATUSES = ['draft', 'active', 'closed', 'archived'];
     private const BUDGET_TYPES = ['regular', 'installment'];
+    private const INSTALLMENT_DISPLAY_MODES = ['item', 'overall'];
     private const INSTALLMENT_PERIOD_UNITS = ['day', 'week', 'month', 'year'];
     private const SIGNATURE_ROW_LIMIT = 50;
     private const SIGNATURE_CUSTOM_FIELD_LIMIT = 12;
@@ -66,6 +67,9 @@ final readonly class BudgetService
                 ?? $baseCurrencyCode,
         );
         $budgetType = Input::string($input['budgetType'] ?? $input['budget_type'] ?? null) ?? 'regular';
+        $installmentDisplayMode = Input::string(
+            $input['installmentDisplayMode'] ?? $input['installment_display_mode'] ?? null,
+        ) ?? 'item';
         $installmentPeriodUnit = Input::string(
             $input['installmentPeriodUnit'] ?? $input['installment_period_unit'] ?? null,
         ) ?? 'month';
@@ -89,6 +93,7 @@ final readonly class BudgetService
             $startDate,
             $endDate,
             $budgetType,
+            $installmentDisplayMode,
             $installmentPeriodUnit,
             $visibility,
             $status,
@@ -122,6 +127,7 @@ final readonly class BudgetService
                 $baseCurrencyId,
                 $displayCurrencyId,
                 $budgetType,
+                $installmentDisplayMode,
                 $installmentPeriodUnit,
                 $visibility,
                 $status,
@@ -144,6 +150,7 @@ final readonly class BudgetService
             'baseCurrency' => $baseCurrencyCode,
             'displayCurrency' => $displayCurrencyCode,
             'budgetType' => $budgetType,
+            'installmentDisplayMode' => $installmentDisplayMode,
             'installmentPeriodUnit' => $installmentPeriodUnit,
             'visibility' => $visibility,
             'status' => $status,
@@ -216,6 +223,7 @@ final readonly class BudgetService
             $baseCurrencyId,
             $displayCurrencyId,
             $payload['budgetType'],
+            $payload['installmentDisplayMode'],
             $payload['installmentPeriodUnit'],
             $payload['visibility'],
             $payload['status'],
@@ -263,6 +271,9 @@ final readonly class BudgetService
                 ?? $baseCurrencyCode,
         );
         $budgetType = Input::string($input['budgetType'] ?? $input['budget_type'] ?? null) ?? 'regular';
+        $installmentDisplayMode = Input::string(
+            $input['installmentDisplayMode'] ?? $input['installment_display_mode'] ?? null,
+        ) ?? 'item';
         $installmentPeriodUnit = Input::string(
             $input['installmentPeriodUnit'] ?? $input['installment_period_unit'] ?? null,
         ) ?? 'month';
@@ -277,6 +288,7 @@ final readonly class BudgetService
             $startDate,
             $endDate,
             $budgetType,
+            $installmentDisplayMode,
             $installmentPeriodUnit,
             $visibility,
             $status,
@@ -291,6 +303,7 @@ final readonly class BudgetService
             'baseCurrency' => $baseCurrencyCode,
             'displayCurrency' => $displayCurrencyCode,
             'budgetType' => $budgetType,
+            'installmentDisplayMode' => $installmentDisplayMode,
             'installmentPeriodUnit' => $installmentPeriodUnit,
             'visibility' => $visibility,
             'status' => $status,
@@ -305,6 +318,7 @@ final readonly class BudgetService
         ?string $startDate,
         ?string $endDate,
         string $budgetType,
+        string $installmentDisplayMode,
         string $installmentPeriodUnit,
         string $visibility,
         string $status,
@@ -328,6 +342,10 @@ final readonly class BudgetService
 
         if (!in_array($budgetType, self::BUDGET_TYPES, true)) {
             throw new AuthException('VALIDATION_ERROR', 'Budget type must be regular or installment.', 422);
+        }
+
+        if (!in_array($installmentDisplayMode, self::INSTALLMENT_DISPLAY_MODES, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment display mode must be item or overall.', 422);
         }
 
         if (!in_array($installmentPeriodUnit, self::INSTALLMENT_PERIOD_UNITS, true)) {

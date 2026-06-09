@@ -56,7 +56,7 @@ final readonly class BudgetPdfDocumentRenderer
             . (
                 ($budget['budgetType'] ?? 'regular') === 'installment'
                     ? $this->tableRenderer->render(
-                        $this->installmentPeriodSection($installmentSection),
+                        $this->installmentPeriodSection($installmentSection, $budget),
                         $periodText,
                         $this->installmentRows($budget),
                         $this->installmentSummaryRow($budget),
@@ -151,9 +151,8 @@ final readonly class BudgetPdfDocumentRenderer
             $startTime = $this->installmentStartTime($item, $budget);
 
             for ($index = 0; $index < $periodCount; $index++) {
-                $rows[] = [
+                $row = [
                     (string) ($index + 1),
-                    (string) ($item['category'] ?? $item['label']),
                     $this->periodLabel($startTime, $index, $periodUnit),
                     $this->formatter->templateMoney((string) $item['budget']['currency'], $target['original']),
                     $this->formatter->templateMoney(
@@ -163,6 +162,12 @@ final readonly class BudgetPdfDocumentRenderer
                     ($periodProgress[$index] ?? false) ? 'X' : '',
                     (string) ($periodRemarks[$index] ?? ''),
                 ];
+
+                if ($this->shouldShowInstallmentCategory($budget)) {
+                    array_splice($row, 1, 0, [(string) ($item['category'] ?? $item['label'])]);
+                }
+
+                $rows[] = $row;
             }
         }
 
@@ -191,22 +196,27 @@ final readonly class BudgetPdfDocumentRenderer
                 : array_sum($periodAmounts) * (float) ($item['budget']['rateToBase'] ?? 1);
         }
 
-        return [
+        $row = [
             '',
             'Total',
-            '',
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $targetTotal, true),
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $periodTotal, true),
             '',
             '',
         ];
+
+        if ($this->shouldShowInstallmentCategory($budget)) {
+            array_splice($row, 2, 0, ['']);
+        }
+
+        return $row;
     }
 
-    private function installmentPeriodSection(array $section): array
+    private function installmentPeriodSection(array $section, array $budget): array
     {
-        return [
-            ...$section,
-            'columns' => [
+        $showCategory = $this->shouldShowInstallmentCategory($budget);
+        $columns = $showCategory
+            ? [
                 ['key' => 'sequence', 'label' => 'No.', 'align' => 'center', 'widthPercent' => 4, 'dataType' => 'text'],
                 ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'widthPercent' => 13, 'dataType' => 'text'],
                 ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'widthPercent' => 15, 'dataType' => 'text'],
@@ -214,8 +224,25 @@ final readonly class BudgetPdfDocumentRenderer
                 ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'widthPercent' => 19, 'dataType' => 'money'],
                 ['key' => 'progress', 'label' => 'Done', 'align' => 'center', 'widthPercent' => 5, 'dataType' => 'text'],
                 ['key' => 'remark', 'label' => 'Remark', 'align' => 'right', 'widthPercent' => 27, 'dataType' => 'text'],
-            ],
+            ]
+            : [
+                ['key' => 'sequence', 'label' => 'No.', 'align' => 'center', 'widthPercent' => 4, 'dataType' => 'text'],
+                ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'widthPercent' => 17, 'dataType' => 'text'],
+                ['key' => 'target_amount', 'label' => 'Target', 'align' => 'right', 'widthPercent' => 20, 'dataType' => 'money'],
+                ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'widthPercent' => 21, 'dataType' => 'money'],
+                ['key' => 'progress', 'label' => 'Done', 'align' => 'center', 'widthPercent' => 5, 'dataType' => 'text'],
+                ['key' => 'remark', 'label' => 'Remark', 'align' => 'right', 'widthPercent' => 33, 'dataType' => 'text'],
+            ];
+
+        return [
+            ...$section,
+            'columns' => $columns,
         ];
+    }
+
+    private function shouldShowInstallmentCategory(array $budget): bool
+    {
+        return ($budget['installmentDisplayMode'] ?? 'item') !== 'overall';
     }
 
     private function installmentPeriodAmounts(array $config): array

@@ -1,4 +1,4 @@
-import { Alert, Checkbox, Empty, Form, Modal, Select, Tabs, Timeline } from 'antd';
+import { Alert, Checkbox, Empty, Form, Modal, Radio, Select, Tabs, Timeline } from 'antd';
 import type { FormInstance } from 'antd';
 import { useI18n } from '../../i18n';
 import type {
@@ -33,6 +33,10 @@ export function BudgetInstallmentModal({
     { label: t('installmentPeriodWeek'), value: 'week' },
     { label: t('installmentPeriodMonth'), value: 'month' },
     { label: t('installmentPeriodYear'), value: 'year' },
+  ];
+  const displayModeOptions = [
+    { label: t('installmentDisplayModeItem'), value: 'item' },
+    { label: t('installmentDisplayModeOverall'), value: 'overall' },
   ];
 
   return (
@@ -75,6 +79,17 @@ export function BudgetInstallmentModal({
                   </Checkbox>
                   {isInstallmentBudget ? (
                     <div className="modal-form-grid installment-period-settings">
+                      <Form.Item
+                        label={t('installmentDisplayMode')}
+                        name="installmentDisplayMode"
+                        rules={[{ required: true, message: t('selectInstallmentDisplayMode') }]}
+                      >
+                        <Radio.Group
+                          block
+                          optionType="button"
+                          options={displayModeOptions}
+                        />
+                      </Form.Item>
                       <Form.Item
                         label={t('installmentPeriodUnit')}
                         name="installmentPeriodUnit"

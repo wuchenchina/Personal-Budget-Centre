@@ -24,6 +24,8 @@ export type BudgetStatus = 'draft' | 'active' | 'closed' | 'archived';
 
 export type BudgetType = 'regular' | 'installment';
 
+export type BudgetInstallmentDisplayMode = 'item' | 'overall';
+
 export type BudgetInstallmentPeriodUnit = 'day' | 'week' | 'month' | 'year';
 
 export type Visibility = 'private' | 'workspace' | 'custom';
@@ -306,6 +308,7 @@ export interface BudgetSummary {
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
   budgetType: BudgetType;
+  installmentDisplayMode: BudgetInstallmentDisplayMode;
   installmentPeriodUnit: BudgetInstallmentPeriodUnit;
   visibility: Visibility;
   status: BudgetStatus;

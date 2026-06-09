@@ -203,8 +203,10 @@ export function BudgetDocumentPreview({
   const installmentPeriodLabel = installmentPeriodUnitLabel(
     selectedBudget?.installmentPeriodUnit ?? 'month',
   );
+  const showInstallmentCategory = selectedBudget?.installmentDisplayMode !== 'overall';
   const installmentColumns = createInstallmentPeriodColumns(
     installmentPeriodLabel,
+    showInstallmentCategory,
     {
       category: 'Category',
       sequence: 'No.',
@@ -418,6 +420,7 @@ export function BudgetDocumentPreview({
                 summary={() => renderInstallmentSummary(
                   createInstallmentSummaryValues(selectedBudget, installmentRows),
                   'Total',
+                  showInstallmentCategory,
                 )}
                 tableLayout="fixed"
               />
@@ -462,6 +465,7 @@ interface InstallmentSummaryValues {
 
 function createInstallmentPeriodColumns(
   periodUnitLabel: string,
+  showCategory: boolean,
   labels: {
     category: string;
     sequence: string;
@@ -475,7 +479,7 @@ function createInstallmentPeriodColumns(
   entry: BudgetEntryController,
   editLabel: string,
 ): TableProps<InstallmentPeriodRow>['columns'] {
-  return [
+  const columns: TableProps<InstallmentPeriodRow>['columns'] = [
     {
       align: 'center',
       dataIndex: 'sequence',
@@ -484,30 +488,24 @@ function createInstallmentPeriodColumns(
       width: '4%',
     },
     {
-      dataIndex: 'category',
-      key: 'category',
-      title: labels.category,
-      width: '15%',
-    },
-    {
       dataIndex: 'periodLabel',
       key: 'period',
       title: labels.period,
-      width: '15%',
+      width: showCategory ? '15%' : '17%',
     },
     {
       align: 'right',
       dataIndex: 'targetAmount',
       key: 'targetAmount',
       title: labels.targetAmount,
-      width: '16%',
+      width: showCategory ? '16%' : '20%',
     },
     {
       align: 'right',
       dataIndex: 'periodAmount',
       key: 'periodAmount',
       title: labels.periodAmount,
-      width: '19%',
+      width: showCategory ? '19%' : '21%',
       render: (_value: number, row) => (
         <InlineInstallmentAmountCell
           currency={row.item.budget.currency}
@@ -554,7 +552,7 @@ function createInstallmentPeriodColumns(
       dataIndex: 'remarkText',
       key: 'remark',
       title: labels.remark,
-      width: '26%',
+      width: showCategory ? '26%' : '33%',
       render: (_value: string, row) => (
         <InlineTransactionRemarkCell
           disabled={entry.isBudgetItemSaving}
@@ -573,6 +571,17 @@ function createInstallmentPeriodColumns(
       ),
     },
   ];
+
+  if (showCategory) {
+    columns.splice(1, 0, {
+      dataIndex: 'category',
+      key: 'category',
+      title: labels.category,
+      width: '15%',
+    });
+  }
+
+  return columns;
 }
 
 function createInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow[] {
@@ -650,25 +659,33 @@ function installmentTarget(
   };
 }
 
-function renderInstallmentSummary(values: InstallmentSummaryValues | null, summaryLabel: string) {
+function renderInstallmentSummary(
+  values: InstallmentSummaryValues | null,
+  summaryLabel: string,
+  showCategory: boolean,
+) {
   if (values === null) {
     return null;
   }
 
+  const targetIndex = showCategory ? 3 : 2;
+  const amountIndex = showCategory ? 4 : 3;
+  const trailingStartIndex = showCategory ? 5 : 4;
+
   return (
     <Table.Summary>
       <Table.Summary.Row className="budget-summary-row">
-        <Table.Summary.Cell index={0}>{summaryLabel}</Table.Summary.Cell>
-        <Table.Summary.Cell index={1} />
-        <Table.Summary.Cell index={2} />
-        <Table.Summary.Cell className="budget-summary-number" index={3}>
+        <Table.Summary.Cell index={0} />
+        <Table.Summary.Cell index={1}>{summaryLabel}</Table.Summary.Cell>
+        {showCategory ? <Table.Summary.Cell index={2} /> : null}
+        <Table.Summary.Cell className="budget-summary-number" index={targetIndex}>
           {formatBudgetMoney(values.currency, values.targetTotal)}
         </Table.Summary.Cell>
-        <Table.Summary.Cell className="budget-summary-number" index={4}>
+        <Table.Summary.Cell className="budget-summary-number" index={amountIndex}>
           {formatBudgetMoney(values.currency, values.periodTotal)}
         </Table.Summary.Cell>
-        <Table.Summary.Cell index={5} />
-        <Table.Summary.Cell index={6} />
+        <Table.Summary.Cell index={trailingStartIndex} />
+        <Table.Summary.Cell index={trailingStartIndex + 1} />
       </Table.Summary.Row>
     </Table.Summary>
   );

@@ -1,6 +1,7 @@
 import { apiDelete, apiGet, apiPatch, apiPost } from './http';
 import type {
   BudgetDetail,
+  BudgetInstallmentDisplayMode,
   BudgetInstallmentPeriodUnit,
   BudgetStatus,
   BudgetSummary,
@@ -27,6 +28,7 @@ export interface CreateBudgetPayload {
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
   budgetType?: BudgetType;
+  installmentDisplayMode?: BudgetInstallmentDisplayMode;
   installmentPeriodUnit?: BudgetInstallmentPeriodUnit;
   visibility: Visibility;
   status?: BudgetStatus;

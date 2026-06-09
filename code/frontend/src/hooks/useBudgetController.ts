@@ -144,6 +144,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       baseCurrency,
       displayCurrency: baseCurrency,
       budgetType: 'regular',
+      installmentDisplayMode: 'item',
       installmentPeriodUnit: 'month',
       visibility: 'private',
       status: 'draft',
@@ -177,6 +178,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       baseCurrency: budget.baseCurrency,
       displayCurrency: budget.displayCurrency,
       budgetType: budget.budgetType,
+      installmentDisplayMode: budget.installmentDisplayMode,
       installmentPeriodUnit: budget.installmentPeriodUnit,
       visibility: budget.visibility,
       status: budget.status,
@@ -201,6 +203,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       baseCurrency: budget.baseCurrency,
       displayCurrency: budget.displayCurrency,
       budgetType: budget.budgetType,
+      installmentDisplayMode: budget.installmentDisplayMode,
       installmentPeriodUnit: budget.installmentPeriodUnit,
       visibility: budget.visibility,
       status: budget.status,
@@ -225,6 +228,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       baseCurrency: budget.baseCurrency,
       displayCurrency: budget.displayCurrency,
       budgetType: budget.budgetType,
+      installmentDisplayMode: budget.installmentDisplayMode,
       installmentPeriodUnit: budget.installmentPeriodUnit,
       visibility: budget.visibility,
       status: budget.status,
@@ -258,6 +262,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         baseCurrency: values.baseCurrency,
         displayCurrency: values.displayCurrency,
         budgetType: values.budgetType ?? 'regular',
+        installmentDisplayMode: values.installmentDisplayMode ?? 'item',
         installmentPeriodUnit: values.installmentPeriodUnit ?? 'month',
         visibility: values.visibility,
         status: values.status ?? 'draft',
@@ -275,6 +280,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
               baseCurrency: payload.baseCurrency,
               displayCurrency: payload.displayCurrency,
               budgetType: payload.budgetType,
+              installmentDisplayMode: payload.installmentDisplayMode,
               installmentPeriodUnit: payload.installmentPeriodUnit,
               visibility: payload.visibility,
               status: payload.status,
@@ -328,6 +334,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         baseCurrency: selectedBudget.baseCurrency,
         displayCurrency: selectedBudget.displayCurrency,
         budgetType: selectedBudget.budgetType,
+        installmentDisplayMode: selectedBudget.installmentDisplayMode,
         installmentPeriodUnit: selectedBudget.installmentPeriodUnit,
         visibility: selectedBudget.visibility,
         status: selectedBudget.status,
@@ -362,7 +369,11 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     }
 
     try {
-      const values = await budgetForm.validateFields(['budgetType', 'installmentPeriodUnit']);
+      const values = await budgetForm.validateFields([
+        'budgetType',
+        'installmentDisplayMode',
+        'installmentPeriodUnit',
+      ]);
       setIsBudgetSaving(true);
       setBudgetError(null);
       const savedBudget = await updateBudget({
@@ -374,6 +385,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         baseCurrency: selectedBudget.baseCurrency,
         displayCurrency: selectedBudget.displayCurrency,
         budgetType: values.budgetType ?? 'regular',
+        installmentDisplayMode: values.installmentDisplayMode ?? 'item',
         installmentPeriodUnit: values.installmentPeriodUnit ?? 'month',
         visibility: selectedBudget.visibility,
         status: selectedBudget.status,
@@ -430,6 +442,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         baseCurrency: selectedBudget.baseCurrency,
         displayCurrency: selectedBudget.displayCurrency,
         budgetType: selectedBudget.budgetType,
+        installmentDisplayMode: selectedBudget.installmentDisplayMode,
         installmentPeriodUnit: selectedBudget.installmentPeriodUnit,
         visibility: selectedBudget.visibility,
         status: selectedBudget.status,
@@ -476,6 +489,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         baseCurrency: sourceBudget.baseCurrency,
         displayCurrency: sourceBudget.displayCurrency,
         budgetType: sourceBudget.budgetType,
+        installmentDisplayMode: sourceBudget.installmentDisplayMode,
         installmentPeriodUnit: sourceBudget.installmentPeriodUnit,
         visibility: sourceBudget.visibility,
         status: nextStatus,

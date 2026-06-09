@@ -1,6 +1,7 @@
 import type { Dayjs } from 'dayjs';
 import type {
   BudgetInstallmentConfig,
+  BudgetInstallmentDisplayMode,
   BudgetInstallmentPeriodUnit,
   BudgetSignatureConfig,
   BudgetStatus,
@@ -49,6 +50,7 @@ export interface BudgetFormValues {
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
   budgetType: BudgetType;
+  installmentDisplayMode: BudgetInstallmentDisplayMode;
   installmentPeriodUnit: BudgetInstallmentPeriodUnit;
   visibility: Visibility;
   status: BudgetStatus;
