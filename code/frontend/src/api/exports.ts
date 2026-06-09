@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiUrl } from './http';
-import type { BudgetExport, BudgetExportFormat } from '../types/budget';
+import type { BudgetExport, BudgetExportFormat, BudgetExportOptions } from '../types/budget';
 
 interface ExportListResponse {
   exports: BudgetExport[];
@@ -18,8 +18,9 @@ export function listBudgetExports(budgetId: number): Promise<BudgetExport[]> {
 export function createBudgetExport(
   budgetId: number,
   format: BudgetExportFormat,
+  options: BudgetExportOptions = {},
 ): Promise<BudgetExport> {
-  return apiPost<ExportResponse>('/api/exports', { budgetId, format }).then(
+  return apiPost<ExportResponse>('/api/exports', { budgetId, format, ...options }).then(
     (payload) => payload.export,
   );
 }

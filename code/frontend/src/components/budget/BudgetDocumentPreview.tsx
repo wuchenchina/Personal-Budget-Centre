@@ -40,6 +40,8 @@ import {
 } from '../../i18n';
 import type {
   BudgetDetail,
+  BudgetExportChineseLanguage,
+  BudgetExportTableLanguageMode,
   BudgetItem,
   BudgetSignatureConfig,
   BudgetSignatureRow,
@@ -89,6 +91,169 @@ interface BudgetDocumentPreviewProps {
   transactionCategoryOptions: Array<{ label: string; value: number }>;
 }
 
+type BudgetTableLanguageMode = BudgetExportTableLanguageMode;
+type BudgetTableChineseLanguage = BudgetExportChineseLanguage;
+type BudgetColumnLabelStyle = 'single' | 'bilingual';
+type BudgetTemplateSection = BudgetTemplateDefinition['sections'][number];
+type BudgetTemplateColumn = BudgetTemplateSection['columns'][number];
+type BudgetTableLabel = {
+  primary: string;
+  secondary?: string;
+};
+
+const documentTableText = {
+  sc: {
+    budgetHighlightsTitle: '预算摘要',
+    columnLabels: {
+      amount: { primary: '金额' },
+      budget: { primary: '预算' },
+      category: { primary: '类别' },
+      estimated_actuals: { primary: '预估实际' },
+      period: { primary: '期间' },
+      progress: { primary: '进度' },
+      remark: { primary: '备注' },
+      sequence: { primary: '序号' },
+      target: { primary: '目标' },
+      transaction_details: { primary: '交易详情' },
+      variance: { primary: '差额' },
+    },
+    datePrefix: '日期：',
+    installmentPeriodLabels: {
+      day: '每日',
+      month: '每月',
+      week: '每周',
+      year: '每年',
+    },
+    installmentsTitle: '分期明细',
+    totalLabel: '总计',
+    transactionBreakdownTitle: '交易明细',
+  },
+  tc: {
+    budgetHighlightsTitle: '預算摘要',
+    columnLabels: {
+      amount: { primary: '金額' },
+      budget: { primary: '預算' },
+      category: { primary: '類別' },
+      estimated_actuals: { primary: '預估實際' },
+      period: { primary: '期間' },
+      progress: { primary: '進度' },
+      remark: { primary: '備註' },
+      sequence: { primary: '序號' },
+      target: { primary: '目標' },
+      transaction_details: { primary: '交易詳情' },
+      variance: { primary: '差額' },
+    },
+    datePrefix: '日期：',
+    installmentPeriodLabels: {
+      day: '每日',
+      month: '每月',
+      week: '每週',
+      year: '每年',
+    },
+    installmentsTitle: '分期明細',
+    totalLabel: '總計',
+    transactionBreakdownTitle: '交易明細',
+  },
+} satisfies Record<
+  BudgetTableChineseLanguage,
+  {
+    budgetHighlightsTitle: string;
+    columnLabels: Record<string, BudgetTableLabel>;
+    datePrefix: string;
+    installmentPeriodLabels: Record<BudgetDetail['installmentPeriodUnit'], string>;
+    installmentsTitle: string;
+    totalLabel: string;
+    transactionBreakdownTitle: string;
+  }
+>;
+
+function documentTableLabels(language: BudgetTableChineseLanguage) {
+  return documentTableText[language];
+}
+
+function localizeTemplateSection(
+  section: BudgetTemplateSection | undefined,
+  mode: BudgetTableLanguageMode,
+  chineseLanguage: BudgetTableChineseLanguage,
+): BudgetTemplateSection | undefined {
+  if (section === undefined || mode === 'en') {
+    return section;
+  }
+
+  const labels = documentTableLabels(chineseLanguage);
+  const sectionTitle =
+    section.key === 'budget_highlights'
+      ? labels.budgetHighlightsTitle
+      : section.key === 'transaction_breakdown'
+        ? labels.transactionBreakdownTitle
+        : section.title;
+
+  return {
+    ...section,
+    title: mode === 'bilingual' ? `${section.title} ${sectionTitle}` : sectionTitle,
+    columns: section.columns.map((column) => localizeTemplateColumn(column, mode, labels)),
+  };
+}
+
+function localizeTemplateColumn(
+  column: BudgetTemplateColumn,
+  mode: BudgetTableLanguageMode,
+  labels: ReturnType<typeof documentTableLabels>,
+): BudgetTemplateColumn {
+  const columnLabels: Record<string, BudgetTableLabel> = labels.columnLabels;
+  const localizedLabel = columnLabels[column.key]?.primary ?? column.label;
+
+  return {
+    ...column,
+    label: mode === 'bilingual' ? `${column.label}\n${localizedLabel}` : localizedLabel,
+  };
+}
+
+function tableLabel(
+  english: string,
+  chinese: string,
+  mode: BudgetTableLanguageMode,
+): BudgetTableLabel {
+  if (mode === 'bilingual') {
+    return { primary: english, secondary: chinese };
+  }
+
+  return { primary: mode === 'zh' ? chinese : english };
+}
+
+function documentText(
+  english: string,
+  chinese: string,
+  mode: BudgetTableLanguageMode,
+): string {
+  if (mode === 'bilingual') {
+    return `${english} ${chinese}`;
+  }
+
+  return mode === 'zh' ? chinese : english;
+}
+
+function documentDatePrefix(chinese: string, mode: BudgetTableLanguageMode): string {
+  if (mode === 'bilingual') {
+    return `Date: ${chinese}`;
+  }
+
+  return mode === 'zh' ? chinese : 'Date: ';
+}
+
+function renderBudgetColumnTitle(label: BudgetTableLabel, style: BudgetColumnLabelStyle) {
+  if (style === 'bilingual' && label.secondary) {
+    return (
+      <span className="budget-column-title-stack">
+        <span>{label.primary}</span>
+        <small>{label.secondary}</small>
+      </span>
+    );
+  }
+
+  return label.primary;
+}
+
 export function BudgetDocumentPreview({
   selectedBudget,
   template,
@@ -111,16 +276,38 @@ export function BudgetDocumentPreview({
   transactionCategoryOptions,
 }: BudgetDocumentPreviewProps) {
   const { language, t } = useI18n();
+  const [tableLanguageMode, setTableLanguageMode] = useState<BudgetTableLanguageMode>('en');
+  const [tableChineseLanguage, setTableChineseLanguage] = useState<BudgetTableChineseLanguage>(
+    language === 'sc' ? 'sc' : 'tc',
+  );
   const budgetHighlights = template?.sections.find(
     (section) => section.key === 'budget_highlights',
   );
   const transactionBreakdown = template?.sections.find(
     (section) => section.key === 'transaction_breakdown',
   );
+  const localizedBudgetHighlights = useMemo(
+    () => localizeTemplateSection(budgetHighlights, tableLanguageMode, tableChineseLanguage),
+    [budgetHighlights, tableChineseLanguage, tableLanguageMode],
+  );
+  const localizedTransactionBreakdown = useMemo(
+    () => localizeTemplateSection(transactionBreakdown, tableLanguageMode, tableChineseLanguage),
+    [tableChineseLanguage, tableLanguageMode, transactionBreakdown],
+  );
+  const documentLabels = documentTableLabels(tableChineseLanguage);
+  const datePrefix = documentDatePrefix(documentLabels.datePrefix, tableLanguageMode);
+  const installmentsTitle = documentText(
+    'Installments',
+    documentLabels.installmentsTitle,
+    tableLanguageMode,
+  );
+  const totalLabel = documentText('Total', documentLabels.totalLabel, tableLanguageMode);
+  const columnLabelStyle: BudgetColumnLabelStyle =
+    tableLanguageMode === 'bilingual' ? 'bilingual' : 'single';
   const budgetColumns = useMemo(
     () => {
       const columns = createBudgetItemColumns(
-        budgetHighlights?.columns ?? [],
+        localizedBudgetHighlights?.columns ?? [],
         selectedBudget?.baseCurrency ?? baseCurrency,
         selectedBudget?.transactions ?? [],
       );
@@ -146,10 +333,10 @@ export function BudgetDocumentPreview({
     },
     [
       baseCurrency,
-      budgetHighlights,
       canWriteBudgets,
       categoryOptions,
       entry,
+      localizedBudgetHighlights,
       selectedBudget?.baseCurrency,
       selectedBudget?.transactions,
       t,
@@ -159,7 +346,7 @@ export function BudgetDocumentPreview({
     () =>
       appendTransactionActions(
         appendTransactionQuickEditors(
-          createTransactionColumns(transactionBreakdown?.columns ?? []),
+          createTransactionColumns(localizedTransactionBreakdown?.columns ?? []),
           canWriteBudgets,
           entry,
           transactionCategoryOptions,
@@ -181,7 +368,7 @@ export function BudgetDocumentPreview({
       entry,
       selectedBudget?.baseCurrency,
       t,
-      transactionBreakdown,
+      localizedTransactionBreakdown,
       transactionCategoryOptions,
     ],
   );
@@ -200,22 +387,19 @@ export function BudgetDocumentPreview({
     { label: visibilityLabelsByLanguage[language].custom, value: 'custom' },
   ];
   const installmentRows = selectedBudget === null ? [] : createInstallmentPeriodRows(selectedBudget);
-  const installmentPeriodLabel = installmentPeriodUnitLabel(
-    selectedBudget?.installmentPeriodUnit ?? 'month',
-  );
   const showInstallmentCategory = selectedBudget?.installmentDisplayMode !== 'overall';
   const installmentColumns = createInstallmentPeriodColumns(
-    installmentPeriodLabel,
     showInstallmentCategory,
     {
-      category: 'Category',
-      sequence: 'No.',
-      period: 'Period',
-      periodAmount: 'Amount',
-      progress: 'Progress',
-      remark: 'Remark',
-      targetAmount: 'Target',
+      category: tableLabel('Category', documentLabels.columnLabels.category.primary, tableLanguageMode),
+      sequence: tableLabel('No.', documentLabels.columnLabels.sequence.primary, tableLanguageMode),
+      period: tableLabel('Period', documentLabels.columnLabels.period.primary, tableLanguageMode),
+      periodAmount: tableLabel('Amount', documentLabels.columnLabels.amount.primary, tableLanguageMode),
+      progress: tableLabel('Progress', documentLabels.columnLabels.progress.primary, tableLanguageMode),
+      remark: tableLabel('Remark', documentLabels.columnLabels.remark.primary, tableLanguageMode),
+      targetAmount: tableLabel('Target', documentLabels.columnLabels.target.primary, tableLanguageMode),
     },
+    columnLabelStyle,
     canWriteBudgets,
     entry,
     t('edit'),
@@ -279,10 +463,37 @@ export function BudgetDocumentPreview({
             icon={<Download size={13} />}
             loading={operations.creatingExportFormat === 'pdf'}
             size="small"
-            onClick={() => operations.createExport('pdf')}
+            onClick={() => operations.createExport('pdf', {
+              tableChineseLanguage,
+              tableLanguageMode,
+            })}
           >
             PDF
           </Button>
+        </div>
+        <div className="budget-table-language-controls">
+          <span className="budget-export-label">{t('tableLanguage')}</span>
+          <Segmented<BudgetTableLanguageMode>
+            options={[
+              { label: t('tableLanguageEnglish'), value: 'en' },
+              { label: t('tableLanguageChinese'), value: 'zh' },
+              { label: t('tableLanguageBilingual'), value: 'bilingual' },
+            ]}
+            size="small"
+            value={tableLanguageMode}
+            onChange={setTableLanguageMode}
+          />
+          {tableLanguageMode !== 'en' ? (
+            <Segmented<BudgetTableChineseLanguage>
+              options={[
+                { label: t('tableChineseTraditional'), value: 'tc' },
+                { label: t('tableChineseSimplified'), value: 'sc' },
+              ]}
+              size="small"
+              value={tableChineseLanguage}
+              onChange={setTableChineseLanguage}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -332,7 +543,7 @@ export function BudgetDocumentPreview({
 
           <div className="budget-table-frame">
             <div className="budget-section-title budget-section-title-row">
-              <span>{budgetHighlights?.title}</span>
+              <span>{localizedBudgetHighlights?.title}</span>
               {canWriteBudgets ? (
                 <Button
                   icon={<Plus size={14} />}
@@ -346,7 +557,7 @@ export function BudgetDocumentPreview({
             </div>
             {budgetDateText ? (
               <div className="budget-section-date">
-                Date:
+                {datePrefix}
                 {budgetDateText}
               </div>
             ) : null}
@@ -359,14 +570,18 @@ export function BudgetDocumentPreview({
               pagination={false}
               rowKey="id"
               size="small"
-              summary={() => renderBudgetSummary(budgetColumns, selectedBudget, t('totalBudgetLabel'))}
+              summary={() => renderBudgetSummary(
+                budgetColumns,
+                selectedBudget,
+                totalLabel,
+              )}
               tableLayout="fixed"
             />
           </div>
 
           <div className="budget-table-frame">
             <div className="budget-section-title budget-section-title-row">
-              <span>{transactionBreakdown?.title}</span>
+              <span>{localizedTransactionBreakdown?.title}</span>
               {canWriteBudgets ? (
                 <Button
                   icon={<Plus size={14} />}
@@ -380,7 +595,7 @@ export function BudgetDocumentPreview({
             </div>
             {budgetDateText ? (
               <div className="budget-section-date">
-                Date:
+                {datePrefix}
                 {budgetDateText}
               </div>
             ) : null}
@@ -400,11 +615,11 @@ export function BudgetDocumentPreview({
           {selectedBudget.budgetType === 'installment' ? (
             <div className="budget-table-frame">
               <div className="budget-section-title budget-section-title-row">
-                <span>Installments</span>
+                <span>{installmentsTitle}</span>
               </div>
               {budgetDateText ? (
                 <div className="budget-section-date">
-                  Date:
+                  {datePrefix}
                   {budgetDateText}
                 </div>
               ) : null}
@@ -419,7 +634,7 @@ export function BudgetDocumentPreview({
                 size="small"
                 summary={() => renderInstallmentSummary(
                   createInstallmentSummaryValues(selectedBudget, installmentRows),
-                  'Total',
+                  totalLabel,
                   showInstallmentCategory,
                 )}
                 tableLayout="fixed"
@@ -472,55 +687,70 @@ interface InstallmentSummaryValues {
 }
 
 function createInstallmentPeriodColumns(
-  periodUnitLabel: string,
   showCategory: boolean,
   labels: {
-    category: string;
-    sequence: string;
-    period: string;
-    periodAmount: string;
-    progress: string;
-    remark: string;
-    targetAmount: string;
+    category: BudgetTableLabel;
+    sequence: BudgetTableLabel;
+    period: BudgetTableLabel;
+    periodAmount: BudgetTableLabel;
+    progress: BudgetTableLabel;
+    remark: BudgetTableLabel;
+    targetAmount: BudgetTableLabel;
   },
+  labelStyle: BudgetColumnLabelStyle,
   canWriteBudgets: boolean,
   entry: BudgetEntryController,
   editLabel: string,
 ): TableProps<InstallmentPeriodRow>['columns'] {
+  const title = (label: BudgetTableLabel) => renderBudgetColumnTitle(label, labelStyle);
+  const hasChineseLabels = labels.sequence.primary !== 'No.' || labels.sequence.secondary !== undefined;
+  const sequenceWidth = hasChineseLabels ? '6%' : '4%';
+  const categoryWidth = hasChineseLabels ? '14%' : '15%';
+  const periodWidth = showCategory
+    ? hasChineseLabels ? '14%' : '15%'
+    : hasChineseLabels ? '17%' : '17%';
+  const periodAmountWidth = showCategory
+    ? hasChineseLabels ? '17%' : '19%'
+    : hasChineseLabels ? '23%' : '21%';
+  const targetAmountWidth = showCategory
+    ? hasChineseLabels ? '17%' : '16%'
+    : hasChineseLabels ? '19%' : '20%';
+  const remarkWidth = showCategory
+    ? hasChineseLabels ? '27%' : '26%'
+    : hasChineseLabels ? '30%' : '33%';
   const columns: TableProps<InstallmentPeriodRow>['columns'] = [
     {
       align: 'center',
       dataIndex: 'sequence',
       key: 'sequence',
-      title: labels.sequence,
-      width: '4%',
+      title: title(labels.sequence),
+      width: sequenceWidth,
     },
     {
       dataIndex: 'periodLabel',
       key: 'period',
-      title: labels.period,
-      width: showCategory ? '15%' : '17%',
+      title: title(labels.period),
+      width: periodWidth,
     },
     {
       align: 'right',
       dataIndex: 'targetAmount',
       key: 'targetAmount',
-      title: labels.targetAmount,
-      width: showCategory ? '16%' : '20%',
+      title: title(labels.targetAmount),
+      width: targetAmountWidth,
     },
     {
       align: 'right',
       dataIndex: 'periodAmount',
       key: 'periodAmount',
-      title: labels.periodAmount,
-      width: showCategory ? '19%' : '21%',
+      title: title(labels.periodAmount),
+      width: periodAmountWidth,
       render: (_value: number, row) => (
         <InlineInstallmentAmountCell
           currency={row.currency}
           disabled={entry.isBudgetItemSaving}
           editable={canWriteBudgets}
           editLabel={editLabel}
-          periodUnitLabel={periodUnitLabel}
           value={row.periodAmount}
           onCommit={(nextValue) => {
             if (row.item === undefined) {
@@ -542,7 +772,7 @@ function createInstallmentPeriodColumns(
       align: 'center',
       dataIndex: 'progressChecked',
       key: 'progress',
-      title: <Check aria-label={labels.progress} size={12} />,
+      title: <Check aria-label={labels.progress.primary} size={12} />,
       width: '5%',
       render: (_value: boolean, row) => (
         <Checkbox
@@ -568,8 +798,8 @@ function createInstallmentPeriodColumns(
     {
       dataIndex: 'remarkText',
       key: 'remark',
-      title: labels.remark,
-      width: showCategory ? '26%' : '33%',
+      title: title(labels.remark),
+      width: remarkWidth,
       render: (_value: string, row) => (
         <InlineTransactionRemarkCell
           disabled={entry.isBudgetItemSaving}
@@ -597,8 +827,8 @@ function createInstallmentPeriodColumns(
     columns.splice(1, 0, {
       dataIndex: 'category',
       key: 'category',
-      title: labels.category,
-      width: '15%',
+      title: title(labels.category),
+      width: categoryWidth,
     });
   }
 
@@ -837,7 +1067,6 @@ function InlineInstallmentAmountCell({
   disabled,
   editable,
   editLabel,
-  periodUnitLabel,
   value,
   onCommit,
 }: {
@@ -845,7 +1074,6 @@ function InlineInstallmentAmountCell({
   disabled: boolean;
   editable: boolean;
   editLabel: string;
-  periodUnitLabel: string;
   value: number;
   onCommit: (value: number) => void;
 }) {
@@ -889,7 +1117,6 @@ function InlineInstallmentAmountCell({
       <span className="budget-installment-amount-readonly">
         <span className="budget-installment-period-amount">
           {formatBudgetMoney(currency, value)}
-          <small>{periodUnitLabel}</small>
         </span>
         {editable ? (
           <Tooltip title={editLabel}>
@@ -1017,15 +1244,6 @@ function formatInstallmentPeriodLabel(
   }
 
   return startDate.add(periodIndex, 'month').format('MMMM YYYY');
-}
-
-function installmentPeriodUnitLabel(unit: BudgetDetail['installmentPeriodUnit']): string {
-  return {
-    day: 'Daily',
-    week: 'Weekly',
-    month: 'Monthly',
-    year: 'Yearly',
-  }[unit];
 }
 
 function BudgetEditableHeader({

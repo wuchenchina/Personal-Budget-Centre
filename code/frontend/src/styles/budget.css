@@ -34,6 +34,7 @@
 .budget-export-strip {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   min-height: 48px;
   padding: 9px 16px;
@@ -50,6 +51,19 @@
 
 .budget-export-actions {
   gap: 10px;
+}
+
+.budget-table-language-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.budget-table-language-controls .ant-segmented {
+  flex: 0 0 auto;
 }
 
 .budget-export-label {
@@ -243,6 +257,7 @@
 .budget-section-title {
   background: #a4a4a4;
   font-size: 10.5pt;
+  white-space: pre-line;
 }
 
 .budget-section-title-row {
@@ -325,6 +340,19 @@
   color: #111;
   font-size: 7.5pt;
   font-weight: 400;
+  white-space: pre-line;
+}
+
+.budget-column-title-stack {
+  display: inline-grid;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.budget-column-title-stack small {
+  color: #333;
+  font-size: 6.5pt;
+  line-height: 1.15;
 }
 
 .budget-table-frame .ant-table-tbody > tr > td {

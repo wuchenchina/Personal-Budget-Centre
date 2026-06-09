@@ -22,15 +22,20 @@ final readonly class BudgetPdfRenderer
         $this->documentRenderer = $documentRenderer ?? new BudgetPdfDocumentRenderer();
     }
 
-    public function write(array $budget, array $template, string $path, string $tempDir): void
-    {
+    public function write(
+        array $budget,
+        array $template,
+        string $path,
+        string $tempDir,
+        array $options = [],
+    ): void {
         $mpdf = new Mpdf($this->configFactory->config($tempDir));
-        $mpdf->WriteHTML($this->renderHtml($budget, $template));
+        $mpdf->WriteHTML($this->renderHtml($budget, $template, $options));
         $mpdf->Output($path, 'F');
     }
 
-    public function renderHtml(array $budget, array $template): string
+    public function renderHtml(array $budget, array $template, array $options = []): string
     {
-        return $this->documentRenderer->render($budget, $template);
+        return $this->documentRenderer->render($budget, $template, $options);
     }
 }

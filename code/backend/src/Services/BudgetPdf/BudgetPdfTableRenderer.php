@@ -40,16 +40,18 @@ final readonly class BudgetPdfTableRenderer
         array $rows,
         ?array $summaryRow,
         string $emptyText,
+        string $datePrefix = 'Date: ',
     ): string {
         $columns = $section['columns'] ?? [];
         $colspan = max(1, count($columns));
         $colgroup = $this->colgroupHtml($columns);
         $dateLine = $periodText === ''
             ? ''
-            : '<div class="date-line">Date: ' . $this->formatter->escapeHtml($periodText) . '</div>';
+            : '<div class="date-line">' . $this->formatter->escapeHtml($datePrefix)
+                . $this->formatter->escapeHtml($periodText) . '</div>';
         $html = '<div class="template-section">'
             . '<table class="template-table section-band"><tbody><tr><td>'
-            . $this->formatter->escapeHtml((string) ($section['title'] ?? ''))
+            . $this->formatter->templateCellText((string) ($section['title'] ?? ''))
             . '</td></tr></tbody></table>'
             . $dateLine
             . '<table class="template-table column-table">' . $colgroup . '<tbody><tr>';
@@ -58,7 +60,7 @@ final readonly class BudgetPdfTableRenderer
             $html .= '<th class="' . trim($this->headerBorderClass($index, count($columns)) . ' ' . $this->columnClass($column)) . '"'
                 . $this->cellWidthStyle($column)
                 . '>'
-                . $this->formatter->escapeHtml((string) $column['label'])
+                . $this->formatter->templateCellText((string) $column['label'])
                 . '</th>';
         }
 

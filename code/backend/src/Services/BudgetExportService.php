@@ -55,13 +55,14 @@ final readonly class BudgetExportService
             ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
 
         $repository = new BudgetExportRepository($this->pdo);
+        $pdfOptions = $this->pdfOptions($input);
         $fileName = $this->fileName($budget, $format);
         $path = $this->storagePath($fileName);
         $this->ensureStorageDirectory(dirname($path));
 
         try {
             match ($format) {
-                'pdf' => $this->writePdf($budget, $path),
+                'pdf' => $this->writePdf($budget, $path, $pdfOptions),
             };
         } catch (AuthException $exception) {
             throw $exception;
@@ -116,12 +117,31 @@ final readonly class BudgetExportService
         );
     }
 
-    private function writePdf(array $budget, string $path): void
+    private function writePdf(array $budget, string $path, array $options): void
     {
         $tempDir = $this->mpdfTempRoot();
         $this->ensureStorageDirectory($tempDir);
 
-        (new BudgetPdfRenderer())->write($budget, $this->templateForBudget($budget), $path, $tempDir);
+        (new BudgetPdfRenderer())->write($budget, $this->templateForBudget($budget), $path, $tempDir, $options);
+    }
+
+    private function pdfOptions(array $input): array
+    {
+        $tableLanguageMode = Input::string(
+            $input['tableLanguageMode'] ?? $input['table_language_mode'] ?? null,
+        ) ?? 'en';
+        $tableChineseLanguage = Input::string(
+            $input['tableChineseLanguage'] ?? $input['table_chinese_language'] ?? null,
+        ) ?? 'tc';
+
+        return [
+            'tableLanguageMode' => in_array($tableLanguageMode, ['en', 'zh', 'bilingual'], true)
+                ? $tableLanguageMode
+                : 'en',
+            'tableChineseLanguage' => in_array($tableChineseLanguage, ['sc', 'tc'], true)
+                ? $tableChineseLanguage
+                : 'tc',
+        ];
     }
 
     private function templateForBudget(array $budget): array

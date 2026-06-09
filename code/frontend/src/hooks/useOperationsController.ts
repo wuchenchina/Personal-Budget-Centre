@@ -29,6 +29,7 @@ import type {
   BudgetCategory,
   BudgetDetail,
   BudgetExportFormat,
+  BudgetExportOptions,
   BudgetShare,
   BudgetSharePrincipalType,
   BudgetShareRole,
@@ -357,7 +358,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     }
   };
 
-  const createExport = async (format: BudgetExportFormat) => {
+  const createExport = async (format: BudgetExportFormat, exportOptions: BudgetExportOptions = {}) => {
     if (selectedBudget === null) {
       setOperationsError(translateCurrent('selectBudgetFirst'));
 
@@ -368,7 +369,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     setOperationsError(null);
 
     try {
-      const nextExport = await createBudgetExport(selectedBudget.id, format);
+      const nextExport = await createBudgetExport(selectedBudget.id, format, exportOptions);
       triggerExportDownload(exportDownloadUrl(nextExport));
     } catch (error: unknown) {
       setOperationsError(error instanceof Error ? error.message : translateCurrent('authFailed'));

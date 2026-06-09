@@ -237,6 +237,13 @@ export interface BudgetCategory {
 }
 
 export type BudgetExportFormat = 'pdf';
+export type BudgetExportTableLanguageMode = 'en' | 'zh' | 'bilingual';
+export type BudgetExportChineseLanguage = 'sc' | 'tc';
+
+export interface BudgetExportOptions {
+  tableLanguageMode?: BudgetExportTableLanguageMode;
+  tableChineseLanguage?: BudgetExportChineseLanguage;
+}
 
 export interface BudgetExport {
   id: number;

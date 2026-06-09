@@ -6,6 +6,69 @@ namespace BudgetCentre\Services\BudgetPdf;
 
 final readonly class BudgetPdfDocumentRenderer
 {
+    private const TABLE_TEXT = [
+        'sc' => [
+            'budgetHighlightsTitle' => '预算摘要',
+            'datePrefix' => '日期：',
+            'emptyBudgetItems' => '暂无预算项',
+            'emptyInstallments' => '暂无分期目标',
+            'emptyTransactions' => '暂无交易',
+            'installmentsTitle' => '分期明细',
+            'total' => '总计',
+            'transactionBreakdownTitle' => '交易明细',
+            'columnLabels' => [
+                'amount' => '金额',
+                'budget' => '预算',
+                'category' => '类别',
+                'estimated_actuals' => '预估实际',
+                'period' => '期间',
+                'period_amount' => '金额',
+                'progress' => '进度',
+                'remark' => '备注',
+                'sequence' => '序号',
+                'target_amount' => '目标',
+                'transaction_details' => '交易详情',
+                'variance' => '差额',
+            ],
+            'periodUnits' => [
+                'day' => '日',
+                'month' => '月',
+                'week' => '周',
+                'year' => '年',
+            ],
+        ],
+        'tc' => [
+            'budgetHighlightsTitle' => '預算摘要',
+            'datePrefix' => '日期：',
+            'emptyBudgetItems' => '暫無預算項',
+            'emptyInstallments' => '暫無分期目標',
+            'emptyTransactions' => '暫無交易',
+            'installmentsTitle' => '分期明細',
+            'total' => '總計',
+            'transactionBreakdownTitle' => '交易明細',
+            'columnLabels' => [
+                'amount' => '金額',
+                'budget' => '預算',
+                'category' => '類別',
+                'estimated_actuals' => '預估實際',
+                'period' => '期間',
+                'period_amount' => '金額',
+                'progress' => '進度',
+                'remark' => '備註',
+                'sequence' => '序號',
+                'target_amount' => '目標',
+                'transaction_details' => '交易詳情',
+                'variance' => '差額',
+            ],
+            'periodUnits' => [
+                'day' => '日',
+                'month' => '月',
+                'week' => '週',
+                'year' => '年',
+            ],
+        ],
+    ];
+
     public function __construct(
         private BudgetPdfFormatter $formatter = new BudgetPdfFormatter(),
         private BudgetPdfTableRenderer $tableRenderer = new BudgetPdfTableRenderer(),
@@ -13,8 +76,9 @@ final readonly class BudgetPdfDocumentRenderer
     ) {
     }
 
-    public function render(array $budget, array $template): string
+    public function render(array $budget, array $template, array $options = []): string
     {
+        $tableContext = $this->tableContext($options);
         $title = trim((string) $budget['title']);
         $subtitle = trim((string) $budget['ownerName']);
         $titleHtml = $title === ''
@@ -25,12 +89,21 @@ final readonly class BudgetPdfDocumentRenderer
             : '<div class="subtitle">' . $this->multilineBlockHtml($subtitle, 'subtitle-line') . '</div>';
         $periodText = $this->formatter->periodText($budget);
         $sections = $this->sectionsByKey($template);
-        $budgetSection = $sections['budget_highlights'] ?? $this->defaultBudgetSection();
-        $transactionSection = $sections['transaction_breakdown'] ?? $this->defaultTransactionSection();
-        $installmentSection = $sections['installments'] ?? $this->defaultInstallmentSection();
+        $budgetSection = $this->localizedTemplateSection(
+            $sections['budget_highlights'] ?? $this->defaultBudgetSection(),
+            $tableContext,
+        );
+        $transactionSection = $this->localizedTemplateSection(
+            $sections['transaction_breakdown'] ?? $this->defaultTransactionSection(),
+            $tableContext,
+        );
+        $installmentSection = $this->localizedTemplateSection(
+            $sections['installments'] ?? $this->defaultInstallmentSection(),
+            $tableContext,
+        );
         $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
 
-        return '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        return '<!doctype html><html lang="' . $this->documentLanguage($tableContext) . '"><head><meta charset="utf-8">'
             . '<style>'
             . $this->baseCss()
             . $this->tableRenderer->css()
@@ -42,25 +115,28 @@ final readonly class BudgetPdfDocumentRenderer
             . $this->tableRenderer->render(
                 $budgetSection,
                 $periodText,
-                $this->budgetRows($budget, $transactions),
-                $this->summaryRow($budget),
-                'No budget items',
+                $this->budgetRows($budget, $transactions, $tableContext),
+                $this->summaryRow($budget, $tableContext),
+                $this->tableText('No budget items', $tableContext['labels']['emptyBudgetItems'], $tableContext),
+                $this->datePrefix($tableContext),
             )
             . $this->tableRenderer->render(
                 $transactionSection,
                 $periodText,
                 $this->transactionRows($transactions, (string) $budget['baseCurrency']),
                 null,
-                'No transactions',
+                $this->tableText('No transactions', $tableContext['labels']['emptyTransactions'], $tableContext),
+                $this->datePrefix($tableContext),
             )
             . (
                 ($budget['budgetType'] ?? 'regular') === 'installment'
                     ? $this->tableRenderer->render(
-                        $this->installmentPeriodSection($installmentSection, $budget),
+                        $this->installmentPeriodSection($installmentSection, $budget, $tableContext),
                         $periodText,
-                        $this->installmentRows($budget),
-                        $this->installmentSummaryRow($budget),
-                        'No installment targets',
+                        $this->installmentRows($budget, $tableContext),
+                        $this->installmentSummaryRow($budget, $tableContext),
+                        $this->tableText('No installment targets', $tableContext['labels']['emptyInstallments'], $tableContext),
+                        $this->datePrefix($tableContext),
                     )
                     : ''
             )
@@ -80,6 +156,87 @@ final readonly class BudgetPdfDocumentRenderer
             . '.page-footer{font-family:"SF-Mono",TCSongti,monospace;font-size:7pt;color:#666;text-align:center;}';
     }
 
+    private function tableContext(array $options): array
+    {
+        $mode = $options['tableLanguageMode'] ?? 'en';
+        $chineseLanguage = $options['tableChineseLanguage'] ?? 'tc';
+        $mode = in_array($mode, ['en', 'zh', 'bilingual'], true) ? (string) $mode : 'en';
+        $chineseLanguage = in_array($chineseLanguage, ['sc', 'tc'], true)
+            ? (string) $chineseLanguage
+            : 'tc';
+
+        return [
+            'mode' => $mode,
+            'chineseLanguage' => $chineseLanguage,
+            'labels' => self::TABLE_TEXT[$chineseLanguage],
+        ];
+    }
+
+    private function localizedTemplateSection(array $section, array $context): array
+    {
+        if ($context['mode'] === 'en') {
+            return $section;
+        }
+
+        $title = match ((string) ($section['key'] ?? '')) {
+            'budget_highlights' => $context['labels']['budgetHighlightsTitle'],
+            'transaction_breakdown' => $context['labels']['transactionBreakdownTitle'],
+            'installments' => $context['labels']['installmentsTitle'],
+            default => (string) ($section['title'] ?? ''),
+        };
+
+        return [
+            ...$section,
+            'title' => $context['mode'] === 'bilingual'
+                ? (string) ($section['title'] ?? '') . ' ' . $title
+                : $title,
+            'columns' => array_map(
+                fn (array $column): array => $this->localizedTemplateColumn($column, $context),
+                is_array($section['columns'] ?? null) ? $section['columns'] : [],
+            ),
+        ];
+    }
+
+    private function localizedTemplateColumn(array $column, array $context): array
+    {
+        $localizedLabel = $context['labels']['columnLabels'][(string) ($column['key'] ?? '')]
+            ?? (string) ($column['label'] ?? '');
+
+        return [
+            ...$column,
+            'label' => $context['mode'] === 'bilingual'
+                ? (string) ($column['label'] ?? '') . "\n" . $localizedLabel
+                : $localizedLabel,
+        ];
+    }
+
+    private function tableText(string $english, string $chinese, array $context): string
+    {
+        if ($context['mode'] === 'bilingual') {
+            return $english . ' ' . $chinese;
+        }
+
+        return $context['mode'] === 'zh' ? $chinese : $english;
+    }
+
+    private function datePrefix(array $context): string
+    {
+        if ($context['mode'] === 'bilingual') {
+            return 'Date: ' . $context['labels']['datePrefix'];
+        }
+
+        return $context['mode'] === 'zh' ? $context['labels']['datePrefix'] : 'Date: ';
+    }
+
+    private function documentLanguage(array $context): string
+    {
+        if ($context['mode'] === 'en') {
+            return 'en';
+        }
+
+        return $context['chineseLanguage'] === 'sc' ? 'zh-Hans' : 'zh-Hant';
+    }
+
     private function multilineBlockHtml(string $value, string $lineClass): string
     {
         $lines = preg_split('/\R/u', $value);
@@ -96,14 +253,14 @@ final readonly class BudgetPdfDocumentRenderer
         ));
     }
 
-    private function budgetRows(array $budget, array $transactions): array
+    private function budgetRows(array $budget, array $transactions, array $context): array
     {
         return array_map(
-            function (array $item) use ($budget, $transactions): array {
+            function (array $item) use ($budget, $transactions, $context): array {
                 $effective = $this->effectiveItemAmounts($item, $transactions);
 
                 return [
-                    $this->itemLabelWithInstallment($item),
+                    $this->itemLabelWithInstallment($item, $context),
                     $this->moneyWithSecondary((string) $budget['baseCurrency'], $effective['budgetBase'], $item['budget'] ?? []),
                     $this->moneyWithTransactionBreakdown((string) $budget['baseCurrency'], $effective['estimatedBase'], $effective['estimatedTransactionTotals']),
                     $this->formatter->templateMoney((string) $budget['baseCurrency'], $effective['varianceBase']),
@@ -126,7 +283,7 @@ final readonly class BudgetPdfDocumentRenderer
         );
     }
 
-    private function installmentRows(array $budget): array
+    private function installmentRows(array $budget, array $context): array
     {
         $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
         $itemRows = [];
@@ -175,8 +332,7 @@ final readonly class BudgetPdfDocumentRenderer
                     $row['category'],
                     $row['periodLabel'],
                     $this->formatter->templateMoney($row['currency'], (float) $row['targetOriginal']),
-                    $this->formatter->templateMoney($row['currency'], (float) $row['periodAmount'])
-                        . ' / ' . $this->periodUnitShortText($periodUnit),
+                    $this->formatter->templateMoney($row['currency'], (float) $row['periodAmount']),
                     $row['progress'] ? 'X' : '',
                     $row['remark'],
                 ],
@@ -213,8 +369,7 @@ final readonly class BudgetPdfDocumentRenderer
                 (string) ($periodIndex + 1),
                 (string) $row['periodLabel'],
                 $this->formatter->templateMoney((string) $budget['baseCurrency'], $targetTotalBase),
-                $this->formatter->templateMoney((string) $budget['baseCurrency'], (float) $row['periodAmountBase'])
-                    . ' / ' . $this->periodUnitShortText($periodUnit),
+                $this->formatter->templateMoney((string) $budget['baseCurrency'], (float) $row['periodAmountBase']),
                 $row['sourceCount'] > 0 && $row['checkedCount'] === $row['sourceCount'] ? 'X' : '',
                 count($remarks) === 1 ? $remarks[0] : '',
             ];
@@ -223,7 +378,7 @@ final readonly class BudgetPdfDocumentRenderer
         return $rows;
     }
 
-    private function installmentSummaryRow(array $budget): array
+    private function installmentSummaryRow(array $budget, array $context): array
     {
         $items = is_array($budget['items'] ?? null) ? $budget['items'] : [];
         $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
@@ -251,7 +406,7 @@ final readonly class BudgetPdfDocumentRenderer
 
         $row = [
             '',
-            'Total',
+            $this->tableText('Total', $context['labels']['total'], $context),
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $targetTotal, true),
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $periodTotal, true),
             '',
@@ -265,31 +420,44 @@ final readonly class BudgetPdfDocumentRenderer
         return $row;
     }
 
-    private function installmentPeriodSection(array $section, array $budget): array
+    private function installmentPeriodSection(array $section, array $budget, array $context): array
     {
         $showCategory = $this->shouldShowInstallmentCategory($budget);
+        $sequenceWidth = $context['mode'] === 'en' ? 4 : 6;
+        $targetWidth = $showCategory
+            ? ($context['mode'] === 'en' ? 17 : 17)
+            : ($context['mode'] === 'en' ? 20 : 20);
+        $amountWidth = $showCategory
+            ? ($context['mode'] === 'en' ? 19 : 17)
+            : ($context['mode'] === 'en' ? 21 : 20);
+        $remarkWidth = $showCategory
+            ? ($context['mode'] === 'en' ? 27 : 27)
+            : ($context['mode'] === 'en' ? 33 : 30);
         $columns = $showCategory
             ? [
-                ['key' => 'sequence', 'label' => 'No.', 'align' => 'center', 'widthPercent' => 4, 'dataType' => 'text'],
-                ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'widthPercent' => 13, 'dataType' => 'text'],
-                ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'widthPercent' => 15, 'dataType' => 'text'],
-                ['key' => 'target_amount', 'label' => 'Target', 'align' => 'right', 'widthPercent' => 17, 'dataType' => 'money'],
-                ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'widthPercent' => 19, 'dataType' => 'money'],
+                ['key' => 'sequence', 'label' => 'No.', 'align' => 'center', 'widthPercent' => $sequenceWidth, 'dataType' => 'text'],
+                ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'widthPercent' => $context['mode'] === 'en' ? 13 : 14, 'dataType' => 'text'],
+                ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'widthPercent' => $context['mode'] === 'en' ? 15 : 14, 'dataType' => 'text'],
+                ['key' => 'target_amount', 'label' => 'Target', 'align' => 'right', 'widthPercent' => $targetWidth, 'dataType' => 'money'],
+                ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'widthPercent' => $amountWidth, 'dataType' => 'money'],
                 ['key' => 'progress', 'label' => 'Done', 'align' => 'center', 'widthPercent' => 5, 'dataType' => 'text'],
-                ['key' => 'remark', 'label' => 'Remark', 'align' => 'right', 'widthPercent' => 27, 'dataType' => 'text'],
+                ['key' => 'remark', 'label' => 'Remark', 'align' => 'left', 'widthPercent' => $remarkWidth, 'dataType' => 'text'],
             ]
             : [
-                ['key' => 'sequence', 'label' => 'No.', 'align' => 'center', 'widthPercent' => 4, 'dataType' => 'text'],
-                ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'widthPercent' => 17, 'dataType' => 'text'],
-                ['key' => 'target_amount', 'label' => 'Target', 'align' => 'right', 'widthPercent' => 20, 'dataType' => 'money'],
-                ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'widthPercent' => 21, 'dataType' => 'money'],
+                ['key' => 'sequence', 'label' => 'No.', 'align' => 'center', 'widthPercent' => $sequenceWidth, 'dataType' => 'text'],
+                ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'widthPercent' => $context['mode'] === 'en' ? 17 : 19, 'dataType' => 'text'],
+                ['key' => 'target_amount', 'label' => 'Target', 'align' => 'right', 'widthPercent' => $targetWidth, 'dataType' => 'money'],
+                ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'widthPercent' => $amountWidth, 'dataType' => 'money'],
                 ['key' => 'progress', 'label' => 'Done', 'align' => 'center', 'widthPercent' => 5, 'dataType' => 'text'],
-                ['key' => 'remark', 'label' => 'Remark', 'align' => 'right', 'widthPercent' => 33, 'dataType' => 'text'],
+                ['key' => 'remark', 'label' => 'Remark', 'align' => 'left', 'widthPercent' => $remarkWidth, 'dataType' => 'text'],
             ];
 
         return [
             ...$section,
-            'columns' => $columns,
+            'columns' => array_map(
+                fn (array $column): array => $this->localizedTemplateColumn($column, $context),
+                $columns,
+            ),
         ];
     }
 
@@ -430,17 +598,17 @@ final readonly class BudgetPdfDocumentRenderer
         return $primary . "\nRef " . $this->formatter->templateMoney($referenceCurrency, (float) $referenceAmount);
     }
 
-    private function summaryRow(array $budget): array
+    private function summaryRow(array $budget, array $context): array
     {
         return [
-            'Total',
+            $this->tableText('Total', $context['labels']['total'], $context),
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $this->effectiveTotal($budget, 'budgetBase'), true),
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $this->effectiveTotal($budget, 'estimatedBase'), true),
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $this->effectiveTotal($budget, 'varianceBase'), true),
         ];
     }
 
-    private function itemLabelWithInstallment(array $item): string
+    private function itemLabelWithInstallment(array $item, array $context): string
     {
         $label = (string) ($item['category'] ?? $item['label']);
         $config = $item['installmentConfig'] ?? null;
@@ -459,17 +627,40 @@ final readonly class BudgetPdfDocumentRenderer
         }
 
         $remaining = max(0, $months - max(0, min($paidMonths, $months)));
+        $paid = max(0, min($paidMonths, $months));
 
-        return $label
-            . "\nSaving plan: "
+        $english = 'Saving plan: '
             . $this->formatter->templateMoney((string) $item['budget']['currency'], $monthlyAmount)
-            . ' / month, '
-            . max(0, min($paidMonths, $months))
-            . '/'
+            . ' per month, '
+            . $paid
+            . ' of '
             . $months
             . ' saved, '
             . $remaining
             . ' remaining';
+        $chinesePrefix = $context['chineseLanguage'] === 'sc' ? '储蓄计划：' : '儲蓄計畫：';
+        $savedLabel = $context['chineseLanguage'] === 'sc' ? '已存' : '已存';
+        $remainingLabel = $context['chineseLanguage'] === 'sc' ? '剩余' : '剩餘';
+        $periodsLabel = $context['chineseLanguage'] === 'sc' ? '期，共' : '期，共';
+        $chinese = $chinesePrefix
+            . $this->formatter->templateMoney((string) $item['budget']['currency'], $monthlyAmount)
+            . ' '
+            . $context['labels']['periodUnits']['month']
+            . '，'
+            . $savedLabel
+            . ' '
+            . $paid
+            . ' '
+            . $periodsLabel
+            . ' '
+            . $months
+            . ' 期'
+            . '，'
+            . $remainingLabel
+            . ' '
+            . $remaining;
+
+        return $label . "\n" . $this->tableText($english, $chinese, $context);
     }
 
     private function moneyWithSecondary(string $baseCurrency, float $baseAmount, array $leg): string
@@ -517,26 +708,6 @@ final readonly class BudgetPdfDocumentRenderer
         $rounded = round($months, 1);
 
         return (floor($rounded) === $rounded ? (string) (int) $rounded : (string) $rounded) . ' months';
-    }
-
-    private function periodUnitText(string $periodUnit): string
-    {
-        return match ($periodUnit) {
-            'day' => 'daily',
-            'week' => 'weekly',
-            'year' => 'yearly',
-            default => 'monthly',
-        };
-    }
-
-    private function periodUnitShortText(string $periodUnit): string
-    {
-        return match ($periodUnit) {
-            'day' => 'day',
-            'week' => 'wk',
-            'year' => 'yr',
-            default => 'mo',
-        };
     }
 
     private function effectiveItemAmounts(array $item, array $transactions): array
@@ -662,6 +833,7 @@ final readonly class BudgetPdfDocumentRenderer
     private function defaultBudgetSection(): array
     {
         return [
+            'key' => 'budget_highlights',
             'title' => 'Budget Highlights',
             'columns' => [
                 ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'dataType' => 'text'],
@@ -675,6 +847,7 @@ final readonly class BudgetPdfDocumentRenderer
     private function defaultTransactionSection(): array
     {
         return [
+            'key' => 'transaction_breakdown',
             'title' => 'Transaction Breakdown',
             'columns' => [
                 ['key' => 'transaction_details', 'label' => 'Transaction Details', 'align' => 'left', 'dataType' => 'text'],
