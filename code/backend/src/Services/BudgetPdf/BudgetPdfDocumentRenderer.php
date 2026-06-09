@@ -135,9 +135,7 @@ final readonly class BudgetPdfDocumentRenderer
                     ? (int) $config['months']
                     : $this->budgetDurationMonths($budget);
                 $months = max(1.0, (float) ($months ?? 1));
-                $targetAmount = is_numeric($config['totalAmount'] ?? null)
-                    ? (float) $config['totalAmount']
-                    : (float) ($item['budget']['amountOriginal'] ?? 0);
+                $targetAmount = $this->installmentTargetAmount($item, $config);
                 $periodUnit = $this->installmentPeriodUnit($budget);
                 $periodCount = max(1.0, $this->periodCountFromMonths($months, $periodUnit));
                 $paidMonths = is_int($config['paidMonths'] ?? null) ? (int) $config['paidMonths'] : 0;
@@ -171,9 +169,7 @@ final readonly class BudgetPdfDocumentRenderer
                 ? (int) $config['months']
                 : $this->budgetDurationMonths($budget);
             $months = max(1.0, (float) ($months ?? 1));
-            $targetAmount = is_numeric($config['totalAmount'] ?? null)
-                ? (float) $config['totalAmount']
-                : (float) ($item['budget']['amountOriginal'] ?? 0);
+            $targetAmount = $this->installmentTargetAmount($item, $config);
             $periodCount = max(1.0, $this->periodCountFromMonths($months, $this->installmentPeriodUnit($budget)));
             $rateToBase = is_numeric($item['budget']['rateToBase'] ?? null)
                 ? (float) $item['budget']['rateToBase']
@@ -207,6 +203,18 @@ final readonly class BudgetPdfDocumentRenderer
             $primary . "\n" . $this->formatter->templateMoney($baseCurrency, $amountBase),
             $transaction,
         );
+    }
+
+    private function installmentTargetAmount(array $item, array $config): float
+    {
+        if (($config['enabled'] ?? false) === true
+            && is_numeric($config['totalAmount'] ?? null)
+            && (float) $config['totalAmount'] > 0.0
+        ) {
+            return (float) $config['totalAmount'];
+        }
+
+        return (float) ($item['budget']['amountOriginal'] ?? 0);
     }
 
     private function amountWithReference(string $primary, array $transaction): string

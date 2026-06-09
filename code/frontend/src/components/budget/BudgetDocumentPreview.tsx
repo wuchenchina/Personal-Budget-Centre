@@ -118,9 +118,6 @@ export function BudgetDocumentPreview({
   const transactionBreakdown = template?.sections.find(
     (section) => section.key === 'transaction_breakdown',
   );
-  const installmentSection = template?.sections.find(
-    (section) => section.key === 'installments',
-  );
   const budgetColumns = useMemo(
     () => {
       const columns = createBudgetItemColumns(
@@ -211,7 +208,7 @@ export function BudgetDocumentPreview({
   const installmentColumns = createInstallmentEstimateColumns(
     installmentPeriodLabel,
     {
-      category: t('category'),
+      category: 'Category',
       duration: t('installmentDuration'),
       periodAmount: t('installmentPeriodAmount'),
       progress: t('installmentProgress'),
@@ -398,7 +395,7 @@ export function BudgetDocumentPreview({
           {selectedBudget.budgetType === 'installment' ? (
             <div className="budget-table-frame">
               <div className="budget-section-title budget-section-title-row">
-                <span>{installmentSection?.title ?? t('installmentSectionTitle')}</span>
+                <span>{t('installmentSectionTitle')}</span>
                 <Tag color="blue">{t('installmentBudget')}</Tag>
               </div>
               {budgetDateText ? (
@@ -510,14 +507,10 @@ function createInstallmentEstimateRows(
   t: (key: I18nKey, values?: I18nValues) => string,
 ): InstallmentEstimateRow[] {
   return budget.items.map((item) => {
-    const summary = installmentSummary(item.installmentConfig);
     const configuredMonths = item.installmentConfig.enabled ? item.installmentConfig.months : null;
     const durationMonths =
       configuredMonths ?? budgetDurationMonths(budget.startDate, budget.endDate) ?? 1;
-    const targetAmount =
-      item.installmentConfig.enabled && summary.totalAmount !== null
-        ? summary.totalAmount
-        : item.budget.amountOriginal;
+    const targetAmount = installmentTargetAmount(item);
     const periodCount = Math.max(1, periodCountFromMonths(durationMonths, budget.installmentPeriodUnit));
     const periodAmount = targetAmount / periodCount;
     const targetAmountBase = item.budget.rateToBase > 0
@@ -554,6 +547,14 @@ function createInstallmentSummaryValues(
     targetTotal: rows.reduce((total, row) => total + row.targetAmountBase, 0),
     periodTotal: rows.reduce((total, row) => total + row.periodAmountBase, 0),
   };
+}
+
+function installmentTargetAmount(item: BudgetItem): number {
+  const summary = installmentSummary(item.installmentConfig);
+
+  return item.installmentConfig.enabled && summary.totalAmount !== null && summary.totalAmount > 0
+    ? summary.totalAmount
+    : item.budget.amountOriginal;
 }
 
 function renderInstallmentSummary(values: InstallmentSummaryValues | null, summaryLabel: string) {
