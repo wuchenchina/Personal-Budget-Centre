@@ -259,6 +259,47 @@ final readonly class BudgetEntryRepository
         return $statement->fetchColumn() !== false;
     }
 
+    public function updateOverallInstallmentPlan(
+        int $budgetId,
+        string $periodAmounts,
+        string $periodLocked,
+        string $periodProgress,
+        string $periodRemarks,
+    ): void {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            INSERT INTO budget_installment_plans (
+              budget_id,
+              scope,
+              period_amounts,
+              period_locked,
+              period_progress,
+              period_remarks
+            ) VALUES (
+              :budget_id,
+              'overall',
+              :period_amounts,
+              :period_locked,
+              :period_progress,
+              :period_remarks
+            )
+            ON DUPLICATE KEY UPDATE
+              period_amounts = VALUES(period_amounts),
+              period_locked = VALUES(period_locked),
+              period_progress = VALUES(period_progress),
+              period_remarks = VALUES(period_remarks),
+              updated_at = CURRENT_TIMESTAMP
+            SQL
+        );
+        $statement->execute([
+            'budget_id' => $budgetId,
+            'period_amounts' => $periodAmounts,
+            'period_locked' => $periodLocked,
+            'period_progress' => $periodProgress,
+            'period_remarks' => $periodRemarks,
+        ]);
+    }
+
     private function budgetIdForTable(string $table, int $id): ?int
     {
         $statement = $this->pdo->prepare(

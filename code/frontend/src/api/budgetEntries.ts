@@ -48,6 +48,14 @@ export interface UpdateTransactionPayload extends SaveTransactionPayload {
   id: number;
 }
 
+export interface UpdateOverallInstallmentPlanPayload {
+  budgetId: number;
+  periodAmounts?: number[];
+  periodLocked?: boolean[];
+  periodProgress?: boolean[];
+  periodRemarks?: string[];
+}
+
 export function createBudgetItem(payload: CreateBudgetItemPayload): Promise<BudgetDetail> {
   return apiPost<BudgetResponse>('/api/budget-items', payload).then(
     (response) => response.budget,
@@ -80,6 +88,14 @@ export function updateTransaction(payload: UpdateTransactionPayload): Promise<Bu
 
 export function deleteTransaction(id: number): Promise<BudgetDetail> {
   return apiDelete<BudgetResponse>('/api/budget-transactions', { id }).then(
+    (response) => response.budget,
+  );
+}
+
+export function updateOverallInstallmentPlan(
+  payload: UpdateOverallInstallmentPlanPayload,
+): Promise<BudgetDetail> {
+  return apiPatch<BudgetResponse>('/api/budget-installment-plan', payload).then(
     (response) => response.budget,
   );
 }

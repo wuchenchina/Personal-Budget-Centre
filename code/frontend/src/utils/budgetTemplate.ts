@@ -9,8 +9,6 @@ import type {
   TemplateColumn,
   Transaction,
 } from '../types/budget';
-import { translateCurrent } from '../i18n';
-import { installmentSummary } from './budgetInstallments';
 
 export function formatBudgetMoney(currency: CurrencyCode, amount: number): string {
   return `${currency} ${amount.toFixed(2)}`;
@@ -134,7 +132,6 @@ export function createBudgetItemColumns(
           'div',
           { className: 'budget-item-category-cell' },
           createElement('span', null, row.category ?? row.label),
-          budgetInstallmentSummary(row),
         );
       }
 
@@ -214,27 +211,6 @@ function createMoneyWithBreakdown(
         formatBudgetMoney(total.currency, total.amountOriginal),
       ),
     ),
-  );
-}
-
-function budgetInstallmentSummary(row: BudgetItem) {
-  const summary = installmentSummary(row.installmentConfig);
-  if (!summary.isEnabled || summary.monthlyAmount === null || row.installmentConfig.months === null) {
-    return null;
-  }
-
-  return createElement(
-    'span',
-    { className: 'budget-installment-summary' },
-    `${translateCurrent('installment')}: ${translateCurrent('installmentSummary', {
-        amount: formatBudgetMoney(row.budget.currency, summary.monthlyAmount),
-        paid: row.installmentConfig.paidMonths,
-        months: row.installmentConfig.months,
-      })}${
-        summary.remainingMonths === null
-          ? ''
-          : ` · ${translateCurrent('installmentRemaining', { count: summary.remainingMonths })}`
-      }`,
   );
 }
 

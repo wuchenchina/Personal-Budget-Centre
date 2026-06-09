@@ -10,6 +10,7 @@ export function emptyInstallmentConfig(): BudgetInstallmentConfig {
     monthlyAmount: null,
     totalAmount: null,
     periodAmounts: [],
+    periodLocked: [],
     periodProgress: [],
     periodRemarks: [],
     versions: [],
@@ -57,6 +58,7 @@ export function normalizeInstallmentConfig(
   const monthlyAmount = normalizeNonNegativeNumber(config.monthlyAmount);
   const totalAmount = normalizeNonNegativeNumber(config.totalAmount);
   const periodAmounts = normalizePeriodAmounts(config.periodAmounts);
+  const periodLocked = normalizePeriodProgress(config.periodLocked);
   const periodProgress = normalizePeriodProgress(config.periodProgress);
   const periodRemarks = normalizePeriodRemarks(config.periodRemarks);
   const versions = normalizeVersions(config.versions);
@@ -75,6 +77,7 @@ export function normalizeInstallmentConfig(
     monthlyAmount,
     totalAmount,
     periodAmounts,
+    periodLocked,
     periodProgress,
     periodRemarks,
     versions,

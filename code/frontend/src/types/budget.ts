@@ -133,6 +133,7 @@ export interface BudgetInstallmentConfig {
   monthlyAmount: number | null;
   totalAmount: number | null;
   periodAmounts: number[];
+  periodLocked: boolean[];
   periodProgress: boolean[];
   periodRemarks: string[];
   versions: BudgetInstallmentVersion[];
@@ -149,6 +150,14 @@ export interface BudgetInstallmentVersion {
   periodProgress: boolean[];
   periodRemarks: string[];
   totalAmount: number | null;
+}
+
+export interface BudgetOverallInstallmentPlan {
+  periodAmounts: number[];
+  periodLocked: boolean[];
+  periodProgress: boolean[];
+  periodRemarks: string[];
+  updatedAt: string | null;
 }
 
 export interface BudgetItem {
@@ -329,6 +338,7 @@ export interface BudgetSummary {
 
 export interface BudgetDetail extends BudgetSummary {
   items: BudgetItem[];
+  overallInstallmentPlan: BudgetOverallInstallmentPlan;
   transactions: Transaction[];
 }
 

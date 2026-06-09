@@ -37,10 +37,11 @@ export function BudgetInstallmentModal({
 }: BudgetInstallmentModalProps) {
   const { t } = useI18n();
   const isInstallmentBudget = Form.useWatch('budgetType', form) === 'installment';
-  const customAmountCount = (selectedBudget?.items ?? []).reduce(
-    (total, item) => total + item.installmentConfig.periodAmounts.length,
-    0,
-  );
+  const installmentDisplayMode = Form.useWatch('installmentDisplayMode', form);
+  const resettableItemCount = (selectedBudget?.items ?? []).filter(
+    (item) => item.installmentConfig.enabled,
+  ).length;
+  const canResetAmounts = installmentDisplayMode === 'overall' || resettableItemCount > 0;
   const periodUnitOptions: Array<{ label: string; value: BudgetInstallmentPeriodUnit }> = [
     { label: t('installmentPeriodDay'), value: 'day' },
     { label: t('installmentPeriodWeek'), value: 'week' },
@@ -120,7 +121,7 @@ export function BudgetInstallmentModal({
                       onConfirm={onResetAmounts}
                     >
                       <Button
-                        disabled={!canWriteBudgets || customAmountCount === 0 || isEntrySaving}
+                        disabled={!canWriteBudgets || !isInstallmentBudget || !canResetAmounts || isEntrySaving}
                         icon={<RefreshCcw size={14} />}
                         loading={isEntrySaving}
                       >

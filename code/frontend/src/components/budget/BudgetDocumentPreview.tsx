@@ -671,6 +671,7 @@ interface InstallmentEstimateRow {
   targetAmountOriginal: number;
   targetAmount: string;
   targetAmountBase: number;
+  targetProgress: string;
 }
 
 type InstallmentItemPeriodRow = Omit<InstallmentEstimateRow, 'item' | 'sourceRows'> & {
@@ -738,6 +739,12 @@ function createInstallmentPeriodColumns(
       key: 'targetAmount',
       title: title(labels.targetAmount),
       width: targetAmountWidth,
+      render: (_value: string, row) => (
+        <span className="budget-installment-target-cell">
+          <span>{row.targetAmount}</span>
+          <small>{row.targetProgress}</small>
+        </span>
+      ),
     },
     {
       align: 'right',
@@ -753,9 +760,7 @@ function createInstallmentPeriodColumns(
           editLabel={editLabel}
           value={row.periodAmount}
           onCommit={(nextValue) => {
-            if (row.item === undefined) {
-              void saveAggregateInstallmentPeriodAmount(entry, row, nextValue);
-            } else {
+            if (row.item !== undefined) {
               void entry.handleInstallmentPeriodAmountSave(
                 row.item,
                 row.periodIndex,
@@ -763,60 +768,15 @@ function createInstallmentPeriodColumns(
                 row.periodCount,
                 row.targetAmountOriginal,
               );
+
+              return;
             }
-          }}
-        />
-      ),
-    },
-    {
-      align: 'center',
-      dataIndex: 'progressChecked',
-      key: 'progress',
-      title: <Check aria-label={labels.progress.primary} size={12} />,
-      width: '5%',
-      render: (_value: boolean, row) => (
-        <Checkbox
-          checked={row.progressChecked}
-          indeterminate={row.progressMixed}
-          disabled={!canWriteBudgets || entry.isBudgetItemSaving}
-          onChange={(event) => {
-            if (row.item === undefined) {
-              void saveAggregateInstallmentProgress(entry, row, event.target.checked);
-            } else {
-              void entry.handleInstallmentProgressSave(
-                row.item,
-                row.periodIndex,
-                event.target.checked,
-                row.periodCount,
-                row.targetAmountOriginal,
-              );
-            }
-          }}
-        />
-      ),
-    },
-    {
-      dataIndex: 'remarkText',
-      key: 'remark',
-      title: title(labels.remark),
-      width: remarkWidth,
-      render: (_value: string, row) => (
-        <InlineTransactionRemarkCell
-          disabled={entry.isBudgetItemSaving}
-          editable={canWriteBudgets}
-          value={row.remarkText}
-          onCommit={(nextValue) => {
-            if (row.item === undefined) {
-              void saveAggregateInstallmentRemark(entry, row, nextValue);
-            } else {
-              void entry.handleInstallmentRemarkSave(
-                row.item,
-                row.periodIndex,
-                nextValue,
-                row.periodCount,
-                row.targetAmountOriginal,
-              );
-            }
+            void entry.handleOverallInstallmentPeriodAmountSave(
+              row.periodIndex,
+              nextValue,
+              row.periodCount,
+              row.targetAmountOriginal,
+            );
           }}
         />
       ),
@@ -832,16 +792,83 @@ function createInstallmentPeriodColumns(
     });
   }
 
+  columns.push(
+    {
+      align: 'center',
+      dataIndex: 'progressChecked',
+      key: 'progress',
+      title: <Check aria-label={labels.progress.primary} size={12} />,
+      width: '5%',
+      render: (_value: boolean, row) => (
+        <Checkbox
+          checked={row.progressChecked}
+          indeterminate={row.progressMixed}
+          disabled={!canWriteBudgets || entry.isBudgetItemSaving}
+          onChange={(event) => {
+            if (row.item !== undefined) {
+              void entry.handleInstallmentProgressSave(
+                row.item,
+                row.periodIndex,
+                event.target.checked,
+                row.periodCount,
+                row.targetAmountOriginal,
+              );
+
+              return;
+            }
+            void entry.handleOverallInstallmentProgressSave(
+              row.periodIndex,
+              event.target.checked,
+              row.periodCount,
+              row.targetAmountOriginal,
+            );
+          }}
+        />
+      ),
+    },
+    {
+      dataIndex: 'remarkText',
+      key: 'remark',
+      title: title(labels.remark),
+      width: remarkWidth,
+      render: (_value: string, row) => (
+        <InlineTransactionRemarkCell
+          disabled={entry.isBudgetItemSaving}
+          editable={canWriteBudgets}
+          value={row.remarkText}
+          onCommit={(nextValue) => {
+            if (row.item !== undefined) {
+              void entry.handleInstallmentRemarkSave(
+                row.item,
+                row.periodIndex,
+                nextValue,
+                row.periodCount,
+                row.targetAmountOriginal,
+              );
+
+              return;
+            }
+            void entry.handleOverallInstallmentRemarkSave(
+              row.periodIndex,
+              nextValue,
+              row.periodCount,
+              row.targetAmountOriginal,
+            );
+          }}
+        />
+      ),
+    },
+  );
+
   return columns;
 }
 
 function createInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow[] {
-  const itemRows = createInstallmentItemPeriodRows(budget);
   if (budget.installmentDisplayMode === 'overall') {
-    return createOverallInstallmentPeriodRows(budget, itemRows);
+    return createOverallInstallmentPeriodRows(budget);
   }
 
-  return itemRows;
+  return createInstallmentItemPeriodRows(budget);
 }
 
 function createInstallmentItemPeriodRows(budget: BudgetDetail): InstallmentItemPeriodRow[] {
@@ -853,10 +880,25 @@ function createInstallmentItemPeriodRows(budget: BudgetDetail): InstallmentItemP
     const periodCount = Math.max(1, Math.ceil(periodCountFromMonths(durationMonths, budget.installmentPeriodUnit)));
     const defaultPeriodAmount = target.original / periodCount;
     const startDate = installmentStartDate(item, budget);
+    const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
+      item.installmentConfig.periodAmounts[index] ?? defaultPeriodAmount,
+    );
+    const periodProgress = Array.from({ length: periodCount }, (_, index) =>
+      item.installmentConfig.periodProgress[index] === true,
+    );
+    const progressAmount = periodAmounts.reduce(
+      (total, amount, index) => total + (periodProgress[index] ? amount : 0),
+      0,
+    );
+    const targetProgress = installmentTargetProgressText(
+      item.budget.currency,
+      Math.max(0, target.original - progressAmount),
+      target.original,
+    );
 
     return Array.from({ length: periodCount }, (_, index) => {
-      const periodAmount = item.installmentConfig.periodAmounts[index] ?? defaultPeriodAmount;
-      const progressChecked = item.installmentConfig.periodProgress[index] === true;
+      const periodAmount = periodAmounts[index] ?? 0;
+      const progressChecked = periodProgress[index] === true;
       const remarkText = item.installmentConfig.periodRemarks[index] ?? '';
 
       return {
@@ -877,32 +919,43 @@ function createInstallmentItemPeriodRows(budget: BudgetDetail): InstallmentItemP
         targetAmountOriginal: target.original,
         targetAmount: formatBudgetMoney(item.budget.currency, target.original),
         targetAmountBase: target.base,
+        targetProgress,
       };
     });
   });
 }
 
-function createOverallInstallmentPeriodRows(
-  budget: BudgetDetail,
-  itemRows: InstallmentItemPeriodRow[],
-): InstallmentPeriodRow[] {
-  if (itemRows.length === 0) {
+function createOverallInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow[] {
+  const targetTotal = effectiveBudgetTotals(budget).totalBudgetBase;
+  if (targetTotal <= 0) {
     return [];
   }
 
-  const targetTotal = effectiveBudgetTotals(budget).totalBudgetBase;
-  const periodCount = Math.max(...itemRows.map((row) => row.periodCount));
+  const durationMonths = budgetDurationMonths(budget.startDate, budget.endDate) ?? 1;
+  const periodCount = Math.max(1, Math.ceil(periodCountFromMonths(durationMonths, budget.installmentPeriodUnit)));
   const budgetStartDate = budget.startDate === null ? null : dayjs(budget.startDate);
+  const defaultPeriodAmounts = splitMoneyAcrossPeriods(targetTotal, periodCount);
+  const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
+    budget.overallInstallmentPlan.periodAmounts[index] ?? defaultPeriodAmounts[index] ?? 0,
+  );
+  const periodProgress = Array.from({ length: periodCount }, (_, index) =>
+    budget.overallInstallmentPlan.periodProgress[index] === true,
+  );
+  const periodRemarks = Array.from({ length: periodCount }, (_, index) =>
+    budget.overallInstallmentPlan.periodRemarks[index] ?? '',
+  );
+  const progressAmount = periodAmounts.reduce(
+    (total, amount, index) => total + (periodProgress[index] ? amount : 0),
+    0,
+  );
+  const targetProgress = installmentTargetProgressText(
+    budget.baseCurrency,
+    Math.max(0, targetTotal - progressAmount),
+    targetTotal,
+  );
 
   return Array.from({ length: periodCount }, (_, index) => {
-    const sourceRows = itemRows.filter((row) => row.periodIndex === index);
-    const periodAmount = sourceRows.length === 0
-      ? targetTotal / periodCount
-      : sourceRows.reduce((total, row) => total + row.periodAmountBase, 0);
-    const checkedCount = sourceRows.filter((row) => row.progressChecked).length;
-    const remarks = Array.from(new Set(
-      sourceRows.map((row) => row.remarkText.trim()).filter((remark) => remark !== ''),
-    ));
+    const periodAmount = periodAmounts[index] ?? 0;
 
     return {
       id: `overall-${index + 1}`,
@@ -912,16 +965,16 @@ function createOverallInstallmentPeriodRows(
       periodAmountBase: periodAmount,
       periodCount,
       periodIndex: index,
-      periodLabel: sourceRows[0]?.periodLabel
-        ?? formatInstallmentPeriodLabel(budgetStartDate, index, budget.installmentPeriodUnit),
-      progressChecked: sourceRows.length > 0 && checkedCount === sourceRows.length,
-      progressMixed: checkedCount > 0 && checkedCount < sourceRows.length,
-      remarkText: remarks.length === 1 ? remarks[0] : '',
+      periodLabel: formatInstallmentPeriodLabel(budgetStartDate, index, budget.installmentPeriodUnit),
+      progressChecked: periodProgress[index] === true,
+      progressMixed: false,
+      remarkText: periodRemarks[index] ?? '',
       sequence: index + 1,
-      sourceRows,
+      sourceRows: [],
       targetAmountOriginal: targetTotal,
       targetAmount: formatBudgetMoney(budget.baseCurrency, targetTotal),
       targetAmountBase: targetTotal,
+      targetProgress,
     };
   });
 }
@@ -946,66 +999,17 @@ function createInstallmentSummaryValues(
   };
 }
 
-async function saveAggregateInstallmentPeriodAmount(
-  entry: BudgetEntryController,
-  row: InstallmentPeriodRow,
-  nextValue: number,
-) {
-  if (row.sourceRows.length === 0) {
-    return;
-  }
+function splitMoneyAcrossPeriods(totalAmount: number, periodCount: number): number[] {
+  const averageAmount = roundMoney(totalAmount / periodCount);
+  let assignedTotal = 0;
 
-  const currentTotal = row.sourceRows.reduce(
-    (total, sourceRow) => total + sourceRow.periodAmountBase,
-    0,
-  );
-  for (const sourceRow of row.sourceRows) {
-    const weight = currentTotal > 0
-      ? sourceRow.periodAmountBase / currentTotal
-      : 1 / row.sourceRows.length;
-    const rateToBase = sourceRow.item.budget.rateToBase > 0
-      ? sourceRow.item.budget.rateToBase
-      : 1;
-    await entry.handleInstallmentPeriodAmountSave(
-      sourceRow.item,
-      sourceRow.periodIndex,
-      (nextValue * weight) / rateToBase,
-      sourceRow.periodCount,
-      sourceRow.targetAmountOriginal,
-    );
-  }
-}
+  return Array.from({ length: periodCount }, (_, index) => {
+    const isLast = index === periodCount - 1;
+    const amount = isLast ? roundMoney(totalAmount - assignedTotal) : averageAmount;
+    assignedTotal = roundMoney(assignedTotal + amount);
 
-async function saveAggregateInstallmentProgress(
-  entry: BudgetEntryController,
-  row: InstallmentPeriodRow,
-  checked: boolean,
-) {
-  for (const sourceRow of row.sourceRows) {
-    await entry.handleInstallmentProgressSave(
-      sourceRow.item,
-      sourceRow.periodIndex,
-      checked,
-      sourceRow.periodCount,
-      sourceRow.targetAmountOriginal,
-    );
-  }
-}
-
-async function saveAggregateInstallmentRemark(
-  entry: BudgetEntryController,
-  row: InstallmentPeriodRow,
-  nextValue: string,
-) {
-  for (const sourceRow of row.sourceRows) {
-    await entry.handleInstallmentRemarkSave(
-      sourceRow.item,
-      sourceRow.periodIndex,
-      nextValue,
-      sourceRow.periodCount,
-      sourceRow.targetAmountOriginal,
-    );
-  }
+    return amount;
+  });
 }
 
 function installmentTarget(
@@ -1028,6 +1032,17 @@ function installmentTarget(
     original: effective.budgetAmountOriginal,
     base: effective.budgetAmountBase,
   };
+}
+
+function installmentTargetProgressText(
+  currency: CurrencyCode,
+  remainingAmount: number,
+  targetAmount: number,
+): string {
+  return `${formatBudgetMoney(currency, roundMoney(remainingAmount))} / ${formatBudgetMoney(
+    currency,
+    roundMoney(targetAmount),
+  )}`;
 }
 
 function renderInstallmentSummary(
@@ -1593,13 +1608,11 @@ function InlineCategoryCell({
 }) {
   const { t } = useI18n();
   const label = row.category ?? row.label;
-  const summary = budgetInstallmentNode(row);
 
   if (!editable) {
     return (
       <div className="budget-item-category-cell">
         <span>{label}</span>
-        {summary}
       </div>
     );
   }
@@ -1630,25 +1643,7 @@ function InlineCategoryCell({
           onClick={onEdit}
         />
       </Tooltip>
-      {summary}
     </div>
-  );
-}
-
-function budgetInstallmentNode(row: BudgetItem) {
-  const summary = installmentSummary(row.installmentConfig);
-  if (!summary.isEnabled || summary.monthlyAmount === null || row.installmentConfig.months === null) {
-    return null;
-  }
-
-  return (
-    <span className="budget-installment-summary">
-      {`${formatBudgetMoney(row.budget.currency, summary.monthlyAmount)} / month, ${
-        row.installmentConfig.paidMonths
-      }/${row.installmentConfig.months} saved${
-        summary.remainingMonths === null ? '' : `, ${summary.remainingMonths} remaining`
-      }`}
-    </span>
   );
 }
 

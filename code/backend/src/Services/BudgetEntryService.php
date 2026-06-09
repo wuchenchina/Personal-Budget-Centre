@@ -128,6 +128,38 @@ final readonly class BudgetEntryService
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
 
+    public function updateOverallInstallmentPlan(array $input, Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $budgetId = $this->budgetIdFromInput($input);
+        $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
+
+        $periodAmounts = $this->periodAmountsFromInput($input['periodAmounts'] ?? $input['period_amounts'] ?? null);
+        $periodLocked = $this->periodProgressFromInput($input['periodLocked'] ?? $input['period_locked'] ?? null);
+        $periodProgress = $this->periodProgressFromInput($input['periodProgress'] ?? $input['period_progress'] ?? null);
+        $periodRemarks = $this->periodRemarksFromInput($input['periodRemarks'] ?? $input['period_remarks'] ?? null);
+
+        $maxPeriodCount = 20000;
+        if (
+            count($periodAmounts) > $maxPeriodCount
+            || count($periodLocked) > $maxPeriodCount
+            || count($periodProgress) > $maxPeriodCount
+            || count($periodRemarks) > $maxPeriodCount
+        ) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment periods exceed the supported range.', 422);
+        }
+
+        (new BudgetEntryRepository($this->pdo))->updateOverallInstallmentPlan(
+            $budgetId,
+            $this->jsonFromArray($periodAmounts),
+            $this->jsonFromArray($periodLocked),
+            $this->jsonFromArray($periodProgress),
+            $this->jsonFromArray($periodRemarks),
+        );
+
+        return $this->budgetDetail($budgetId, (int) $session['user_id']);
+    }
+
     private function itemPayload(
         array $input,
         int $budgetId,
@@ -169,11 +201,6 @@ final readonly class BudgetEntryService
             $rateDate,
             $this->rateInput($input, ['rate', 'estimatedRate', 'estimated_rate'], 'Estimated rate'),
         );
-        $savingMonthlyAmount = $this->installmentMonthlyAmountFromInput($input);
-        if ($savingMonthlyAmount !== null && $specifiedAmount === null && $budgetAmount === null) {
-            $budgetAmount = $savingMonthlyAmount;
-        }
-
         if ($specifiedAmount !== null) {
             $budgetAmount = $specifiedAmount;
             $budgetBase = $budgetAmount * $budgetRate * $bankFeeMultiplier;
@@ -210,7 +237,6 @@ final readonly class BudgetEntryService
             'variance_amount_base' => $budgetBase - $estimatedBase,
             'installment_config' => $this->installmentConfigJsonFromInput(
                 $input,
-                $budgetAmount,
                 $budget['installmentPeriodUnit'] ?? 'month',
             ),
             'sort_order' => Input::positiveInt($input['sortOrder'] ?? $input['sort_order'] ?? null) ?? 0,
@@ -412,7 +438,6 @@ final readonly class BudgetEntryService
 
     private function installmentConfigJsonFromInput(
         array $input,
-        float $fallbackMonthlyAmount,
         string $fallbackPeriodUnit,
     ): ?string
     {
@@ -433,7 +458,7 @@ final readonly class BudgetEntryService
             throw new AuthException('VALIDATION_ERROR', 'Installment settings must be an object.', 422);
         }
 
-        $config = $this->installmentConfigFromArray($raw, $fallbackMonthlyAmount, $fallbackPeriodUnit);
+        $config = $this->installmentConfigFromArray($raw, $fallbackPeriodUnit);
         $json = json_encode($config, JSON_UNESCAPED_UNICODE);
         if ($json === false) {
             throw new AuthException('VALIDATION_ERROR', 'Installment settings could not be encoded.', 422);
@@ -442,40 +467,8 @@ final readonly class BudgetEntryService
         return $json;
     }
 
-    private function installmentMonthlyAmountFromInput(array $input): ?float
-    {
-        $raw = $input['installmentConfig'] ?? $input['installment_config'] ?? null;
-        if (is_string($raw)) {
-            $decoded = json_decode($raw, true);
-            $raw = is_array($decoded) ? $decoded : null;
-        }
-
-        if (!is_array($raw) || ($raw['enabled'] ?? false) !== true) {
-            return null;
-        }
-
-        $monthlyAmount = $this->number($raw['monthlyAmount'] ?? $raw['monthly_amount'] ?? null);
-        if ($monthlyAmount !== null && $monthlyAmount > 0.0) {
-            return $monthlyAmount;
-        }
-
-        $periodAmounts = $this->periodAmountsFromInput($raw['periodAmounts'] ?? $raw['period_amounts'] ?? null);
-        if ($periodAmounts !== []) {
-            return array_sum($periodAmounts) / count($periodAmounts);
-        }
-
-        $totalAmount = $this->number($raw['totalAmount'] ?? $raw['total_amount'] ?? null);
-        $months = Input::positiveInt($raw['months'] ?? $raw['totalMonths'] ?? $raw['total_months'] ?? null);
-        if ($totalAmount === null || $totalAmount <= 0.0 || $months === null || $months > self::INSTALLMENT_MAX_MONTHS) {
-            return null;
-        }
-
-        return $totalAmount / $months;
-    }
-
     private function installmentConfigFromArray(
         array $input,
-        float $fallbackMonthlyAmount,
         string $fallbackPeriodUnit,
     ): array
     {
@@ -489,6 +482,7 @@ final readonly class BudgetEntryService
             $input['monthlyAmount'] ?? $input['monthly_amount'] ?? null,
         );
         $periodAmounts = $this->periodAmountsFromInput($input['periodAmounts'] ?? $input['period_amounts'] ?? null);
+        $periodLocked = $this->periodProgressFromInput($input['periodLocked'] ?? $input['period_locked'] ?? null);
         $periodProgress = $this->periodProgressFromInput($input['periodProgress'] ?? $input['period_progress'] ?? null);
         $periodRemarks = $this->periodRemarksFromInput($input['periodRemarks'] ?? $input['period_remarks'] ?? null);
         $versions = $this->installmentVersionsFromInput($input['versions'] ?? null);
@@ -504,6 +498,7 @@ final readonly class BudgetEntryService
                 'monthlyAmount' => null,
                 'totalAmount' => null,
                 'periodAmounts' => [],
+                'periodLocked' => [],
                 'periodProgress' => [],
                 'periodRemarks' => [],
                 'versions' => [],
@@ -521,6 +516,9 @@ final readonly class BudgetEntryService
         if (count($periodAmounts) > $periodCount) {
             throw new AuthException('VALIDATION_ERROR', 'Installment period amounts cannot exceed the saving period count.', 422);
         }
+        if (count($periodLocked) > $periodCount) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment locked periods cannot exceed the saving period count.', 422);
+        }
         if (count($periodProgress) > $periodCount) {
             throw new AuthException('VALIDATION_ERROR', 'Installment progress cannot exceed the saving period count.', 422);
         }
@@ -536,7 +534,7 @@ final readonly class BudgetEntryService
             $monthlyAmount ??= $periodTotal / count($periodAmounts);
         }
 
-        $monthlyAmount ??= $totalAmount === null ? $fallbackMonthlyAmount : $totalAmount / $months;
+        $monthlyAmount ??= $totalAmount === null ? null : $totalAmount / $months;
         $totalAmount ??= $monthlyAmount * $months;
 
         if ($paidMonths > $months) {
@@ -562,6 +560,7 @@ final readonly class BudgetEntryService
             'monthlyAmount' => $monthlyAmount,
             'totalAmount' => $totalAmount,
             'periodAmounts' => $periodAmounts,
+            'periodLocked' => $periodLocked,
             'periodProgress' => $periodProgress,
             'periodRemarks' => $periodRemarks,
             'versions' => $versions,
@@ -721,5 +720,15 @@ final readonly class BudgetEntryService
         }
 
         return null;
+    }
+
+    private function jsonFromArray(array $value): string
+    {
+        $json = json_encode(array_values($value), JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment settings could not be encoded.', 422);
+        }
+
+        return $json;
     }
 }

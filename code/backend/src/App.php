@@ -84,6 +84,7 @@ final class App
             ['POST', '/api/budget-items'] => $this->budgetItemCreate($request),
             ['PATCH', '/api/budget-items'] => $this->budgetItemUpdate($request),
             ['DELETE', '/api/budget-items'] => $this->budgetItemDelete($request),
+            ['PATCH', '/api/budget-installment-plan'] => $this->budgetInstallmentPlanUpdate($request),
             ['POST', '/api/budget-transactions'] => $this->budgetTransactionCreate($request),
             ['PATCH', '/api/budget-transactions'] => $this->budgetTransactionUpdate($request),
             ['DELETE', '/api/budget-transactions'] => $this->budgetTransactionDelete($request),
@@ -381,6 +382,15 @@ final class App
         return $this->budgetEntryResponse(
             fn (BudgetEntryService $entry): JsonResponse => JsonResponse::ok([
                 'budget' => $entry->deleteItem($request->json(), $request),
+            ]),
+        );
+    }
+
+    private function budgetInstallmentPlanUpdate(Request $request): JsonResponse
+    {
+        return $this->budgetEntryResponse(
+            fn (BudgetEntryService $entry): JsonResponse => JsonResponse::ok([
+                'budget' => $entry->updateOverallInstallmentPlan($request->json(), $request),
             ]),
         );
     }

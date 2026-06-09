@@ -342,6 +342,7 @@ final readonly class BudgetRepository
                 $budgetId,
                 $this->installmentPeriodUnit($row['installment_period_unit'] ?? null),
             ),
+            'overallInstallmentPlan' => $this->overallInstallmentPlanForBudget($budgetId),
             'transactions' => $this->transactionsForBudget($budgetId),
         ];
     }
@@ -605,6 +606,45 @@ final readonly class BudgetRepository
         );
     }
 
+    private function overallInstallmentPlanForBudget(int $budgetId): array
+    {
+        if (!$this->hasBudgetInstallmentPlanTable()) {
+            return $this->emptyOverallInstallmentPlan();
+        }
+
+        $periodLockedSelect = $this->hasBudgetInstallmentPlanColumn('period_locked')
+            ? 'period_locked,'
+            : 'NULL AS period_locked,';
+        $statement = $this->pdo->prepare(
+            <<<SQL
+            SELECT
+              period_amounts,
+              {$periodLockedSelect}
+              period_progress,
+              period_remarks,
+              updated_at
+            FROM budget_installment_plans
+            WHERE budget_id = :budget_id
+              AND scope = 'overall'
+            LIMIT 1
+            SQL
+        );
+        $statement->execute(['budget_id' => $budgetId]);
+        $row = $statement->fetch();
+
+        if ($row === false) {
+            return $this->emptyOverallInstallmentPlan();
+        }
+
+        return [
+            'periodAmounts' => $this->numberListFromJson($row['period_amounts'] ?? null),
+            'periodLocked' => $this->boolListFromJson($row['period_locked'] ?? null),
+            'periodProgress' => $this->boolListFromJson($row['period_progress'] ?? null),
+            'periodRemarks' => $this->stringListFromJson($row['period_remarks'] ?? null),
+            'updatedAt' => $row['updated_at'],
+        ];
+    }
+
     private function budgetFromRow(array $row): array
     {
         return [
@@ -676,6 +716,7 @@ final readonly class BudgetRepository
                 ? (float) $decoded['totalAmount']
                 : null,
             'periodAmounts' => $this->installmentPeriodAmounts($decoded['periodAmounts'] ?? null, $periodCount),
+            'periodLocked' => $this->installmentPeriodProgress($decoded['periodLocked'] ?? null, $periodCount),
             'periodProgress' => $this->installmentPeriodProgress($decoded['periodProgress'] ?? null, $periodCount),
             'periodRemarks' => $this->installmentPeriodRemarks($decoded['periodRemarks'] ?? null, $periodCount),
             'versions' => $this->installmentVersions($decoded['versions'] ?? null),
@@ -698,6 +739,7 @@ final readonly class BudgetRepository
             'monthlyAmount' => null,
             'totalAmount' => null,
             'periodAmounts' => [],
+            'periodLocked' => [],
             'periodProgress' => [],
             'periodRemarks' => [],
             'versions' => [],
@@ -705,6 +747,68 @@ final readonly class BudgetRepository
             'periodUnit' => 'month',
             'remark' => null,
         ];
+    }
+
+    private function emptyOverallInstallmentPlan(): array
+    {
+        return [
+            'periodAmounts' => [],
+            'periodLocked' => [],
+            'periodProgress' => [],
+            'periodRemarks' => [],
+            'updatedAt' => null,
+        ];
+    }
+
+    /**
+     * @return list<float>
+     */
+    private function numberListFromJson(mixed $value): array
+    {
+        $decoded = is_string($value) ? json_decode($value, true) : null;
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $numbers = [];
+        foreach ($decoded as $item) {
+            if (!is_numeric($item) || (float) $item < 0.0) {
+                continue;
+            }
+
+            $numbers[] = (float) $item;
+        }
+
+        return $numbers;
+    }
+
+    /**
+     * @return list<bool>
+     */
+    private function boolListFromJson(mixed $value): array
+    {
+        $decoded = is_string($value) ? json_decode($value, true) : null;
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return array_map(static fn (mixed $item): bool => $item === true, $decoded);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function stringListFromJson(mixed $value): array
+    {
+        $decoded = is_string($value) ? json_decode($value, true) : null;
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return array_map(
+            static fn (mixed $item): string => is_string($item) ? trim($item) : '',
+            $decoded,
+        );
     }
 
     /**
@@ -980,5 +1084,36 @@ final readonly class BudgetRepository
         $statement->execute();
 
         return (int) $statement->fetchColumn() === 2;
+    }
+
+    private function hasBudgetInstallmentPlanTable(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_installment_plans'
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasBudgetInstallmentPlanColumn(string $column): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_installment_plans'
+              AND column_name = :column
+            SQL
+        );
+        $statement->execute(['column' => $column]);
+
+        return (int) $statement->fetchColumn() === 1;
     }
 }

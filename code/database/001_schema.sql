@@ -281,6 +281,20 @@ CREATE TABLE IF NOT EXISTS budgets (
   CONSTRAINT fk_budgets_display_currency FOREIGN KEY (display_currency_id) REFERENCES currencies(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS budget_installment_plans (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  budget_id BIGINT UNSIGNED NOT NULL,
+  scope ENUM('overall') NOT NULL DEFAULT 'overall',
+  period_amounts JSON NULL,
+  period_locked JSON NULL,
+  period_progress JSON NULL,
+  period_remarks JSON NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_budget_installment_plans_scope (budget_id, scope),
+  CONSTRAINT fk_budget_installment_plans_budget FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS budget_categories (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   workspace_id BIGINT UNSIGNED NOT NULL,

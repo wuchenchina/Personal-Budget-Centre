@@ -389,6 +389,19 @@
   justify-items: end;
 }
 
+.budget-installment-target-cell {
+  display: inline-grid;
+  gap: 1px;
+  justify-items: end;
+  width: 100%;
+}
+
+.budget-installment-target-cell small {
+  color: #8c8c8c;
+  font-size: 10px;
+  line-height: 1;
+}
+
 .budget-installment-amount-readonly {
   align-items: center;
   display: inline-flex;
