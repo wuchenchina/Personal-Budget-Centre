@@ -14,6 +14,7 @@ final readonly class BudgetPdfDocumentRenderer
             'emptyInstallments' => '暂无分期目标',
             'emptyTransactions' => '暂无交易',
             'installmentsTitle' => '分期明细',
+            'remainingLabel' => '剩余',
             'total' => '总计',
             'transactionBreakdownTitle' => '交易明细',
             'columnLabels' => [
@@ -44,6 +45,7 @@ final readonly class BudgetPdfDocumentRenderer
             'emptyInstallments' => '暫無分期目標',
             'emptyTransactions' => '暫無交易',
             'installmentsTitle' => '分期明細',
+            'remainingLabel' => '剩餘',
             'total' => '總計',
             'transactionBreakdownTitle' => '交易明細',
             'columnLabels' => [
@@ -199,6 +201,10 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function localizedTemplateColumn(array $column, array $context): array
     {
+        if ($context['mode'] === 'en') {
+            return $column;
+        }
+
         $localizedLabel = $context['labels']['columnLabels'][(string) ($column['key'] ?? '')]
             ?? (string) ($column['label'] ?? '');
 
@@ -285,10 +291,13 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function installmentRows(array $budget, array $context): array
     {
+        if (!$this->shouldShowInstallmentCategory($budget)) {
+            return $this->overallInstallmentRows($budget, $context);
+        }
+
         $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
         $itemRows = [];
         $periodUnit = $this->installmentPeriodUnit($budget);
-        $targetTotalBase = $this->effectiveTotal($budget, 'budgetBase');
 
         foreach (is_array($budget['items'] ?? null) ? $budget['items'] : [] as $item) {
             if (!is_array($item)) {
@@ -309,8 +318,10 @@ final readonly class BudgetPdfDocumentRenderer
             $startTime = $this->installmentStartTime($item, $budget);
             $rateToBase = (float) ($item['budget']['rateToBase'] ?? 1);
             $rateToBase = $rateToBase > 0.0 ? $rateToBase : 1.0;
+            $assignedAmount = 0.0;
             for ($index = 0; $index < $periodCount; $index++) {
                 $periodAmount = (float) ($periodAmounts[$index] ?? $defaultPeriodAmount);
+                $assignedAmount = round($assignedAmount + $periodAmount, 2);
                 $itemRows[] = [
                     'category' => (string) ($item['category'] ?? $item['label']),
                     'currency' => (string) $item['budget']['currency'],
@@ -321,57 +332,63 @@ final readonly class BudgetPdfDocumentRenderer
                     'progress' => ($periodProgress[$index] ?? false) === true,
                     'remark' => (string) ($periodRemarks[$index] ?? ''),
                     'targetOriginal' => $target['original'],
+                    'targetText' => $this->targetWithRemaining(
+                        (string) $item['budget']['currency'],
+                        (float) $target['original'],
+                        max(0.0, (float) $target['original'] - $assignedAmount),
+                        $context,
+                    ),
                 ];
             }
         }
 
-        if ($this->shouldShowInstallmentCategory($budget)) {
-            return array_map(
-                fn (array $row): array => [
-                    (string) ($row['periodIndex'] + 1),
-                    $row['category'],
-                    $row['periodLabel'],
-                    $this->formatter->templateMoney($row['currency'], (float) $row['targetOriginal']),
-                    $this->formatter->templateMoney($row['currency'], (float) $row['periodAmount']),
-                    $row['progress'] ? 'X' : '',
-                    $row['remark'],
-                ],
-                $itemRows,
-            );
+        return array_map(
+            fn (array $row): array => [
+                (string) ($row['periodIndex'] + 1),
+                $row['category'],
+                $row['periodLabel'],
+                $row['targetText'],
+                $this->formatter->templateMoney($row['currency'], (float) $row['periodAmount']),
+                $row['progress'] ? 'X' : '',
+                $row['remark'],
+            ],
+            $itemRows,
+        );
+    }
+
+    private function overallInstallmentRows(array $budget, array $context): array
+    {
+        $targetTotal = $this->effectiveTotal($budget, 'budgetBase');
+        if ($targetTotal <= 0.0) {
+            return [];
         }
 
-        $periodRows = [];
-        foreach ($itemRows as $row) {
-            $periodIndex = (int) $row['periodIndex'];
-            if (!isset($periodRows[$periodIndex])) {
-                $periodRows[$periodIndex] = [
-                    'periodAmountBase' => 0.0,
-                    'periodLabel' => $row['periodLabel'],
-                    'remarks' => [],
-                    'sourceCount' => 0,
-                    'checkedCount' => 0,
-                ];
-            }
-            $periodRows[$periodIndex]['periodAmountBase'] += (float) $row['periodAmountBase'];
-            $periodRows[$periodIndex]['sourceCount'] += 1;
-            $periodRows[$periodIndex]['checkedCount'] += $row['progress'] ? 1 : 0;
-            $remark = trim((string) $row['remark']);
-            if ($remark !== '') {
-                $periodRows[$periodIndex]['remarks'][$remark] = true;
-            }
-        }
-        ksort($periodRows);
-
+        $periodUnit = $this->installmentPeriodUnit($budget);
+        $months = max(1.0, (float) ($this->budgetDurationMonths($budget) ?? 1));
+        $periodCount = max(1, (int) ceil($this->periodCountFromMonths($months, $periodUnit)));
+        $periodAmounts = $this->overallInstallmentPeriodAmounts($budget, $periodCount, $targetTotal);
+        $plan = is_array($budget['overallInstallmentPlan'] ?? null) ? $budget['overallInstallmentPlan'] : [];
+        $periodProgress = $this->installmentPeriodProgress($plan);
+        $periodRemarks = $this->installmentPeriodRemarks($plan);
+        $startTime = strtotime((string) ($budget['startDate'] ?? ''));
+        $startTime = $startTime === false ? null : $startTime;
         $rows = [];
-        foreach ($periodRows as $periodIndex => $row) {
-            $remarks = array_keys($row['remarks']);
+        $assignedAmountBase = 0.0;
+        for ($index = 0; $index < $periodCount; $index++) {
+            $periodAmount = (float) ($periodAmounts[$index] ?? 0.0);
+            $assignedAmountBase = round($assignedAmountBase + $periodAmount, 2);
             $rows[] = [
-                (string) ($periodIndex + 1),
-                (string) $row['periodLabel'],
-                $this->formatter->templateMoney((string) $budget['baseCurrency'], $targetTotalBase),
-                $this->formatter->templateMoney((string) $budget['baseCurrency'], (float) $row['periodAmountBase']),
-                $row['sourceCount'] > 0 && $row['checkedCount'] === $row['sourceCount'] ? 'X' : '',
-                count($remarks) === 1 ? $remarks[0] : '',
+                (string) ($index + 1),
+                $this->periodLabel($startTime, $index, $periodUnit),
+                $this->targetWithRemaining(
+                    (string) $budget['baseCurrency'],
+                    $targetTotal,
+                    max(0.0, $targetTotal - $assignedAmountBase),
+                    $context,
+                ),
+                $this->formatter->templateMoney((string) $budget['baseCurrency'], $periodAmount),
+                ($periodProgress[$index] ?? false) === true ? 'X' : '',
+                (string) ($periodRemarks[$index] ?? ''),
             ];
         }
 
@@ -479,6 +496,35 @@ final readonly class BudgetPdfDocumentRenderer
             }
 
             $amounts[] = (float) $amount;
+        }
+
+        return $amounts;
+    }
+
+    private function overallInstallmentPeriodAmounts(array $budget, int $periodCount, float $targetTotal): array
+    {
+        $plan = is_array($budget['overallInstallmentPlan'] ?? null)
+            ? $budget['overallInstallmentPlan']
+            : [];
+        $configuredAmounts = $this->installmentPeriodAmounts($plan);
+        $defaultAmounts = $this->splitMoneyAcrossPeriods($targetTotal, $periodCount);
+
+        return array_map(
+            static fn (int $index): float => (float) ($configuredAmounts[$index] ?? $defaultAmounts[$index] ?? 0.0),
+            range(0, $periodCount - 1),
+        );
+    }
+
+    private function splitMoneyAcrossPeriods(float $totalAmount, int $periodCount): array
+    {
+        $averageAmount = round($totalAmount / max(1, $periodCount), 2);
+        $assignedTotal = 0.0;
+        $amounts = [];
+        for ($index = 0; $index < $periodCount; $index++) {
+            $isLast = $index === $periodCount - 1;
+            $amount = $isLast ? round($totalAmount - $assignedTotal, 2) : $averageAmount;
+            $amounts[] = $amount;
+            $assignedTotal = round($assignedTotal + $amount, 2);
         }
 
         return $amounts;
@@ -610,57 +656,16 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function itemLabelWithInstallment(array $item, array $context): string
     {
-        $label = (string) ($item['category'] ?? $item['label']);
-        $config = $item['installmentConfig'] ?? null;
-        if (!is_array($config) || ($config['enabled'] ?? false) !== true) {
-            return $label;
-        }
+        return (string) ($item['category'] ?? $item['label']);
+    }
 
-        $months = is_int($config['months'] ?? null) ? $config['months'] : null;
-        $paidMonths = is_int($config['paidMonths'] ?? null) ? $config['paidMonths'] : 0;
-        $monthlyAmount = is_numeric($config['monthlyAmount'] ?? null)
-            ? (float) $config['monthlyAmount']
-            : null;
-
-        if ($months === null || $monthlyAmount === null) {
-            return $label;
-        }
-
-        $remaining = max(0, $months - max(0, min($paidMonths, $months)));
-        $paid = max(0, min($paidMonths, $months));
-
-        $english = 'Saving plan: '
-            . $this->formatter->templateMoney((string) $item['budget']['currency'], $monthlyAmount)
-            . ' per month, '
-            . $paid
-            . ' of '
-            . $months
-            . ' saved, '
-            . $remaining
-            . ' remaining';
-        $chinesePrefix = $context['chineseLanguage'] === 'sc' ? '储蓄计划：' : '儲蓄計畫：';
-        $savedLabel = $context['chineseLanguage'] === 'sc' ? '已存' : '已存';
-        $remainingLabel = $context['chineseLanguage'] === 'sc' ? '剩余' : '剩餘';
-        $periodsLabel = $context['chineseLanguage'] === 'sc' ? '期，共' : '期，共';
-        $chinese = $chinesePrefix
-            . $this->formatter->templateMoney((string) $item['budget']['currency'], $monthlyAmount)
+    private function targetWithRemaining(string $currency, float $targetAmount, float $remainingAmount, array $context): string
+    {
+        return $this->formatter->templateMoney($currency, $targetAmount)
+            . "\n"
+            . $this->tableText('Remaining', $context['labels']['remainingLabel'], $context)
             . ' '
-            . $context['labels']['periodUnits']['month']
-            . '，'
-            . $savedLabel
-            . ' '
-            . $paid
-            . ' '
-            . $periodsLabel
-            . ' '
-            . $months
-            . ' 期'
-            . '，'
-            . $remainingLabel
-            . ' '
-            . $remaining;
-
-        return $label . "\n" . $this->tableText($english, $chinese, $context);
+            . $this->formatter->templateMoney($currency, $remainingAmount);
     }
 
     private function moneyWithSecondary(string $baseCurrency, float $baseAmount, array $leg): string

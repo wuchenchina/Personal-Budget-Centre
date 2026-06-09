@@ -896,6 +896,130 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
   };
 
+  const handleInstallmentPeriodReset = async (
+    item: BudgetItem,
+    periodIndex: number,
+    periodCount: number,
+    targetAmount: number,
+  ) => {
+    if (
+      options.selectedBudget === null
+      || !Number.isInteger(periodIndex)
+      || periodIndex < 0
+      || !Number.isInteger(periodCount)
+      || periodCount <= 0
+      || periodIndex >= periodCount
+      || !Number.isFinite(targetAmount)
+      || targetAmount <= 0
+    ) {
+      return;
+    }
+
+    const periodUnit = options.selectedBudget.installmentPeriodUnit;
+    const months = item.installmentConfig.months
+      ?? installmentMonthsFromPeriodCount(periodCount, periodUnit);
+    const {
+      periodAmounts,
+      periodLocked,
+      periodProgress,
+      periodRemarks,
+    } = installmentPeriodStateFromItem(item, periodCount, targetAmount);
+    const previousPeriodAmounts = [...periodAmounts];
+    const previousPeriodProgress = [...periodProgress];
+    const previousPeriodRemarks = [...periodRemarks];
+
+    resetInstallmentPeriodState(periodAmounts, periodLocked, periodProgress, periodRemarks, periodIndex, targetAmount);
+    const totalAmount = roundMoney(targetAmount);
+    const monthlyAmount = roundMoney(totalAmount / periodCount);
+
+    setIsBudgetItemSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateBudgetItem({
+        id: item.id,
+        categoryId: item.categoryId ?? undefined,
+        label: item.label,
+        budgetCurrency: item.budget.currency,
+        budgetAmount: item.budget.amountOriginal,
+        budgetRate: item.budget.rateToBase,
+        estimatedCurrency: options.selectedBudget.baseCurrency,
+        estimatedAmount: 0,
+        estimatedRate: 1,
+        installmentConfig: {
+          ...item.installmentConfig,
+          enabled: true,
+          months,
+          periodUnit,
+          paidMonths: periodProgress.filter(Boolean).length,
+          periodAmounts,
+          periodLocked,
+          periodProgress,
+          periodRemarks,
+          monthlyAmount,
+          totalAmount,
+          versions: createInstallmentVersions(
+            item,
+            previousPeriodAmounts,
+            previousPeriodProgress,
+            previousPeriodRemarks,
+            'Period reset',
+          ),
+        },
+        sortOrder: item.sortOrder,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsBudgetItemSaving(false);
+    }
+  };
+
+  const handleOverallInstallmentPeriodReset = async (
+    periodIndex: number,
+    periodCount: number,
+    targetAmount: number,
+  ) => {
+    if (
+      options.selectedBudget === null
+      || !Number.isInteger(periodIndex)
+      || periodIndex < 0
+      || !Number.isInteger(periodCount)
+      || periodCount <= 0
+      || periodIndex >= periodCount
+      || !Number.isFinite(targetAmount)
+      || targetAmount <= 0
+    ) {
+      return;
+    }
+
+    const {
+      periodAmounts,
+      periodLocked,
+      periodProgress,
+      periodRemarks,
+    } = installmentPeriodStateFromOverallPlan(options.selectedBudget, periodCount, targetAmount);
+
+    resetInstallmentPeriodState(periodAmounts, periodLocked, periodProgress, periodRemarks, periodIndex, targetAmount);
+
+    setIsBudgetItemSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateOverallInstallmentPlan({
+        budgetId: options.selectedBudget.id,
+        periodAmounts,
+        periodLocked,
+        periodProgress,
+        periodRemarks,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsBudgetItemSaving(false);
+    }
+  };
+
   const handleInstallmentProgressSave = async (
     item: BudgetItem,
     periodIndex: number,
@@ -1223,6 +1347,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     handleBudgetItemCategoryQuickSave,
     handleInstallmentPeriodAmountSave,
     handleOverallInstallmentPeriodAmountSave,
+    handleInstallmentPeriodReset,
+    handleOverallInstallmentPeriodReset,
     handleInstallmentProgressSave,
     handleOverallInstallmentProgressSave,
     handleInstallmentRemarkSave,
@@ -1381,6 +1507,43 @@ function distributeRemainingInstallmentAmount(
     periodAmounts[index] = nextAmount;
     assignedTotal = roundMoney(assignedTotal + nextAmount);
   });
+}
+
+function resetInstallmentPeriodState(
+  periodAmounts: number[],
+  periodLocked: boolean[],
+  periodProgress: boolean[],
+  periodRemarks: string[],
+  periodIndex: number,
+  targetAmount: number,
+) {
+  periodLocked[periodIndex] = false;
+  periodProgress[periodIndex] = false;
+  periodRemarks[periodIndex] = '';
+
+  const lockedIndexes = new Set<number>();
+  for (let index = 0; index < periodIndex; index += 1) {
+    lockedIndexes.add(index);
+  }
+  periodLocked.forEach((isLocked, index) => {
+    if (isLocked) {
+      lockedIndexes.add(index);
+    }
+  });
+  periodProgress.forEach((isDone, index) => {
+    if (isDone) {
+      lockedIndexes.add(index);
+    }
+  });
+
+  const adjustableIndexes = periodAmounts
+    .map((_amount, index) => index)
+    .filter((index) => !lockedIndexes.has(index));
+  const lockedTotal = Array.from(lockedIndexes)
+    .reduce((total, index) => total + (periodAmounts[index] ?? 0), 0);
+  if (adjustableIndexes.length > 0) {
+    distributeRemainingInstallmentAmount(periodAmounts, adjustableIndexes, targetAmount, lockedTotal);
+  }
 }
 
 function createInstallmentVersions(

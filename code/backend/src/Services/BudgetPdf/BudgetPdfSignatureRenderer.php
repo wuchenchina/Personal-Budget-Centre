@@ -62,7 +62,7 @@ final readonly class BudgetPdfSignatureRenderer
 
         $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $this->number($width) . 'mm" height="' . $this->number($height) . 'mm" viewBox="0 0 ' . $this->number($width) . ' ' . $this->number($height) . '">'
             . '<rect x="0" y="0" width="' . $this->number($width) . '" height="6" fill="#a4a4a4" stroke="#7e7e7e" stroke-width="0.2"/>'
-            . $this->text(2, 4.35, $title, 3.7, '#000')
+            . $this->text(2, 4.15, $title, 3.1, '#000')
             . '<rect x="0" y="6" width="' . $this->number($width) . '" height="' . $this->number($height - 6) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>';
 
         $rowTop = 8.0;

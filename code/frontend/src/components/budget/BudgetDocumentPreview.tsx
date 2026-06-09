@@ -25,6 +25,7 @@ import {
   FileText,
   Pencil,
   Plus,
+  RotateCcw,
   Share2,
   Signature,
   Trash2,
@@ -764,6 +765,23 @@ function createInstallmentPeriodColumns(
           editable={canWriteBudgets}
           editLabel={editLabel}
           value={row.periodAmount}
+          onReset={() => {
+            if (row.item !== undefined) {
+              void entry.handleInstallmentPeriodReset(
+                row.item,
+                row.periodIndex,
+                row.periodCount,
+                row.targetAmountOriginal,
+              );
+
+              return;
+            }
+            void entry.handleOverallInstallmentPeriodReset(
+              row.periodIndex,
+              row.periodCount,
+              row.targetAmountOriginal,
+            );
+          }}
           onCommit={(nextValue) => {
             if (row.item !== undefined) {
               void entry.handleInstallmentPeriodAmountSave(
@@ -1090,6 +1108,7 @@ function InlineInstallmentAmountCell({
   editable,
   editLabel,
   value,
+  onReset,
   onCommit,
 }: {
   currency: CurrencyCode;
@@ -1097,6 +1116,7 @@ function InlineInstallmentAmountCell({
   editable: boolean;
   editLabel: string;
   value: number;
+  onReset: () => void;
   onCommit: (value: number) => void;
 }) {
   const { t } = useI18n();
@@ -1141,15 +1161,26 @@ function InlineInstallmentAmountCell({
           {formatBudgetMoney(currency, value)}
         </span>
         {editable ? (
-          <Tooltip title={editLabel}>
-            <Button
-              disabled={disabled}
-              icon={<Pencil size={12} />}
-              size="small"
-              type="text"
-              onClick={beginEditing}
-            />
-          </Tooltip>
+          <Space size={2}>
+            <Tooltip title={editLabel}>
+              <Button
+                disabled={disabled}
+                icon={<Pencil size={12} />}
+                size="small"
+                type="text"
+                onClick={beginEditing}
+              />
+            </Tooltip>
+            <Tooltip title={t('reset')}>
+              <Button
+                disabled={disabled}
+                icon={<RotateCcw size={12} />}
+                size="small"
+                type="text"
+                onClick={onReset}
+              />
+            </Tooltip>
+          </Space>
         ) : null}
       </span>
     );
