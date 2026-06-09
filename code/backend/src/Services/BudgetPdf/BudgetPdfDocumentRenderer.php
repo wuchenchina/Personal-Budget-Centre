@@ -128,22 +128,24 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function installmentRows(array $budget): array
     {
+        $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
+
         return array_map(
-            function (array $item) use ($budget): array {
+            function (array $item) use ($budget, $transactions): array {
                 $config = is_array($item['installmentConfig'] ?? null) ? $item['installmentConfig'] : [];
                 $months = is_int($config['months'] ?? null)
                     ? (int) $config['months']
                     : $this->budgetDurationMonths($budget);
                 $months = max(1.0, (float) ($months ?? 1));
-                $targetAmount = $this->installmentTargetAmount($item, $config);
+                $target = $this->installmentTargetAmount($item, $config, $transactions);
                 $periodUnit = $this->installmentPeriodUnit($budget);
                 $periodCount = max(1.0, $this->periodCountFromMonths($months, $periodUnit));
                 $paidMonths = is_int($config['paidMonths'] ?? null) ? (int) $config['paidMonths'] : 0;
 
                 return [
                     (string) ($item['category'] ?? $item['label']),
-                    $this->formatter->templateMoney((string) $item['budget']['currency'], $targetAmount),
-                    $this->formatter->templateMoney((string) $item['budget']['currency'], $targetAmount / $periodCount)
+                    $this->formatter->templateMoney((string) $item['budget']['currency'], $target['original']),
+                    $this->formatter->templateMoney((string) $item['budget']['currency'], $target['original'] / $periodCount)
                         . ' / ' . $this->periodUnitText($periodUnit),
                     $this->durationText($months),
                     is_int($config['months'] ?? null) ? max(0, $paidMonths) . '/' . (int) $config['months'] : '',
@@ -156,6 +158,7 @@ final readonly class BudgetPdfDocumentRenderer
     private function installmentSummaryRow(array $budget): array
     {
         $items = is_array($budget['items'] ?? null) ? $budget['items'] : [];
+        $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
         $targetTotal = 0.0;
         $periodTotal = 0.0;
 
@@ -169,15 +172,11 @@ final readonly class BudgetPdfDocumentRenderer
                 ? (int) $config['months']
                 : $this->budgetDurationMonths($budget);
             $months = max(1.0, (float) ($months ?? 1));
-            $targetAmount = $this->installmentTargetAmount($item, $config);
+            $target = $this->installmentTargetAmount($item, $config, $transactions);
             $periodCount = max(1.0, $this->periodCountFromMonths($months, $this->installmentPeriodUnit($budget)));
-            $rateToBase = is_numeric($item['budget']['rateToBase'] ?? null)
-                ? (float) $item['budget']['rateToBase']
-                : 1.0;
-            $targetAmountBase = $targetAmount * ($rateToBase > 0.0 ? $rateToBase : 1.0);
 
-            $targetTotal += $targetAmountBase;
-            $periodTotal += $targetAmountBase / $periodCount;
+            $targetTotal += $target['base'];
+            $periodTotal += $target['base'] / $periodCount;
         }
 
         return [
@@ -205,16 +204,32 @@ final readonly class BudgetPdfDocumentRenderer
         );
     }
 
-    private function installmentTargetAmount(array $item, array $config): float
+    /**
+     * @return array{base: float, original: float}
+     */
+    private function installmentTargetAmount(array $item, array $config, array $transactions): array
     {
         if (($config['enabled'] ?? false) === true
             && is_numeric($config['totalAmount'] ?? null)
             && (float) $config['totalAmount'] > 0.0
         ) {
-            return (float) $config['totalAmount'];
+            $original = (float) $config['totalAmount'];
+            $rateToBase = is_numeric($item['budget']['rateToBase'] ?? null)
+                ? (float) $item['budget']['rateToBase']
+                : 1.0;
+
+            return [
+                'original' => $original,
+                'base' => $original * ($rateToBase > 0.0 ? $rateToBase : 1.0),
+            ];
         }
 
-        return (float) ($item['budget']['amountOriginal'] ?? 0);
+        $effective = $this->effectiveItemAmounts($item, $transactions);
+
+        return [
+            'original' => $effective['budgetOriginal'],
+            'base' => $effective['budgetBase'],
+        ];
     }
 
     private function amountWithReference(string $primary, array $transaction): string

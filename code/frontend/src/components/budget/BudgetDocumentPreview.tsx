@@ -34,8 +34,6 @@ import type { BudgetEntryController } from '../../hooks/useBudgetEntryController
 import type { OperationsController } from '../../hooks/useOperationsController';
 import {
   budgetStatusLabelsByLanguage,
-  type I18nKey,
-  type I18nValues,
   useI18n,
   visibilityLabelsByLanguage,
 } from '../../i18n';
@@ -200,19 +198,18 @@ export function BudgetDocumentPreview({
     { label: visibilityLabelsByLanguage[language].workspace, value: 'workspace' },
     { label: visibilityLabelsByLanguage[language].custom, value: 'custom' },
   ];
-  const installmentRows = selectedBudget === null ? [] : createInstallmentEstimateRows(selectedBudget, t);
+  const installmentRows = selectedBudget === null ? [] : createInstallmentEstimateRows(selectedBudget);
   const installmentPeriodLabel = installmentPeriodUnitLabel(
     selectedBudget?.installmentPeriodUnit ?? 'month',
-    t,
   );
   const installmentColumns = createInstallmentEstimateColumns(
     installmentPeriodLabel,
     {
       category: 'Category',
-      duration: t('installmentDuration'),
-      periodAmount: t('installmentPeriodAmount'),
-      progress: t('installmentProgress'),
-      targetAmount: t('installmentTargetAmount'),
+      duration: 'Duration',
+      periodAmount: 'Save per period',
+      progress: 'Progress',
+      targetAmount: 'Target',
     },
   );
 
@@ -395,8 +392,7 @@ export function BudgetDocumentPreview({
           {selectedBudget.budgetType === 'installment' ? (
             <div className="budget-table-frame">
               <div className="budget-section-title budget-section-title-row">
-                <span>{t('installmentSectionTitle')}</span>
-                <Tag color="blue">{t('installmentBudget')}</Tag>
+                <span>Installments</span>
               </div>
               {budgetDateText ? (
                 <div className="budget-section-date">
@@ -409,13 +405,13 @@ export function BudgetDocumentPreview({
                 columns={installmentColumns}
                 dataSource={installmentRows}
                 loading={isTemplateLoading || isBudgetDetailLoading}
-                locale={{ emptyText: <Empty description={t('installmentRowsEmpty')} /> }}
+                locale={{ emptyText: <Empty description="No budget highlight items yet." /> }}
                 pagination={false}
                 rowKey="id"
                 size="small"
                 summary={() => renderInstallmentSummary(
                   createInstallmentSummaryValues(selectedBudget, installmentRows),
-                  t('totalBudgetLabel'),
+                  'Budget Total',
                 )}
                 tableLayout="fixed"
               />
@@ -502,34 +498,27 @@ function createInstallmentEstimateColumns(
   ];
 }
 
-function createInstallmentEstimateRows(
-  budget: BudgetDetail,
-  t: (key: I18nKey, values?: I18nValues) => string,
-): InstallmentEstimateRow[] {
+function createInstallmentEstimateRows(budget: BudgetDetail): InstallmentEstimateRow[] {
   return budget.items.map((item) => {
     const configuredMonths = item.installmentConfig.enabled ? item.installmentConfig.months : null;
     const durationMonths =
       configuredMonths ?? budgetDurationMonths(budget.startDate, budget.endDate) ?? 1;
-    const targetAmount = installmentTargetAmount(item);
+    const target = installmentTarget(item, budget);
     const periodCount = Math.max(1, periodCountFromMonths(durationMonths, budget.installmentPeriodUnit));
-    const periodAmount = targetAmount / periodCount;
-    const targetAmountBase = item.budget.rateToBase > 0
-      ? targetAmount * item.budget.rateToBase
-      : targetAmount;
     const paidMonths = item.installmentConfig.enabled ? item.installmentConfig.paidMonths : 0;
 
     return {
       id: item.id,
       category: item.category ?? item.label,
-      durationText: t('installmentDurationMonths', { count: roundDisplay(durationMonths) }),
-      periodAmount: formatBudgetMoney(item.budget.currency, periodAmount),
-      periodAmountBase: targetAmountBase / periodCount,
+      durationText: `${roundDisplay(durationMonths)} months`,
+      periodAmount: formatBudgetMoney(item.budget.currency, target.original / periodCount),
+      periodAmountBase: target.base / periodCount,
       progressText:
         configuredMonths === null
           ? '--'
           : `${paidMonths}/${configuredMonths}`,
-      targetAmount: formatBudgetMoney(item.budget.currency, targetAmount),
-      targetAmountBase,
+      targetAmount: formatBudgetMoney(item.budget.currency, target.original),
+      targetAmountBase: target.base,
     };
   });
 }
@@ -549,12 +538,26 @@ function createInstallmentSummaryValues(
   };
 }
 
-function installmentTargetAmount(item: BudgetItem): number {
+function installmentTarget(
+  item: BudgetItem,
+  budget: BudgetDetail,
+): { base: number; original: number } {
   const summary = installmentSummary(item.installmentConfig);
+  const rateToBase = item.budget.rateToBase > 0 ? item.budget.rateToBase : 1;
 
-  return item.installmentConfig.enabled && summary.totalAmount !== null && summary.totalAmount > 0
-    ? summary.totalAmount
-    : item.budget.amountOriginal;
+  if (item.installmentConfig.enabled && summary.totalAmount !== null && summary.totalAmount > 0) {
+    return {
+      original: summary.totalAmount,
+      base: summary.totalAmount * rateToBase,
+    };
+  }
+
+  const effective = effectiveBudgetItemAmounts(item, budget.transactions);
+
+  return {
+    original: effective.budgetAmountOriginal,
+    base: effective.budgetAmountBase,
+  };
 }
 
 function renderInstallmentSummary(values: InstallmentSummaryValues | null, summaryLabel: string) {
@@ -613,18 +616,13 @@ function roundDisplay(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-function installmentPeriodUnitLabel(
-  unit: BudgetDetail['installmentPeriodUnit'],
-  t: (key: I18nKey) => string,
-): string {
-  const keyByUnit: Record<BudgetDetail['installmentPeriodUnit'], I18nKey> = {
-    day: 'installmentPeriodDay',
-    week: 'installmentPeriodWeek',
-    month: 'installmentPeriodMonth',
-    year: 'installmentPeriodYear',
-  };
-
-  return t(keyByUnit[unit]);
+function installmentPeriodUnitLabel(unit: BudgetDetail['installmentPeriodUnit']): string {
+  return {
+    day: 'Daily',
+    week: 'Weekly',
+    month: 'Monthly',
+    year: 'Yearly',
+  }[unit];
 }
 
 function BudgetEditableHeader({
