@@ -54,13 +54,13 @@ VALUES (
         'key', 'installments',
         'title', 'Installments',
         'columns', JSON_ARRAY(
-          JSON_OBJECT('key', 'sequence', 'label', 'No.', 'align', 'center', 'widthPercent', 7, 'dataType', 'text'),
-          JSON_OBJECT('key', 'category', 'label', 'Category', 'align', 'left', 'widthPercent', 18, 'dataType', 'text'),
-          JSON_OBJECT('key', 'period', 'label', 'Period', 'align', 'left', 'widthPercent', 17, 'dataType', 'text'),
-          JSON_OBJECT('key', 'target_amount', 'label', 'Target', 'align', 'right', 'widthPercent', 18, 'dataType', 'money'),
-          JSON_OBJECT('key', 'period_amount', 'label', 'Amount', 'align', 'right', 'widthPercent', 18, 'dataType', 'money'),
-          JSON_OBJECT('key', 'progress', 'label', 'Progress', 'align', 'center', 'widthPercent', 11, 'dataType', 'text'),
-          JSON_OBJECT('key', 'remark', 'label', 'Remark', 'align', 'right', 'widthPercent', 11, 'dataType', 'text')
+          JSON_OBJECT('key', 'sequence', 'label', 'No.', 'align', 'center', 'widthPercent', 4, 'dataType', 'text'),
+          JSON_OBJECT('key', 'category', 'label', 'Category', 'align', 'left', 'widthPercent', 15, 'dataType', 'text'),
+          JSON_OBJECT('key', 'period', 'label', 'Period', 'align', 'left', 'widthPercent', 15, 'dataType', 'text'),
+          JSON_OBJECT('key', 'target_amount', 'label', 'Target', 'align', 'right', 'widthPercent', 16, 'dataType', 'money'),
+          JSON_OBJECT('key', 'period_amount', 'label', 'Amount', 'align', 'right', 'widthPercent', 19, 'dataType', 'money'),
+          JSON_OBJECT('key', 'progress', 'label', 'Done', 'align', 'center', 'widthPercent', 5, 'dataType', 'text'),
+          JSON_OBJECT('key', 'remark', 'label', 'Remark', 'align', 'right', 'widthPercent', 26, 'dataType', 'text')
         )
       )
     )

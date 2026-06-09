@@ -481,13 +481,13 @@ function createInstallmentPeriodColumns(
       dataIndex: 'sequence',
       key: 'sequence',
       title: labels.sequence,
-      width: '6%',
+      width: '4%',
     },
     {
       dataIndex: 'category',
       key: 'category',
       title: labels.category,
-      width: '14%',
+      width: '15%',
     },
     {
       dataIndex: 'periodLabel',
@@ -500,14 +500,14 @@ function createInstallmentPeriodColumns(
       dataIndex: 'targetAmount',
       key: 'targetAmount',
       title: labels.targetAmount,
-      width: '17%',
+      width: '16%',
     },
     {
       align: 'right',
       dataIndex: 'periodAmount',
       key: 'periodAmount',
       title: labels.periodAmount,
-      width: '17%',
+      width: '19%',
       render: (_value: number, row) => (
         <InlineInstallmentAmountCell
           currency={row.item.budget.currency}
@@ -532,8 +532,8 @@ function createInstallmentPeriodColumns(
       align: 'center',
       dataIndex: 'progressChecked',
       key: 'progress',
-      title: labels.progress,
-      width: '9%',
+      title: <Check aria-label={labels.progress} size={12} />,
+      width: '5%',
       render: (_value: boolean, row) => (
         <Checkbox
           checked={row.progressChecked}
@@ -554,7 +554,7 @@ function createInstallmentPeriodColumns(
       dataIndex: 'remarkText',
       key: 'remark',
       title: labels.remark,
-      width: '22%',
+      width: '26%',
       render: (_value: string, row) => (
         <InlineTransactionRemarkCell
           disabled={entry.isBudgetItemSaving}
