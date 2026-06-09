@@ -478,6 +478,7 @@ final readonly class BudgetEntryService
         );
         $periodAmounts = $this->periodAmountsFromInput($input['periodAmounts'] ?? $input['period_amounts'] ?? null);
         $periodProgress = $this->periodProgressFromInput($input['periodProgress'] ?? $input['period_progress'] ?? null);
+        $periodRemarks = $this->periodRemarksFromInput($input['periodRemarks'] ?? $input['period_remarks'] ?? null);
         $versions = $this->installmentVersionsFromInput($input['versions'] ?? null);
         $startMonth = $this->monthFromInput($input['startMonth'] ?? $input['start_month'] ?? null);
         $periodUnit = $this->installmentPeriodUnit($input['periodUnit'] ?? $input['period_unit'] ?? null);
@@ -492,6 +493,7 @@ final readonly class BudgetEntryService
                 'totalAmount' => null,
                 'periodAmounts' => [],
                 'periodProgress' => [],
+                'periodRemarks' => [],
                 'versions' => [],
                 'startMonth' => null,
                 'periodUnit' => 'month',
@@ -509,6 +511,9 @@ final readonly class BudgetEntryService
         }
         if (count($periodProgress) > $periodCount) {
             throw new AuthException('VALIDATION_ERROR', 'Installment progress cannot exceed the saving period count.', 422);
+        }
+        if (count($periodRemarks) > $periodCount) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment remarks cannot exceed the saving period count.', 422);
         }
 
         if ($periodAmounts !== []) {
@@ -543,6 +548,7 @@ final readonly class BudgetEntryService
             'totalAmount' => $totalAmount,
             'periodAmounts' => $periodAmounts,
             'periodProgress' => $periodProgress,
+            'periodRemarks' => $periodRemarks,
             'versions' => $versions,
             'startMonth' => $startMonth,
             'periodUnit' => $periodUnit,
@@ -609,7 +615,29 @@ final readonly class BudgetEntryService
     }
 
     /**
-     * @return list<array{id: string, createdAt: string, label: string, periodAmounts: list<float>, periodProgress: list<bool>, totalAmount: ?float}>
+     * @return list<string>
+     */
+    private function periodRemarksFromInput(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $remarks = [];
+        foreach ($value as $remark) {
+            $text = Input::string($remark);
+            if ($text !== null && strlen($text) > 500) {
+                throw new AuthException('VALIDATION_ERROR', 'Installment period remarks must be 500 characters or less.', 422);
+            }
+
+            $remarks[] = $text ?? '';
+        }
+
+        return $remarks;
+    }
+
+    /**
+     * @return list<array{id: string, createdAt: string, label: string, periodAmounts: list<float>, periodProgress: list<bool>, periodRemarks: list<string>, totalAmount: ?float}>
      */
     private function installmentVersionsFromInput(mixed $value): array
     {
@@ -636,6 +664,7 @@ final readonly class BudgetEntryService
                 'label' => substr($label, 0, 120),
                 'periodAmounts' => $this->periodAmountsFromInput($item['periodAmounts'] ?? null),
                 'periodProgress' => $this->periodProgressFromInput($item['periodProgress'] ?? null),
+                'periodRemarks' => $this->periodRemarksFromInput($item['periodRemarks'] ?? null),
                 'totalAmount' => $this->number($item['totalAmount'] ?? null),
             ];
         }

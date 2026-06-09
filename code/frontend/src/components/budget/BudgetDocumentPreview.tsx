@@ -481,33 +481,33 @@ function createInstallmentPeriodColumns(
       dataIndex: 'sequence',
       key: 'sequence',
       title: labels.sequence,
-      width: '7%',
+      width: '6%',
     },
     {
       dataIndex: 'category',
       key: 'category',
       title: labels.category,
-      width: '18%',
+      width: '14%',
     },
     {
       dataIndex: 'periodLabel',
       key: 'period',
       title: labels.period,
-      width: '17%',
+      width: '15%',
     },
     {
       align: 'right',
       dataIndex: 'targetAmount',
       key: 'targetAmount',
       title: labels.targetAmount,
-      width: '18%',
+      width: '17%',
     },
     {
       align: 'right',
       dataIndex: 'periodAmount',
       key: 'periodAmount',
       title: labels.periodAmount,
-      width: '18%',
+      width: '17%',
       render: (_value: number, row) => (
         <InlineInstallmentAmountCell
           currency={row.item.budget.currency}
@@ -533,7 +533,7 @@ function createInstallmentPeriodColumns(
       dataIndex: 'progressChecked',
       key: 'progress',
       title: labels.progress,
-      width: '11%',
+      width: '9%',
       render: (_value: boolean, row) => (
         <Checkbox
           checked={row.progressChecked}
@@ -554,8 +554,23 @@ function createInstallmentPeriodColumns(
       dataIndex: 'remarkText',
       key: 'remark',
       title: labels.remark,
-      width: '11%',
-      render: () => <span className="budget-installment-remark-box" />,
+      width: '22%',
+      render: (_value: string, row) => (
+        <InlineTransactionRemarkCell
+          disabled={entry.isBudgetItemSaving}
+          editable={canWriteBudgets}
+          value={row.remarkText}
+          onCommit={(nextValue) => {
+            void entry.handleInstallmentRemarkSave(
+              row.item,
+              row.periodIndex,
+              nextValue,
+              row.periodCount,
+              row.targetAmountOriginal,
+            );
+          }}
+        />
+      ),
     },
   ];
 }
@@ -573,6 +588,7 @@ function createInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow
     return Array.from({ length: periodCount }, (_, index) => {
       const periodAmount = item.installmentConfig.periodAmounts[index] ?? defaultPeriodAmount;
       const progressChecked = item.installmentConfig.periodProgress[index] === true;
+      const remarkText = item.installmentConfig.periodRemarks[index] ?? '';
 
       return {
         id: `${item.id}-${index + 1}`,
@@ -584,7 +600,7 @@ function createInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow
         periodIndex: index,
         periodLabel: formatInstallmentPeriodLabel(startDate, index, budget.installmentPeriodUnit),
         progressChecked,
-        remarkText: '',
+        remarkText,
         sequence: index + 1,
         targetAmountOriginal: target.original,
         targetAmount: formatBudgetMoney(item.budget.currency, target.original),

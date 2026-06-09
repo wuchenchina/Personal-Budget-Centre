@@ -11,6 +11,7 @@ export function emptyInstallmentConfig(): BudgetInstallmentConfig {
     totalAmount: null,
     periodAmounts: [],
     periodProgress: [],
+    periodRemarks: [],
     versions: [],
     startMonth: null,
     periodUnit: 'month',
@@ -57,6 +58,7 @@ export function normalizeInstallmentConfig(
   const totalAmount = normalizeNonNegativeNumber(config.totalAmount);
   const periodAmounts = normalizePeriodAmounts(config.periodAmounts);
   const periodProgress = normalizePeriodProgress(config.periodProgress);
+  const periodRemarks = normalizePeriodRemarks(config.periodRemarks);
   const versions = normalizeVersions(config.versions);
   const startMonth = normalizeMonth(config.startMonth);
   const periodUnit = normalizePeriodUnit(config.periodUnit);
@@ -74,6 +76,7 @@ export function normalizeInstallmentConfig(
     totalAmount,
     periodAmounts,
     periodProgress,
+    periodRemarks,
     versions,
     startMonth,
     periodUnit,
@@ -170,6 +173,14 @@ function normalizePeriodProgress(value: unknown): boolean[] {
   return value.map((item) => item === true);
 }
 
+function normalizePeriodRemarks(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => (typeof item === 'string' ? item.trim() : ''));
+}
+
 function normalizeVersions(value: unknown): BudgetInstallmentConfig['versions'] {
   if (!Array.isArray(value)) {
     return [];
@@ -183,6 +194,7 @@ function normalizeVersions(value: unknown): BudgetInstallmentConfig['versions'] 
       label: typeof item.label === 'string' ? item.label : '',
       periodAmounts: normalizePeriodAmounts(item.periodAmounts),
       periodProgress: normalizePeriodProgress(item.periodProgress),
+      periodRemarks: normalizePeriodRemarks(item.periodRemarks),
       totalAmount: normalizeNonNegativeNumber(item.totalAmount),
     }));
 }

@@ -540,8 +540,12 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     const periodProgress = Array.from({ length: periodCount }, (_, index) =>
       item.installmentConfig.periodProgress[index] === true,
     );
+    const periodRemarks = Array.from({ length: periodCount }, (_, index) =>
+      item.installmentConfig.periodRemarks[index] ?? '',
+    );
     const previousPeriodAmounts = [...periodAmounts];
     const previousPeriodProgress = [...periodProgress];
+    const previousPeriodRemarks = [...periodRemarks];
     periodAmounts[periodIndex] = roundMoney(value);
     const lockedIndexes = new Set<number>();
     for (let index = 0; index <= periodIndex; index += 1) {
@@ -583,12 +587,14 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
           months,
           periodAmounts,
           periodProgress,
+          periodRemarks,
           monthlyAmount,
           totalAmount,
           versions: createInstallmentVersions(
             item,
             previousPeriodAmounts,
             previousPeriodProgress,
+            previousPeriodRemarks,
             'Amount update',
           ),
         },
@@ -630,8 +636,12 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     const periodProgress = Array.from({ length: periodCount }, (_, index) =>
       item.installmentConfig.periodProgress[index] === true,
     );
+    const periodRemarks = Array.from({ length: periodCount }, (_, index) =>
+      item.installmentConfig.periodRemarks[index] ?? '',
+    );
     const previousPeriodAmounts = [...periodAmounts];
     const previousPeriodProgress = [...periodProgress];
+    const previousPeriodRemarks = [...periodRemarks];
     periodProgress[periodIndex] = checked;
     const totalAmount = roundMoney(periodAmounts.reduce((total, amount) => total + amount, 0));
     const monthlyAmount = roundMoney(totalAmount / periodCount);
@@ -657,13 +667,100 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
           paidMonths: periodProgress.filter(Boolean).length,
           periodAmounts,
           periodProgress,
+          periodRemarks,
           monthlyAmount,
           totalAmount,
           versions: createInstallmentVersions(
             item,
             previousPeriodAmounts,
             previousPeriodProgress,
+            previousPeriodRemarks,
             'Progress update',
+          ),
+        },
+        sortOrder: item.sortOrder,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsBudgetItemSaving(false);
+    }
+  };
+
+  const handleInstallmentRemarkSave = async (
+    item: BudgetItem,
+    periodIndex: number,
+    remark: string,
+    periodCount: number,
+    targetAmount: number,
+  ) => {
+    if (
+      options.selectedBudget === null
+      || !Number.isInteger(periodIndex)
+      || periodIndex < 0
+      || !Number.isInteger(periodCount)
+      || periodCount <= 0
+      || periodIndex >= periodCount
+      || !Number.isFinite(targetAmount)
+      || targetAmount <= 0
+    ) {
+      return;
+    }
+
+    const nextRemark = remark.trim();
+    const months = item.installmentConfig.months
+      ?? installmentMonthsFromPeriodCount(periodCount, options.selectedBudget.installmentPeriodUnit);
+    const defaultAmount = targetAmount / periodCount;
+    const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
+      item.installmentConfig.periodAmounts[index] ?? defaultAmount,
+    );
+    const periodProgress = Array.from({ length: periodCount }, (_, index) =>
+      item.installmentConfig.periodProgress[index] === true,
+    );
+    const periodRemarks = Array.from({ length: periodCount }, (_, index) =>
+      item.installmentConfig.periodRemarks[index] ?? '',
+    );
+    if ((periodRemarks[periodIndex] ?? '') === nextRemark) {
+      return;
+    }
+
+    const previousPeriodAmounts = [...periodAmounts];
+    const previousPeriodProgress = [...periodProgress];
+    const previousPeriodRemarks = [...periodRemarks];
+    periodRemarks[periodIndex] = nextRemark;
+    const totalAmount = roundMoney(periodAmounts.reduce((total, amount) => total + amount, 0));
+    const monthlyAmount = roundMoney(totalAmount / periodCount);
+
+    setIsBudgetItemSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateBudgetItem({
+        id: item.id,
+        categoryId: item.categoryId ?? undefined,
+        label: item.label,
+        budgetCurrency: item.budget.currency,
+        budgetAmount: item.budget.amountOriginal,
+        budgetRate: item.budget.rateToBase,
+        estimatedCurrency: options.selectedBudget.baseCurrency,
+        estimatedAmount: 0,
+        estimatedRate: 1,
+        installmentConfig: {
+          ...item.installmentConfig,
+          enabled: true,
+          months,
+          paidMonths: periodProgress.filter(Boolean).length,
+          periodAmounts,
+          periodProgress,
+          periodRemarks,
+          monthlyAmount,
+          totalAmount,
+          versions: createInstallmentVersions(
+            item,
+            previousPeriodAmounts,
+            previousPeriodProgress,
+            previousPeriodRemarks,
+            'Remark update',
           ),
         },
         sortOrder: item.sortOrder,
@@ -843,6 +940,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     handleBudgetItemCategoryQuickSave,
     handleInstallmentPeriodAmountSave,
     handleInstallmentProgressSave,
+    handleInstallmentRemarkSave,
     handleBudgetItemRateRefresh,
     openTransactionCreateModal,
     openTransactionEditModal,
@@ -887,6 +985,7 @@ function createInstallmentVersions(
   item: BudgetItem,
   periodAmounts: number[],
   periodProgress: boolean[],
+  periodRemarks: string[],
   label: string,
 ): BudgetItem['installmentConfig']['versions'] {
   return [
@@ -898,6 +997,7 @@ function createInstallmentVersions(
       label,
       periodAmounts,
       periodProgress,
+      periodRemarks,
       totalAmount: item.installmentConfig.totalAmount
         ?? roundMoney(periodAmounts.reduce((total, amount) => total + amount, 0)),
     },

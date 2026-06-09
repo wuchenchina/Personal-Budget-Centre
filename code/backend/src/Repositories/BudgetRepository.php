@@ -656,6 +656,7 @@ final readonly class BudgetRepository
                 : null,
             'periodAmounts' => $this->installmentPeriodAmounts($decoded['periodAmounts'] ?? null, $periodCount),
             'periodProgress' => $this->installmentPeriodProgress($decoded['periodProgress'] ?? null, $periodCount),
+            'periodRemarks' => $this->installmentPeriodRemarks($decoded['periodRemarks'] ?? null, $periodCount),
             'versions' => $this->installmentVersions($decoded['versions'] ?? null),
             'startMonth' => is_string($decoded['startMonth'] ?? null) && preg_match('/^\d{4}-\d{2}$/', $decoded['startMonth']) === 1
                 ? $decoded['startMonth']
@@ -677,6 +678,7 @@ final readonly class BudgetRepository
             'totalAmount' => null,
             'periodAmounts' => [],
             'periodProgress' => [],
+            'periodRemarks' => [],
             'versions' => [],
             'startMonth' => null,
             'periodUnit' => 'month',
@@ -721,7 +723,22 @@ final readonly class BudgetRepository
     }
 
     /**
-     * @return list<array{id: string, createdAt: string, label: string, periodAmounts: list<float>, periodProgress: list<bool>, totalAmount: ?float}>
+     * @return list<string>
+     */
+    private function installmentPeriodRemarks(mixed $value, ?int $periodCount): array
+    {
+        if (!is_array($value) || $periodCount === null) {
+            return [];
+        }
+
+        return array_map(
+            static fn (mixed $item): string => is_string($item) ? trim($item) : '',
+            array_slice($value, 0, $periodCount),
+        );
+    }
+
+    /**
+     * @return list<array{id: string, createdAt: string, label: string, periodAmounts: list<float>, periodProgress: list<bool>, periodRemarks: list<string>, totalAmount: ?float}>
      */
     private function installmentVersions(mixed $value): array
     {
@@ -747,6 +764,7 @@ final readonly class BudgetRepository
                 'label' => $label,
                 'periodAmounts' => $this->installmentPeriodAmountsWithoutLimit($item['periodAmounts'] ?? null),
                 'periodProgress' => $this->installmentPeriodProgressWithoutLimit($item['periodProgress'] ?? null),
+                'periodRemarks' => $this->installmentPeriodRemarksWithoutLimit($item['periodRemarks'] ?? null),
                 'totalAmount' => is_numeric($item['totalAmount'] ?? null) ? (float) $item['totalAmount'] : null,
             ];
         }
@@ -785,6 +803,18 @@ final readonly class BudgetRepository
         }
 
         return array_map(static fn (mixed $item): bool => $item === true, $value);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function installmentPeriodRemarksWithoutLimit(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return array_map(static fn (mixed $item): string => is_string($item) ? trim($item) : '', $value);
     }
 
     private function installmentPeriodCountFromMonths(int $months, string $periodUnit): int

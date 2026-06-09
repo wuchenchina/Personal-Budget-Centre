@@ -132,6 +132,7 @@ export interface BudgetInstallmentConfig {
   totalAmount: number | null;
   periodAmounts: number[];
   periodProgress: boolean[];
+  periodRemarks: string[];
   versions: BudgetInstallmentVersion[];
   startMonth: string | null;
   periodUnit: BudgetInstallmentPeriodUnit;
@@ -144,6 +145,7 @@ export interface BudgetInstallmentVersion {
   label: string;
   periodAmounts: number[];
   periodProgress: boolean[];
+  periodRemarks: string[];
   totalAmount: number | null;
 }
 

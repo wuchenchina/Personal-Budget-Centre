@@ -126,6 +126,7 @@ function InstallmentHistory({ selectedBudget }: { selectedBudget: BudgetDetail |
             <span>{version.label}</span>
             <small>
               {version.periodAmounts.length} periods
+              {version.periodRemarks.some((remark) => remark !== '') ? ' · remarks' : ''}
               {version.totalAmount === null ? '' : ` · ${version.currency} ${version.totalAmount.toFixed(2)}`}
             </small>
           </div>

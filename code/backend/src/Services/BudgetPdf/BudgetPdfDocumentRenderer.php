@@ -146,6 +146,7 @@ final readonly class BudgetPdfDocumentRenderer
             $periodCount = max(1, (int) ceil($this->periodCountFromMonths($months, $periodUnit)));
             $periodAmounts = $this->installmentPeriodAmounts($config);
             $periodProgress = $this->installmentPeriodProgress($config);
+            $periodRemarks = $this->installmentPeriodRemarks($config);
             $defaultPeriodAmount = $target['original'] / $periodCount;
             $startTime = $this->installmentStartTime($item, $budget);
 
@@ -160,7 +161,7 @@ final readonly class BudgetPdfDocumentRenderer
                         (float) ($periodAmounts[$index] ?? $defaultPeriodAmount),
                     ) . ' / ' . $this->periodUnitText($periodUnit),
                     ($periodProgress[$index] ?? false) ? 'X' : '',
-                    '',
+                    (string) ($periodRemarks[$index] ?? ''),
                 ];
             }
         }
@@ -242,6 +243,15 @@ final readonly class BudgetPdfDocumentRenderer
         }
 
         return array_map(static fn (mixed $item): bool => $item === true, $config['periodProgress']);
+    }
+
+    private function installmentPeriodRemarks(array $config): array
+    {
+        if (!is_array($config['periodRemarks'] ?? null)) {
+            return [];
+        }
+
+        return array_map(static fn (mixed $item): string => is_string($item) ? trim($item) : '', $config['periodRemarks']);
     }
 
     private function installmentStartTime(array $item, array $budget): ?int
