@@ -361,10 +361,51 @@
   justify-items: end;
 }
 
+.budget-installment-amount-readonly {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.budget-installment-amount-editor {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+  justify-content: flex-end;
+  width: 100%;
+}
+
 .budget-installment-period-amount small {
   color: #8c8c8c;
   font-size: 10px;
   line-height: 1;
+}
+
+.budget-installment-remark-box {
+  border-bottom: 1px solid #bfbfbf;
+  display: inline-block;
+  height: 14px;
+  min-width: 42px;
+}
+
+.installment-period-settings {
+  margin-top: 14px;
+}
+
+.installment-history-item {
+  display: grid;
+  gap: 2px;
+}
+
+.installment-history-item span {
+  color: #595959;
+}
+
+.installment-history-item small {
+  color: #8c8c8c;
+  font-size: 11px;
 }
 
 .budget-money-stack {

@@ -131,9 +131,20 @@ export interface BudgetInstallmentConfig {
   monthlyAmount: number | null;
   totalAmount: number | null;
   periodAmounts: number[];
+  periodProgress: boolean[];
+  versions: BudgetInstallmentVersion[];
   startMonth: string | null;
   periodUnit: BudgetInstallmentPeriodUnit;
   remark: string | null;
+}
+
+export interface BudgetInstallmentVersion {
+  id: string;
+  createdAt: string;
+  label: string;
+  periodAmounts: number[];
+  periodProgress: boolean[];
+  totalAmount: number | null;
 }
 
 export interface BudgetItem {

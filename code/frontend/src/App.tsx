@@ -361,6 +361,7 @@ function App() {
       />
       <BudgetInstallmentModal
         form={budget.budgetForm}
+        selectedBudget={budget.selectedBudget}
         open={budget.isInstallmentModalOpen}
         error={budget.budgetError}
         confirmLoading={budget.isBudgetSaving}

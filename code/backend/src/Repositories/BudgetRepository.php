@@ -655,6 +655,8 @@ final readonly class BudgetRepository
                 ? (float) $decoded['totalAmount']
                 : null,
             'periodAmounts' => $this->installmentPeriodAmounts($decoded['periodAmounts'] ?? null, $periodCount),
+            'periodProgress' => $this->installmentPeriodProgress($decoded['periodProgress'] ?? null, $periodCount),
+            'versions' => $this->installmentVersions($decoded['versions'] ?? null),
             'startMonth' => is_string($decoded['startMonth'] ?? null) && preg_match('/^\d{4}-\d{2}$/', $decoded['startMonth']) === 1
                 ? $decoded['startMonth']
                 : null,
@@ -674,6 +676,8 @@ final readonly class BudgetRepository
             'monthlyAmount' => null,
             'totalAmount' => null,
             'periodAmounts' => [],
+            'periodProgress' => [],
+            'versions' => [],
             'startMonth' => null,
             'periodUnit' => 'month',
             'remark' => null,
@@ -699,6 +703,88 @@ final readonly class BudgetRepository
         }
 
         return $amounts;
+    }
+
+    /**
+     * @return list<bool>
+     */
+    private function installmentPeriodProgress(mixed $value, ?int $periodCount): array
+    {
+        if (!is_array($value) || $periodCount === null) {
+            return [];
+        }
+
+        return array_map(
+            static fn (mixed $item): bool => $item === true,
+            array_slice($value, 0, $periodCount),
+        );
+    }
+
+    /**
+     * @return list<array{id: string, createdAt: string, label: string, periodAmounts: list<float>, periodProgress: list<bool>, totalAmount: ?float}>
+     */
+    private function installmentVersions(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $versions = [];
+        foreach ($value as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $id = is_string($item['id'] ?? null) && trim($item['id']) !== ''
+                ? trim((string) $item['id'])
+                : bin2hex(random_bytes(8));
+            $createdAt = is_string($item['createdAt'] ?? null) ? (string) $item['createdAt'] : '';
+            $label = is_string($item['label'] ?? null) ? trim((string) $item['label']) : '';
+
+            $versions[] = [
+                'id' => $id,
+                'createdAt' => $createdAt,
+                'label' => $label,
+                'periodAmounts' => $this->installmentPeriodAmountsWithoutLimit($item['periodAmounts'] ?? null),
+                'periodProgress' => $this->installmentPeriodProgressWithoutLimit($item['periodProgress'] ?? null),
+                'totalAmount' => is_numeric($item['totalAmount'] ?? null) ? (float) $item['totalAmount'] : null,
+            ];
+        }
+
+        return array_slice($versions, 0, 25);
+    }
+
+    /**
+     * @return list<float>
+     */
+    private function installmentPeriodAmountsWithoutLimit(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $amounts = [];
+        foreach ($value as $amount) {
+            if (!is_numeric($amount) || (float) $amount < 0.0) {
+                continue;
+            }
+
+            $amounts[] = (float) $amount;
+        }
+
+        return $amounts;
+    }
+
+    /**
+     * @return list<bool>
+     */
+    private function installmentPeriodProgressWithoutLimit(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return array_map(static fn (mixed $item): bool => $item === true, $value);
     }
 
     private function installmentPeriodCountFromMonths(int $months, string $periodUnit): int

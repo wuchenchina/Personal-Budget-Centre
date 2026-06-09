@@ -1,14 +1,15 @@
-import { Alert, Form, Modal, Select } from 'antd';
+import { Alert, Checkbox, Empty, Form, Modal, Select, Tabs, Timeline } from 'antd';
 import type { FormInstance } from 'antd';
 import { useI18n } from '../../i18n';
 import type {
+  BudgetDetail,
   BudgetInstallmentPeriodUnit,
-  BudgetType,
 } from '../../types/budget';
 import type { BudgetFormValues } from '../../types/forms';
 
 interface BudgetInstallmentModalProps {
   form: FormInstance<BudgetFormValues>;
+  selectedBudget: BudgetDetail | null;
   open: boolean;
   error: string | null;
   confirmLoading: boolean;
@@ -18,6 +19,7 @@ interface BudgetInstallmentModalProps {
 
 export function BudgetInstallmentModal({
   form,
+  selectedBudget,
   open,
   error,
   confirmLoading,
@@ -25,10 +27,7 @@ export function BudgetInstallmentModal({
   onOk,
 }: BudgetInstallmentModalProps) {
   const { t } = useI18n();
-  const budgetTypeOptions: Array<{ label: string; value: BudgetType }> = [
-    { label: t('regularBudget'), value: 'regular' },
-    { label: t('installmentBudget'), value: 'installment' },
-  ];
+  const isInstallmentBudget = Form.useWatch('budgetType', form) === 'installment';
   const periodUnitOptions: Array<{ label: string; value: BudgetInstallmentPeriodUnit }> = [
     { label: t('installmentPeriodDay'), value: 'day' },
     { label: t('installmentPeriodWeek'), value: 'week' },
@@ -55,26 +54,83 @@ export function BudgetInstallmentModal({
         name="budget-centre-budget-installments"
         requiredMark={false}
       >
-        <div className="installment-options-panel">
-          <p>{t('installmentOptionsHelp')}</p>
-          <div className="modal-form-grid">
-            <Form.Item
-              label={t('budgetType')}
-              name="budgetType"
-              rules={[{ required: true, message: t('selectBudgetType') }]}
-            >
-              <Select options={budgetTypeOptions} />
-            </Form.Item>
-            <Form.Item
-              label={t('installmentPeriodUnit')}
-              name="installmentPeriodUnit"
-              rules={[{ required: true, message: t('selectInstallmentPeriodUnit') }]}
-            >
-              <Select options={periodUnitOptions} />
-            </Form.Item>
-          </div>
-        </div>
+        <Tabs
+          items={[
+            {
+              key: 'settings',
+              label: t('installmentSettings'),
+              children: (
+                <div className="installment-options-panel">
+                  <p>{t('installmentOptionsHelp')}</p>
+                  <Form.Item name="budgetType" hidden>
+                    <input />
+                  </Form.Item>
+                  <Checkbox
+                    checked={isInstallmentBudget}
+                    onChange={(event) => {
+                      form.setFieldValue('budgetType', event.target.checked ? 'installment' : 'regular');
+                    }}
+                  >
+                    {t('installmentBudget')}
+                  </Checkbox>
+                  {isInstallmentBudget ? (
+                    <div className="modal-form-grid installment-period-settings">
+                      <Form.Item
+                        label={t('installmentPeriodUnit')}
+                        name="installmentPeriodUnit"
+                        rules={[{ required: true, message: t('selectInstallmentPeriodUnit') }]}
+                      >
+                        <Select options={periodUnitOptions} />
+                      </Form.Item>
+                    </div>
+                  ) : null}
+                </div>
+              ),
+            },
+            {
+              key: 'history',
+              label: t('installmentHistory'),
+              children: <InstallmentHistory selectedBudget={selectedBudget} />,
+            },
+          ]}
+        />
       </Form>
     </Modal>
+  );
+}
+
+function InstallmentHistory({ selectedBudget }: { selectedBudget: BudgetDetail | null }) {
+  const { t } = useI18n();
+  const versions = (selectedBudget?.items ?? [])
+    .flatMap((item) =>
+      item.installmentConfig.versions.map((version) => ({
+        ...version,
+        category: item.category ?? item.label,
+        currency: item.budget.currency,
+      })),
+    )
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+
+  if (versions.length === 0) {
+    return <Empty description={t('installmentHistoryEmpty')} />;
+  }
+
+  return (
+    <Timeline
+      items={versions.map((version) => ({
+        key: version.id,
+        label: version.createdAt ? new Date(version.createdAt).toLocaleString() : undefined,
+        children: (
+          <div className="installment-history-item">
+            <strong>{version.category}</strong>
+            <span>{version.label}</span>
+            <small>
+              {version.periodAmounts.length} periods
+              {version.totalAmount === null ? '' : ` · ${version.currency} ${version.totalAmount.toFixed(2)}`}
+            </small>
+          </div>
+        ),
+      }))}
+    />
   );
 }

@@ -170,7 +170,7 @@ final readonly class BudgetEntryService
             $this->rateInput($input, ['rate', 'estimatedRate', 'estimated_rate'], 'Estimated rate'),
         );
         $savingMonthlyAmount = $this->installmentMonthlyAmountFromInput($input);
-        if ($savingMonthlyAmount !== null && $specifiedAmount === null) {
+        if ($savingMonthlyAmount !== null && $specifiedAmount === null && $budgetAmount === null) {
             $budgetAmount = $savingMonthlyAmount;
         }
 
@@ -477,6 +477,8 @@ final readonly class BudgetEntryService
             $input['monthlyAmount'] ?? $input['monthly_amount'] ?? null,
         );
         $periodAmounts = $this->periodAmountsFromInput($input['periodAmounts'] ?? $input['period_amounts'] ?? null);
+        $periodProgress = $this->periodProgressFromInput($input['periodProgress'] ?? $input['period_progress'] ?? null);
+        $versions = $this->installmentVersionsFromInput($input['versions'] ?? null);
         $startMonth = $this->monthFromInput($input['startMonth'] ?? $input['start_month'] ?? null);
         $periodUnit = $this->installmentPeriodUnit($input['periodUnit'] ?? $input['period_unit'] ?? null);
         $remark = Input::string($input['remark'] ?? null);
@@ -489,6 +491,8 @@ final readonly class BudgetEntryService
                 'monthlyAmount' => null,
                 'totalAmount' => null,
                 'periodAmounts' => [],
+                'periodProgress' => [],
+                'versions' => [],
                 'startMonth' => null,
                 'periodUnit' => 'month',
                 'remark' => null,
@@ -502,6 +506,9 @@ final readonly class BudgetEntryService
         $periodCount = $this->installmentPeriodCountFromMonths($months, $periodUnit);
         if (count($periodAmounts) > $periodCount) {
             throw new AuthException('VALIDATION_ERROR', 'Installment period amounts cannot exceed the saving period count.', 422);
+        }
+        if (count($periodProgress) > $periodCount) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment progress cannot exceed the saving period count.', 422);
         }
 
         if ($periodAmounts !== []) {
@@ -535,6 +542,8 @@ final readonly class BudgetEntryService
             'monthlyAmount' => $monthlyAmount,
             'totalAmount' => $totalAmount,
             'periodAmounts' => $periodAmounts,
+            'periodProgress' => $periodProgress,
+            'versions' => $versions,
             'startMonth' => $startMonth,
             'periodUnit' => $periodUnit,
             'remark' => $remark,
@@ -585,6 +594,53 @@ final readonly class BudgetEntryService
         }
 
         return $amounts;
+    }
+
+    /**
+     * @return list<bool>
+     */
+    private function periodProgressFromInput(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return array_map(static fn (mixed $item): bool => $item === true, $value);
+    }
+
+    /**
+     * @return list<array{id: string, createdAt: string, label: string, periodAmounts: list<float>, periodProgress: list<bool>, totalAmount: ?float}>
+     */
+    private function installmentVersionsFromInput(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $versions = [];
+        foreach (array_slice($value, 0, 25) as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $id = Input::string($item['id'] ?? null);
+            $createdAt = Input::string($item['createdAt'] ?? null);
+            $label = Input::string($item['label'] ?? null) ?? '';
+            if ($id === null || $createdAt === null) {
+                continue;
+            }
+
+            $versions[] = [
+                'id' => $id,
+                'createdAt' => $createdAt,
+                'label' => substr($label, 0, 120),
+                'periodAmounts' => $this->periodAmountsFromInput($item['periodAmounts'] ?? null),
+                'periodProgress' => $this->periodProgressFromInput($item['periodProgress'] ?? null),
+                'totalAmount' => $this->number($item['totalAmount'] ?? null),
+            ];
+        }
+
+        return $versions;
     }
 
     private function installmentPeriodCountFromMonths(int $months, string $periodUnit): int

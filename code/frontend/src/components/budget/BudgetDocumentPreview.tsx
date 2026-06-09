@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import {
   Alert,
   Button,
+  Checkbox,
   Empty,
   Input,
   InputNumber,
@@ -206,9 +207,11 @@ export function BudgetDocumentPreview({
     installmentPeriodLabel,
     {
       category: 'Category',
+      sequence: 'No.',
       period: 'Period',
       periodAmount: 'Amount',
       progress: 'Progress',
+      remark: 'Remark',
       targetAmount: 'Target',
     },
     canWriteBudgets,
@@ -414,7 +417,7 @@ export function BudgetDocumentPreview({
                 size="small"
                 summary={() => renderInstallmentSummary(
                   createInstallmentSummaryValues(selectedBudget, installmentRows),
-                  'Budget Total',
+                  'Total',
                 )}
                 tableLayout="fixed"
               />
@@ -438,9 +441,13 @@ interface InstallmentEstimateRow {
   item: BudgetItem;
   periodAmount: number;
   periodAmountBase: number;
+  periodCount: number;
   periodIndex: number;
   periodLabel: string;
-  progressText: string;
+  progressChecked: boolean;
+  remarkText: string;
+  sequence: number;
+  targetAmountOriginal: number;
   targetAmount: string;
   targetAmountBase: number;
 }
@@ -457,9 +464,11 @@ function createInstallmentPeriodColumns(
   periodUnitLabel: string,
   labels: {
     category: string;
+    sequence: string;
     period: string;
     periodAmount: string;
     progress: string;
+    remark: string;
     targetAmount: string;
   },
   canWriteBudgets: boolean,
@@ -468,16 +477,23 @@ function createInstallmentPeriodColumns(
 ): TableProps<InstallmentPeriodRow>['columns'] {
   return [
     {
+      align: 'center',
+      dataIndex: 'sequence',
+      key: 'sequence',
+      title: labels.sequence,
+      width: '7%',
+    },
+    {
       dataIndex: 'category',
       key: 'category',
       title: labels.category,
-      width: '24%',
+      width: '18%',
     },
     {
       dataIndex: 'periodLabel',
       key: 'period',
       title: labels.period,
-      width: '20%',
+      width: '17%',
     },
     {
       align: 'right',
@@ -491,27 +507,55 @@ function createInstallmentPeriodColumns(
       dataIndex: 'periodAmount',
       key: 'periodAmount',
       title: labels.periodAmount,
-      width: '20%',
+      width: '18%',
       render: (_value: number, row) => (
-        <InlineMoneyCell
+        <InlineInstallmentAmountCell
           currency={row.item.budget.currency}
           disabled={entry.isBudgetItemSaving}
-          editable={canWriteBudgets && row.item.installmentConfig.enabled}
+          editable={canWriteBudgets}
           editLabel={editLabel}
-          secondaryText={periodUnitLabel}
+          periodUnitLabel={periodUnitLabel}
           value={row.periodAmount}
-          onEdit={() => entry.openBudgetItemEditModal(row.item)}
           onCommit={(nextValue) => {
-            void entry.handleInstallmentPeriodAmountSave(row.item, row.periodIndex, nextValue);
+            void entry.handleInstallmentPeriodAmountSave(
+              row.item,
+              row.periodIndex,
+              nextValue,
+              row.periodCount,
+              row.targetAmountOriginal,
+            );
           }}
         />
       ),
     },
     {
-      dataIndex: 'progressText',
-      key: 'progressText',
+      align: 'center',
+      dataIndex: 'progressChecked',
+      key: 'progress',
       title: labels.progress,
-      width: '18%',
+      width: '11%',
+      render: (_value: boolean, row) => (
+        <Checkbox
+          checked={row.progressChecked}
+          disabled={!canWriteBudgets || entry.isBudgetItemSaving}
+          onChange={(event) => {
+            void entry.handleInstallmentProgressSave(
+              row.item,
+              row.periodIndex,
+              event.target.checked,
+              row.periodCount,
+              row.targetAmountOriginal,
+            );
+          }}
+        />
+      ),
+    },
+    {
+      dataIndex: 'remarkText',
+      key: 'remark',
+      title: labels.remark,
+      width: '11%',
+      render: () => <span className="budget-installment-remark-box" />,
     },
   ];
 }
@@ -523,16 +567,12 @@ function createInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow
       configuredMonths ?? budgetDurationMonths(budget.startDate, budget.endDate) ?? 1;
     const target = installmentTarget(item, budget);
     const periodCount = Math.max(1, Math.ceil(periodCountFromMonths(durationMonths, budget.installmentPeriodUnit)));
-    const paidMonths = item.installmentConfig.enabled ? item.installmentConfig.paidMonths : 0;
-    const paidPeriodCount = Math.min(
-      periodCount,
-      Math.ceil(periodCountFromMonths(paidMonths, budget.installmentPeriodUnit)),
-    );
     const defaultPeriodAmount = target.original / periodCount;
     const startDate = installmentStartDate(item, budget);
 
     return Array.from({ length: periodCount }, (_, index) => {
       const periodAmount = item.installmentConfig.periodAmounts[index] ?? defaultPeriodAmount;
+      const progressChecked = item.installmentConfig.periodProgress[index] === true;
 
       return {
         id: `${item.id}-${index + 1}`,
@@ -540,13 +580,13 @@ function createInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow
         item,
         periodAmount,
         periodAmountBase: periodAmount * item.budget.rateToBase,
+        periodCount,
         periodIndex: index,
         periodLabel: formatInstallmentPeriodLabel(startDate, index, budget.installmentPeriodUnit),
-        progressText: configuredMonths === null
-          ? '--'
-          : index < paidPeriodCount
-            ? 'Saved'
-            : 'Pending',
+        progressChecked,
+        remarkText: '',
+        sequence: index + 1,
+        targetAmountOriginal: target.original,
         targetAmount: formatBudgetMoney(item.budget.currency, target.original),
         targetAmountBase: target.base,
       };
@@ -604,15 +644,134 @@ function renderInstallmentSummary(values: InstallmentSummaryValues | null, summa
       <Table.Summary.Row className="budget-summary-row">
         <Table.Summary.Cell index={0}>{summaryLabel}</Table.Summary.Cell>
         <Table.Summary.Cell index={1} />
-        <Table.Summary.Cell className="budget-summary-number" index={2}>
+        <Table.Summary.Cell index={2} />
+        <Table.Summary.Cell className="budget-summary-number" index={3}>
           {formatBudgetMoney(values.currency, values.targetTotal)}
         </Table.Summary.Cell>
-        <Table.Summary.Cell className="budget-summary-number" index={3}>
+        <Table.Summary.Cell className="budget-summary-number" index={4}>
           {formatBudgetMoney(values.currency, values.periodTotal)}
         </Table.Summary.Cell>
-        <Table.Summary.Cell index={4} />
+        <Table.Summary.Cell index={5} />
+        <Table.Summary.Cell index={6} />
       </Table.Summary.Row>
     </Table.Summary>
+  );
+}
+
+function InlineInstallmentAmountCell({
+  currency,
+  disabled,
+  editable,
+  editLabel,
+  periodUnitLabel,
+  value,
+  onCommit,
+}: {
+  currency: CurrencyCode;
+  disabled: boolean;
+  editable: boolean;
+  editLabel: string;
+  periodUnitLabel: string;
+  value: number;
+  onCommit: (value: number) => void;
+}) {
+  const { t } = useI18n();
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftState, setDraftState] = useState<{ sourceValue: number; draftValue: number | null }>({
+    sourceValue: value,
+    draftValue: value,
+  });
+  const draftValue = draftState.sourceValue === value ? draftState.draftValue : value;
+  const setDraftValue = (nextValue: number | null) => {
+    setDraftState({ sourceValue: value, draftValue: nextValue });
+  };
+  const beginEditing = () => {
+    if (!editable || disabled) {
+      return;
+    }
+
+    setDraftState({ sourceValue: value, draftValue: value });
+    setIsEditing(true);
+  };
+  const cancelEditing = () => {
+    setDraftValue(value);
+    setIsEditing(false);
+  };
+  const commit = () => {
+    if (draftValue === null || !Number.isFinite(draftValue)) {
+      cancelEditing();
+
+      return;
+    }
+
+    if (Math.abs(draftValue - value) >= 0.005) {
+      onCommit(draftValue);
+    }
+    setIsEditing(false);
+  };
+
+  if (!editable || !isEditing) {
+    return (
+      <span className="budget-installment-amount-readonly">
+        <span className="budget-installment-period-amount">
+          {formatBudgetMoney(currency, value)}
+          <small>{periodUnitLabel}</small>
+        </span>
+        {editable ? (
+          <Tooltip title={editLabel}>
+            <Button
+              disabled={disabled}
+              icon={<Pencil size={12} />}
+              size="small"
+              type="text"
+              onClick={beginEditing}
+            />
+          </Tooltip>
+        ) : null}
+      </span>
+    );
+  }
+
+  return (
+    <span className="budget-installment-amount-editor">
+      <span className="budget-inline-money-cell">
+        <span>{currency}</span>
+        <InputNumber
+          autoFocus
+          changeOnWheel={false}
+          className="budget-inline-money-input"
+          controls={false}
+          disabled={disabled}
+          min={0}
+          precision={2}
+          size="small"
+          value={draftValue}
+          variant="borderless"
+          onChange={(nextValue) => setDraftValue(typeof nextValue === 'number' ? nextValue : null)}
+          onPressEnter={commit}
+        />
+      </span>
+      <Space size={2}>
+        <Tooltip title={t('save')}>
+          <Button
+            disabled={disabled}
+            icon={<Check size={12} />}
+            size="small"
+            type="text"
+            onClick={commit}
+          />
+        </Tooltip>
+        <Tooltip title={t('cancel')}>
+          <Button
+            disabled={disabled}
+            icon={<X size={12} />}
+            size="small"
+            type="text"
+            onClick={cancelEditing}
+          />
+        </Tooltip>
+      </Space>
+    </span>
   );
 }
 

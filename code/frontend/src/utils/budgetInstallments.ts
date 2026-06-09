@@ -10,6 +10,8 @@ export function emptyInstallmentConfig(): BudgetInstallmentConfig {
     monthlyAmount: null,
     totalAmount: null,
     periodAmounts: [],
+    periodProgress: [],
+    versions: [],
     startMonth: null,
     periodUnit: 'month',
     remark: null,
@@ -54,6 +56,8 @@ export function normalizeInstallmentConfig(
   const monthlyAmount = normalizeNonNegativeNumber(config.monthlyAmount);
   const totalAmount = normalizeNonNegativeNumber(config.totalAmount);
   const periodAmounts = normalizePeriodAmounts(config.periodAmounts);
+  const periodProgress = normalizePeriodProgress(config.periodProgress);
+  const versions = normalizeVersions(config.versions);
   const startMonth = normalizeMonth(config.startMonth);
   const periodUnit = normalizePeriodUnit(config.periodUnit);
   const remark = normalizeText(config.remark);
@@ -69,6 +73,8 @@ export function normalizeInstallmentConfig(
     monthlyAmount,
     totalAmount,
     periodAmounts,
+    periodProgress,
+    versions,
     startMonth,
     periodUnit,
     remark,
@@ -154,6 +160,31 @@ function normalizePeriodAmounts(value: unknown): number[] {
   return value
     .map((amount) => normalizeNonNegativeNumber(amount))
     .filter((amount): amount is number => amount !== null);
+}
+
+function normalizePeriodProgress(value: unknown): boolean[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => item === true);
+}
+
+function normalizeVersions(value: unknown): BudgetInstallmentConfig['versions'] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is Record<string, unknown> => item !== null && typeof item === 'object')
+    .map((item) => ({
+      id: typeof item.id === 'string' && item.id.trim() !== '' ? item.id : crypto.randomUUID(),
+      createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
+      label: typeof item.label === 'string' ? item.label : '',
+      periodAmounts: normalizePeriodAmounts(item.periodAmounts),
+      periodProgress: normalizePeriodProgress(item.periodProgress),
+      totalAmount: normalizeNonNegativeNumber(item.totalAmount),
+    }));
 }
 
 function normalizeMonth(value: unknown): string | null {

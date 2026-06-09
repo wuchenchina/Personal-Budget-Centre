@@ -144,14 +144,14 @@ final readonly class BudgetPdfDocumentRenderer
             $target = $this->installmentTargetAmount($item, $config, $transactions);
             $periodUnit = $this->installmentPeriodUnit($budget);
             $periodCount = max(1, (int) ceil($this->periodCountFromMonths($months, $periodUnit)));
-            $paidMonths = is_int($config['paidMonths'] ?? null) ? (int) $config['paidMonths'] : 0;
-            $paidPeriodCount = min($periodCount, (int) ceil($this->periodCountFromMonths($paidMonths, $periodUnit)));
             $periodAmounts = $this->installmentPeriodAmounts($config);
+            $periodProgress = $this->installmentPeriodProgress($config);
             $defaultPeriodAmount = $target['original'] / $periodCount;
             $startTime = $this->installmentStartTime($item, $budget);
 
             for ($index = 0; $index < $periodCount; $index++) {
                 $rows[] = [
+                    (string) ($index + 1),
                     (string) ($item['category'] ?? $item['label']),
                     $this->periodLabel($startTime, $index, $periodUnit),
                     $this->formatter->templateMoney((string) $item['budget']['currency'], $target['original']),
@@ -159,7 +159,8 @@ final readonly class BudgetPdfDocumentRenderer
                         (string) $item['budget']['currency'],
                         (float) ($periodAmounts[$index] ?? $defaultPeriodAmount),
                     ) . ' / ' . $this->periodUnitText($periodUnit),
-                    is_int($config['months'] ?? null) && $index < $paidPeriodCount ? 'Saved' : 'Pending',
+                    ($periodProgress[$index] ?? false) ? 'X' : '',
+                    '',
                 ];
             }
         }
@@ -190,10 +191,12 @@ final readonly class BudgetPdfDocumentRenderer
         }
 
         return [
-            'Budget Total',
+            'Total',
+            '',
             '',
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $targetTotal, true),
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $periodTotal, true),
+            '',
             '',
         ];
     }
@@ -203,11 +206,13 @@ final readonly class BudgetPdfDocumentRenderer
         return [
             ...$section,
             'columns' => [
+                ['key' => 'sequence', 'label' => 'No.', 'align' => 'center', 'dataType' => 'text'],
                 ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'dataType' => 'text'],
                 ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'dataType' => 'text'],
                 ['key' => 'target_amount', 'label' => 'Target', 'align' => 'right', 'dataType' => 'money'],
                 ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'dataType' => 'money'],
-                ['key' => 'progress', 'label' => 'Progress', 'align' => 'right', 'dataType' => 'text'],
+                ['key' => 'progress', 'label' => 'Progress', 'align' => 'center', 'dataType' => 'text'],
+                ['key' => 'remark', 'label' => 'Remark', 'align' => 'right', 'dataType' => 'text'],
             ],
         ];
     }
@@ -228,6 +233,15 @@ final readonly class BudgetPdfDocumentRenderer
         }
 
         return $amounts;
+    }
+
+    private function installmentPeriodProgress(array $config): array
+    {
+        if (!is_array($config['periodProgress'] ?? null)) {
+            return [];
+        }
+
+        return array_map(static fn (mixed $item): bool => $item === true, $config['periodProgress']);
     }
 
     private function installmentStartTime(array $item, array $budget): ?int
@@ -576,11 +590,13 @@ final readonly class BudgetPdfDocumentRenderer
         return [
             'title' => 'Installments',
             'columns' => [
+                ['key' => 'sequence', 'label' => 'No.', 'align' => 'center', 'dataType' => 'text'],
                 ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'dataType' => 'text'],
                 ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'dataType' => 'text'],
                 ['key' => 'target_amount', 'label' => 'Target', 'align' => 'right', 'dataType' => 'money'],
                 ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'dataType' => 'money'],
-                ['key' => 'progress', 'label' => 'Progress', 'align' => 'right', 'dataType' => 'text'],
+                ['key' => 'progress', 'label' => 'Progress', 'align' => 'center', 'dataType' => 'text'],
+                ['key' => 'remark', 'label' => 'Remark', 'align' => 'right', 'dataType' => 'text'],
             ],
         ];
     }
