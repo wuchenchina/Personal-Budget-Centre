@@ -563,9 +563,9 @@ final readonly class BudgetPdfDocumentRenderer
     private function installmentTargetAmount(array $item, array $config, array $transactions): array
     {
         $periodAmounts = $this->installmentPeriodAmounts($config);
-        $configuredTotal = $periodAmounts === []
-            ? (is_numeric($config['totalAmount'] ?? null) ? (float) $config['totalAmount'] : null)
-            : array_sum($periodAmounts);
+        $configuredTotal = is_numeric($config['totalAmount'] ?? null)
+            ? (float) $config['totalAmount']
+            : ($periodAmounts === [] ? null : array_sum($periodAmounts));
 
         if (($config['enabled'] ?? false) === true && $configuredTotal !== null && $configuredTotal > 0.0) {
             $original = $configuredTotal;

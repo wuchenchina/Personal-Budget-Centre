@@ -111,11 +111,12 @@ export function installmentSummary(
     ?? (normalized.totalAmount !== null && normalized.months !== null
       ? normalized.totalAmount / normalized.months
       : null);
-  const totalAmount = normalized.periodAmounts.length > 0
-    ? normalized.periodAmounts.reduce((total, amount) => total + amount, 0)
-    : normalized.totalAmount
-      ?? (monthlyAmount !== null && normalized.months !== null
-        ? monthlyAmount * normalized.months
+  const totalAmount =
+    normalized.totalAmount
+    ?? (monthlyAmount !== null && normalized.months !== null
+      ? monthlyAmount * normalized.months
+      : normalized.periodAmounts.length > 0
+        ? normalized.periodAmounts.reduce((total, amount) => total + amount, 0)
         : null);
   const endMonth =
     normalized.startMonth !== null && normalized.months !== null

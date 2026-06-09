@@ -208,7 +208,11 @@ final readonly class BudgetEntryService
             'estimated_rate_to_base' => $estimatedRate,
             'estimated_amount_base' => $estimatedBase,
             'variance_amount_base' => $budgetBase - $estimatedBase,
-            'installment_config' => $this->installmentConfigJsonFromInput($input, $budgetAmount),
+            'installment_config' => $this->installmentConfigJsonFromInput(
+                $input,
+                $budgetAmount,
+                $budget['installmentPeriodUnit'] ?? 'month',
+            ),
             'sort_order' => Input::positiveInt($input['sortOrder'] ?? $input['sort_order'] ?? null) ?? 0,
         ];
     }
@@ -406,7 +410,11 @@ final readonly class BudgetEntryService
         return $amountBase / $rateToBase;
     }
 
-    private function installmentConfigJsonFromInput(array $input, float $fallbackMonthlyAmount): ?string
+    private function installmentConfigJsonFromInput(
+        array $input,
+        float $fallbackMonthlyAmount,
+        string $fallbackPeriodUnit,
+    ): ?string
     {
         $raw = $input['installmentConfig'] ?? $input['installment_config'] ?? null;
         if ($raw === null) {
@@ -425,7 +433,7 @@ final readonly class BudgetEntryService
             throw new AuthException('VALIDATION_ERROR', 'Installment settings must be an object.', 422);
         }
 
-        $config = $this->installmentConfigFromArray($raw, $fallbackMonthlyAmount);
+        $config = $this->installmentConfigFromArray($raw, $fallbackMonthlyAmount, $fallbackPeriodUnit);
         $json = json_encode($config, JSON_UNESCAPED_UNICODE);
         if ($json === false) {
             throw new AuthException('VALIDATION_ERROR', 'Installment settings could not be encoded.', 422);
@@ -465,7 +473,11 @@ final readonly class BudgetEntryService
         return $totalAmount / $months;
     }
 
-    private function installmentConfigFromArray(array $input, float $fallbackMonthlyAmount): array
+    private function installmentConfigFromArray(
+        array $input,
+        float $fallbackMonthlyAmount,
+        string $fallbackPeriodUnit,
+    ): array
     {
         $enabled = ($input['enabled'] ?? false) === true;
         $months = Input::positiveInt($input['months'] ?? $input['totalMonths'] ?? $input['total_months'] ?? null);
@@ -481,7 +493,7 @@ final readonly class BudgetEntryService
         $periodRemarks = $this->periodRemarksFromInput($input['periodRemarks'] ?? $input['period_remarks'] ?? null);
         $versions = $this->installmentVersionsFromInput($input['versions'] ?? null);
         $startMonth = $this->monthFromInput($input['startMonth'] ?? $input['start_month'] ?? null);
-        $periodUnit = $this->installmentPeriodUnit($input['periodUnit'] ?? $input['period_unit'] ?? null);
+        $periodUnit = $this->installmentPeriodUnit($fallbackPeriodUnit);
         $remark = Input::string($input['remark'] ?? null);
 
         if (!$enabled) {
@@ -517,8 +529,11 @@ final readonly class BudgetEntryService
         }
 
         if ($periodAmounts !== []) {
-            $totalAmount = array_sum($periodAmounts);
-            $monthlyAmount = $totalAmount / count($periodAmounts);
+            $periodTotal = array_sum($periodAmounts);
+            if ($totalAmount === null || $totalAmount <= 0.0) {
+                $totalAmount = $periodTotal;
+            }
+            $monthlyAmount ??= $periodTotal / count($periodAmounts);
         }
 
         $monthlyAmount ??= $totalAmount === null ? $fallbackMonthlyAmount : $totalAmount / $months;

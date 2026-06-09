@@ -338,7 +338,10 @@ final readonly class BudgetRepository
 
         return [
             ...$this->budgetFromRow($row),
-            'items' => $this->itemsForBudget($budgetId),
+            'items' => $this->itemsForBudget(
+                $budgetId,
+                $this->installmentPeriodUnit($row['installment_period_unit'] ?? null),
+            ),
             'transactions' => $this->transactionsForBudget($budgetId),
         ];
     }
@@ -395,6 +398,7 @@ final readonly class BudgetRepository
               b.id,
               b.workspace_id,
               b.start_date,
+              b.installment_period_unit,
               b.base_currency_id,
               base.code AS base_currency
             FROM budgets b
@@ -414,6 +418,7 @@ final readonly class BudgetRepository
             'id' => (int) $row['id'],
             'workspaceId' => (int) $row['workspace_id'],
             'startDate' => $row['start_date'],
+            'installmentPeriodUnit' => $this->installmentPeriodUnit($row['installment_period_unit'] ?? null),
             'baseCurrencyId' => (int) $row['base_currency_id'],
             'baseCurrency' => $row['base_currency'],
         ];
@@ -479,7 +484,7 @@ final readonly class BudgetRepository
         $statement->execute(['budget_id' => $budgetId]);
     }
 
-    private function itemsForBudget(int $budgetId): array
+    private function itemsForBudget(int $budgetId, string $budgetInstallmentPeriodUnit): array
     {
         $statement = $this->pdo->prepare(
             <<<'SQL'
@@ -528,7 +533,10 @@ final readonly class BudgetRepository
                     'amountBase' => $this->decimal($row['estimated_amount_base']),
                 ],
                 'varianceBase' => $this->decimal($row['variance_amount_base']),
-                'installmentConfig' => $this->installmentConfig($row['installment_config'] ?? null),
+                'installmentConfig' => $this->installmentConfig(
+                    $row['installment_config'] ?? null,
+                    $budgetInstallmentPeriodUnit,
+                ),
                 'sortOrder' => (int) $row['sort_order'],
             ],
             $statement->fetchAll(),
@@ -610,7 +618,7 @@ final readonly class BudgetRepository
             'displayCurrency' => $row['display_currency'],
             'budgetType' => $row['budget_type'] ?? 'regular',
             'installmentDisplayMode' => $row['installment_display_mode'] ?? 'item',
-            'installmentPeriodUnit' => $row['installment_period_unit'] ?? 'month',
+            'installmentPeriodUnit' => $this->installmentPeriodUnit($row['installment_period_unit'] ?? null),
             'visibility' => $row['visibility'],
             'status' => $row['status'],
             'note' => $row['note'],
@@ -636,7 +644,12 @@ final readonly class BudgetRepository
         return $value === null ? 0.0 : (float) $value;
     }
 
-    private function installmentConfig(mixed $value): array
+    private function installmentPeriodUnit(mixed $value): string
+    {
+        return in_array($value, ['day', 'week', 'month', 'year'], true) ? (string) $value : 'month';
+    }
+
+    private function installmentConfig(mixed $value, string $budgetInstallmentPeriodUnit): array
     {
         if (!is_string($value) || trim($value) === '') {
             return $this->emptyInstallmentConfig();
@@ -649,9 +662,7 @@ final readonly class BudgetRepository
 
         $months = is_int($decoded['months'] ?? null) ? $decoded['months'] : null;
         $paidMonths = is_int($decoded['paidMonths'] ?? null) ? $decoded['paidMonths'] : 0;
-        $periodUnit = in_array($decoded['periodUnit'] ?? null, ['day', 'week', 'month', 'year'], true)
-            ? $decoded['periodUnit']
-            : 'month';
+        $periodUnit = $this->installmentPeriodUnit($budgetInstallmentPeriodUnit);
         $periodCount = $months === null ? null : $this->installmentPeriodCountFromMonths($months, $periodUnit);
 
         return [

@@ -585,9 +585,16 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       let savedBudget = options.selectedBudget;
       for (const item of itemsWithCustomAmounts) {
+        const resetTargetAmount = resetInstallmentTargetAmount(item, savedBudget);
+        const resetPeriodCount = installmentPeriodCountForItem(item, savedBudget);
         savedBudget = await saveBudgetItemInstallmentConfig(item, {
           ...item.installmentConfig,
+          periodUnit: savedBudget.installmentPeriodUnit,
           periodAmounts: [],
+          totalAmount: resetTargetAmount,
+          monthlyAmount: resetPeriodCount === null
+            ? item.installmentConfig.monthlyAmount
+            : roundMoney(resetTargetAmount / resetPeriodCount),
         });
       }
       options.replaceBudgetDetail(savedBudget);
@@ -620,19 +627,15 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       return;
     }
 
+    const periodUnit = options.selectedBudget.installmentPeriodUnit;
     const months = item.installmentConfig.months
-      ?? installmentMonthsFromPeriodCount(periodCount, options.selectedBudget.installmentPeriodUnit);
-    const defaultAmount = roundMoney(targetAmount / periodCount);
+      ?? installmentMonthsFromPeriodCount(periodCount, periodUnit);
     const editedAmount = roundMoney(value);
-    const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
-      roundMoney(item.installmentConfig.periodAmounts[index] ?? defaultAmount),
-    );
-    const periodProgress = Array.from({ length: periodCount }, (_, index) =>
-      item.installmentConfig.periodProgress[index] === true,
-    );
-    const periodRemarks = Array.from({ length: periodCount }, (_, index) =>
-      item.installmentConfig.periodRemarks[index] ?? '',
-    );
+    const {
+      periodAmounts,
+      periodProgress,
+      periodRemarks,
+    } = installmentPeriodStateFromItem(item, periodCount, targetAmount);
     const previousPeriodAmounts = [...periodAmounts];
     const previousPeriodProgress = [...periodProgress];
     const previousPeriodRemarks = [...periodRemarks];
@@ -658,7 +661,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
     periodAmounts[periodIndex] = editedAmount;
 
-    const totalAmount = roundMoney(periodAmounts.reduce((total, amount) => total + amount, 0));
+    const totalAmount = roundMoney(targetAmount);
     const monthlyAmount = roundMoney(totalAmount / periodCount);
 
     setIsBudgetItemSaving(true);
@@ -679,6 +682,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
           ...item.installmentConfig,
           enabled: true,
           months,
+          periodUnit,
           periodAmounts,
           periodProgress,
           periodRemarks,
@@ -721,23 +725,19 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       return;
     }
 
+    const periodUnit = options.selectedBudget.installmentPeriodUnit;
     const months = item.installmentConfig.months
-      ?? installmentMonthsFromPeriodCount(periodCount, options.selectedBudget.installmentPeriodUnit);
-    const defaultAmount = roundMoney(targetAmount / periodCount);
-    const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
-      roundMoney(item.installmentConfig.periodAmounts[index] ?? defaultAmount),
-    );
-    const periodProgress = Array.from({ length: periodCount }, (_, index) =>
-      item.installmentConfig.periodProgress[index] === true,
-    );
-    const periodRemarks = Array.from({ length: periodCount }, (_, index) =>
-      item.installmentConfig.periodRemarks[index] ?? '',
-    );
+      ?? installmentMonthsFromPeriodCount(periodCount, periodUnit);
+    const {
+      periodAmounts,
+      periodProgress,
+      periodRemarks,
+    } = installmentPeriodStateFromItem(item, periodCount, targetAmount);
     const previousPeriodAmounts = [...periodAmounts];
     const previousPeriodProgress = [...periodProgress];
     const previousPeriodRemarks = [...periodRemarks];
     periodProgress[periodIndex] = checked;
-    const totalAmount = roundMoney(periodAmounts.reduce((total, amount) => total + amount, 0));
+    const totalAmount = roundMoney(targetAmount);
     const monthlyAmount = roundMoney(totalAmount / periodCount);
 
     setIsBudgetItemSaving(true);
@@ -758,6 +758,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
           ...item.installmentConfig,
           enabled: true,
           months,
+          periodUnit,
           paidMonths: periodProgress.filter(Boolean).length,
           periodAmounts,
           periodProgress,
@@ -802,18 +803,14 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
 
     const nextRemark = remark.trim();
+    const periodUnit = options.selectedBudget.installmentPeriodUnit;
     const months = item.installmentConfig.months
-      ?? installmentMonthsFromPeriodCount(periodCount, options.selectedBudget.installmentPeriodUnit);
-    const defaultAmount = roundMoney(targetAmount / periodCount);
-    const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
-      roundMoney(item.installmentConfig.periodAmounts[index] ?? defaultAmount),
-    );
-    const periodProgress = Array.from({ length: periodCount }, (_, index) =>
-      item.installmentConfig.periodProgress[index] === true,
-    );
-    const periodRemarks = Array.from({ length: periodCount }, (_, index) =>
-      item.installmentConfig.periodRemarks[index] ?? '',
-    );
+      ?? installmentMonthsFromPeriodCount(periodCount, periodUnit);
+    const {
+      periodAmounts,
+      periodProgress,
+      periodRemarks,
+    } = installmentPeriodStateFromItem(item, periodCount, targetAmount);
     if ((periodRemarks[periodIndex] ?? '') === nextRemark) {
       return;
     }
@@ -822,7 +819,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     const previousPeriodProgress = [...periodProgress];
     const previousPeriodRemarks = [...periodRemarks];
     periodRemarks[periodIndex] = nextRemark;
-    const totalAmount = roundMoney(periodAmounts.reduce((total, amount) => total + amount, 0));
+    const totalAmount = roundMoney(targetAmount);
     const monthlyAmount = roundMoney(totalAmount / periodCount);
 
     setIsBudgetItemSaving(true);
@@ -843,6 +840,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
           ...item.installmentConfig,
           enabled: true,
           months,
+          periodUnit,
           paidMonths: periodProgress.filter(Boolean).length,
           periodAmounts,
           periodProgress,
@@ -1058,6 +1056,75 @@ function normalizedAmount(value: number | null | undefined): number | null {
 
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function installmentPeriodStateFromItem(
+  item: BudgetItem,
+  periodCount: number,
+  targetAmount: number,
+): {
+  periodAmounts: number[];
+  periodProgress: boolean[];
+  periodRemarks: string[];
+} {
+  const defaultAmount = roundMoney(targetAmount / periodCount);
+
+  return {
+    periodAmounts: Array.from({ length: periodCount }, (_, index) =>
+      roundMoney(item.installmentConfig.periodAmounts[index] ?? defaultAmount),
+    ),
+    periodProgress: Array.from({ length: periodCount }, (_, index) =>
+      item.installmentConfig.periodProgress[index] === true,
+    ),
+    periodRemarks: Array.from({ length: periodCount }, (_, index) =>
+      item.installmentConfig.periodRemarks[index] ?? '',
+    ),
+  };
+}
+
+function installmentPeriodCountForItem(item: BudgetItem, budget: BudgetDetail): number | null {
+  const months =
+    item.installmentConfig.months
+    ?? budgetDurationMonths(budget.startDate, budget.endDate);
+  if (months === null) {
+    return null;
+  }
+
+  return Math.max(1, Math.ceil(periodCountFromMonths(months, budget.installmentPeriodUnit)));
+}
+
+function resetInstallmentTargetAmount(item: BudgetItem, budget: BudgetDetail): number {
+  return roundMoney(effectiveBudgetItemAmounts(item, budget.transactions).budgetAmountOriginal);
+}
+
+function budgetDurationMonths(startDate: string | null, endDate: string | null): number | null {
+  if (startDate === null || endDate === null) {
+    return null;
+  }
+
+  const start = dayjs(startDate);
+  const end = dayjs(endDate);
+  if (!start.isValid() || !end.isValid() || end.isBefore(start)) {
+    return null;
+  }
+
+  return Math.max(1, (end.diff(start, 'day') + 1) / 30.4375);
+}
+
+function periodCountFromMonths(months: number, unit: BudgetDetail['installmentPeriodUnit']): number {
+  if (unit === 'day') {
+    return months * (365 / 12);
+  }
+
+  if (unit === 'week') {
+    return months * (52 / 12);
+  }
+
+  if (unit === 'year') {
+    return months / 12;
+  }
+
+  return months;
 }
 
 function distributeRemainingInstallmentAmount(
