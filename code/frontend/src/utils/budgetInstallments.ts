@@ -9,6 +9,7 @@ export function emptyInstallmentConfig(): BudgetInstallmentConfig {
     paidMonths: 0,
     monthlyAmount: null,
     totalAmount: null,
+    periodAmounts: [],
     startMonth: null,
     periodUnit: 'month',
     remark: null,
@@ -52,6 +53,7 @@ export function normalizeInstallmentConfig(
   const paidMonths = Math.min(months ?? 0, normalizeNonNegativeInt(config.paidMonths) ?? 0);
   const monthlyAmount = normalizeNonNegativeNumber(config.monthlyAmount);
   const totalAmount = normalizeNonNegativeNumber(config.totalAmount);
+  const periodAmounts = normalizePeriodAmounts(config.periodAmounts);
   const startMonth = normalizeMonth(config.startMonth);
   const periodUnit = normalizePeriodUnit(config.periodUnit);
   const remark = normalizeText(config.remark);
@@ -66,6 +68,7 @@ export function normalizeInstallmentConfig(
     paidMonths,
     monthlyAmount,
     totalAmount,
+    periodAmounts,
     startMonth,
     periodUnit,
     remark,
@@ -99,11 +102,12 @@ export function installmentSummary(
     ?? (normalized.totalAmount !== null && normalized.months !== null
       ? normalized.totalAmount / normalized.months
       : null);
-  const totalAmount =
-    normalized.totalAmount
-    ?? (monthlyAmount !== null && normalized.months !== null
-      ? monthlyAmount * normalized.months
-      : null);
+  const totalAmount = normalized.periodAmounts.length > 0
+    ? normalized.periodAmounts.reduce((total, amount) => total + amount, 0)
+    : normalized.totalAmount
+      ?? (monthlyAmount !== null && normalized.months !== null
+        ? monthlyAmount * normalized.months
+        : null);
   const endMonth =
     normalized.startMonth !== null && normalized.months !== null
       ? dayjs(`${normalized.startMonth}-01`).add(normalized.months - 1, 'month').format('YYYY-MM')
@@ -140,6 +144,16 @@ function normalizeNonNegativeNumber(value: unknown): number | null {
   }
 
   return value;
+}
+
+function normalizePeriodAmounts(value: unknown): number[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((amount) => normalizeNonNegativeNumber(amount))
+    .filter((amount): amount is number => amount !== null);
 }
 
 function normalizeMonth(value: unknown): string | null {

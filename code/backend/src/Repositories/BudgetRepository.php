@@ -639,6 +639,10 @@ final readonly class BudgetRepository
 
         $months = is_int($decoded['months'] ?? null) ? $decoded['months'] : null;
         $paidMonths = is_int($decoded['paidMonths'] ?? null) ? $decoded['paidMonths'] : 0;
+        $periodUnit = in_array($decoded['periodUnit'] ?? null, ['day', 'week', 'month', 'year'], true)
+            ? $decoded['periodUnit']
+            : 'month';
+        $periodCount = $months === null ? null : $this->installmentPeriodCountFromMonths($months, $periodUnit);
 
         return [
             'enabled' => ($decoded['enabled'] ?? false) === true,
@@ -650,12 +654,11 @@ final readonly class BudgetRepository
             'totalAmount' => is_numeric($decoded['totalAmount'] ?? null)
                 ? (float) $decoded['totalAmount']
                 : null,
+            'periodAmounts' => $this->installmentPeriodAmounts($decoded['periodAmounts'] ?? null, $periodCount),
             'startMonth' => is_string($decoded['startMonth'] ?? null) && preg_match('/^\d{4}-\d{2}$/', $decoded['startMonth']) === 1
                 ? $decoded['startMonth']
                 : null,
-            'periodUnit' => in_array($decoded['periodUnit'] ?? null, ['day', 'week', 'month', 'year'], true)
-                ? $decoded['periodUnit']
-                : 'month',
+            'periodUnit' => $periodUnit,
             'remark' => is_string($decoded['remark'] ?? null) && trim($decoded['remark']) !== ''
                 ? trim($decoded['remark'])
                 : null,
@@ -670,10 +673,42 @@ final readonly class BudgetRepository
             'paidMonths' => 0,
             'monthlyAmount' => null,
             'totalAmount' => null,
+            'periodAmounts' => [],
             'startMonth' => null,
             'periodUnit' => 'month',
             'remark' => null,
         ];
+    }
+
+    /**
+     * @return list<float>
+     */
+    private function installmentPeriodAmounts(mixed $value, ?int $periodCount): array
+    {
+        if (!is_array($value) || $periodCount === null) {
+            return [];
+        }
+
+        $amounts = [];
+        foreach (array_slice($value, 0, $periodCount) as $amount) {
+            if (!is_numeric($amount) || (float) $amount < 0.0) {
+                continue;
+            }
+
+            $amounts[] = (float) $amount;
+        }
+
+        return $amounts;
+    }
+
+    private function installmentPeriodCountFromMonths(int $months, string $periodUnit): int
+    {
+        return max(1, (int) ceil(match ($periodUnit) {
+            'day' => $months * (365 / 12),
+            'week' => $months * (52 / 12),
+            'year' => $months / 12,
+            default => $months,
+        }));
     }
 
     private function signatureConfig(mixed $value): array

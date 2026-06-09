@@ -451,6 +451,11 @@ final readonly class BudgetEntryService
             return $monthlyAmount;
         }
 
+        $periodAmounts = $this->periodAmountsFromInput($raw['periodAmounts'] ?? $raw['period_amounts'] ?? null);
+        if ($periodAmounts !== []) {
+            return array_sum($periodAmounts) / count($periodAmounts);
+        }
+
         $totalAmount = $this->number($raw['totalAmount'] ?? $raw['total_amount'] ?? null);
         $months = Input::positiveInt($raw['months'] ?? $raw['totalMonths'] ?? $raw['total_months'] ?? null);
         if ($totalAmount === null || $totalAmount <= 0.0 || $months === null || $months > self::INSTALLMENT_MAX_MONTHS) {
@@ -471,7 +476,9 @@ final readonly class BudgetEntryService
         $monthlyAmount = $this->number(
             $input['monthlyAmount'] ?? $input['monthly_amount'] ?? null,
         );
+        $periodAmounts = $this->periodAmountsFromInput($input['periodAmounts'] ?? $input['period_amounts'] ?? null);
         $startMonth = $this->monthFromInput($input['startMonth'] ?? $input['start_month'] ?? null);
+        $periodUnit = $this->installmentPeriodUnit($input['periodUnit'] ?? $input['period_unit'] ?? null);
         $remark = Input::string($input['remark'] ?? null);
 
         if (!$enabled) {
@@ -481,6 +488,7 @@ final readonly class BudgetEntryService
                 'paidMonths' => 0,
                 'monthlyAmount' => null,
                 'totalAmount' => null,
+                'periodAmounts' => [],
                 'startMonth' => null,
                 'periodUnit' => 'month',
                 'remark' => null,
@@ -489,6 +497,16 @@ final readonly class BudgetEntryService
 
         if ($months === null || $months > self::INSTALLMENT_MAX_MONTHS) {
             throw new AuthException('VALIDATION_ERROR', 'Installment months must be between 1 and 600.', 422);
+        }
+
+        $periodCount = $this->installmentPeriodCountFromMonths($months, $periodUnit);
+        if (count($periodAmounts) > $periodCount) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment period amounts cannot exceed the saving period count.', 422);
+        }
+
+        if ($periodAmounts !== []) {
+            $totalAmount = array_sum($periodAmounts);
+            $monthlyAmount = $totalAmount / count($periodAmounts);
         }
 
         $monthlyAmount ??= $totalAmount === null ? $fallbackMonthlyAmount : $totalAmount / $months;
@@ -516,8 +534,9 @@ final readonly class BudgetEntryService
             'paidMonths' => $paidMonths,
             'monthlyAmount' => $monthlyAmount,
             'totalAmount' => $totalAmount,
+            'periodAmounts' => $periodAmounts,
             'startMonth' => $startMonth,
-            'periodUnit' => $this->installmentPeriodUnit($input['periodUnit'] ?? $input['period_unit'] ?? null),
+            'periodUnit' => $periodUnit,
             'remark' => $remark,
         ];
     }
@@ -544,6 +563,38 @@ final readonly class BudgetEntryService
         }
 
         return substr($date, 0, 7);
+    }
+
+    /**
+     * @return list<float>
+     */
+    private function periodAmountsFromInput(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $amounts = [];
+        foreach ($value as $amount) {
+            $number = $this->number($amount);
+            if ($number === null || $number < 0.0) {
+                throw new AuthException('VALIDATION_ERROR', 'Installment period amounts must be zero or greater.', 422);
+            }
+
+            $amounts[] = $number;
+        }
+
+        return $amounts;
+    }
+
+    private function installmentPeriodCountFromMonths(int $months, string $periodUnit): int
+    {
+        return max(1, (int) ceil(match ($periodUnit) {
+            'day' => $months * (365 / 12),
+            'week' => $months * (52 / 12),
+            'year' => $months / 12,
+            default => $months,
+        }));
     }
 
     private function nonNegativeInt(mixed $value): ?int

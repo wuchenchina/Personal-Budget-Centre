@@ -130,6 +130,7 @@ export interface BudgetInstallmentConfig {
   paidMonths: number;
   monthlyAmount: number | null;
   totalAmount: number | null;
+  periodAmounts: number[];
   startMonth: string | null;
   periodUnit: BudgetInstallmentPeriodUnit;
   remark: string | null;

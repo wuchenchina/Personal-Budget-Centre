@@ -509,6 +509,63 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
   };
 
+  const handleInstallmentPeriodAmountSave = async (
+    item: BudgetItem,
+    periodIndex: number,
+    value: number,
+  ) => {
+    if (
+      options.selectedBudget === null
+      || !Number.isInteger(periodIndex)
+      || periodIndex < 0
+      || !Number.isFinite(value)
+      || value < 0
+      || item.installmentConfig.months === null
+    ) {
+      return;
+    }
+
+    const months = item.installmentConfig.months;
+    const periodCount = installmentPeriodCountFromMonths(months, options.selectedBudget.installmentPeriodUnit);
+    const defaultAmount = item.installmentConfig.monthlyAmount
+      ?? (item.installmentConfig.totalAmount === null ? null : item.installmentConfig.totalAmount / months)
+      ?? item.budget.amountOriginal;
+    const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
+      item.installmentConfig.periodAmounts[index] ?? defaultAmount,
+    );
+    periodAmounts[periodIndex] = roundMoney(value);
+    const totalAmount = roundMoney(periodAmounts.reduce((total, amount) => total + amount, 0));
+    const monthlyAmount = roundMoney(totalAmount / periodCount);
+
+    setIsBudgetItemSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateBudgetItem({
+        id: item.id,
+        categoryId: item.categoryId ?? undefined,
+        label: item.label,
+        budgetCurrency: item.budget.currency,
+        budgetAmount: item.budget.amountOriginal,
+        budgetRate: item.budget.rateToBase,
+        estimatedCurrency: options.selectedBudget.baseCurrency,
+        estimatedAmount: 0,
+        estimatedRate: 1,
+        installmentConfig: {
+          ...item.installmentConfig,
+          periodAmounts,
+          monthlyAmount,
+          totalAmount,
+        },
+        sortOrder: item.sortOrder,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsBudgetItemSaving(false);
+    }
+  };
+
   const handleTransactionQuickAmountSave = async (
     transaction: Transaction,
     value: number,
@@ -675,6 +732,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     handleBudgetItemDelete,
     handleBudgetItemQuickAmountSave,
     handleBudgetItemCategoryQuickSave,
+    handleInstallmentPeriodAmountSave,
     handleBudgetItemRateRefresh,
     openTransactionCreateModal,
     openTransactionEditModal,
@@ -704,6 +762,25 @@ function originalAmountFromBase(amountBase: number, rateToBase: number): number 
   }
 
   return roundMoney(amountBase / rateToBase);
+}
+
+function installmentPeriodCountFromMonths(
+  months: number,
+  unit: BudgetDetail['installmentPeriodUnit'],
+): number {
+  if (unit === 'day') {
+    return Math.max(1, Math.ceil(months * (365 / 12)));
+  }
+
+  if (unit === 'week') {
+    return Math.max(1, Math.ceil(months * (52 / 12)));
+  }
+
+  if (unit === 'year') {
+    return Math.max(1, Math.ceil(months / 12));
+  }
+
+  return months;
 }
 
 export type BudgetEntryController = ReturnType<typeof useBudgetEntryController>;

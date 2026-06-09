@@ -56,7 +56,7 @@ final readonly class BudgetPdfDocumentRenderer
             . (
                 ($budget['budgetType'] ?? 'regular') === 'installment'
                     ? $this->tableRenderer->render(
-                        $installmentSection,
+                        $this->installmentPeriodSection($installmentSection),
                         $periodText,
                         $this->installmentRows($budget),
                         $this->installmentSummaryRow($budget),
@@ -129,30 +129,42 @@ final readonly class BudgetPdfDocumentRenderer
     private function installmentRows(array $budget): array
     {
         $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
+        $rows = [];
 
-        return array_map(
-            function (array $item) use ($budget, $transactions): array {
-                $config = is_array($item['installmentConfig'] ?? null) ? $item['installmentConfig'] : [];
-                $months = is_int($config['months'] ?? null)
-                    ? (int) $config['months']
-                    : $this->budgetDurationMonths($budget);
-                $months = max(1.0, (float) ($months ?? 1));
-                $target = $this->installmentTargetAmount($item, $config, $transactions);
-                $periodUnit = $this->installmentPeriodUnit($budget);
-                $periodCount = max(1.0, $this->periodCountFromMonths($months, $periodUnit));
-                $paidMonths = is_int($config['paidMonths'] ?? null) ? (int) $config['paidMonths'] : 0;
+        foreach (is_array($budget['items'] ?? null) ? $budget['items'] : [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
 
-                return [
+            $config = is_array($item['installmentConfig'] ?? null) ? $item['installmentConfig'] : [];
+            $months = is_int($config['months'] ?? null)
+                ? (int) $config['months']
+                : $this->budgetDurationMonths($budget);
+            $months = max(1.0, (float) ($months ?? 1));
+            $target = $this->installmentTargetAmount($item, $config, $transactions);
+            $periodUnit = $this->installmentPeriodUnit($budget);
+            $periodCount = max(1, (int) ceil($this->periodCountFromMonths($months, $periodUnit)));
+            $paidMonths = is_int($config['paidMonths'] ?? null) ? (int) $config['paidMonths'] : 0;
+            $paidPeriodCount = min($periodCount, (int) ceil($this->periodCountFromMonths($paidMonths, $periodUnit)));
+            $periodAmounts = $this->installmentPeriodAmounts($config);
+            $defaultPeriodAmount = $target['original'] / $periodCount;
+            $startTime = $this->installmentStartTime($item, $budget);
+
+            for ($index = 0; $index < $periodCount; $index++) {
+                $rows[] = [
                     (string) ($item['category'] ?? $item['label']),
+                    $this->periodLabel($startTime, $index, $periodUnit),
                     $this->formatter->templateMoney((string) $item['budget']['currency'], $target['original']),
-                    $this->formatter->templateMoney((string) $item['budget']['currency'], $target['original'] / $periodCount)
-                        . ' / ' . $this->periodUnitText($periodUnit),
-                    $this->durationText($months),
-                    is_int($config['months'] ?? null) ? max(0, $paidMonths) . '/' . (int) $config['months'] : '',
+                    $this->formatter->templateMoney(
+                        (string) $item['budget']['currency'],
+                        (float) ($periodAmounts[$index] ?? $defaultPeriodAmount),
+                    ) . ' / ' . $this->periodUnitText($periodUnit),
+                    is_int($config['months'] ?? null) && $index < $paidPeriodCount ? 'Saved' : 'Pending',
                 ];
-            },
-            is_array($budget['items'] ?? null) ? $budget['items'] : [],
-        );
+            }
+        }
+
+        return $rows;
     }
 
     private function installmentSummaryRow(array $budget): array
@@ -168,24 +180,93 @@ final readonly class BudgetPdfDocumentRenderer
             }
 
             $config = is_array($item['installmentConfig'] ?? null) ? $item['installmentConfig'] : [];
-            $months = is_int($config['months'] ?? null)
-                ? (int) $config['months']
-                : $this->budgetDurationMonths($budget);
-            $months = max(1.0, (float) ($months ?? 1));
             $target = $this->installmentTargetAmount($item, $config, $transactions);
-            $periodCount = max(1.0, $this->periodCountFromMonths($months, $this->installmentPeriodUnit($budget)));
+            $periodAmounts = $this->installmentPeriodAmounts($config);
 
             $targetTotal += $target['base'];
-            $periodTotal += $target['base'] / $periodCount;
+            $periodTotal += $periodAmounts === []
+                ? $target['base']
+                : array_sum($periodAmounts) * (float) ($item['budget']['rateToBase'] ?? 1);
         }
 
         return [
             'Budget Total',
+            '',
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $targetTotal, true),
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $periodTotal, true),
             '',
-            '',
         ];
+    }
+
+    private function installmentPeriodSection(array $section): array
+    {
+        return [
+            ...$section,
+            'columns' => [
+                ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'dataType' => 'text'],
+                ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'dataType' => 'text'],
+                ['key' => 'target_amount', 'label' => 'Target', 'align' => 'right', 'dataType' => 'money'],
+                ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'dataType' => 'money'],
+                ['key' => 'progress', 'label' => 'Progress', 'align' => 'right', 'dataType' => 'text'],
+            ],
+        ];
+    }
+
+    private function installmentPeriodAmounts(array $config): array
+    {
+        if (!is_array($config['periodAmounts'] ?? null)) {
+            return [];
+        }
+
+        $amounts = [];
+        foreach ($config['periodAmounts'] as $amount) {
+            if (!is_numeric($amount) || (float) $amount < 0.0) {
+                continue;
+            }
+
+            $amounts[] = (float) $amount;
+        }
+
+        return $amounts;
+    }
+
+    private function installmentStartTime(array $item, array $budget): ?int
+    {
+        $config = is_array($item['installmentConfig'] ?? null) ? $item['installmentConfig'] : [];
+        $startMonth = $config['startMonth'] ?? null;
+        if (is_string($startMonth) && preg_match('/^\d{4}-\d{2}$/', $startMonth) === 1) {
+            $time = strtotime($startMonth . '-01');
+
+            return $time === false ? null : $time;
+        }
+
+        $time = strtotime((string) ($budget['startDate'] ?? ''));
+
+        return $time === false ? null : $time;
+    }
+
+    private function periodLabel(?int $startTime, int $periodIndex, string $periodUnit): string
+    {
+        if ($startTime === null) {
+            return '#' . ($periodIndex + 1);
+        }
+
+        $modifier = match ($periodUnit) {
+            'day' => '+' . $periodIndex . ' day',
+            'week' => '+' . $periodIndex . ' week',
+            'year' => '+' . $periodIndex . ' year',
+            default => '+' . $periodIndex . ' month',
+        };
+        $time = strtotime($modifier, $startTime);
+        if ($time === false) {
+            return '#' . ($periodIndex + 1);
+        }
+
+        return match ($periodUnit) {
+            'day', 'week' => date('j M Y', $time),
+            'year' => date('Y', $time),
+            default => date('F Y', $time),
+        };
     }
 
     private function transactionAmountText(array $transaction, string $baseCurrency): string
@@ -209,11 +290,13 @@ final readonly class BudgetPdfDocumentRenderer
      */
     private function installmentTargetAmount(array $item, array $config, array $transactions): array
     {
-        if (($config['enabled'] ?? false) === true
-            && is_numeric($config['totalAmount'] ?? null)
-            && (float) $config['totalAmount'] > 0.0
-        ) {
-            $original = (float) $config['totalAmount'];
+        $periodAmounts = $this->installmentPeriodAmounts($config);
+        $configuredTotal = $periodAmounts === []
+            ? (is_numeric($config['totalAmount'] ?? null) ? (float) $config['totalAmount'] : null)
+            : array_sum($periodAmounts);
+
+        if (($config['enabled'] ?? false) === true && $configuredTotal !== null && $configuredTotal > 0.0) {
+            $original = $configuredTotal;
             $rateToBase = is_numeric($item['budget']['rateToBase'] ?? null)
                 ? (float) $item['budget']['rateToBase']
                 : 1.0;
@@ -494,9 +577,9 @@ final readonly class BudgetPdfDocumentRenderer
             'title' => 'Installments',
             'columns' => [
                 ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'dataType' => 'text'],
+                ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'dataType' => 'text'],
                 ['key' => 'target_amount', 'label' => 'Target', 'align' => 'right', 'dataType' => 'money'],
-                ['key' => 'period_amount', 'label' => 'Save per period', 'align' => 'right', 'dataType' => 'money'],
-                ['key' => 'duration', 'label' => 'Duration', 'align' => 'right', 'dataType' => 'text'],
+                ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'dataType' => 'money'],
                 ['key' => 'progress', 'label' => 'Progress', 'align' => 'right', 'dataType' => 'text'],
             ],
         ];

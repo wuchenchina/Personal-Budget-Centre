@@ -198,19 +198,22 @@ export function BudgetDocumentPreview({
     { label: visibilityLabelsByLanguage[language].workspace, value: 'workspace' },
     { label: visibilityLabelsByLanguage[language].custom, value: 'custom' },
   ];
-  const installmentRows = selectedBudget === null ? [] : createInstallmentEstimateRows(selectedBudget);
+  const installmentRows = selectedBudget === null ? [] : createInstallmentPeriodRows(selectedBudget);
   const installmentPeriodLabel = installmentPeriodUnitLabel(
     selectedBudget?.installmentPeriodUnit ?? 'month',
   );
-  const installmentColumns = createInstallmentEstimateColumns(
+  const installmentColumns = createInstallmentPeriodColumns(
     installmentPeriodLabel,
     {
       category: 'Category',
-      duration: 'Duration',
-      periodAmount: 'Save per period',
+      period: 'Period',
+      periodAmount: 'Amount',
       progress: 'Progress',
       targetAmount: 'Target',
     },
+    canWriteBudgets,
+    entry,
+    t('edit'),
   );
 
   return (
@@ -400,7 +403,7 @@ export function BudgetDocumentPreview({
                   {budgetDateText}
                 </div>
               ) : null}
-              <Table<InstallmentEstimateRow>
+              <Table<InstallmentPeriodRow>
                 bordered
                 columns={installmentColumns}
                 dataSource={installmentRows}
@@ -430,15 +433,19 @@ export function BudgetDocumentPreview({
 }
 
 interface InstallmentEstimateRow {
-  id: number;
+  id: string;
   category: string;
-  durationText: string;
-  periodAmount: string;
+  item: BudgetItem;
+  periodAmount: number;
   periodAmountBase: number;
+  periodIndex: number;
+  periodLabel: string;
   progressText: string;
   targetAmount: string;
   targetAmountBase: number;
 }
+
+type InstallmentPeriodRow = InstallmentEstimateRow;
 
 interface InstallmentSummaryValues {
   currency: CurrencyCode;
@@ -446,22 +453,31 @@ interface InstallmentSummaryValues {
   targetTotal: number;
 }
 
-function createInstallmentEstimateColumns(
+function createInstallmentPeriodColumns(
   periodUnitLabel: string,
   labels: {
     category: string;
-    duration: string;
+    period: string;
     periodAmount: string;
     progress: string;
     targetAmount: string;
   },
-): TableProps<InstallmentEstimateRow>['columns'] {
+  canWriteBudgets: boolean,
+  entry: BudgetEntryController,
+  editLabel: string,
+): TableProps<InstallmentPeriodRow>['columns'] {
   return [
     {
       dataIndex: 'category',
       key: 'category',
       title: labels.category,
-      width: '32%',
+      width: '24%',
+    },
+    {
+      dataIndex: 'periodLabel',
+      key: 'period',
+      title: labels.period,
+      width: '20%',
     },
     {
       align: 'right',
@@ -476,50 +492,65 @@ function createInstallmentEstimateColumns(
       key: 'periodAmount',
       title: labels.periodAmount,
       width: '20%',
-      render: (value: string) => (
-        <span className="budget-installment-period-amount">
-          {value}
-          <small>{periodUnitLabel}</small>
-        </span>
+      render: (_value: number, row) => (
+        <InlineMoneyCell
+          currency={row.item.budget.currency}
+          disabled={entry.isBudgetItemSaving}
+          editable={canWriteBudgets && row.item.installmentConfig.enabled}
+          editLabel={editLabel}
+          secondaryText={periodUnitLabel}
+          value={row.periodAmount}
+          onEdit={() => entry.openBudgetItemEditModal(row.item)}
+          onCommit={(nextValue) => {
+            void entry.handleInstallmentPeriodAmountSave(row.item, row.periodIndex, nextValue);
+          }}
+        />
       ),
-    },
-    {
-      dataIndex: 'durationText',
-      key: 'durationText',
-      title: labels.duration,
-      width: '15%',
     },
     {
       dataIndex: 'progressText',
       key: 'progressText',
       title: labels.progress,
-      width: '15%',
+      width: '18%',
     },
   ];
 }
 
-function createInstallmentEstimateRows(budget: BudgetDetail): InstallmentEstimateRow[] {
-  return budget.items.map((item) => {
+function createInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow[] {
+  return budget.items.flatMap((item) => {
     const configuredMonths = item.installmentConfig.enabled ? item.installmentConfig.months : null;
     const durationMonths =
       configuredMonths ?? budgetDurationMonths(budget.startDate, budget.endDate) ?? 1;
     const target = installmentTarget(item, budget);
-    const periodCount = Math.max(1, periodCountFromMonths(durationMonths, budget.installmentPeriodUnit));
+    const periodCount = Math.max(1, Math.ceil(periodCountFromMonths(durationMonths, budget.installmentPeriodUnit)));
     const paidMonths = item.installmentConfig.enabled ? item.installmentConfig.paidMonths : 0;
+    const paidPeriodCount = Math.min(
+      periodCount,
+      Math.ceil(periodCountFromMonths(paidMonths, budget.installmentPeriodUnit)),
+    );
+    const defaultPeriodAmount = target.original / periodCount;
+    const startDate = installmentStartDate(item, budget);
 
-    return {
-      id: item.id,
-      category: item.category ?? item.label,
-      durationText: `${roundDisplay(durationMonths)} months`,
-      periodAmount: formatBudgetMoney(item.budget.currency, target.original / periodCount),
-      periodAmountBase: target.base / periodCount,
-      progressText:
-        configuredMonths === null
+    return Array.from({ length: periodCount }, (_, index) => {
+      const periodAmount = item.installmentConfig.periodAmounts[index] ?? defaultPeriodAmount;
+
+      return {
+        id: `${item.id}-${index + 1}`,
+        category: item.category ?? item.label,
+        item,
+        periodAmount,
+        periodAmountBase: periodAmount * item.budget.rateToBase,
+        periodIndex: index,
+        periodLabel: formatInstallmentPeriodLabel(startDate, index, budget.installmentPeriodUnit),
+        progressText: configuredMonths === null
           ? '--'
-          : `${paidMonths}/${configuredMonths}`,
-      targetAmount: formatBudgetMoney(item.budget.currency, target.original),
-      targetAmountBase: target.base,
-    };
+          : index < paidPeriodCount
+            ? 'Saved'
+            : 'Pending',
+        targetAmount: formatBudgetMoney(item.budget.currency, target.original),
+        targetAmountBase: target.base,
+      };
+    });
   });
 }
 
@@ -533,7 +564,10 @@ function createInstallmentSummaryValues(
 
   return {
     currency: budget.baseCurrency,
-    targetTotal: rows.reduce((total, row) => total + row.targetAmountBase, 0),
+    targetTotal: budget.items.reduce(
+      (total, item) => total + installmentTarget(item, budget).base,
+      0,
+    ),
     periodTotal: rows.reduce((total, row) => total + row.periodAmountBase, 0),
   };
 }
@@ -569,13 +603,13 @@ function renderInstallmentSummary(values: InstallmentSummaryValues | null, summa
     <Table.Summary>
       <Table.Summary.Row className="budget-summary-row">
         <Table.Summary.Cell index={0}>{summaryLabel}</Table.Summary.Cell>
-        <Table.Summary.Cell className="budget-summary-number" index={1}>
+        <Table.Summary.Cell index={1} />
+        <Table.Summary.Cell className="budget-summary-number" index={2}>
           {formatBudgetMoney(values.currency, values.targetTotal)}
         </Table.Summary.Cell>
-        <Table.Summary.Cell className="budget-summary-number" index={2}>
+        <Table.Summary.Cell className="budget-summary-number" index={3}>
           {formatBudgetMoney(values.currency, values.periodTotal)}
         </Table.Summary.Cell>
-        <Table.Summary.Cell index={3} />
         <Table.Summary.Cell index={4} />
       </Table.Summary.Row>
     </Table.Summary>
@@ -612,8 +646,44 @@ function periodCountFromMonths(months: number, unit: BudgetDetail['installmentPe
   return months;
 }
 
-function roundDisplay(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+function installmentStartDate(item: BudgetItem, budget: BudgetDetail): dayjs.Dayjs | null {
+  if (item.installmentConfig.startMonth !== null) {
+    const startMonth = dayjs(`${item.installmentConfig.startMonth}-01`);
+
+    return startMonth.isValid() ? startMonth : null;
+  }
+
+  if (budget.startDate === null) {
+    return null;
+  }
+
+  const budgetStart = dayjs(budget.startDate);
+
+  return budgetStart.isValid() ? budgetStart : null;
+}
+
+function formatInstallmentPeriodLabel(
+  startDate: dayjs.Dayjs | null,
+  periodIndex: number,
+  unit: BudgetDetail['installmentPeriodUnit'],
+): string {
+  if (startDate === null) {
+    return `#${periodIndex + 1}`;
+  }
+
+  if (unit === 'day') {
+    return startDate.add(periodIndex, 'day').format('D MMM YYYY');
+  }
+
+  if (unit === 'week') {
+    return startDate.add(periodIndex, 'week').format('D MMM YYYY');
+  }
+
+  if (unit === 'year') {
+    return startDate.add(periodIndex, 'year').format('YYYY');
+  }
+
+  return startDate.add(periodIndex, 'month').format('MMMM YYYY');
 }
 
 function installmentPeriodUnitLabel(unit: BudgetDetail['installmentPeriodUnit']): string {
