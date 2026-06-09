@@ -441,19 +441,27 @@ export function BudgetDocumentPreview({
 interface InstallmentEstimateRow {
   id: string;
   category: string;
-  item: BudgetItem;
+  currency: CurrencyCode;
+  item?: BudgetItem;
   periodAmount: number;
   periodAmountBase: number;
   periodCount: number;
   periodIndex: number;
   periodLabel: string;
   progressChecked: boolean;
+  progressMixed: boolean;
   remarkText: string;
   sequence: number;
+  sourceRows: InstallmentItemPeriodRow[];
   targetAmountOriginal: number;
   targetAmount: string;
   targetAmountBase: number;
 }
+
+type InstallmentItemPeriodRow = Omit<InstallmentEstimateRow, 'item' | 'sourceRows'> & {
+  item: BudgetItem;
+  sourceRows: [];
+};
 
 type InstallmentPeriodRow = InstallmentEstimateRow;
 
@@ -508,20 +516,24 @@ function createInstallmentPeriodColumns(
       width: showCategory ? '19%' : '21%',
       render: (_value: number, row) => (
         <InlineInstallmentAmountCell
-          currency={row.item.budget.currency}
+          currency={row.currency}
           disabled={entry.isBudgetItemSaving}
           editable={canWriteBudgets}
           editLabel={editLabel}
           periodUnitLabel={periodUnitLabel}
           value={row.periodAmount}
           onCommit={(nextValue) => {
-            void entry.handleInstallmentPeriodAmountSave(
-              row.item,
-              row.periodIndex,
-              nextValue,
-              row.periodCount,
-              row.targetAmountOriginal,
-            );
+            if (row.item === undefined) {
+              void saveAggregateInstallmentPeriodAmount(entry, row, nextValue);
+            } else {
+              void entry.handleInstallmentPeriodAmountSave(
+                row.item,
+                row.periodIndex,
+                nextValue,
+                row.periodCount,
+                row.targetAmountOriginal,
+              );
+            }
           }}
         />
       ),
@@ -535,15 +547,20 @@ function createInstallmentPeriodColumns(
       render: (_value: boolean, row) => (
         <Checkbox
           checked={row.progressChecked}
+          indeterminate={row.progressMixed}
           disabled={!canWriteBudgets || entry.isBudgetItemSaving}
           onChange={(event) => {
-            void entry.handleInstallmentProgressSave(
-              row.item,
-              row.periodIndex,
-              event.target.checked,
-              row.periodCount,
-              row.targetAmountOriginal,
-            );
+            if (row.item === undefined) {
+              void saveAggregateInstallmentProgress(entry, row, event.target.checked);
+            } else {
+              void entry.handleInstallmentProgressSave(
+                row.item,
+                row.periodIndex,
+                event.target.checked,
+                row.periodCount,
+                row.targetAmountOriginal,
+              );
+            }
           }}
         />
       ),
@@ -559,13 +576,17 @@ function createInstallmentPeriodColumns(
           editable={canWriteBudgets}
           value={row.remarkText}
           onCommit={(nextValue) => {
-            void entry.handleInstallmentRemarkSave(
-              row.item,
-              row.periodIndex,
-              nextValue,
-              row.periodCount,
-              row.targetAmountOriginal,
-            );
+            if (row.item === undefined) {
+              void saveAggregateInstallmentRemark(entry, row, nextValue);
+            } else {
+              void entry.handleInstallmentRemarkSave(
+                row.item,
+                row.periodIndex,
+                nextValue,
+                row.periodCount,
+                row.targetAmountOriginal,
+              );
+            }
           }}
         />
       ),
@@ -585,6 +606,15 @@ function createInstallmentPeriodColumns(
 }
 
 function createInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow[] {
+  const itemRows = createInstallmentItemPeriodRows(budget);
+  if (budget.installmentDisplayMode === 'overall') {
+    return createOverallInstallmentPeriodRows(budget, itemRows);
+  }
+
+  return itemRows;
+}
+
+function createInstallmentItemPeriodRows(budget: BudgetDetail): InstallmentItemPeriodRow[] {
   return budget.items.flatMap((item) => {
     const configuredMonths = item.installmentConfig.enabled ? item.installmentConfig.months : null;
     const durationMonths =
@@ -602,6 +632,7 @@ function createInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow
       return {
         id: `${item.id}-${index + 1}`,
         category: item.category ?? item.label,
+        currency: item.budget.currency,
         item,
         periodAmount,
         periodAmountBase: periodAmount * item.budget.rateToBase,
@@ -609,13 +640,59 @@ function createInstallmentPeriodRows(budget: BudgetDetail): InstallmentPeriodRow
         periodIndex: index,
         periodLabel: formatInstallmentPeriodLabel(startDate, index, budget.installmentPeriodUnit),
         progressChecked,
+        progressMixed: false,
         remarkText,
         sequence: index + 1,
+        sourceRows: [],
         targetAmountOriginal: target.original,
         targetAmount: formatBudgetMoney(item.budget.currency, target.original),
         targetAmountBase: target.base,
       };
     });
+  });
+}
+
+function createOverallInstallmentPeriodRows(
+  budget: BudgetDetail,
+  itemRows: InstallmentItemPeriodRow[],
+): InstallmentPeriodRow[] {
+  if (itemRows.length === 0) {
+    return [];
+  }
+
+  const targetTotal = effectiveBudgetTotals(budget).totalBudgetBase;
+  const periodCount = Math.max(...itemRows.map((row) => row.periodCount));
+  const budgetStartDate = budget.startDate === null ? null : dayjs(budget.startDate);
+
+  return Array.from({ length: periodCount }, (_, index) => {
+    const sourceRows = itemRows.filter((row) => row.periodIndex === index);
+    const periodAmount = sourceRows.length === 0
+      ? targetTotal / periodCount
+      : sourceRows.reduce((total, row) => total + row.periodAmountBase, 0);
+    const checkedCount = sourceRows.filter((row) => row.progressChecked).length;
+    const remarks = Array.from(new Set(
+      sourceRows.map((row) => row.remarkText.trim()).filter((remark) => remark !== ''),
+    ));
+
+    return {
+      id: `overall-${index + 1}`,
+      category: '',
+      currency: budget.baseCurrency,
+      periodAmount,
+      periodAmountBase: periodAmount,
+      periodCount,
+      periodIndex: index,
+      periodLabel: sourceRows[0]?.periodLabel
+        ?? formatInstallmentPeriodLabel(budgetStartDate, index, budget.installmentPeriodUnit),
+      progressChecked: sourceRows.length > 0 && checkedCount === sourceRows.length,
+      progressMixed: checkedCount > 0 && checkedCount < sourceRows.length,
+      remarkText: remarks.length === 1 ? remarks[0] : '',
+      sequence: index + 1,
+      sourceRows,
+      targetAmountOriginal: targetTotal,
+      targetAmount: formatBudgetMoney(budget.baseCurrency, targetTotal),
+      targetAmountBase: targetTotal,
+    };
   });
 }
 
@@ -629,12 +706,76 @@ function createInstallmentSummaryValues(
 
   return {
     currency: budget.baseCurrency,
-    targetTotal: budget.items.reduce(
-      (total, item) => total + installmentTarget(item, budget).base,
-      0,
-    ),
+    targetTotal: budget.installmentDisplayMode === 'overall'
+      ? effectiveBudgetTotals(budget).totalBudgetBase
+      : budget.items.reduce(
+        (total, item) => total + installmentTarget(item, budget).base,
+        0,
+      ),
     periodTotal: rows.reduce((total, row) => total + row.periodAmountBase, 0),
   };
+}
+
+async function saveAggregateInstallmentPeriodAmount(
+  entry: BudgetEntryController,
+  row: InstallmentPeriodRow,
+  nextValue: number,
+) {
+  if (row.sourceRows.length === 0) {
+    return;
+  }
+
+  const currentTotal = row.sourceRows.reduce(
+    (total, sourceRow) => total + sourceRow.periodAmountBase,
+    0,
+  );
+  for (const sourceRow of row.sourceRows) {
+    const weight = currentTotal > 0
+      ? sourceRow.periodAmountBase / currentTotal
+      : 1 / row.sourceRows.length;
+    const rateToBase = sourceRow.item.budget.rateToBase > 0
+      ? sourceRow.item.budget.rateToBase
+      : 1;
+    await entry.handleInstallmentPeriodAmountSave(
+      sourceRow.item,
+      sourceRow.periodIndex,
+      (nextValue * weight) / rateToBase,
+      sourceRow.periodCount,
+      sourceRow.targetAmountOriginal,
+    );
+  }
+}
+
+async function saveAggregateInstallmentProgress(
+  entry: BudgetEntryController,
+  row: InstallmentPeriodRow,
+  checked: boolean,
+) {
+  for (const sourceRow of row.sourceRows) {
+    await entry.handleInstallmentProgressSave(
+      sourceRow.item,
+      sourceRow.periodIndex,
+      checked,
+      sourceRow.periodCount,
+      sourceRow.targetAmountOriginal,
+    );
+  }
+}
+
+async function saveAggregateInstallmentRemark(
+  entry: BudgetEntryController,
+  row: InstallmentPeriodRow,
+  nextValue: string,
+) {
+  for (const sourceRow of row.sourceRows) {
+    await entry.handleInstallmentRemarkSave(
+      sourceRow.item,
+      sourceRow.periodIndex,
+      nextValue,
+      sourceRow.periodCount,
+      sourceRow.targetAmountOriginal,
+    );
+  }
 }
 
 function installmentTarget(
