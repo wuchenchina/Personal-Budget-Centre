@@ -897,20 +897,18 @@ function createInstallmentItemPeriodRows(
     const periodProgress = Array.from({ length: periodCount }, (_, index) =>
       item.installmentConfig.periodProgress[index] === true,
     );
-    const progressAmount = periodAmounts.reduce(
-      (total, amount, index) => total + (periodProgress[index] ? amount : 0),
-      0,
-    );
-    const targetProgress = installmentTargetProgressText(
-      item.budget.currency,
-      Math.max(0, target.original - progressAmount),
-      remainingLabel,
-    );
+    let assignedAmount = 0;
 
     return Array.from({ length: periodCount }, (_, index) => {
       const periodAmount = periodAmounts[index] ?? 0;
+      assignedAmount = roundMoney(assignedAmount + periodAmount);
       const progressChecked = periodProgress[index] === true;
       const remarkText = item.installmentConfig.periodRemarks[index] ?? '';
+      const targetProgress = installmentTargetProgressText(
+        item.budget.currency,
+        Math.max(0, target.original - assignedAmount),
+        remainingLabel,
+      );
 
       return {
         id: `${item.id}-${index + 1}`,
@@ -958,18 +956,16 @@ function createOverallInstallmentPeriodRows(
   const periodRemarks = Array.from({ length: periodCount }, (_, index) =>
     budget.overallInstallmentPlan.periodRemarks[index] ?? '',
   );
-  const progressAmount = periodAmounts.reduce(
-    (total, amount, index) => total + (periodProgress[index] ? amount : 0),
-    0,
-  );
-  const targetProgress = installmentTargetProgressText(
-    budget.baseCurrency,
-    Math.max(0, targetTotal - progressAmount),
-    remainingLabel,
-  );
+  let assignedAmount = 0;
 
   return Array.from({ length: periodCount }, (_, index) => {
     const periodAmount = periodAmounts[index] ?? 0;
+    assignedAmount = roundMoney(assignedAmount + periodAmount);
+    const targetProgress = installmentTargetProgressText(
+      budget.baseCurrency,
+      Math.max(0, targetTotal - assignedAmount),
+      remainingLabel,
+    );
 
     return {
       id: `overall-${index + 1}`,
