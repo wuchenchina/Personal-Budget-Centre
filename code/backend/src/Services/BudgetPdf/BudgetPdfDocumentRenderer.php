@@ -159,7 +159,7 @@ final readonly class BudgetPdfDocumentRenderer
                     $this->formatter->templateMoney(
                         (string) $item['budget']['currency'],
                         (float) ($periodAmounts[$index] ?? $defaultPeriodAmount),
-                    ) . ' / ' . $this->periodUnitText($periodUnit),
+                    ) . ' / ' . $this->periodUnitShortText($periodUnit),
                     ($periodProgress[$index] ?? false) ? 'X' : '',
                     (string) ($periodRemarks[$index] ?? ''),
                 ];
@@ -192,8 +192,8 @@ final readonly class BudgetPdfDocumentRenderer
         }
 
         return [
-            'Total',
             '',
+            'Total',
             '',
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $targetTotal, true),
             $this->formatter->templateMoney((string) $budget['baseCurrency'], $periodTotal, true),
@@ -207,13 +207,13 @@ final readonly class BudgetPdfDocumentRenderer
         return [
             ...$section,
             'columns' => [
-                ['key' => 'sequence', 'label' => 'No.', 'align' => 'center', 'dataType' => 'text'],
-                ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'dataType' => 'text'],
-                ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'dataType' => 'text'],
-                ['key' => 'target_amount', 'label' => 'Target', 'align' => 'right', 'dataType' => 'money'],
-                ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'dataType' => 'money'],
-                ['key' => 'progress', 'label' => 'Progress', 'align' => 'center', 'dataType' => 'text'],
-                ['key' => 'remark', 'label' => 'Remark', 'align' => 'right', 'dataType' => 'text'],
+                ['key' => 'sequence', 'label' => 'No.', 'align' => 'center', 'widthPercent' => 4, 'dataType' => 'text'],
+                ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'widthPercent' => 13, 'dataType' => 'text'],
+                ['key' => 'period', 'label' => 'Period', 'align' => 'left', 'widthPercent' => 15, 'dataType' => 'text'],
+                ['key' => 'target_amount', 'label' => 'Target', 'align' => 'right', 'widthPercent' => 17, 'dataType' => 'money'],
+                ['key' => 'period_amount', 'label' => 'Amount', 'align' => 'right', 'widthPercent' => 19, 'dataType' => 'money'],
+                ['key' => 'progress', 'label' => 'Done', 'align' => 'center', 'widthPercent' => 5, 'dataType' => 'text'],
+                ['key' => 'remark', 'label' => 'Remark', 'align' => 'right', 'widthPercent' => 27, 'dataType' => 'text'],
             ],
         ];
     }
@@ -289,7 +289,7 @@ final readonly class BudgetPdfDocumentRenderer
         return match ($periodUnit) {
             'day', 'week' => date('j M Y', $time),
             'year' => date('Y', $time),
-            default => date('F Y', $time),
+            default => date('M Y', $time),
         };
     }
 
@@ -449,6 +449,16 @@ final readonly class BudgetPdfDocumentRenderer
         };
     }
 
+    private function periodUnitShortText(string $periodUnit): string
+    {
+        return match ($periodUnit) {
+            'day' => 'day',
+            'week' => 'wk',
+            'year' => 'yr',
+            default => 'mo',
+        };
+    }
+
     private function effectiveItemAmounts(array $item, array $transactions): array
     {
         $transactionTotals = $this->transactionCurrencyTotalsForItem($item, $transactions);
@@ -598,6 +608,7 @@ final readonly class BudgetPdfDocumentRenderer
     private function defaultInstallmentSection(): array
     {
         return [
+            'key' => 'installments',
             'title' => 'Installments',
             'columns' => [
                 ['key' => 'sequence', 'label' => 'No.', 'align' => 'center', 'dataType' => 'text'],
