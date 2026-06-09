@@ -509,6 +509,95 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
   };
 
+  const saveBudgetItemInstallmentConfig = async (
+    item: BudgetItem,
+    installmentConfig: BudgetItem['installmentConfig'],
+  ): Promise<BudgetDetail> => {
+    if (options.selectedBudget === null) {
+      throw new Error(translateCurrent('selectBudgetFirst'));
+    }
+
+    return updateBudgetItem({
+      id: item.id,
+      categoryId: item.categoryId ?? undefined,
+      label: item.label,
+      budgetCurrency: item.budget.currency,
+      budgetAmount: item.budget.amountOriginal,
+      budgetRate: item.budget.rateToBase,
+      estimatedCurrency: options.selectedBudget.baseCurrency,
+      estimatedAmount: 0,
+      estimatedRate: 1,
+      installmentConfig,
+      sortOrder: item.sortOrder,
+    });
+  };
+
+  const handleInstallmentHistoryClear = async () => {
+    if (options.selectedBudget === null) {
+      setEntryError(translateCurrent('selectBudgetFirst'));
+
+      return;
+    }
+
+    const itemsWithHistory = options.selectedBudget.items.filter(
+      (item) => item.installmentConfig.versions.length > 0,
+    );
+    if (itemsWithHistory.length === 0) {
+      return;
+    }
+
+    setIsBudgetItemSaving(true);
+    setEntryError(null);
+
+    try {
+      let savedBudget = options.selectedBudget;
+      for (const item of itemsWithHistory) {
+        savedBudget = await saveBudgetItemInstallmentConfig(item, {
+          ...item.installmentConfig,
+          versions: [],
+        });
+      }
+      options.replaceBudgetDetail(savedBudget);
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsBudgetItemSaving(false);
+    }
+  };
+
+  const handleInstallmentAmountsReset = async () => {
+    if (options.selectedBudget === null) {
+      setEntryError(translateCurrent('selectBudgetFirst'));
+
+      return;
+    }
+
+    const itemsWithCustomAmounts = options.selectedBudget.items.filter(
+      (item) => item.installmentConfig.periodAmounts.length > 0,
+    );
+    if (itemsWithCustomAmounts.length === 0) {
+      return;
+    }
+
+    setIsBudgetItemSaving(true);
+    setEntryError(null);
+
+    try {
+      let savedBudget = options.selectedBudget;
+      for (const item of itemsWithCustomAmounts) {
+        savedBudget = await saveBudgetItemInstallmentConfig(item, {
+          ...item.installmentConfig,
+          periodAmounts: [],
+        });
+      }
+      options.replaceBudgetDetail(savedBudget);
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsBudgetItemSaving(false);
+    }
+  };
+
   const handleInstallmentPeriodAmountSave = async (
     item: BudgetItem,
     periodIndex: number,
@@ -533,9 +622,10 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
     const months = item.installmentConfig.months
       ?? installmentMonthsFromPeriodCount(periodCount, options.selectedBudget.installmentPeriodUnit);
-    const defaultAmount = targetAmount / periodCount;
+    const defaultAmount = roundMoney(targetAmount / periodCount);
+    const editedAmount = roundMoney(value);
     const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
-      item.installmentConfig.periodAmounts[index] ?? defaultAmount,
+      roundMoney(item.installmentConfig.periodAmounts[index] ?? defaultAmount),
     );
     const periodProgress = Array.from({ length: periodCount }, (_, index) =>
       item.installmentConfig.periodProgress[index] === true,
@@ -546,7 +636,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     const previousPeriodAmounts = [...periodAmounts];
     const previousPeriodProgress = [...periodProgress];
     const previousPeriodRemarks = [...periodRemarks];
-    periodAmounts[periodIndex] = roundMoney(value);
+    periodAmounts[periodIndex] = editedAmount;
     const lockedIndexes = new Set<number>();
     for (let index = 0; index <= periodIndex; index += 1) {
       lockedIndexes.add(index);
@@ -563,6 +653,10 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     if (adjustableIndexes.length > 0) {
       distributeRemainingInstallmentAmount(periodAmounts, adjustableIndexes, targetAmount, lockedTotal);
     }
+    for (let index = 0; index < periodIndex; index += 1) {
+      periodAmounts[index] = previousPeriodAmounts[index] ?? periodAmounts[index];
+    }
+    periodAmounts[periodIndex] = editedAmount;
 
     const totalAmount = roundMoney(periodAmounts.reduce((total, amount) => total + amount, 0));
     const monthlyAmount = roundMoney(totalAmount / periodCount);
@@ -629,9 +723,9 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
     const months = item.installmentConfig.months
       ?? installmentMonthsFromPeriodCount(periodCount, options.selectedBudget.installmentPeriodUnit);
-    const defaultAmount = targetAmount / periodCount;
+    const defaultAmount = roundMoney(targetAmount / periodCount);
     const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
-      item.installmentConfig.periodAmounts[index] ?? defaultAmount,
+      roundMoney(item.installmentConfig.periodAmounts[index] ?? defaultAmount),
     );
     const periodProgress = Array.from({ length: periodCount }, (_, index) =>
       item.installmentConfig.periodProgress[index] === true,
@@ -710,9 +804,9 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     const nextRemark = remark.trim();
     const months = item.installmentConfig.months
       ?? installmentMonthsFromPeriodCount(periodCount, options.selectedBudget.installmentPeriodUnit);
-    const defaultAmount = targetAmount / periodCount;
+    const defaultAmount = roundMoney(targetAmount / periodCount);
     const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
-      item.installmentConfig.periodAmounts[index] ?? defaultAmount,
+      roundMoney(item.installmentConfig.periodAmounts[index] ?? defaultAmount),
     );
     const periodProgress = Array.from({ length: periodCount }, (_, index) =>
       item.installmentConfig.periodProgress[index] === true,
@@ -941,6 +1035,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     handleInstallmentPeriodAmountSave,
     handleInstallmentProgressSave,
     handleInstallmentRemarkSave,
+    handleInstallmentHistoryClear,
+    handleInstallmentAmountsReset,
     handleBudgetItemRateRefresh,
     openTransactionCreateModal,
     openTransactionEditModal,

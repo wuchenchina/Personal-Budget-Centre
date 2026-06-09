@@ -5,7 +5,7 @@ set -Eeuo pipefail
 SERVER_USER="root"
 SERVER_IP="140.210.14.109"
 SERVER_PORT="22"
-SERVER_SSH_KEY="/Users/wuchenchina/Documents/140.210.14.109_sshkey_id_ed25519"
+SERVER_SSH_KEY="/Users/wuchen/Documents/140.210.14.109_sshkey_id_ed25519"
 REMOTE_PATH="/www/wwwroot/bc.tool.axchen.top"
 
 DOMAIN="bc.tool.axchen.top"

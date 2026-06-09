@@ -1,5 +1,6 @@
-import { Alert, Checkbox, Empty, Form, Modal, Radio, Select, Tabs, Timeline } from 'antd';
+import { Alert, Button, Checkbox, Empty, Form, Modal, Popconfirm, Radio, Select, Tabs, Timeline } from 'antd';
 import type { FormInstance } from 'antd';
+import { RefreshCcw, Trash2 } from 'lucide-react';
 import { useI18n } from '../../i18n';
 import type {
   BudgetDetail,
@@ -12,9 +13,13 @@ interface BudgetInstallmentModalProps {
   selectedBudget: BudgetDetail | null;
   open: boolean;
   error: string | null;
+  canWriteBudgets: boolean;
   confirmLoading: boolean;
+  isEntrySaving: boolean;
   onCancel: () => void;
+  onClearHistory: () => void;
   onOk: () => void;
+  onResetAmounts: () => void;
 }
 
 export function BudgetInstallmentModal({
@@ -22,12 +27,20 @@ export function BudgetInstallmentModal({
   selectedBudget,
   open,
   error,
+  canWriteBudgets,
   confirmLoading,
+  isEntrySaving,
   onCancel,
+  onClearHistory,
   onOk,
+  onResetAmounts,
 }: BudgetInstallmentModalProps) {
   const { t } = useI18n();
   const isInstallmentBudget = Form.useWatch('budgetType', form) === 'installment';
+  const customAmountCount = (selectedBudget?.items ?? []).reduce(
+    (total, item) => total + item.installmentConfig.periodAmounts.length,
+    0,
+  );
   const periodUnitOptions: Array<{ label: string; value: BudgetInstallmentPeriodUnit }> = [
     { label: t('installmentPeriodDay'), value: 'day' },
     { label: t('installmentPeriodWeek'), value: 'week' },
@@ -99,13 +112,36 @@ export function BudgetInstallmentModal({
                       </Form.Item>
                     </div>
                   ) : null}
+                  <div className="installment-option-actions">
+                    <Popconfirm
+                      title={t('resetInstallmentAmountsTitle')}
+                      okText={t('reset')}
+                      cancelText={t('cancel')}
+                      onConfirm={onResetAmounts}
+                    >
+                      <Button
+                        disabled={!canWriteBudgets || customAmountCount === 0 || isEntrySaving}
+                        icon={<RefreshCcw size={14} />}
+                        loading={isEntrySaving}
+                      >
+                        {t('resetInstallmentAmounts')}
+                      </Button>
+                    </Popconfirm>
+                  </div>
                 </div>
               ),
             },
             {
               key: 'history',
               label: t('installmentHistory'),
-              children: <InstallmentHistory selectedBudget={selectedBudget} />,
+              children: (
+                <InstallmentHistory
+                  canWriteBudgets={canWriteBudgets}
+                  isSaving={isEntrySaving}
+                  selectedBudget={selectedBudget}
+                  onClearHistory={onClearHistory}
+                />
+              ),
             },
           ]}
         />
@@ -114,7 +150,17 @@ export function BudgetInstallmentModal({
   );
 }
 
-function InstallmentHistory({ selectedBudget }: { selectedBudget: BudgetDetail | null }) {
+function InstallmentHistory({
+  canWriteBudgets,
+  isSaving,
+  selectedBudget,
+  onClearHistory,
+}: {
+  canWriteBudgets: boolean;
+  isSaving: boolean;
+  selectedBudget: BudgetDetail | null;
+  onClearHistory: () => void;
+}) {
   const { t } = useI18n();
   const versions = (selectedBudget?.items ?? [])
     .flatMap((item) =>
@@ -131,22 +177,44 @@ function InstallmentHistory({ selectedBudget }: { selectedBudget: BudgetDetail |
   }
 
   return (
-    <Timeline
-      items={versions.map((version) => ({
-        key: version.id,
-        label: version.createdAt ? new Date(version.createdAt).toLocaleString() : undefined,
-        children: (
-          <div className="installment-history-item">
-            <strong>{version.category}</strong>
-            <span>{version.label}</span>
-            <small>
-              {version.periodAmounts.length} periods
-              {version.periodRemarks.some((remark) => remark !== '') ? ' · remarks' : ''}
-              {version.totalAmount === null ? '' : ` · ${version.currency} ${version.totalAmount.toFixed(2)}`}
-            </small>
-          </div>
-        ),
-      }))}
-    />
+    <div className="installment-history-panel">
+      <div className="installment-history-toolbar">
+        <span>{t('installmentHistoryCount', { count: versions.length })}</span>
+        <Popconfirm
+          title={t('clearInstallmentHistoryTitle')}
+          okText={t('delete')}
+          cancelText={t('cancel')}
+          okButtonProps={{ danger: true }}
+          onConfirm={onClearHistory}
+        >
+          <Button
+            danger
+            disabled={!canWriteBudgets || isSaving}
+            icon={<Trash2 size={14} />}
+            loading={isSaving}
+            size="small"
+          >
+            {t('clearInstallmentHistory')}
+          </Button>
+        </Popconfirm>
+      </div>
+      <Timeline
+        items={versions.map((version) => ({
+          key: version.id,
+          label: version.createdAt ? new Date(version.createdAt).toLocaleString() : undefined,
+          children: (
+            <div className="installment-history-item">
+              <strong>{version.category}</strong>
+              <span>{version.label}</span>
+              <small>
+                {version.periodAmounts.length} periods
+                {version.periodRemarks.some((remark) => remark !== '') ? ' · remarks' : ''}
+                {version.totalAmount === null ? '' : ` · ${version.currency} ${version.totalAmount.toFixed(2)}`}
+              </small>
+            </div>
+          ),
+        }))}
+      />
+    </div>
   );
 }

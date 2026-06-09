@@ -364,12 +364,16 @@ function App() {
         selectedBudget={budget.selectedBudget}
         open={budget.isInstallmentModalOpen}
         error={budget.budgetError}
+        canWriteBudgets={canWriteBudgets}
         confirmLoading={budget.isBudgetSaving}
+        isEntrySaving={budgetEntry.isBudgetItemSaving}
         onCancel={() => {
           budget.setIsInstallmentModalOpen(false);
           budget.budgetForm.resetFields();
         }}
+        onClearHistory={budgetEntry.handleInstallmentHistoryClear}
         onOk={budget.handleBudgetInstallmentSave}
+        onResetAmounts={budgetEntry.handleInstallmentAmountsReset}
       />
       <BudgetItemModal
         form={budgetEntry.budgetItemForm}

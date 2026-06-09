@@ -342,6 +342,31 @@
   line-height: 1.5;
 }
 
+.installment-option-actions,
+.installment-history-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.installment-history-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.installment-history-toolbar {
+  margin-top: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.installment-history-toolbar span {
+  color: #595959;
+  font-size: 13px;
+}
+
 .currency-config-panel {
   margin: 8px 0 16px;
   padding: 12px;
