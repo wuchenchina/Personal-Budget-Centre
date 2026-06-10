@@ -24,7 +24,7 @@ interface ConversionResponse {
 
 interface ProviderRefreshResponse {
   provider: {
-    source: 'bochk' | 'mastercard';
+    source: 'bochk';
     sourceName: string;
     sourceUrl: string;
     rateDate: string;
@@ -39,7 +39,7 @@ export interface ListExchangeRatesParams {
   fromCurrency?: CurrencyCode;
   toCurrency?: CurrencyCode;
   rateDate?: string;
-  source?: 'manual' | 'budget_default' | 'bochk' | 'mastercard';
+  source?: 'manual' | 'budget_default' | 'bochk';
 }
 
 export interface CreateManualExchangeRatePayload {
@@ -57,14 +57,6 @@ export interface ConvertCurrencyPayload {
   toCurrency: CurrencyCode;
   amount: number;
   rateDate?: string;
-}
-
-export interface RefreshMastercardPayload {
-  workspaceId: number;
-  toCurrency?: CurrencyCode;
-  currencies?: CurrencyCode[];
-  rateDate?: string;
-  bankFee?: number;
 }
 
 export function listExchangeRates(params: ListExchangeRatesParams): Promise<CurrencyRate[]> {
@@ -91,14 +83,6 @@ export function refreshBochkRates(workspaceId: number): Promise<ProviderRefreshR
   return apiPost<ProviderRefreshResponse>('/api/exchange-rates/bochk/refresh', {
     workspaceId,
   }).then((response) => response.provider);
-}
-
-export function refreshMastercardRates(
-  payload: RefreshMastercardPayload,
-): Promise<ProviderRefreshResponse['provider']> {
-  return apiPost<ProviderRefreshResponse>('/api/exchange-rates/mastercard/refresh', payload).then(
-    (response) => response.provider,
-  );
 }
 
 function queryString(params: ListExchangeRatesParams): string {

@@ -11,8 +11,6 @@ use BudgetCentre\Http\Request;
 use BudgetCentre\Repositories\CurrencyRepository;
 use BudgetCentre\Repositories\ExchangeRateRepository;
 use BudgetCentre\Services\ExchangeRates\BochkExchangeRateProvider;
-use BudgetCentre\Services\ExchangeRates\MastercardExchangeRateProvider;
-use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
 use DateTimeImmutable;
 use PDO;
@@ -20,7 +18,7 @@ use Throwable;
 
 final readonly class ExchangeRateService
 {
-    private const SOURCES = ['manual', 'budget_default', 'bochk', 'mastercard'];
+    private const SOURCES = ['manual', 'budget_default', 'bochk'];
 
     public function __construct(
         private PDO $pdo,
@@ -126,17 +124,36 @@ final readonly class ExchangeRateService
                     'workspace_id' => $workspaceId,
                     'from_currency_id' => $fromCurrencyId,
                     'to_currency_id' => $hkdCurrencyId,
-                    'rate' => $rate['midRate'],
+                    'rate' => $rate['customerBuy'],
                     'rate_date' => $feed['rateDate'],
                     'source' => BochkExchangeRateProvider::SOURCE,
                     'source_name' => $feed['sourceName'],
                     'source_url' => $feed['sourceUrl'],
-                    'provider_rate_type' => 'mid',
+                    'provider_rate_type' => 'customer_buy',
                     'provider_sell_rate' => $rate['customerSell'],
                     'provider_buy_rate' => $rate['customerBuy'],
                     'provider_updated_at' => $feed['providerUpdatedAt'],
                     'fetched_at' => $feed['fetchedAt'],
-                    'note' => "BOCHK TT mid rate for {$rate['label']} to HKD.",
+                    'note' => "BOCHK customer buy rate for {$rate['label']} to HKD.",
+                ]);
+                $saved++;
+
+                $repository->create([
+                    'user_id' => (int) $session['user_id'],
+                    'workspace_id' => $workspaceId,
+                    'from_currency_id' => $hkdCurrencyId,
+                    'to_currency_id' => $fromCurrencyId,
+                    'rate' => 1 / $rate['customerSell'],
+                    'rate_date' => $feed['rateDate'],
+                    'source' => BochkExchangeRateProvider::SOURCE,
+                    'source_name' => $feed['sourceName'],
+                    'source_url' => $feed['sourceUrl'],
+                    'provider_rate_type' => 'customer_sell',
+                    'provider_sell_rate' => $rate['customerSell'],
+                    'provider_buy_rate' => $rate['customerBuy'],
+                    'provider_updated_at' => $feed['providerUpdatedAt'],
+                    'fetched_at' => $feed['fetchedAt'],
+                    'note' => "BOCHK customer sell rate for HKD to {$rate['label']}.",
                 ]);
                 $saved++;
             }
@@ -160,127 +177,9 @@ final readonly class ExchangeRateService
             'rates' => $repository->listForWorkspace(
                 $workspaceId,
                 null,
-                'HKD',
+                null,
                 $feed['rateDate'],
                 BochkExchangeRateProvider::SOURCE,
-            ),
-        ];
-    }
-
-    public function refreshMastercard(array $input, Request $request): array
-    {
-        $session = $this->authenticator->authenticatedSession($request);
-        $workspaceId = $this->workspaceId(
-            $input['workspaceId'] ?? $input['workspace_id'] ?? $request->query['workspaceId'] ?? null,
-        );
-        $this->permissions()->requireWorkspaceRole(
-            $workspaceId,
-            (int) $session['user_id'],
-            PermissionGuard::WRITE_ROLES,
-        );
-
-        $currencies = new CurrencyRepository($this->pdo);
-        $toCode = strtoupper(Input::string($input['toCurrency'] ?? $input['to_currency'] ?? null) ?? 'HKD');
-        $toCurrencyId = $currencies->findIdByCode($toCode)
-            ?? throw new AuthException('CURRENCY_NOT_FOUND', 'Target currency is not available.', 422);
-        $bankFee = $this->nonNegativeNumber($input['bankFee'] ?? $input['bank_fee'] ?? null) ?? 0.0;
-        $startDate = $this->mastercardStartDate(Input::date($input['rateDate'] ?? $input['rate_date'] ?? null));
-
-        if (!$this->mastercardProviderEnabled()) {
-            throw new AuthException(
-                'EXCHANGE_RATE_PROVIDER_DISABLED',
-                'Mastercard exchange rate provider is disabled.',
-                422,
-                ['env' => 'MASTERCARD_PROVIDER_ENABLED'],
-            );
-        }
-
-        $provider = new MastercardExchangeRateProvider();
-        $requestedCodes = $this->requestedCurrencyCodes($input['currencies'] ?? null, $currencies->listEnabled());
-        $quotes = [];
-        $skipped = [];
-
-        foreach ($requestedCodes as $fromCode) {
-            if ($fromCode === $toCode) {
-                continue;
-            }
-
-            $quote = $this->mastercardQuoteWithFallback($provider, $fromCode, $toCode, $startDate, $bankFee);
-            if ($quote === null) {
-                $skipped[] = $fromCode;
-                continue;
-            }
-
-            $quotes[] = $quote;
-        }
-
-        if ($quotes === []) {
-            throw new AuthException(
-                'EXCHANGE_RATE_PROVIDER_EMPTY',
-                'No Mastercard exchange rates could be fetched for this request.',
-                502,
-                ['skipped' => array_values(array_unique($skipped))],
-            );
-        }
-
-        $rateDate = $quotes[0]['rateDate'];
-        $repository = new ExchangeRateRepository($this->pdo);
-        $saved = 0;
-        $this->pdo->beginTransaction();
-        try {
-            $repository->deleteProviderRatesForTarget(
-                $workspaceId,
-                MastercardExchangeRateProvider::SOURCE,
-                $rateDate,
-                $toCurrencyId,
-            );
-
-            foreach ($quotes as $quote) {
-                $fromCurrencyId = $currencies->findIdByCode($quote['fromCurrency']);
-                if ($fromCurrencyId === null) {
-                    $skipped[] = $quote['fromCurrency'];
-                    continue;
-                }
-
-                $repository->create([
-                    'user_id' => (int) $session['user_id'],
-                    'workspace_id' => $workspaceId,
-                    'from_currency_id' => $fromCurrencyId,
-                    'to_currency_id' => $toCurrencyId,
-                    'rate' => $quote['rate'],
-                    'rate_date' => $quote['rateDate'],
-                    'source' => MastercardExchangeRateProvider::SOURCE,
-                    'source_name' => $quote['sourceName'],
-                    'source_url' => $quote['sourceUrl'],
-                    'provider_rate_type' => 'card',
-                    'fetched_at' => $quote['fetchedAt'],
-                    'note' => "Mastercard card conversion rate with {$bankFee}% bank fee.",
-                ]);
-                $saved++;
-            }
-
-            $this->pdo->commit();
-        } catch (Throwable $exception) {
-            $this->pdo->rollBack();
-            throw $exception;
-        }
-
-        return [
-            'source' => MastercardExchangeRateProvider::SOURCE,
-            'sourceName' => MastercardExchangeRateProvider::SOURCE_NAME,
-            'sourceUrl' => MastercardExchangeRateProvider::CONVERTER_URL,
-            'toCurrency' => $toCode,
-            'requestedRateDate' => Input::date($input['rateDate'] ?? $input['rate_date'] ?? null),
-            'rateDate' => $rateDate,
-            'bankFee' => $bankFee,
-            'saved' => $saved,
-            'skipped' => array_values(array_unique($skipped)),
-            'rates' => $repository->listForWorkspace(
-                $workspaceId,
-                null,
-                $toCode,
-                $rateDate,
-                MastercardExchangeRateProvider::SOURCE,
             ),
         ];
     }
@@ -370,76 +269,6 @@ final readonly class ExchangeRateService
         }
 
         return $number;
-    }
-
-    private function nonNegativeNumber(mixed $value): ?float
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        $number = $this->number($value);
-        if ($number === null || $number < 0.0) {
-            throw new AuthException('VALIDATION_ERROR', 'Bank fee must be 0 or greater.', 422);
-        }
-
-        return $number;
-    }
-
-    private function mastercardProviderEnabled(): bool
-    {
-        $value = strtolower(Env::string('MASTERCARD_PROVIDER_ENABLED', 'true') ?? 'true');
-
-        return !in_array($value, ['0', 'false', 'no', 'off'], true);
-    }
-
-    private function requestedCurrencyCodes(mixed $value, array $enabledCurrencies): array
-    {
-        if (!is_array($value)) {
-            return array_values(array_unique(array_map(
-                static fn (array $currency): string => strtoupper((string) $currency['code']),
-                $enabledCurrencies,
-            )));
-        }
-
-        $codes = [];
-        foreach ($value as $code) {
-            if (is_string($code) && trim($code) !== '') {
-                $codes[] = strtoupper(trim($code));
-            }
-        }
-
-        return array_values(array_unique($codes));
-    }
-
-    private function mastercardStartDate(?string $requestedDate): string
-    {
-        $maxDate = (new DateTimeImmutable('today -2 days'))->format('Y-m-d');
-        if ($requestedDate === null || $requestedDate > $maxDate) {
-            return $maxDate;
-        }
-
-        return $requestedDate;
-    }
-
-    private function mastercardQuoteWithFallback(
-        MastercardExchangeRateProvider $provider,
-        string $fromCode,
-        string $toCode,
-        string $startDate,
-        float $bankFee,
-    ): ?array {
-        $date = new DateTimeImmutable($startDate);
-        for ($attempt = 0; $attempt < 8; $attempt++) {
-            $quote = $provider->quote($fromCode, $toCode, $date->format('Y-m-d'), $bankFee);
-            if ($quote !== null) {
-                return $quote;
-            }
-
-            $date = $date->modify('-1 day');
-        }
-
-        return null;
     }
 
     private function number(mixed $value): ?float

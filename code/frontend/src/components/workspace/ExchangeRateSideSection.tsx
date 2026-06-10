@@ -16,7 +16,6 @@ const sourceColors: Record<CurrencyRate['source'], string> = {
   manual: 'purple',
   budget_default: 'default',
   bochk: 'blue',
-  mastercard: 'green',
 };
 
 export function ExchangeRateSideSection({
@@ -52,7 +51,6 @@ export function ExchangeRateSideSection({
     queueMicrotask(() => void loadRates());
   }, [loadRates]);
 
-  const latestRates = useMemo(() => rates.slice(0, 12), [rates]);
   const columns = useMemo<TableColumnsType<CurrencyRate>>(
     () => [
       {
@@ -134,7 +132,7 @@ export function ExchangeRateSideSection({
       <Table<CurrencyRate>
         bordered
         columns={columns}
-        dataSource={latestRates}
+        dataSource={rates}
         loading={isLoading}
         locale={{ emptyText: t('noExchangeRates') }}
         pagination={false}

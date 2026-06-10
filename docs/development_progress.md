@@ -174,7 +174,7 @@
 [x] Transaction currency conversion
 [x] Live exchange rate provider
 [x] BOCHK exchange rate provider
-[x] Mastercard exchange rate provider
+[x] Removed deprecated Mastercard exchange rate provider
 [x] Reconciliation API
 [x] 前端顯示分類差異
 [x] 前端顯示交易總額差異

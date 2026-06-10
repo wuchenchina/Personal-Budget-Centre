@@ -82,14 +82,13 @@ composer db:init
 - 自動換算優先順序：
 
 ```text
-manual > mastercard > bochk > budget_default
+manual > bochk > budget_default
 ```
 
 - BOCHK provider 只使用 `Bank of China (Hong Kong) Limited`。
-- Mastercard provider 使用 `Mastercard International Incorporated`。
-- 不再新增 HSBCHK provider，除非重新確認有公開、穩定、合法使用的牌價 API。
-- Mastercard 日期要以官方 converter 可選日期為準；預設從今天減 2 天開始，不可直接假設今天可用。
-- Mastercard 官網公開端點不是正式 API 契約；若回傳非 JSON 或被主機攔截，可用 `MASTERCARD_PROVIDER_ENABLED=false` 關閉。
+- BOCHK 外幣兌 HKD 使用客戶買入價；HKD 兌外幣使用客戶賣出價倒數。
+- BOCHK 交叉匯率使用 `來源外幣 -> HKD` 再 `HKD -> 目標外幣`。
+- 不再新增 HSBCHK 或 Mastercard provider，除非重新確認有公開、穩定、合法使用的牌價 API。
 
 ## 匯出標準
 

@@ -73,29 +73,6 @@ final readonly class ExchangeRateRepository
         ]);
     }
 
-    public function deleteProviderRatesForTarget(
-        int $workspaceId,
-        string $source,
-        string $rateDate,
-        int $toCurrencyId,
-    ): void {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            DELETE FROM exchange_rates
-            WHERE workspace_id = :workspace_id
-              AND source = :source
-              AND rate_date = :rate_date
-              AND to_currency_id = :to_currency_id
-            SQL
-        );
-        $statement->execute([
-            'workspace_id' => $workspaceId,
-            'source' => $source,
-            'rate_date' => $rateDate,
-            'to_currency_id' => $toCurrencyId,
-        ]);
-    }
-
     public function findById(int $id): ?array
     {
         $statement = $this->baseListStatement('er.id = :id');
@@ -112,7 +89,11 @@ final readonly class ExchangeRateRepository
         ?string $rateDate = null,
         ?string $source = null,
     ): array {
-        $where = ['er.workspace_id = :workspace_id'];
+        $where = [
+            'er.workspace_id = :workspace_id',
+            "er.source <> 'mastercard'",
+            "NOT (er.source = 'bochk' AND er.provider_rate_type = 'mid')",
+        ];
         $bindings = ['workspace_id' => $workspaceId];
 
         if ($fromCode !== null) {
@@ -174,27 +155,27 @@ final readonly class ExchangeRateRepository
             ];
         }
 
-        $fromHkd = $this->rateAgainstHkd($workspaceId, $fromCurrencyId, $hkdCurrencyId, $onDate);
-        $toHkd = $this->rateAgainstHkd($workspaceId, $toCurrencyId, $hkdCurrencyId, $onDate);
-        if ($fromHkd === null || $toHkd === null || (float) $toHkd['rate'] <= 0.0) {
+        $fromHkd = $this->rateForPair($workspaceId, $fromCurrencyId, $hkdCurrencyId, $onDate);
+        $hkdToTarget = $this->rateForPair($workspaceId, $hkdCurrencyId, $toCurrencyId, $onDate);
+        if ($fromHkd === null || $hkdToTarget === null) {
             return null;
         }
 
         return [
-            'rate' => (float) $fromHkd['rate'] / (float) $toHkd['rate'],
-            'rateDate' => max((string) $fromHkd['rateDate'], (string) $toHkd['rateDate']),
-            'source' => "{$fromHkd['source']}+{$toHkd['source']}",
+            'rate' => (float) $fromHkd['rate'] * (float) $hkdToTarget['rate'],
+            'rateDate' => max((string) $fromHkd['rateDate'], (string) $hkdToTarget['rateDate']),
+            'source' => "{$fromHkd['source']}+{$hkdToTarget['source']}",
             'conversionPath' => 'hkd_cross',
         ];
     }
 
-    private function rateAgainstHkd(
+    private function rateForPair(
         int $workspaceId,
-        int $currencyId,
-        int $hkdCurrencyId,
+        int $fromCurrencyId,
+        int $toCurrencyId,
         ?string $onDate,
     ): ?array {
-        if ($currencyId === $hkdCurrencyId) {
+        if ($fromCurrencyId === $toCurrencyId) {
             return [
                 'rate' => 1.0,
                 'rateDate' => $onDate,
@@ -202,12 +183,12 @@ final readonly class ExchangeRateRepository
             ];
         }
 
-        $direct = $this->latestRate($workspaceId, $currencyId, $hkdCurrencyId, $onDate);
+        $direct = $this->latestRate($workspaceId, $fromCurrencyId, $toCurrencyId, $onDate);
         if ($direct !== null) {
             return $direct;
         }
 
-        $inverse = $this->latestRate($workspaceId, $hkdCurrencyId, $currencyId, $onDate);
+        $inverse = $this->latestRate($workspaceId, $toCurrencyId, $fromCurrencyId, $onDate);
         if ($inverse === null || (float) $inverse['rate'] <= 0.0) {
             return null;
         }
@@ -235,6 +216,8 @@ final readonly class ExchangeRateRepository
             WHERE (er.workspace_id = :workspace_id OR er.workspace_id IS NULL)
               AND er.from_currency_id = :from_currency_id
               AND er.to_currency_id = :to_currency_id
+              AND er.source <> 'mastercard'
+              AND NOT (er.source = 'bochk' AND er.provider_rate_type = 'mid')
               {$dateFilter}
             ORDER BY
               CASE WHEN er.workspace_id = :workspace_scope THEN 0 ELSE 1 END,
@@ -242,7 +225,6 @@ final readonly class ExchangeRateRepository
               CASE er.source
                 WHEN 'manual' THEN 0
                 WHEN 'bochk' THEN 1
-                WHEN 'mastercard' THEN 2
                 WHEN 'budget_default' THEN 3
                 ELSE 4
               END,

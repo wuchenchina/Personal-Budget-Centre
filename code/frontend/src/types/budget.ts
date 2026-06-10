@@ -204,10 +204,10 @@ export interface CurrencyRate {
   from: CurrencyCode;
   to: CurrencyCode;
   rate: number;
-  source: 'manual' | 'budget_default' | 'bochk' | 'mastercard';
+  source: 'manual' | 'budget_default' | 'bochk';
   sourceName: string | null;
   sourceUrl: string | null;
-  providerRateType: 'manual' | 'mid' | 'card';
+  providerRateType: 'manual' | 'mid' | 'customer_sell' | 'customer_buy';
   providerSellRate: number | null;
   providerBuyRate: number | null;
   providerUpdatedAt: string | null;

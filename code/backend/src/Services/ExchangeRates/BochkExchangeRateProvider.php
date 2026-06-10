@@ -66,7 +66,6 @@ final readonly class BochkExchangeRateProvider
                 'label' => $cells[0],
                 'customerSell' => $customerSell,
                 'customerBuy' => $customerBuy,
-                'midRate' => ($customerSell + $customerBuy) / 2,
             ];
         }
 

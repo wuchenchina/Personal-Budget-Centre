@@ -97,7 +97,6 @@ final class App
             ['POST', '/api/exchange-rates'] => $this->exchangeRateCreate($request),
             ['POST', '/api/exchange-rates/convert'] => $this->exchangeRateConvert($request),
             ['POST', '/api/exchange-rates/bochk/refresh'] => $this->exchangeRateBochkRefresh($request),
-            ['POST', '/api/exchange-rates/mastercard/refresh'] => $this->exchangeRateMastercardRefresh($request),
             ['GET', '/api/budget-categories'] => $this->categoryList($request),
             ['POST', '/api/budget-categories'] => $this->categoryCreate($request),
             ['PATCH', '/api/budget-categories'] => $this->categoryUpdate($request),
@@ -500,15 +499,6 @@ final class App
         return $this->exchangeRateResponse(
             fn (ExchangeRateService $exchangeRate): JsonResponse => JsonResponse::ok([
                 'provider' => $exchangeRate->refreshBochk($request->json(), $request),
-            ]),
-        );
-    }
-
-    private function exchangeRateMastercardRefresh(Request $request): JsonResponse
-    {
-        return $this->exchangeRateResponse(
-            fn (ExchangeRateService $exchangeRate): JsonResponse => JsonResponse::ok([
-                'provider' => $exchangeRate->refreshMastercard($request->json(), $request),
             ]),
         );
     }
