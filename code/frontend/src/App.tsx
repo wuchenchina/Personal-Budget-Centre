@@ -399,7 +399,6 @@ function App() {
         confirmLoading={budgetEntry.isTransactionSaving}
         onRefreshRates={budgetEntry.handleTransactionRateRefresh}
         onReferenceConvert={budgetEntry.handleTransactionReferenceConvert}
-        onReferenceUseSameAmount={budgetEntry.handleTransactionReferenceSameAmount}
         onValuesChange={budgetEntry.clearEntryError}
         onCancel={budgetEntry.closeTransactionModal}
         onOk={budgetEntry.handleTransactionSave}

@@ -215,27 +215,6 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
   };
 
-  const handleTransactionReferenceSameAmount = () => {
-    const values = transactionForm.getFieldsValue();
-    const amount = normalizedAmount(values.amount);
-    if (amount === null) {
-      setEntryError(translateCurrent('amountRequired'));
-
-      return;
-    }
-
-    if (values.referenceCurrency === undefined) {
-      setEntryError(translateCurrent('selectReferenceCurrency'));
-
-      return;
-    }
-
-    setEntryError(null);
-    transactionForm.setFieldsValue({
-      referenceAmount: amount,
-    });
-  };
-
   const handleTransactionReferenceConvert = async () => {
     if (options.selectedBudget === null) {
       setEntryError(translateCurrent('selectBudgetFirst'));
@@ -1384,7 +1363,6 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     handleTransactionSave,
     handleTransactionRateRefresh,
     handleTransactionReferenceConvert,
-    handleTransactionReferenceSameAmount,
     clearEntryError,
     handleTransactionQuickAmountSave,
     handleTransactionQuickCurrencySave,

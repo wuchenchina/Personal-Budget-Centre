@@ -395,6 +395,10 @@ final readonly class BudgetEntryService
         ?string $rateDate,
         ?float $explicitRate,
     ): float {
+        if ($currencyId === (int) $budget['baseCurrencyId']) {
+            return 1.0;
+        }
+
         if ($explicitRate !== null) {
             return $explicitRate;
         }
