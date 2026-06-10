@@ -1,9 +1,11 @@
-import { Alert, Button, Empty, Select, Space, Tag } from 'antd';
-import { Plus, UsersRound } from 'lucide-react';
+import { Alert, Button, Empty, Popconfirm, Select, Space, Table, Tag } from 'antd';
+import type { TableProps } from 'antd';
+import { Edit3, Plus, Trash2, UsersRound } from 'lucide-react';
 import { roleColors } from '../../config/appConfig';
 import type { WorkspaceController } from '../../hooks/useWorkspaceController';
 import { roleLabelsByLanguage, useI18n } from '../../i18n';
 import type { WorkspaceMember } from '../../types/auth';
+import type { WorkspaceRole } from '../../types/budget';
 
 interface WorkspacePageProps {
   workspace: WorkspaceController;
@@ -21,7 +23,82 @@ export function WorkspacePage({
     (item) => item.id === workspace.activeWorkspaceId,
   );
   const activeMembers = workspace.workspaceMembers.filter((member) => member.status === 'active');
-  const invitedMembers = workspace.workspaceMembers.filter((member) => member.status === 'invited');
+  const roleOptions: Array<{ label: string; value: WorkspaceRole }> = [
+    { label: roleLabelsByLanguage[language].admin, value: 'admin' },
+    { label: roleLabelsByLanguage[language].editor, value: 'editor' },
+    { label: roleLabelsByLanguage[language].auditor, value: 'auditor' },
+    { label: roleLabelsByLanguage[language].viewer, value: 'viewer' },
+  ];
+  const canDeleteWorkspace = activeWorkspace?.role === 'owner' && activeWorkspace.type !== 'personal';
+  const memberColumns: TableProps<WorkspaceMember>['columns'] = [
+    {
+      title: t('member'),
+      dataIndex: 'displayName',
+      render: (_value, member) => (
+        <div className="workspace-member-cell">
+          <div className="workspace-member-avatar">
+            {member.displayName.slice(0, 1).toUpperCase()}
+          </div>
+          <div>
+            <span>
+              {member.displayName}
+              {member.userId === currentUserId ? ` (${t('me')})` : ''}
+            </span>
+            <small>{member.email}</small>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: t('role'),
+      dataIndex: 'role',
+      width: 190,
+      render: (role: WorkspaceRole, member) =>
+        canManageWorkspaceMembers && role !== 'owner' && member.userId !== currentUserId ? (
+          <Select<WorkspaceRole>
+            className="workspace-role-select"
+            disabled={workspace.updatingMemberUserId === member.userId}
+            loading={workspace.updatingMemberUserId === member.userId}
+            options={roleOptions}
+            value={role}
+            onChange={(nextRole) => void workspace.handleWorkspaceMemberRoleChange(member, nextRole)}
+          />
+        ) : (
+          <Tag color={roleColors[role]}>{roleLabelsByLanguage[language][role]}</Tag>
+        ),
+    },
+    {
+      title: t('status'),
+      dataIndex: 'status',
+      width: 110,
+      render: () => <Tag color="blue">{t('active')}</Tag>,
+    },
+    {
+      title: '',
+      key: 'actions',
+      width: 110,
+      render: (_value, member) =>
+        canManageWorkspaceMembers && member.role !== 'owner' && member.userId !== currentUserId ? (
+          <Popconfirm
+            title={t('removeMember')}
+            description={t('removeMemberDescription')}
+            okText={t('remove')}
+            cancelText={t('cancel')}
+            okButtonProps={{ danger: true }}
+            onConfirm={() => void workspace.handleWorkspaceMemberDelete(member)}
+          >
+            <Button
+              danger
+              icon={<Trash2 size={13} />}
+              loading={workspace.deletingMemberUserId === member.userId}
+              size="small"
+            >
+              {t('remove')}
+            </Button>
+          </Popconfirm>
+        ) : null,
+    },
+  ];
 
   return (
     <div className="workspace-page">
@@ -48,6 +125,33 @@ export function WorkspacePage({
             <Button icon={<Plus size={15} />} onClick={workspace.openWorkspaceModal}>
               {t('createWorkspace')}
             </Button>
+            {canManageWorkspaceMembers ? (
+              <Button
+                disabled={activeWorkspace === undefined}
+                icon={<Edit3 size={15} />}
+                onClick={workspace.openWorkspaceEditModal}
+              >
+                {t('edit')}
+              </Button>
+            ) : null}
+            {canDeleteWorkspace ? (
+              <Popconfirm
+                title={t('deleteWorkspace')}
+                description={t('deleteWorkspaceDescription')}
+                okText={t('delete')}
+                cancelText={t('cancel')}
+                okButtonProps={{ danger: true }}
+                onConfirm={() => void workspace.handleWorkspaceDelete()}
+              >
+                <Button
+                  danger
+                  icon={<Trash2 size={15} />}
+                  loading={workspace.isWorkspaceDeleting}
+                >
+                  {t('delete')}
+                </Button>
+              </Popconfirm>
+            ) : null}
             {canManageWorkspaceMembers ? (
               <Button
                 disabled={workspace.activeWorkspaceId === null}
@@ -118,29 +222,22 @@ export function WorkspacePage({
             </div>
             <div className="workspace-stat-grid">
               <WorkspaceStat label={t('members')} value={activeMembers.length.toLocaleString('en-US')} />
-              <WorkspaceStat label={t('invitePending')} value={invitedMembers.length.toLocaleString('en-US')} />
               <WorkspaceStat
                 label={t('defaultCurrency')}
                 value={activeWorkspace?.defaultCurrency ?? '-'}
               />
             </div>
-            <div className="workspace-member-strip">
-              {workspace.isWorkspaceMemberLoading ? (
-                <div className="empty-line">{t('loadingMembers')}</div>
-              ) : workspace.workspaceMembers.length === 0 ? (
-                <div className="empty-line">{t('noMembers')}</div>
-              ) : (
-                workspace.workspaceMembers.map((member) => (
-                  <WorkspaceMemberChip
-                    currentUserId={currentUserId}
-                    key={member.userId}
-                    member={member}
-                    meLabel={t('me')}
-                    roleLabel={roleLabelsByLanguage[language][member.role]}
-                  />
-                ))
-              )}
-            </div>
+            <Table<WorkspaceMember>
+              className="workspace-member-table"
+              columns={memberColumns}
+              dataSource={activeMembers}
+              loading={workspace.isWorkspaceMemberLoading}
+              locale={{ emptyText: t('noMembers') }}
+              pagination={false}
+              rowKey="userId"
+              scroll={{ x: 760 }}
+              size="small"
+            />
           </div>
         </div>
       </section>
@@ -153,32 +250,6 @@ function WorkspaceStat({ label, value }: { label: string; value: string }) {
     <div className="workspace-stat">
       <span>{label}</span>
       <strong>{value}</strong>
-    </div>
-  );
-}
-
-function WorkspaceMemberChip({
-  member,
-  currentUserId,
-  meLabel,
-  roleLabel,
-}: {
-  member: WorkspaceMember;
-  currentUserId: number | null;
-  meLabel: string;
-  roleLabel: string;
-}) {
-  return (
-    <div className="workspace-member-chip">
-      <div className="workspace-member-avatar">{member.displayName.slice(0, 1).toUpperCase()}</div>
-      <div>
-        <span>
-          {member.displayName}
-          {member.userId === currentUserId ? ` (${meLabel})` : ''}
-        </span>
-        <small>{member.email}</small>
-      </div>
-      <Tag color={roleColors[member.role]}>{roleLabel}</Tag>
     </div>
   );
 }

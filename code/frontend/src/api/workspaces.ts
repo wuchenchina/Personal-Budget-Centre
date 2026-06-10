@@ -9,6 +9,14 @@ interface WorkspaceCreatePayload {
   workspace: AuthWorkspace;
 }
 
+interface WorkspaceUpdatePayload {
+  workspace: AuthWorkspace;
+}
+
+interface WorkspaceDeletePayload {
+  workspace: AuthWorkspace | null;
+}
+
 interface WorkspaceSwitchPayload {
   workspace: AuthWorkspace;
 }
@@ -24,6 +32,13 @@ interface WorkspaceMemberPayload {
 export interface CreateWorkspacePayload {
   name: string;
   type: 'family' | 'team' | 'custom';
+  defaultCurrency: string;
+}
+
+export interface UpdateWorkspacePayload {
+  workspaceId: number;
+  name: string;
+  type: AuthWorkspace['type'];
   defaultCurrency: string;
 }
 
@@ -47,6 +62,18 @@ export function listWorkspaces(): Promise<AuthWorkspace[]> {
 
 export function createWorkspace(payload: CreateWorkspacePayload): Promise<AuthWorkspace> {
   return apiPost<WorkspaceCreatePayload>('/api/workspaces', payload).then(
+    (response) => response.workspace,
+  );
+}
+
+export function updateWorkspace(payload: UpdateWorkspacePayload): Promise<AuthWorkspace> {
+  return apiPatch<WorkspaceUpdatePayload>('/api/workspaces', payload).then(
+    (response) => response.workspace,
+  );
+}
+
+export function deleteWorkspace(workspaceId: number): Promise<AuthWorkspace | null> {
+  return apiDelete<WorkspaceDeletePayload>('/api/workspaces', { workspaceId }).then(
     (response) => response.workspace,
   );
 }

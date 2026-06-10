@@ -37,6 +37,12 @@ export interface WorkspaceFormValues {
   defaultCurrency: string;
 }
 
+export interface WorkspaceEditFormValues {
+  name: string;
+  type: 'personal' | 'family' | 'team' | 'custom';
+  defaultCurrency: string;
+}
+
 export interface WorkspaceMemberFormValues {
   email: string;
   role: WorkspaceRole;

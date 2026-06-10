@@ -20,6 +20,7 @@ use Throwable;
 final readonly class WorkspaceService
 {
     private const WORKSPACE_TYPES = ['family', 'team', 'custom'];
+    private const UPDATABLE_WORKSPACE_TYPES = ['personal', 'family', 'team', 'custom'];
     private const ASSIGNABLE_ROLES = ['admin', 'editor', 'viewer', 'auditor'];
 
     public function __construct(
@@ -79,6 +80,111 @@ final readonly class WorkspaceService
             'status' => 'active',
             'defaultCurrency' => $currencyCode,
         ];
+    }
+
+    public function updateWorkspace(array $input, Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $workspaceId = Input::positiveInt($input['workspaceId'] ?? $input['workspace_id'] ?? null);
+        $name = Input::string($input['name'] ?? null);
+        $type = Input::string($input['type'] ?? null);
+        $currencyCode = strtoupper(
+            Input::string($input['defaultCurrency'] ?? $input['default_currency'] ?? null) ?? 'CNY',
+        );
+
+        if ($workspaceId === null) {
+            throw new AuthException('VALIDATION_ERROR', 'workspaceId is required.', 422);
+        }
+
+        if ($name === null || strlen($name) > 160) {
+            throw new AuthException('VALIDATION_ERROR', 'Workspace name is required and must be 160 characters or less.', 422);
+        }
+
+        if ($type === null || !in_array($type, self::UPDATABLE_WORKSPACE_TYPES, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Workspace type is invalid.', 422);
+        }
+
+        $role = $this->permissions()->requireWorkspaceRole(
+            $workspaceId,
+            (int) $session['user_id'],
+            PermissionGuard::MEMBER_MANAGE_ROLES,
+        );
+        $workspaceRepository = new WorkspaceRepository($this->pdo);
+        $currentWorkspace = $workspaceRepository->findForUser($workspaceId, (int) $session['user_id']);
+        if ($currentWorkspace === null) {
+            throw new AuthException('WORKSPACE_NOT_FOUND', 'Workspace was not found.', 404);
+        }
+
+        if ($currentWorkspace['type'] === 'personal' && $type !== 'personal') {
+            throw new AuthException('VALIDATION_ERROR', 'Personal workspace type cannot be changed.', 422);
+        }
+
+        if ($currentWorkspace['type'] !== 'personal' && $type === 'personal') {
+            throw new AuthException('VALIDATION_ERROR', 'Only the system can create personal workspaces.', 422);
+        }
+
+        if ($role !== 'owner' && $currentWorkspace['type'] === 'personal') {
+            throw new AuthException('FORBIDDEN', 'Only the owner can update a personal workspace.', 403);
+        }
+
+        $currencyId = (new CurrencyRepository($this->pdo))->findIdByCode($currencyCode);
+        if ($currencyId === null) {
+            throw new AuthException('CURRENCY_NOT_FOUND', 'Default currency is not available.', 422);
+        }
+
+        $workspaceRepository->update($workspaceId, $name, $type, $currencyId);
+
+        return $workspaceRepository->findForUser($workspaceId, (int) $session['user_id'])
+            ?? throw new AuthException('WORKSPACE_NOT_FOUND', 'Workspace was not found.', 404);
+    }
+
+    public function deleteWorkspace(array $input, Request $request): ?array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $workspaceId = Input::positiveInt($input['workspaceId'] ?? $input['workspace_id'] ?? null);
+        if ($workspaceId === null) {
+            throw new AuthException('VALIDATION_ERROR', 'workspaceId is required.', 422);
+        }
+
+        $role = $this->permissions()->requireWorkspaceRole(
+            $workspaceId,
+            (int) $session['user_id'],
+            ['owner'],
+        );
+        if ($role !== 'owner') {
+            throw new AuthException('FORBIDDEN', 'Only the workspace owner can delete this workspace.', 403);
+        }
+
+        $repository = new WorkspaceRepository($this->pdo);
+        $workspace = $repository->findForUser($workspaceId, (int) $session['user_id']);
+        if ($workspace === null) {
+            throw new AuthException('WORKSPACE_NOT_FOUND', 'Workspace was not found.', 404);
+        }
+
+        if ($workspace['type'] === 'personal') {
+            throw new AuthException('VALIDATION_ERROR', 'Personal workspace cannot be deleted.', 422);
+        }
+
+        $token = $this->authenticator->sessionTokenFromRequest($request);
+        if ($token === null) {
+            throw new AuthException('UNAUTHENTICATED', 'Authentication is required.', 401);
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $repository->delete($workspaceId);
+            $nextWorkspace = $repository->firstForUser((int) $session['user_id']);
+            (new SessionRepository($this->pdo))->updateCurrentWorkspaceByTokenHash(
+                $this->authenticator->tokenHash($token),
+                $nextWorkspace === null ? null : (int) $nextWorkspace['id'],
+            );
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+
+        return $nextWorkspace;
     }
 
     public function switchWorkspace(array $input, Request $request): array

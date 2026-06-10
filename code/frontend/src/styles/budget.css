@@ -868,7 +868,7 @@
 
 .workspace-stat-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -897,22 +897,16 @@
   white-space: nowrap;
 }
 
-.workspace-member-strip {
-  display: grid;
-  gap: 8px;
+.workspace-member-table {
+  min-width: 0;
 }
 
-.workspace-member-chip {
+.workspace-member-cell {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-columns: 30px minmax(0, 1fr);
   align-items: center;
   gap: 9px;
   min-width: 0;
-  min-height: 42px;
-  padding: 7px 9px;
-  background: #fff;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
 }
 
 .workspace-member-avatar {
@@ -927,8 +921,8 @@
   font-weight: 700;
 }
 
-.workspace-member-chip span,
-.workspace-member-chip small {
+.workspace-member-cell span,
+.workspace-member-cell small {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -936,15 +930,19 @@
   white-space: nowrap;
 }
 
-.workspace-member-chip span {
+.workspace-member-cell span {
   color: #1f1f1f;
   font-size: 13px;
   font-weight: 600;
 }
 
-.workspace-member-chip small {
+.workspace-member-cell small {
   color: #8c8c8c;
   font-size: 12px;
+}
+
+.workspace-role-select {
+  width: 150px;
 }
 
 .project-overview-grid {

@@ -60,8 +60,12 @@ export interface AdminEnvironmentCheck {
 }
 
 export interface AdminExportCacheCleanupResult {
-  path: string;
-  deletedFiles: number;
-  deletedDirectories: number;
-  deletedBytes: number;
+  exportPath: string;
+  tempPath: string;
+  deletedExports: number;
+  deletedExportFiles: number;
+  deletedExportBytes: number;
+  deletedTempFiles: number;
+  deletedTempDirectories: number;
+  deletedTempBytes: number;
 }

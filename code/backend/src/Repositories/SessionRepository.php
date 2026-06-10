@@ -83,7 +83,7 @@ final readonly class SessionRepository
         return $row === false ? null : $row;
     }
 
-    public function updateCurrentWorkspaceByTokenHash(string $tokenHash, int $workspaceId): void
+    public function updateCurrentWorkspaceByTokenHash(string $tokenHash, ?int $workspaceId): void
     {
         $statement = $this->pdo->prepare(
             <<<'SQL'
@@ -92,10 +92,13 @@ final readonly class SessionRepository
             WHERE session_token_hash = :session_token_hash
             SQL
         );
-        $statement->execute([
-            'workspace_id' => $workspaceId,
-            'session_token_hash' => $tokenHash,
-        ]);
+        $statement->bindValue(
+            'workspace_id',
+            $workspaceId,
+            $workspaceId === null ? PDO::PARAM_NULL : PDO::PARAM_INT,
+        );
+        $statement->bindValue('session_token_hash', $tokenHash);
+        $statement->execute();
     }
 
     public function deleteByTokenHash(string $tokenHash): void

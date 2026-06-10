@@ -177,6 +177,55 @@ final readonly class WorkspaceRepository
         return $role === false ? null : (string) $role;
     }
 
+    public function find(int $workspaceId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT
+              w.id,
+              w.name,
+              w.type,
+              'active' AS status,
+              'owner' AS role,
+              c.code AS default_currency
+            FROM workspaces w
+            LEFT JOIN currencies c ON c.id = w.default_currency_id
+            WHERE w.id = :workspace_id
+            LIMIT 1
+            SQL
+        );
+        $statement->execute(['workspace_id' => $workspaceId]);
+        $row = $statement->fetch();
+
+        return $row === false ? null : $this->workspaceFromRow($row);
+    }
+
+    public function update(int $workspaceId, string $name, string $type, ?int $currencyId): void
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            UPDATE workspaces
+            SET name = :name,
+                type = :type,
+                default_currency_id = :default_currency_id,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :workspace_id
+            SQL
+        );
+        $statement->execute([
+            'workspace_id' => $workspaceId,
+            'name' => $name,
+            'type' => $type,
+            'default_currency_id' => $currencyId,
+        ]);
+    }
+
+    public function delete(int $workspaceId): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM workspaces WHERE id = :workspace_id');
+        $statement->execute(['workspace_id' => $workspaceId]);
+    }
+
     private function workspaceOwnerRoleId(): int
     {
         $statement = $this->pdo->prepare(

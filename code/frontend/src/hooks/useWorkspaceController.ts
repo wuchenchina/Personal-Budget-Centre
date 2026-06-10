@@ -3,14 +3,20 @@ import { Form } from 'antd';
 import {
   addWorkspaceMember,
   createWorkspace,
+  deleteWorkspace,
   deleteWorkspaceMember,
   listWorkspaceMembers,
   listWorkspaces,
   switchWorkspace,
+  updateWorkspace,
   updateWorkspaceMember,
 } from '../api/workspaces';
 import type { AuthSession, AuthWorkspace, WorkspaceMember } from '../types/auth';
-import type { WorkspaceMemberFormValues, WorkspaceFormValues } from '../types/forms';
+import type {
+  WorkspaceEditFormValues,
+  WorkspaceMemberFormValues,
+  WorkspaceFormValues,
+} from '../types/forms';
 import type { WorkspaceRole } from '../types/budget';
 import { toCurrencyCode } from '../utils/budgetTemplate';
 import { translateCurrent } from '../i18n';
@@ -20,15 +26,19 @@ export function useWorkspaceController(
   setSession: Dispatch<SetStateAction<AuthSession | null>>,
 ) {
   const [workspaceForm] = Form.useForm<WorkspaceFormValues>();
+  const [workspaceEditForm] = Form.useForm<WorkspaceEditFormValues>();
   const [workspaceMemberForm] = Form.useForm<WorkspaceMemberFormValues>();
   const [workspaces, setWorkspaces] = useState<AuthWorkspace[]>([]);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
+  const [isWorkspaceEditModalOpen, setIsWorkspaceEditModalOpen] = useState(false);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const [workspaceMemberError, setWorkspaceMemberError] = useState<string | null>(null);
   const [isWorkspaceMemberModalOpen, setIsWorkspaceMemberModalOpen] = useState(false);
   const [isWorkspaceLoading, setIsWorkspaceLoading] = useState(false);
   const [isWorkspaceCreating, setIsWorkspaceCreating] = useState(false);
+  const [isWorkspaceUpdating, setIsWorkspaceUpdating] = useState(false);
+  const [isWorkspaceDeleting, setIsWorkspaceDeleting] = useState(false);
   const [isWorkspaceSwitching, setIsWorkspaceSwitching] = useState(false);
   const [isWorkspaceMemberLoading, setIsWorkspaceMemberLoading] = useState(false);
   const [isWorkspaceMemberSaving, setIsWorkspaceMemberSaving] = useState(false);
@@ -36,6 +46,10 @@ export function useWorkspaceController(
   const [deletingMemberUserId, setDeletingMemberUserId] = useState<number | null>(null);
   const activeWorkspaceId = session?.workspace?.id ?? null;
   const workspaceRole = session?.workspace?.role;
+  const activeWorkspace = useMemo(
+    () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null,
+    [activeWorkspaceId, workspaces],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -205,6 +219,98 @@ export function useWorkspaceController(
     setIsWorkspaceModalOpen(true);
   };
 
+  const openWorkspaceEditModal = () => {
+    if (activeWorkspace === null) {
+      setWorkspaceError(translateCurrent('selectWorkspaceFirst'));
+
+      return;
+    }
+
+    setWorkspaceError(null);
+    workspaceEditForm.setFieldsValue({
+      name: activeWorkspace.name,
+      type: activeWorkspace.type,
+      defaultCurrency: activeWorkspace.defaultCurrency ?? 'CNY',
+    });
+    setIsWorkspaceEditModalOpen(true);
+  };
+
+  const handleWorkspaceUpdate = async () => {
+    if (activeWorkspaceId === null || activeWorkspace === null) {
+      setWorkspaceError(translateCurrent('selectWorkspaceFirst'));
+
+      return;
+    }
+
+    try {
+      const values = await workspaceEditForm.validateFields();
+      setIsWorkspaceUpdating(true);
+      setWorkspaceError(null);
+
+      const updatedWorkspace = await updateWorkspace({
+        workspaceId: activeWorkspaceId,
+        name: values.name.trim(),
+        type: activeWorkspace.type === 'personal' ? 'personal' : values.type,
+        defaultCurrency: toCurrencyCode(values.defaultCurrency),
+      });
+
+      setWorkspaces((currentWorkspaces) =>
+        currentWorkspaces.map((workspace) =>
+          workspace.id === updatedWorkspace.id ? updatedWorkspace : workspace,
+        ),
+      );
+      setSession((currentSession) =>
+        currentSession === null
+          ? currentSession
+          : {
+              ...currentSession,
+              workspace:
+                currentSession.workspace?.id === updatedWorkspace.id
+                  ? updatedWorkspace
+                  : currentSession.workspace,
+            },
+      );
+      setIsWorkspaceEditModalOpen(false);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setWorkspaceError(error.message);
+      }
+    } finally {
+      setIsWorkspaceUpdating(false);
+    }
+  };
+
+  const handleWorkspaceDelete = async () => {
+    if (activeWorkspaceId === null || activeWorkspace === null) {
+      setWorkspaceError(translateCurrent('selectWorkspaceFirst'));
+
+      return;
+    }
+
+    setIsWorkspaceDeleting(true);
+    setWorkspaceError(null);
+
+    try {
+      const nextWorkspace = await deleteWorkspace(activeWorkspaceId);
+      setWorkspaces((currentWorkspaces) =>
+        currentWorkspaces.filter((workspace) => workspace.id !== activeWorkspaceId),
+      );
+      setWorkspaceMembers([]);
+      setSession((currentSession) =>
+        currentSession === null
+          ? currentSession
+          : {
+              ...currentSession,
+              workspace: nextWorkspace,
+            },
+      );
+    } catch (error: unknown) {
+      setWorkspaceError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsWorkspaceDeleting(false);
+    }
+  };
+
   const openWorkspaceMemberModal = () => {
     setWorkspaceMemberError(null);
     workspaceMemberForm.resetFields();
@@ -305,18 +411,24 @@ export function useWorkspaceController(
 
   return {
     workspaceForm,
+    workspaceEditForm,
     workspaceMemberForm,
     workspaces,
+    activeWorkspace,
     workspaceError,
     setWorkspaceError,
     isWorkspaceModalOpen,
     setIsWorkspaceModalOpen,
+    isWorkspaceEditModalOpen,
+    setIsWorkspaceEditModalOpen,
     workspaceMembers,
     workspaceMemberError,
     isWorkspaceMemberModalOpen,
     setIsWorkspaceMemberModalOpen,
     isWorkspaceLoading,
     isWorkspaceCreating,
+    isWorkspaceUpdating,
+    isWorkspaceDeleting,
     isWorkspaceSwitching,
     isWorkspaceMemberLoading,
     isWorkspaceMemberSaving,
@@ -326,8 +438,11 @@ export function useWorkspaceController(
     workspaceRole,
     workspaceOptions,
     handleWorkspaceCreate,
+    handleWorkspaceUpdate,
+    handleWorkspaceDelete,
     handleWorkspaceSwitch,
     openWorkspaceModal,
+    openWorkspaceEditModal,
     openWorkspaceMemberModal,
     handleWorkspaceMemberAdd,
     handleWorkspaceMemberRoleChange,

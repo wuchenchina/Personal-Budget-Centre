@@ -107,6 +107,31 @@ final readonly class BudgetExportRepository
         return $row === false ? null : $this->fromRow($row);
     }
 
+    public function all(): array
+    {
+        $statement = $this->pdo->query(
+            <<<'SQL'
+            SELECT
+              id,
+              budget_id,
+              user_id,
+              format,
+              file_name,
+              file_path,
+              status,
+              error_message,
+              created_at
+            FROM budget_exports
+            ORDER BY created_at ASC, id ASC
+            SQL
+        );
+
+        return array_map(
+            fn (array $row): array => $this->fromRow($row),
+            $statement->fetchAll(),
+        );
+    }
+
     public function staleForBudgetFormat(int $budgetId, string $format, int $keepCount): array
     {
         $limit = max(1, $keepCount);

@@ -18,6 +18,7 @@ import { ProfilePage } from './components/profile/ProfilePage';
 import { GovernancePanel } from './components/workspace/GovernancePanel';
 import { ShareSideSection } from './components/workspace/ShareSideSection';
 import { WorkspaceCreateModal } from './components/workspace/WorkspaceCreateModal';
+import { WorkspaceEditModal } from './components/workspace/WorkspaceEditModal';
 import { WorkspaceMemberModal } from './components/workspace/WorkspaceMemberModal';
 import { WorkspacePage } from './components/workspace/WorkspacePage';
 import { appTheme } from './config/appConfig';
@@ -424,6 +425,18 @@ function App() {
           workspace.workspaceMemberForm.resetFields();
         }}
         onOk={workspace.handleWorkspaceMemberAdd}
+      />
+      <WorkspaceEditModal
+        form={workspace.workspaceEditForm}
+        workspace={workspace.activeWorkspace}
+        open={workspace.isWorkspaceEditModalOpen}
+        error={workspace.workspaceError}
+        confirmLoading={workspace.isWorkspaceUpdating}
+        onCancel={() => {
+          workspace.setIsWorkspaceEditModalOpen(false);
+          workspace.workspaceEditForm.resetFields();
+        }}
+        onOk={workspace.handleWorkspaceUpdate}
       />
       <Modal
         destroyOnClose

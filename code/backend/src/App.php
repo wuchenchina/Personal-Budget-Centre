@@ -67,6 +67,8 @@ final class App
             ['POST', '/api/auth/email/resend'] => $this->authEmailResend($request),
             ['GET', '/api/workspaces'] => $this->workspaceList($request),
             ['POST', '/api/workspaces'] => $this->workspaceCreate($request),
+            ['PATCH', '/api/workspaces'] => $this->workspaceUpdate($request),
+            ['DELETE', '/api/workspaces'] => $this->workspaceDelete($request),
             ['POST', '/api/workspaces/switch'] => $this->workspaceSwitch($request),
             ['GET', '/api/workspace-members'] => $this->workspaceMemberList($request),
             ['POST', '/api/workspace-members'] => $this->workspaceMemberCreate($request),
@@ -225,6 +227,24 @@ final class App
             fn (WorkspaceService $workspace): JsonResponse => JsonResponse::ok([
                 'workspace' => $workspace->createWorkspace($request->json(), $request),
             ], 201),
+        );
+    }
+
+    private function workspaceUpdate(Request $request): JsonResponse
+    {
+        return $this->workspaceResponse(
+            fn (WorkspaceService $workspace): JsonResponse => JsonResponse::ok([
+                'workspace' => $workspace->updateWorkspace($request->json(), $request),
+            ]),
+        );
+    }
+
+    private function workspaceDelete(Request $request): JsonResponse
+    {
+        return $this->workspaceResponse(
+            fn (WorkspaceService $workspace): JsonResponse => JsonResponse::ok([
+                'workspace' => $workspace->deleteWorkspace($request->json(), $request),
+            ]),
         );
     }
 

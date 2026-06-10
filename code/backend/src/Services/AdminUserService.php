@@ -10,6 +10,7 @@ use BudgetCentre\Auth\SessionAuthenticator;
 use BudgetCentre\Auth\SessionManager;
 use BudgetCentre\Http\Request;
 use BudgetCentre\Repositories\AdminUserRepository;
+use BudgetCentre\Repositories\BudgetExportRepository;
 use BudgetCentre\Repositories\CurrencyRepository;
 use BudgetCentre\Repositories\UserRepository;
 use BudgetCentre\Repositories\WorkspaceRepository;
@@ -241,28 +242,62 @@ final readonly class AdminUserService
     {
         $this->requireAdmin($request);
 
-        $path = $this->mpdfTempRoot();
-        if (!is_dir($path)) {
-            return [
-                'path' => $path,
-                'deletedFiles' => 0,
-                'deletedDirectories' => 0,
-                'deletedBytes' => 0,
-            ];
-        }
+        $exportCleanup = $this->deleteExportFiles();
+        $tempCleanup = $this->cleanupTempDirectory($this->mpdfTempRoot());
 
-        if (!is_writable($path)) {
-            throw new AuthException(
-                'EXPORT_CACHE_UNWRITABLE',
-                'Export cache directory is not writable.',
-                500,
-                ['directory' => $path],
-            );
+        return [
+            'exportPath' => $this->exportStorageRoot(),
+            'tempPath' => $this->mpdfTempRoot(),
+            'deletedExports' => $exportCleanup['deletedExports'],
+            'deletedExportFiles' => $exportCleanup['deletedFiles'],
+            'deletedExportBytes' => $exportCleanup['deletedBytes'],
+            'deletedTempFiles' => $tempCleanup['deletedFiles'],
+            'deletedTempDirectories' => $tempCleanup['deletedDirectories'],
+            'deletedTempBytes' => $tempCleanup['deletedBytes'],
+        ];
+    }
+
+    private function deleteExportFiles(): array
+    {
+        $repository = new BudgetExportRepository($this->pdo);
+        $exports = $repository->all();
+        $deletedExports = 0;
+        $deletedFiles = 0;
+        $deletedBytes = 0;
+        $root = $this->exportStorageRoot();
+
+        $this->pdo->beginTransaction();
+        try {
+            foreach ($exports as $export) {
+                $path = $this->absoluteExportPath((string) ($export['filePath'] ?? ''));
+                if ($path !== null && is_file($path)) {
+                    $deletedBytes += filesize($path) ?: 0;
+                    if (!@unlink($path)) {
+                        throw new AuthException(
+                            'EXPORT_CLEANUP_FAILED',
+                            'Export PDF could not be removed.',
+                            500,
+                            ['file' => $path],
+                        );
+                    }
+                    $deletedFiles++;
+                }
+
+                $repository->delete((int) $export['id']);
+                $deletedExports++;
+            }
+
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
         }
 
         return [
-            'path' => $path,
-            ...$this->deleteDirectoryContents($path),
+            'path' => $root,
+            'deletedExports' => $deletedExports,
+            'deletedFiles' => $deletedFiles,
+            'deletedBytes' => $deletedBytes,
         ];
     }
 
@@ -307,6 +342,55 @@ final readonly class AdminUserService
                 ?? dirname(__DIR__, 2) . '/storage/tmp/mpdf',
             '/',
         );
+    }
+
+    private function exportStorageRoot(): string
+    {
+        return rtrim(
+            Env::string('EXPORT_STORAGE_DIR', dirname(__DIR__, 2) . '/storage/exports')
+                ?? dirname(__DIR__, 2) . '/storage/exports',
+            '/',
+        );
+    }
+
+    private function cleanupTempDirectory(string $path): array
+    {
+        if (!is_dir($path)) {
+            return [
+                'path' => $path,
+                'deletedFiles' => 0,
+                'deletedDirectories' => 0,
+                'deletedBytes' => 0,
+            ];
+        }
+
+        if (!is_writable($path)) {
+            throw new AuthException(
+                'EXPORT_CACHE_UNWRITABLE',
+                'Export cache directory is not writable.',
+                500,
+                ['directory' => $path],
+            );
+        }
+
+        return [
+            'path' => $path,
+            ...$this->deleteDirectoryContents($path),
+        ];
+    }
+
+    private function absoluteExportPath(string $path): ?string
+    {
+        if ($path === '') {
+            return null;
+        }
+
+        $absolutePath = str_starts_with($path, '/') ? $path : dirname(__DIR__, 2) . '/' . $path;
+        $root = $this->exportStorageRoot();
+
+        return str_starts_with($absolutePath, $root . '/') || $absolutePath === $root
+            ? $absolutePath
+            : null;
     }
 
     private function deleteDirectoryContents(string $directory): array

@@ -173,8 +173,9 @@ export function useAdminController(enabled: boolean) {
       const result = await cleanupAdminExportCache();
       setNotice(
         translateCurrent('exportCacheCleanupDone', {
-          files: result.deletedFiles,
-          directories: result.deletedDirectories,
+          exports: result.deletedExports,
+          files: result.deletedExportFiles,
+          tempFiles: result.deletedTempFiles,
         }),
       );
     } catch (caught: unknown) {
