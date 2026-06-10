@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { Alert, Button, DatePicker, Form, Input, Modal, Radio, Select, Space } from 'antd';
 import type { FormInstance } from 'antd';
 import { Plus, Trash2 } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
-import { ModalFullscreenButton } from '../common/ModalFullscreenButton';
 import {
   useI18n,
   visibilityLabelsByLanguage,
@@ -35,7 +33,6 @@ export function BudgetCreateModal({
   onCancel,
   onOk,
 }: BudgetCreateModalProps) {
-  const [fullscreen, setFullscreen] = useState(false);
   const { language, t } = useI18n();
   const dateRange = Form.useWatch('dateRange', form);
   const participantMode = Form.useWatch('participantMode', form) ?? 'solo';
@@ -56,15 +53,10 @@ export function BudgetCreateModal({
       confirmLoading={confirmLoading}
       okText={isEditing ? t('save') : t('create')}
       open={open}
-      title={
-        <div className="modal-title-with-tools">
-          <span>{isEditing ? t('editBudget') : t('createBudget')}</span>
-          <ModalFullscreenButton fullscreen={fullscreen} setFullscreen={setFullscreen} />
-        </div>
-      }
-      width={fullscreen ? 'calc(100vw - 24px)' : 'min(1120px, calc(100vw - 48px))'}
+      title={isEditing ? t('editBudget') : t('createBudget')}
+      width="min(1120px, calc(100vw - 48px))"
       style={{ top: 12 }}
-      wrapClassName={`budget-info-modal large-form-modal${fullscreen ? ' modal-fullscreen' : ''}`}
+      wrapClassName="budget-info-modal large-form-modal"
       onCancel={onCancel}
       onOk={onOk}
     >

@@ -164,38 +164,6 @@
   width: 100%;
 }
 
-.modal-title-with-tools {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  padding-inline-end: 44px;
-}
-
-.modal-title-with-tools span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.modal-title-with-tools .ant-btn {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-}
-
-.modal-fullscreen .ant-modal {
-  max-width: calc(100vw - 24px);
-}
-
-.modal-fullscreen .ant-modal-body {
-  max-height: calc(100vh - 104px);
-}
-
 .budget-info-modal .ant-modal {
   max-width: calc(100vw - 48px);
 }

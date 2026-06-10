@@ -17,6 +17,7 @@ final readonly class BudgetRepository
         $participantModeSelect = $this->hasBudgetParticipantModeColumn()
             ? 'b.participant_mode,'
             : "'solo' AS participant_mode,";
+        $budgetTotalsJoin = $this->budgetTotalsJoinSql();
         $statement = $this->pdo->prepare(
             <<<SQL
             SELECT
@@ -49,36 +50,7 @@ final readonly class BudgetRepository
             INNER JOIN currencies base ON base.id = b.base_currency_id
             INNER JOIN currencies display ON display.id = b.display_currency_id
             LEFT JOIN budget_templates bt ON bt.id = b.template_id
-            LEFT JOIN (
-              SELECT
-                bi.budget_id,
-                SUM(
-                  CASE
-                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
-                      THEN COALESCE(txc.transaction_total_base, 0)
-                    ELSE bi.budget_amount_base
-                  END
-                ) AS total_budget_base,
-                SUM(COALESCE(txc.transaction_total_base, 0)) AS total_estimated_base,
-                SUM(
-                  CASE
-                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
-                      THEN COALESCE(txc.transaction_total_base, 0)
-                    ELSE bi.budget_amount_base
-                  END - COALESCE(txc.transaction_total_base, 0)
-                ) AS total_variance_base
-              FROM budget_items bi
-              LEFT JOIN (
-                SELECT
-                  budget_id,
-                  category_id,
-                  SUM(amount_base) AS transaction_total_base
-                FROM budget_transactions
-                GROUP BY budget_id, category_id
-              ) txc ON txc.budget_id = bi.budget_id
-                AND txc.category_id <=> bi.category_id
-              GROUP BY bi.budget_id
-            ) bit ON bit.budget_id = b.id
+            {$budgetTotalsJoin}
             LEFT JOIN (
               SELECT
                 budget_id,
@@ -240,6 +212,7 @@ final readonly class BudgetRepository
         $participantModeSelect = $this->hasBudgetParticipantModeColumn()
             ? 'b.participant_mode,'
             : "'solo' AS participant_mode,";
+        $budgetTotalsJoin = $this->budgetTotalsJoinSql();
         $statement = $this->pdo->prepare(
             <<<SQL
             SELECT
@@ -272,36 +245,7 @@ final readonly class BudgetRepository
             INNER JOIN currencies base ON base.id = b.base_currency_id
             INNER JOIN currencies display ON display.id = b.display_currency_id
             LEFT JOIN budget_templates bt ON bt.id = b.template_id
-            LEFT JOIN (
-              SELECT
-                bi.budget_id,
-                SUM(
-                  CASE
-                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
-                      THEN COALESCE(txc.transaction_total_base, 0)
-                    ELSE bi.budget_amount_base
-                  END
-                ) AS total_budget_base,
-                SUM(COALESCE(txc.transaction_total_base, 0)) AS total_estimated_base,
-                SUM(
-                  CASE
-                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
-                      THEN COALESCE(txc.transaction_total_base, 0)
-                    ELSE bi.budget_amount_base
-                  END - COALESCE(txc.transaction_total_base, 0)
-                ) AS total_variance_base
-              FROM budget_items bi
-              LEFT JOIN (
-                SELECT
-                  budget_id,
-                  category_id,
-                  SUM(amount_base) AS transaction_total_base
-                FROM budget_transactions
-                GROUP BY budget_id, category_id
-              ) txc ON txc.budget_id = bi.budget_id
-                AND txc.category_id <=> bi.category_id
-              GROUP BY bi.budget_id
-            ) bit ON bit.budget_id = b.id
+            {$budgetTotalsJoin}
             LEFT JOIN (
               SELECT
                 budget_id,
@@ -1392,9 +1336,97 @@ final readonly class BudgetRepository
         return (int) $statement->fetchColumn() === 3;
     }
 
+    private function budgetTotalsJoinSql(): string
+    {
+        if (!$this->hasGroupBudgetTables()) {
+            return <<<'SQL'
+            LEFT JOIN (
+              SELECT
+                bi.budget_id,
+                SUM(
+                  CASE
+                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
+                      THEN COALESCE(txc.transaction_total_base, 0)
+                    ELSE bi.budget_amount_base
+                  END
+                ) AS total_budget_base,
+                SUM(COALESCE(txc.transaction_total_base, 0)) AS total_estimated_base,
+                SUM(
+                  CASE
+                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
+                      THEN COALESCE(txc.transaction_total_base, 0)
+                    ELSE bi.budget_amount_base
+                  END - COALESCE(txc.transaction_total_base, 0)
+                ) AS total_variance_base
+              FROM budget_items bi
+              LEFT JOIN (
+                SELECT
+                  budget_id,
+                  category_id,
+                  SUM(amount_base) AS transaction_total_base
+                FROM budget_transactions
+                GROUP BY budget_id, category_id
+              ) txc ON txc.budget_id = bi.budget_id
+                AND txc.category_id <=> bi.category_id
+              GROUP BY bi.budget_id
+            ) bit ON bit.budget_id = b.id
+            SQL;
+        }
+
+        return <<<'SQL'
+            LEFT JOIN (
+              SELECT
+                bi.budget_id,
+                SUM(
+                  CASE
+                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
+                      THEN COALESCE(txc.transaction_total_base, 0)
+                    ELSE bi.budget_amount_base * CASE
+                      WHEN bis.split_type = 'per_person'
+                        THEN COALESCE(NULLIF(split_participants.included_count, 0), 1)
+                      ELSE 1
+                    END
+                  END
+                ) AS total_budget_base,
+                SUM(COALESCE(txc.transaction_total_base, 0)) AS total_estimated_base,
+                SUM(
+                  CASE
+                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
+                      THEN COALESCE(txc.transaction_total_base, 0)
+                    ELSE bi.budget_amount_base * CASE
+                      WHEN bis.split_type = 'per_person'
+                        THEN COALESCE(NULLIF(split_participants.included_count, 0), 1)
+                      ELSE 1
+                    END
+                  END - COALESCE(txc.transaction_total_base, 0)
+                ) AS total_variance_base
+              FROM budget_items bi
+              LEFT JOIN budget_item_splits bis ON bis.budget_item_id = bi.id
+              LEFT JOIN (
+                SELECT
+                  split_id,
+                  COUNT(*) AS included_count
+                FROM budget_item_split_participants
+                WHERE is_included = 1
+                GROUP BY split_id
+              ) split_participants ON split_participants.split_id = bis.id
+              LEFT JOIN (
+                SELECT
+                  budget_id,
+                  category_id,
+                  SUM(amount_base) AS transaction_total_base
+                FROM budget_transactions
+                GROUP BY budget_id, category_id
+              ) txc ON txc.budget_id = bi.budget_id
+                AND txc.category_id <=> bi.category_id
+              GROUP BY bi.budget_id
+            ) bit ON bit.budget_id = b.id
+            SQL;
+    }
+
     private function itemSplitType(mixed $value): string
     {
-        return in_array($value, ['equal', 'personal', 'custom_amount', 'custom_share', 'excluded'], true)
+        return in_array($value, ['equal', 'personal', 'individual', 'per_person', 'custom_amount', 'custom_share', 'excluded'], true)
             ? (string) $value
             : 'equal';
     }

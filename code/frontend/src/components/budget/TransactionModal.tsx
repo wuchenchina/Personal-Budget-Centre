@@ -1,10 +1,8 @@
 import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
-import { useState } from 'react';
 import { Calculator, RefreshCcw } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
 import { useI18n } from '../../i18n';
-import { ModalFullscreenButton } from '../common/ModalFullscreenButton';
 import type { CurrencyCode, Transaction } from '../../types/budget';
 import type { TransactionFormValues } from '../../types/forms';
 
@@ -37,7 +35,6 @@ export function TransactionModal({
   onReferenceConvert,
   onValuesChange,
 }: TransactionModalProps) {
-  const [fullscreen, setFullscreen] = useState(false);
   const { t } = useI18n();
   const currency = Form.useWatch('currency', form) ?? baseCurrency;
   const amount = Form.useWatch('amount', form);
@@ -67,15 +64,10 @@ export function TransactionModal({
       confirmLoading={confirmLoading}
       okText={editingTransaction === null ? t('create') : t('save')}
       open={open}
-      title={
-        <div className="modal-title-with-tools">
-          <span>{editingTransaction === null ? t('transaction') : t('editTransaction')}</span>
-          <ModalFullscreenButton fullscreen={fullscreen} setFullscreen={setFullscreen} />
-        </div>
-      }
-      width={fullscreen ? 'calc(100vw - 24px)' : 'min(920px, calc(100vw - 40px))'}
+      title={editingTransaction === null ? t('transaction') : t('editTransaction')}
+      width="min(920px, calc(100vw - 40px))"
       style={{ top: 24 }}
-      wrapClassName={`large-form-modal${fullscreen ? ' modal-fullscreen' : ''}`}
+      wrapClassName="large-form-modal"
       onCancel={onCancel}
       onOk={onOk}
     >

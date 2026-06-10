@@ -54,6 +54,38 @@ export function groupBudgetSummary(budget: BudgetDetail): GroupBudgetSummary {
       return;
     }
 
+    if (split.splitType === 'individual') {
+      const shares = sharesForSplit(split, includedParticipants, amountBase);
+      let individualTotalBase = 0;
+      shares.forEach((shareAmount, participantId) => {
+        const total = totals.get(participantId);
+        if (total !== undefined) {
+          total.paidBase = roundMoney(total.paidBase + shareAmount);
+          total.shareBase = roundMoney(total.shareBase + shareAmount);
+          individualTotalBase = roundMoney(individualTotalBase + shareAmount);
+        }
+      });
+      personalExpenseBase = roundMoney(personalExpenseBase + individualTotalBase);
+
+      return;
+    }
+
+    if (split.splitType === 'per_person') {
+      const perPersonAmountBase = perPersonItemBase(item, includedParticipants.length);
+      let perPersonTotalBase = 0;
+      includedParticipants.forEach((participant) => {
+        const total = totals.get(participant.participantId);
+        if (total !== undefined) {
+          total.paidBase = roundMoney(total.paidBase + perPersonAmountBase);
+          total.shareBase = roundMoney(total.shareBase + perPersonAmountBase);
+          perPersonTotalBase = roundMoney(perPersonTotalBase + perPersonAmountBase);
+        }
+      });
+      personalExpenseBase = roundMoney(personalExpenseBase + perPersonTotalBase);
+
+      return;
+    }
+
     if (split.paidByParticipantId !== null && totals.has(split.paidByParticipantId)) {
       const paidTotal = totals.get(split.paidByParticipantId);
       if (paidTotal !== undefined) {
@@ -121,6 +153,19 @@ function sharesForSplit(
     });
 
     return fixedShares;
+  }
+
+  if (split.splitType === 'individual') {
+    const individualShares = new Map<number, number>();
+    participants.forEach((participant) => {
+      individualShares.set(participant.participantId, roundMoney(participant.shareAmountBase ?? 0));
+    });
+
+    return individualShares;
+  }
+
+  if (split.splitType === 'per_person') {
+    return new Map(participants.map((participant) => [participant.participantId, amountBase]));
   }
 
   if (split.splitType === 'custom_share') {
@@ -192,6 +237,16 @@ function effectiveItemBase(item: BudgetItem): number {
   return item.budget.amountOriginal === 0 && item.budget.amountBase === 0
     ? item.estimatedActuals.amountBase
     : item.budget.amountBase;
+}
+
+function perPersonItemBase(item: BudgetItem, participantCount: number): number {
+  if (item.budget.amountOriginal !== 0 || item.budget.amountBase !== 0) {
+    return item.budget.amountBase;
+  }
+
+  return participantCount <= 0
+    ? item.estimatedActuals.amountBase
+    : roundMoney(item.estimatedActuals.amountBase / participantCount);
 }
 
 function roundMoney(value: number): number {

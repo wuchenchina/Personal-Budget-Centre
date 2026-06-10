@@ -26,7 +26,7 @@ import {
   installmentConfigFromForm,
   installmentConfigToForm,
 } from '../utils/budgetInstallments';
-import { effectiveBudgetItemAmounts } from '../utils/budgetTemplate';
+import { budgetItemAmountMultiplier, effectiveBudgetItemAmounts } from '../utils/budgetTemplate';
 
 export type BudgetItemModalFocus = 'category' | 'budget' | 'estimated_actuals' | 'variance' | null;
 
@@ -97,7 +97,6 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     setIsBudgetItemModalOpen(false);
     setEditingBudgetItem(null);
     setBudgetItemModalFocus(null);
-    budgetItemForm.resetFields();
   };
 
   const handleBudgetItemSave = async () => {
@@ -328,10 +327,11 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
 
     const effective = effectiveBudgetItemAmounts(item, options.selectedBudget.transactions);
+    const amountMultiplier = budgetItemAmountMultiplier(item);
     const finalBudgetOriginal = field === 'budget'
-      ? value
+      ? roundMoney(value / amountMultiplier)
       : field === 'variance'
-      ? originalAmountFromBase(effective.estimatedAmountBase + value, item.budget.rateToBase)
+      ? roundMoney(originalAmountFromBase(effective.estimatedAmountBase + value, item.budget.rateToBase) / amountMultiplier)
       : item.budget.amountOriginal;
     const finalBudgetBase = roundMoney(finalBudgetOriginal * item.budget.rateToBase);
 
@@ -426,7 +426,6 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     setIsTransactionModalOpen(false);
     setEditingTransaction(null);
     setEntryError(null);
-    transactionForm.resetFields();
   };
 
   const clearEntryError = () => {
@@ -1401,6 +1400,10 @@ function defaultSplitFormValue(budget: BudgetDetail): BudgetItemFormValues['spli
     paidByParticipantId: budget.participants[0].id,
     splitType: 'equal',
     participantIds: budget.participants.map((participant) => participant.id),
+    individualAmounts: budget.participants.map((participant) => ({
+      participantId: participant.id,
+      amountBase: null,
+    })),
     note: null,
   };
 }
@@ -1423,6 +1426,16 @@ function splitToFormValue(
     participantIds: item.split.participants
       .filter((participant) => participant.isIncluded)
       .map((participant) => participant.participantId),
+    individualAmounts: budget.participants.map((participant) => {
+      const splitParticipant = item.split?.participants.find(
+        (itemParticipant) => itemParticipant.participantId === participant.id,
+      );
+
+      return {
+        participantId: participant.id,
+        amountBase: splitParticipant?.shareAmountBase ?? null,
+      };
+    }),
     note: item.split.note,
   };
 }
@@ -1440,15 +1453,37 @@ function splitPayloadFromForm(
     return null;
   }
 
+  const splitType = split.splitType ?? 'equal';
+  if (splitType === 'individual') {
+    return {
+      paidByParticipantId: null,
+      splitType,
+      note: split.note?.trim() || null,
+      participants: (split.individualAmounts ?? [])
+        .filter((row) =>
+          typeof row?.participantId === 'number'
+          && typeof row.amountBase === 'number'
+          && Number.isFinite(row.amountBase)
+          && row.amountBase > 0,
+        )
+        .map((row) => ({
+          participantId: row.participantId,
+          isIncluded: true,
+          shareRatio: null,
+          shareAmountBase: roundMoney(row.amountBase ?? 0),
+        })),
+    };
+  }
+
   const selectedParticipantIds = new Set(
-    split.splitType === 'excluded'
+    splitType === 'excluded'
       ? []
       : (split.participantIds ?? budget.participants.map((participant) => participant.id)),
   );
 
   return {
-    paidByParticipantId: split.paidByParticipantId ?? null,
-    splitType: split.splitType ?? 'equal',
+    paidByParticipantId: splitType === 'per_person' ? null : split.paidByParticipantId ?? null,
+    splitType,
     note: split.note?.trim() || null,
     participants: budget.participants
       .filter((participant) => selectedParticipantIds.has(participant.id))

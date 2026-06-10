@@ -63,6 +63,8 @@ final readonly class BudgetPdfDocumentRenderer
                 'custom_share' => '自定义比例',
                 'equal' => '平均分摊',
                 'excluded' => '不纳入结算',
+                'individual' => '各自付款',
+                'per_person' => '每人同额',
                 'personal' => '个人自付',
             ],
         ],
@@ -122,6 +124,8 @@ final readonly class BudgetPdfDocumentRenderer
                 'custom_share' => '自訂比例',
                 'equal' => '平均分攤',
                 'excluded' => '不納入結算',
+                'individual' => '各自付款',
+                'per_person' => '每人同額',
                 'personal' => '個人自付',
             ],
         ],
@@ -453,6 +457,13 @@ final readonly class BudgetPdfDocumentRenderer
 
             $effective = $this->effectiveItemAmounts($item, $transactions);
             $split = $this->itemSplit($item, $participants);
+            if ($split['splitType'] === 'per_person') {
+                $split['perPersonAmountBase'] = $this->perPersonItemBudgetBase(
+                    $item,
+                    $transactions,
+                    $this->includedParticipantCount($split['participants']),
+                );
+            }
             $rows[] = [
                 (string) ($item['category'] ?? $item['label'] ?? ''),
                 $this->participantName($split['paidByParticipantId'], $participants, $context),
@@ -549,6 +560,48 @@ final readonly class BudgetPdfDocumentRenderer
             ));
 
             if ($split['splitType'] === 'excluded' || $includedParticipants === []) {
+                continue;
+            }
+
+            if ($split['splitType'] === 'individual') {
+                $individualTotalBase = 0.0;
+                foreach ($this->sharesForSplit($split, $includedParticipants, $amountBase) as $participantId => $shareAmount) {
+                    if (isset($totals[$participantId])) {
+                        $totals[$participantId]['paidBase'] = $this->roundMoney(
+                            $totals[$participantId]['paidBase'] + $shareAmount,
+                        );
+                        $totals[$participantId]['shareBase'] = $this->roundMoney(
+                            $totals[$participantId]['shareBase'] + $shareAmount,
+                        );
+                        $individualTotalBase = $this->roundMoney($individualTotalBase + $shareAmount);
+                    }
+                }
+                $personalExpenseBase = $this->roundMoney($personalExpenseBase + $individualTotalBase);
+
+                continue;
+            }
+
+            if ($split['splitType'] === 'per_person') {
+                $perPersonAmountBase = $this->perPersonItemBudgetBase(
+                    $item,
+                    $transactions,
+                    count($includedParticipants),
+                );
+                $perPersonTotalBase = 0.0;
+                foreach ($includedParticipants as $participant) {
+                    $participantId = (int) $participant['participantId'];
+                    if (isset($totals[$participantId])) {
+                        $totals[$participantId]['paidBase'] = $this->roundMoney(
+                            $totals[$participantId]['paidBase'] + $perPersonAmountBase,
+                        );
+                        $totals[$participantId]['shareBase'] = $this->roundMoney(
+                            $totals[$participantId]['shareBase'] + $perPersonAmountBase,
+                        );
+                        $perPersonTotalBase = $this->roundMoney($perPersonTotalBase + $perPersonAmountBase);
+                    }
+                }
+                $personalExpenseBase = $this->roundMoney($personalExpenseBase + $perPersonTotalBase);
+
                 continue;
             }
 
@@ -717,7 +770,7 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function sharesForSplit(array $split, array $participants, float $amountBase): array
     {
-        if ($split['splitType'] === 'custom_amount') {
+        if ($split['splitType'] === 'custom_amount' || $split['splitType'] === 'individual') {
             $shares = [];
             foreach ($participants as $participant) {
                 $shares[(int) $participant['participantId']] = $this->roundMoney(
@@ -823,8 +876,13 @@ final readonly class BudgetPdfDocumentRenderer
             if ($split['splitType'] === 'custom_share' && is_numeric($participant['shareRatio'] ?? null)) {
                 $line .= ' (' . rtrim(rtrim(number_format((float) $participant['shareRatio'], 2, '.', ''), '0'), '.') . ')';
             }
-            if ($split['splitType'] === 'custom_amount' && is_numeric($participant['shareAmountBase'] ?? null)) {
+            if (
+                ($split['splitType'] === 'custom_amount' || $split['splitType'] === 'individual')
+                && is_numeric($participant['shareAmountBase'] ?? null)
+            ) {
                 $line .= ' ' . $this->formatter->templateMoney($baseCurrency, (float) $participant['shareAmountBase']);
+            } elseif ($split['splitType'] === 'per_person') {
+                $line .= ' ' . $this->formatter->templateMoney($baseCurrency, $split['perPersonAmountBase'] ?? 0.0);
             }
             $lines[] = $line;
         }
@@ -839,6 +897,8 @@ final readonly class BudgetPdfDocumentRenderer
             'custom_share' => 'Custom Share',
             'equal' => 'Equal Split',
             'excluded' => 'Excluded',
+            'individual' => 'Individual Payments',
+            'per_person' => 'Same Amount per Person',
             'personal' => 'Personal Expense',
         ][$splitType] ?? 'Equal Split';
 
@@ -864,7 +924,7 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function splitType(mixed $value): string
     {
-        return in_array($value, ['equal', 'personal', 'custom_amount', 'custom_share', 'excluded'], true)
+        return in_array($value, ['equal', 'personal', 'individual', 'per_person', 'custom_amount', 'custom_share', 'excluded'], true)
             ? (string) $value
             : 'equal';
     }
@@ -1337,9 +1397,12 @@ final readonly class BudgetPdfDocumentRenderer
         $budgetOriginal = (float) ($item['budget']['amountOriginal'] ?? 0);
         $storedBudgetBase = (float) ($item['budget']['amountBase'] ?? 0);
         $hasTransactionActuals = $transactionTotals !== [];
+        $budgetMultiplier = $hasTransactionActuals && $budgetOriginal === 0.0 && $storedBudgetBase === 0.0
+            ? 1
+            : $this->budgetItemAmountMultiplier($item);
         $budgetBase = $budgetOriginal === 0.0 && $storedBudgetBase === 0.0 && $hasTransactionActuals
             ? $estimatedBase
-            : round($storedBudgetBase, 2);
+            : round($storedBudgetBase * $budgetMultiplier, 2);
         $budgetRate = (float) ($item['budget']['rateToBase'] ?? 0);
 
         return [
@@ -1349,6 +1412,47 @@ final readonly class BudgetPdfDocumentRenderer
             'estimatedTransactionTotals' => $transactionTotals,
             'varianceBase' => round($budgetBase - $estimatedBase, 2),
         ];
+    }
+
+    private function perPersonItemBudgetBase(
+        array $item,
+        array $transactions,
+        ?int $participantCount = null,
+    ): float {
+        $transactionTotals = $this->transactionCurrencyTotalsForItem($item, $transactions);
+        $estimatedBase = round(
+            array_reduce($transactionTotals, static fn (float $total, array $transaction): float => $total + $transaction['amountBase'], 0.0),
+            2,
+        );
+        $budgetOriginal = (float) ($item['budget']['amountOriginal'] ?? 0);
+        $storedBudgetBase = (float) ($item['budget']['amountBase'] ?? 0);
+
+        if ($budgetOriginal === 0.0 && $storedBudgetBase === 0.0 && $transactionTotals !== []) {
+            return $this->roundMoney($estimatedBase / max(1, $participantCount ?? $this->budgetItemAmountMultiplier($item)));
+        }
+
+        return $this->roundMoney($storedBudgetBase);
+    }
+
+    private function includedParticipantCount(array $participants): int
+    {
+        return count(array_filter(
+            $participants,
+            static fn (mixed $participant): bool => is_array($participant)
+                && ($participant['isIncluded'] ?? true) !== false,
+        ));
+    }
+
+    private function budgetItemAmountMultiplier(array $item): int
+    {
+        if (!is_array($item['split'] ?? null) || ($item['split']['splitType'] ?? null) !== 'per_person') {
+            return 1;
+        }
+
+        $participants = is_array($item['split']['participants'] ?? null) ? $item['split']['participants'] : [];
+        $includedCount = $this->includedParticipantCount($participants);
+
+        return max(1, $includedCount);
     }
 
     private function transactionCurrencyTotalsForItem(array $item, array $transactions): array

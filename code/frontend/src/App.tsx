@@ -347,10 +347,7 @@ function App() {
         error={budget.budgetError}
         workspaceOptions={workspace.workspaceOptions}
         confirmLoading={budget.isBudgetSaving}
-        onCancel={() => {
-          budget.setIsBudgetModalOpen(false);
-          budget.budgetForm.resetFields();
-        }}
+        onCancel={() => budget.setIsBudgetModalOpen(false)}
         onOk={budget.handleBudgetSave}
       />
       <BudgetSignatureModal
@@ -359,10 +356,7 @@ function App() {
         error={budget.budgetError}
         workspaceMembers={workspace.workspaceMembers}
         confirmLoading={budget.isBudgetSaving}
-        onCancel={() => {
-          budget.setIsSignatureModalOpen(false);
-          budget.budgetForm.resetFields();
-        }}
+        onCancel={() => budget.setIsSignatureModalOpen(false)}
         onOk={budget.handleBudgetSignatureSave}
       />
       <BudgetInstallmentModal
@@ -373,10 +367,7 @@ function App() {
         canWriteBudgets={canWriteBudgets}
         confirmLoading={budget.isBudgetSaving}
         isEntrySaving={budgetEntry.isBudgetItemSaving}
-        onCancel={() => {
-          budget.setIsInstallmentModalOpen(false);
-          budget.budgetForm.resetFields();
-        }}
+        onCancel={() => budget.setIsInstallmentModalOpen(false)}
         onClearHistory={budgetEntry.handleInstallmentHistoryClear}
         onOk={budget.handleBudgetInstallmentSave}
         onResetAmounts={budgetEntry.handleInstallmentAmountsReset}

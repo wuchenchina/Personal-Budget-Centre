@@ -30,6 +30,16 @@ export interface TransactionCurrencyTotal {
   amountBase: number;
 }
 
+export function budgetItemAmountMultiplier(item: BudgetItem): number {
+  if (item.split?.splitType !== 'per_person') {
+    return 1;
+  }
+
+  const includedCount = item.split.participants.filter((participant) => participant.isIncluded).length;
+
+  return Math.max(1, includedCount);
+}
+
 export function effectiveBudgetItemAmounts(
   item: BudgetItem,
   transactions: Transaction[],
@@ -41,12 +51,13 @@ export function effectiveBudgetItemAmounts(
   const hasTransactionActuals = transactionTotals.length > 0;
   const shouldUseTransactionsAsBudget =
     item.budget.amountOriginal === 0 && item.budget.amountBase === 0 && hasTransactionActuals;
+  const budgetMultiplier = shouldUseTransactionsAsBudget ? 1 : budgetItemAmountMultiplier(item);
   const budgetAmountBase = shouldUseTransactionsAsBudget
     ? transactionBaseTotal
-    : item.budget.amountBase;
+    : roundMoney(item.budget.amountBase * budgetMultiplier);
   const budgetAmountOriginal = shouldUseTransactionsAsBudget
     ? originalAmountFromBase(budgetAmountBase, item.budget.rateToBase)
-    : item.budget.amountOriginal;
+    : roundMoney(item.budget.amountOriginal * budgetMultiplier);
   const estimatedAmountBase = hasTransactionActuals ? transactionBaseTotal : 0;
   const estimatedAmountOriginal =
     transactionTotals.length === 1 ? transactionTotals[0].amountOriginal : estimatedAmountBase;

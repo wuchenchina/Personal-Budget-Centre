@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS budget_item_splits (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   budget_item_id BIGINT UNSIGNED NOT NULL,
   paid_by_participant_id BIGINT UNSIGNED NULL,
-  split_type ENUM('equal', 'personal', 'custom_amount', 'custom_share', 'excluded') NOT NULL DEFAULT 'equal',
+  split_type ENUM('equal', 'personal', 'individual', 'per_person', 'custom_amount', 'custom_share', 'excluded') NOT NULL DEFAULT 'equal',
   note VARCHAR(500) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

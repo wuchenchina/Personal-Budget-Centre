@@ -87,6 +87,8 @@
   .currency-transaction-grid,
   .currency-reference-grid,
   .currency-field-inner-grid,
+  .individual-split-list-head,
+  .individual-split-row,
   .modal-form-grid,
   .signature-custom-field-row,
   .workspace-stat-grid,
@@ -96,6 +98,7 @@
   }
 
   .profile-hero,
+  .per-person-split-preview,
   .profile-identity {
     align-items: flex-start;
     flex-direction: column;

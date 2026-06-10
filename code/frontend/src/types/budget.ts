@@ -175,6 +175,8 @@ export interface BudgetParticipant {
 export type BudgetItemSplitType =
   | 'equal'
   | 'personal'
+  | 'individual'
+  | 'per_person'
   | 'custom_amount'
   | 'custom_share'
   | 'excluded';

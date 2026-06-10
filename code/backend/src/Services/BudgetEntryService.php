@@ -379,6 +379,31 @@ final readonly class BudgetEntryService
             }
         }
 
+        if ($splitType === 'individual') {
+            $includedIndividualParticipants = array_values(array_filter(
+                $participants,
+                static fn (array $participant): bool => ($participant['isIncluded'] ?? true) === true,
+            ));
+            if ($includedIndividualParticipants === []) {
+                throw new AuthException('VALIDATION_ERROR', 'Individual split requires at least one payment amount.', 422);
+            }
+            foreach ($includedIndividualParticipants as $participant) {
+                if (($participant['shareAmountBase'] ?? null) === null || (float) $participant['shareAmountBase'] <= 0.0) {
+                    throw new AuthException('VALIDATION_ERROR', 'Individual split amounts must be greater than 0.', 422);
+                }
+            }
+            $participants = $includedIndividualParticipants;
+            $paidByParticipantId = null;
+        }
+
+        if ($splitType === 'per_person') {
+            $participants = array_values(array_filter(
+                $participants,
+                static fn (array $participant): bool => ($participant['isIncluded'] ?? true) === true,
+            ));
+            $paidByParticipantId = null;
+        }
+
         if ($splitType !== 'excluded' && $participants === []) {
             throw new AuthException('VALIDATION_ERROR', 'Split must include at least one participant.', 422);
         }
@@ -432,7 +457,7 @@ final readonly class BudgetEntryService
 
     private function itemSplitType(mixed $value): string
     {
-        return in_array($value, ['equal', 'personal', 'custom_amount', 'custom_share', 'excluded'], true)
+        return in_array($value, ['equal', 'personal', 'individual', 'per_person', 'custom_amount', 'custom_share', 'excluded'], true)
             ? (string) $value
             : 'equal';
     }

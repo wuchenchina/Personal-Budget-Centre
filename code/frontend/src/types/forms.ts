@@ -26,6 +26,10 @@ export interface BudgetItemSplitFormValue {
   paidByParticipantId?: number | null;
   splitType: BudgetItemSplitType;
   participantIds?: number[];
+  individualAmounts?: Array<{
+    participantId: number;
+    amountBase?: number | null;
+  }>;
   note?: string | null;
 }
 

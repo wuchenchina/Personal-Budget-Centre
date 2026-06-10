@@ -1,11 +1,10 @@
 import { Alert, Button, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import type { ChangeEvent, RefObject } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { RefreshCcw } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
 import { useI18n } from '../../i18n';
-import { ModalFullscreenButton } from '../common/ModalFullscreenButton';
 import type {
   BudgetItem,
   BudgetItemSplitType,
@@ -54,7 +53,6 @@ export function BudgetItemModal({
   onOk,
   onRefreshRates,
 }: BudgetItemModalProps) {
-  const [fullscreen, setFullscreen] = useState(false);
   const { t } = useI18n();
   const categoryRef = useRef<HTMLDivElement>(null);
   const budgetRef = useRef<HTMLDivElement>(null);
@@ -111,11 +109,35 @@ export function BudgetItemModal({
             ? t('variance')
             : null;
   const budgetBasePreview = previewBaseAmount(budgetAmount, budgetRate);
+  const individualAmounts = Form.useWatch(['split', 'individualAmounts'], form);
+  const selectedSplitParticipantIds = Form.useWatch(['split', 'participantIds'], form);
+  const perPersonParticipantCount = Array.isArray(selectedSplitParticipantIds)
+    ? selectedSplitParticipantIds.length
+    : participants.length;
+  const countedPerPersonParticipantCount = Math.max(1, perPersonParticipantCount);
+  const perPersonTotalBasePreview = budgetBasePreview === null
+    ? null
+    : roundMoney(budgetBasePreview * countedPerPersonParticipantCount);
+  const perPersonAmountPreview = budgetBasePreview === null
+    ? `${baseCurrency} --`
+    : formatBudgetMoney(baseCurrency, budgetBasePreview);
+  const settlementBudgetBasePreview = selectedSplitType === 'per_person' && budgetBasePreview !== null
+    ? perPersonTotalBasePreview
+    : budgetBasePreview;
   const estimatedBasePreview = transactionActuals?.estimatedAmountBase ?? 0;
   const computedVariance =
-    budgetBasePreview !== null
-      ? roundMoney(budgetBasePreview - estimatedBasePreview)
+    settlementBudgetBasePreview !== null
+      ? roundMoney(settlementBudgetBasePreview - estimatedBasePreview)
       : transactionActuals?.varianceBase ?? null;
+  const individualTotalBase = Array.isArray(individualAmounts)
+    ? roundMoney(individualAmounts.reduce((total, item) => {
+      const amount = typeof item?.amountBase === 'number' && Number.isFinite(item.amountBase)
+        ? item.amountBase
+        : 0;
+
+      return total + Math.max(0, amount);
+    }, 0))
+    : 0;
   const participantOptions = participants.map((participant) => ({
     label: participant.name,
     value: participant.id,
@@ -158,6 +180,23 @@ export function BudgetItemModal({
     }
   }, [form, open, selectedSplitType]);
 
+  useEffect(() => {
+    if (!open || (selectedSplitType !== 'individual' && selectedSplitType !== 'per_person')) {
+      return;
+    }
+
+    if (selectedSplitType === 'individual') {
+      const currentRows = form.getFieldValue(['split', 'individualAmounts']) as IndividualAmountRows | undefined;
+      const nextRows = normalizeIndividualAmountRows(currentRows, participants);
+      if (!individualAmountRowsEqual(currentRows, nextRows)) {
+        form.setFieldValue(['split', 'individualAmounts'], nextRows);
+      }
+    }
+    if (form.getFieldValue(['split', 'paidByParticipantId']) !== null) {
+      form.setFieldValue(['split', 'paidByParticipantId'], null);
+    }
+  }, [form, open, participants, selectedSplitType]);
+
   const handleCategoryChange = (categoryId: number | null | undefined) => {
     if (categoryId === null || categoryId === undefined) {
       return;
@@ -177,6 +216,16 @@ export function BudgetItemModal({
     const selectedOption = categoryOptions.find((option) => option.value === categoryId);
     if (selectedOption !== undefined && selectedOption.label !== event.target.value.trim()) {
       form.setFieldValue('categoryId', undefined);
+    }
+  };
+  const handleSplitTypeChange = (splitType: BudgetItemSplitType) => {
+    if (splitType !== 'per_person') {
+      return;
+    }
+
+    const currentParticipantIds = form.getFieldValue(['split', 'participantIds']);
+    if (!Array.isArray(currentParticipantIds) || currentParticipantIds.length <= 1) {
+      form.setFieldValue(['split', 'participantIds'], participants.map((participant) => participant.id));
     }
   };
   const applyInstallmentMonthlyAmount = () => {
@@ -206,17 +255,14 @@ export function BudgetItemModal({
       okText={editingItem === null ? t('create') : t('save')}
       open={open}
       title={
-        <div className="modal-title-with-tools">
-          <span>
-            {editingItem === null ? t('budgetItem') : t('editBudgetItem')}
-            {focusLabel === null ? null : <small className="modal-title-context">{focusLabel}</small>}
-          </span>
-          <ModalFullscreenButton fullscreen={fullscreen} setFullscreen={setFullscreen} />
-        </div>
+        <>
+          {editingItem === null ? t('budgetItem') : t('editBudgetItem')}
+          {focusLabel === null ? null : <small className="modal-title-context">{focusLabel}</small>}
+        </>
       }
-      width={fullscreen ? 'calc(100vw - 24px)' : 'min(1040px, calc(100vw - 40px))'}
+      width="min(1040px, calc(100vw - 40px))"
       style={{ top: 18 }}
-      wrapClassName={`large-form-modal${fullscreen ? ' modal-fullscreen' : ''}`}
+      wrapClassName="large-form-modal"
       onCancel={onCancel}
       onOk={onOk}
     >
@@ -277,9 +323,17 @@ export function BudgetItemModal({
                 label={t('paidBy')}
                 name={['split', 'paidByParticipantId']}
                 rules={[{ required: selectedSplitType === 'personal', message: t('selectPaidBy') }]}
+                extra={
+                  selectedSplitType === 'individual'
+                    ? t('individualPaidByHelp')
+                    : selectedSplitType === 'per_person'
+                      ? t('perPersonPaidByHelp')
+                      : undefined
+                }
               >
                 <Select
                   allowClear
+                  disabled={selectedSplitType === 'individual' || selectedSplitType === 'per_person'}
                   optionFilterProp="label"
                   options={participantOptions}
                   placeholder={t('selectPaidBy')}
@@ -299,16 +353,22 @@ export function BudgetItemModal({
                   options={[
                     { label: t('splitEqual'), value: 'equal' },
                     { label: t('splitPersonal'), value: 'personal' },
+                    { label: t('splitIndividual'), value: 'individual' },
+                    { label: t('splitPerPerson'), value: 'per_person' },
                     { label: t('splitExcluded'), value: 'excluded' },
                   ] satisfies Array<{ label: string; value: BudgetItemSplitType }>}
+                  onChange={handleSplitTypeChange}
                 />
               </Form.Item>
             </div>
-            {selectedSplitType === 'excluded' || selectedSplitType === 'personal' ? null : (
+            {selectedSplitType === 'excluded'
+              || selectedSplitType === 'personal'
+              || selectedSplitType === 'individual' ? null : (
               <Form.Item
                 label={t('splitParticipants')}
                 name={['split', 'participantIds']}
                 rules={[{ required: true, message: t('selectSplitParticipants') }]}
+                extra={selectedSplitType === 'per_person' ? t('perPersonAmountHelp') : undefined}
               >
                 <Select
                   mode="multiple"
@@ -318,6 +378,76 @@ export function BudgetItemModal({
                 />
               </Form.Item>
             )}
+            {selectedSplitType === 'individual' ? (
+              <Form.List
+                name={['split', 'individualAmounts']}
+                rules={[
+                  {
+                    validator: async (_, rows: IndividualAmountRows | undefined) => {
+                      const hasPositiveAmount = Array.isArray(rows) && rows.some((row) =>
+                        typeof row?.amountBase === 'number'
+                        && Number.isFinite(row.amountBase)
+                        && row.amountBase > 0,
+                      );
+                      if (!hasPositiveAmount) {
+                        throw new Error(t('individualAmountRequired'));
+                      }
+                    },
+                  },
+                ]}
+              >
+                {(_, __, { errors }) => (
+                  <div className="individual-split-list">
+                    <div className="individual-split-list-head">
+                      <div>
+                        <strong>{t('individualAmounts')}</strong>
+                        <span>{t('individualAmountsHelp', { currency: baseCurrency })}</span>
+                      </div>
+                      <strong>{formatBudgetMoney(baseCurrency, individualTotalBase)}</strong>
+                    </div>
+                    {participants.map((participant, index) => (
+                      <div className="individual-split-row" key={participant.id}>
+                        <span>{participant.name}</span>
+                        <Form.Item name={[index, 'participantId']} hidden>
+                          <InputNumber />
+                        </Form.Item>
+                        <Form.Item
+                          name={[index, 'amountBase']}
+                          rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+                        >
+                          <InputNumber
+                            addonBefore={baseCurrency}
+                            className="form-full-width"
+                            min={0}
+                            precision={2}
+                            step={100}
+                          />
+                        </Form.Item>
+                      </div>
+                    ))}
+                    <Form.ErrorList errors={errors} />
+                  </div>
+                )}
+              </Form.List>
+            ) : null}
+            {selectedSplitType === 'per_person' ? (
+              <div className="per-person-split-preview">
+                <div>
+                  <span>{t('perPersonTotalPreview')}</span>
+                  <small>
+                    {t('perPersonPreviewEquation', {
+                      amount: perPersonAmountPreview,
+                      count: countedPerPersonParticipantCount,
+                    })}
+                  </small>
+                </div>
+                <strong>
+                  {perPersonTotalBasePreview === null
+                    ? `${baseCurrency} --`
+                    : formatBudgetMoney(baseCurrency, perPersonTotalBasePreview)}
+                </strong>
+              </div>
+            ) : null}
             <Form.Item label={t('splitNote')} name={['split', 'note']}>
               <Input maxLength={500} />
             </Form.Item>
@@ -362,7 +492,7 @@ export function BudgetItemModal({
             />
             <SettlementPreviewCard
               baseCurrency={baseCurrency}
-              budgetBase={budgetBasePreview}
+              budgetBase={settlementBudgetBasePreview}
               estimatedBase={estimatedBasePreview}
               focused={focus === 'variance'}
               varianceBase={computedVariance}
@@ -490,6 +620,50 @@ export function BudgetItemModal({
       </Form>
     </Modal>
   );
+}
+
+type IndividualAmountRows = NonNullable<BudgetItemFormValues['split']>['individualAmounts'];
+
+function normalizeIndividualAmountRows(
+  rows: IndividualAmountRows | undefined,
+  participants: BudgetParticipant[],
+): NonNullable<IndividualAmountRows> {
+  const amountByParticipantId = new Map<number, number | null>();
+  if (Array.isArray(rows)) {
+    rows.forEach((row) => {
+      if (typeof row?.participantId !== 'number') {
+        return;
+      }
+
+      amountByParticipantId.set(
+        row.participantId,
+        typeof row.amountBase === 'number' && Number.isFinite(row.amountBase)
+          ? row.amountBase
+          : null,
+      );
+    });
+  }
+
+  return participants.map((participant) => ({
+    participantId: participant.id,
+    amountBase: amountByParticipantId.get(participant.id) ?? null,
+  }));
+}
+
+function individualAmountRowsEqual(
+  currentRows: IndividualAmountRows | undefined,
+  nextRows: NonNullable<IndividualAmountRows>,
+): boolean {
+  if (!Array.isArray(currentRows) || currentRows.length !== nextRows.length) {
+    return false;
+  }
+
+  return nextRows.every((nextRow, index) => {
+    const currentRow = currentRows[index];
+
+    return currentRow?.participantId === nextRow.participantId
+      && (currentRow.amountBase ?? null) === (nextRow.amountBase ?? null);
+  });
 }
 
 function MoneyLegCard({
