@@ -1,3 +1,40 @@
+.admin-page {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+
+.admin-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.admin-page-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: #1677ff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.admin-page-header h1 {
+  margin: 0;
+  color: #1f1f1f;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.admin-page-actions {
+  justify-content: flex-end;
+}
+
 .admin-panel {
   min-width: 0;
   padding: 18px;
@@ -67,4 +104,31 @@
 
 .admin-user-cell small {
   color: #8c8c8c;
+}
+
+.admin-create-switches {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .admin-page-header,
+  .admin-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-page-actions,
+  .admin-search {
+    width: 100%;
+  }
+
+  .admin-status-filter {
+    width: 100%;
+  }
+
+  .admin-create-switches {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

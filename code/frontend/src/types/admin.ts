@@ -31,6 +31,16 @@ export interface AdminUserUpdatePayload {
   emailVerified?: boolean;
 }
 
+export interface AdminUserCreatePayload {
+  email: string;
+  username: string;
+  displayName: string;
+  password: string;
+  defaultCurrency: string;
+  emailVerified: boolean;
+  isAdmin: boolean;
+}
+
 export interface AdminEnvironmentCheck {
   phpVersion: string;
   ok: boolean;
@@ -47,4 +57,11 @@ export interface AdminEnvironmentCheck {
     parentWritable: boolean;
   };
   recommendations: string[];
+}
+
+export interface AdminExportCacheCleanupResult {
+  path: string;
+  deletedFiles: number;
+  deletedDirectories: number;
+  deletedBytes: number;
 }

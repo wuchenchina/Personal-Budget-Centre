@@ -10,9 +10,14 @@ use BudgetCentre\Auth\SessionAuthenticator;
 use BudgetCentre\Auth\SessionManager;
 use BudgetCentre\Http\Request;
 use BudgetCentre\Repositories\AdminUserRepository;
+use BudgetCentre\Repositories\CurrencyRepository;
 use BudgetCentre\Repositories\UserRepository;
+use BudgetCentre\Repositories\WorkspaceRepository;
+use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
+use FilesystemIterator;
 use PDO;
+use Throwable;
 
 final readonly class AdminUserService
 {
@@ -49,6 +54,96 @@ final readonly class AdminUserService
             'page' => $page,
             'pageSize' => $pageSize,
         ];
+    }
+
+    public function createUser(array $input, Request $request): array
+    {
+        $this->requireAdmin($request);
+
+        $email = Input::normalizedEmail($input['email'] ?? null);
+        $username = Input::username($input['username'] ?? null);
+        $password = Input::string($input['password'] ?? null);
+        $displayName = Input::string($input['displayName'] ?? $input['display_name'] ?? null);
+        $currencyCode = strtoupper(
+            Input::string($input['defaultCurrency'] ?? $input['default_currency'] ?? null) ?? 'CNY',
+        );
+        $emailVerified = array_key_exists('emailVerified', $input)
+            ? $this->bool($input['emailVerified'])
+            : true;
+        $isAdmin = array_key_exists('isAdmin', $input)
+            ? $this->bool($input['isAdmin'])
+            : false;
+
+        if ($email === null) {
+            throw new AuthException('VALIDATION_ERROR', 'A valid email is required.', 422);
+        }
+
+        if ($username === null) {
+            throw new AuthException(
+                'VALIDATION_ERROR',
+                'Username must be 3-32 characters and only use letters, numbers, dots, dashes, or underscores.',
+                422,
+            );
+        }
+
+        if ($password === null || strlen($password) < 10) {
+            throw new AuthException('VALIDATION_ERROR', 'Password must be at least 10 characters.', 422);
+        }
+
+        if ($displayName === null || strlen($displayName) > 120) {
+            throw new AuthException('VALIDATION_ERROR', 'Display name is required and must be 120 characters or less.', 422);
+        }
+
+        if ($emailVerified === null || $isAdmin === null) {
+            throw new AuthException('VALIDATION_ERROR', 'Account flags are invalid.', 422);
+        }
+
+        $users = new UserRepository($this->pdo);
+        if ($users->findByEmail($email) !== null) {
+            throw new AuthException('EMAIL_ALREADY_EXISTS', 'Email is already registered.', 409);
+        }
+
+        if ($users->findByUsername($username) !== null) {
+            throw new AuthException('USERNAME_ALREADY_EXISTS', 'Username is already registered.', 409);
+        }
+
+        $currencyId = (new CurrencyRepository($this->pdo))->findIdByCode($currencyCode);
+        if ($currencyId === null) {
+            throw new AuthException('CURRENCY_NOT_FOUND', 'Default currency is not available.', 422);
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $userId = $users->create(
+                $email,
+                $username,
+                password_hash($password, PASSWORD_DEFAULT),
+                $displayName,
+                $currencyId,
+            );
+            (new WorkspaceRepository($this->pdo))->createPersonalWorkspace(
+                $userId,
+                "{$displayName} Personal",
+                $currencyId,
+            );
+
+            $fields = [
+                'status' => $emailVerified ? 'active' : 'pending',
+                'is_admin' => $isAdmin ? 1 : 0,
+            ];
+            if ($emailVerified) {
+                $fields['email_verified_at'] = 'now';
+            }
+
+            $createdUser = (new AdminUserRepository($this->pdo))->update($userId, $fields)
+                ?? throw new AuthException('USER_NOT_FOUND', 'User was not found.', 404);
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+
+        return ['user' => $this->publicUser($createdUser)];
     }
 
     public function updateUser(array $input, Request $request): array
@@ -142,6 +237,35 @@ final readonly class AdminUserService
         return (new SystemCheckService())->environment();
     }
 
+    public function cleanupExportCache(Request $request): array
+    {
+        $this->requireAdmin($request);
+
+        $path = $this->mpdfTempRoot();
+        if (!is_dir($path)) {
+            return [
+                'path' => $path,
+                'deletedFiles' => 0,
+                'deletedDirectories' => 0,
+                'deletedBytes' => 0,
+            ];
+        }
+
+        if (!is_writable($path)) {
+            throw new AuthException(
+                'EXPORT_CACHE_UNWRITABLE',
+                'Export cache directory is not writable.',
+                500,
+                ['directory' => $path],
+            );
+        }
+
+        return [
+            'path' => $path,
+            ...$this->deleteDirectoryContents($path),
+        ];
+    }
+
     private function requireAdmin(Request $request): array
     {
         $session = $this->authenticator->authenticatedSession($request);
@@ -174,6 +298,63 @@ final readonly class AdminUserService
     private function bool(mixed $value): ?bool
     {
         return is_bool($value) ? $value : null;
+    }
+
+    private function mpdfTempRoot(): string
+    {
+        return rtrim(
+            Env::string('MPDF_TEMP_DIR', dirname(__DIR__, 2) . '/storage/tmp/mpdf')
+                ?? dirname(__DIR__, 2) . '/storage/tmp/mpdf',
+            '/',
+        );
+    }
+
+    private function deleteDirectoryContents(string $directory): array
+    {
+        $deletedFiles = 0;
+        $deletedDirectories = 0;
+        $deletedBytes = 0;
+        $iterator = new FilesystemIterator($directory, FilesystemIterator::SKIP_DOTS);
+
+        foreach ($iterator as $item) {
+            $path = $item->getPathname();
+
+            if ($item->isDir() && !$item->isLink()) {
+                $result = $this->deleteDirectoryContents($path);
+                $deletedFiles += $result['deletedFiles'];
+                $deletedDirectories += $result['deletedDirectories'];
+                $deletedBytes += $result['deletedBytes'];
+
+                if (!@rmdir($path)) {
+                    throw new AuthException(
+                        'EXPORT_CACHE_CLEANUP_FAILED',
+                        'Export cache directory could not be removed.',
+                        500,
+                        ['directory' => $path],
+                    );
+                }
+                $deletedDirectories++;
+
+                continue;
+            }
+
+            $deletedBytes += $item->isFile() ? $item->getSize() : 0;
+            if (!@unlink($path)) {
+                throw new AuthException(
+                    'EXPORT_CACHE_CLEANUP_FAILED',
+                    'Export cache file could not be removed.',
+                    500,
+                    ['file' => $path],
+                );
+            }
+            $deletedFiles++;
+        }
+
+        return [
+            'deletedFiles' => $deletedFiles,
+            'deletedDirectories' => $deletedDirectories,
+            'deletedBytes' => $deletedBytes,
+        ];
     }
 
     private function publicUser(array $user): array

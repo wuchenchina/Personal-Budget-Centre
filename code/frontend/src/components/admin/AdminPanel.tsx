@@ -1,11 +1,25 @@
-import { Alert, Button, Descriptions, Input, Popconfirm, Select, Space, Switch, Table, Tag } from 'antd';
+import { useState } from 'react';
+import {
+  Alert,
+  Button,
+  Descriptions,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+} from 'antd';
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
-import { Mail, RefreshCcw, ServerCog, ShieldCheck, UserCog } from 'lucide-react';
-import { userStatusColors } from '../../config/appConfig';
+import { Mail, RefreshCcw, ServerCog, ShieldCheck, Trash2, UserCog, UserPlus } from 'lucide-react';
+import { currencyOptions, userStatusColors } from '../../config/appConfig';
 import type { AdminController } from '../../hooks/useAdminController';
 import { userStatusLabelsByLanguage, useI18n } from '../../i18n';
-import type { AdminUser } from '../../types/admin';
+import type { AdminUser, AdminUserCreatePayload } from '../../types/admin';
 import type { UserStatus } from '../../types/auth';
 
 const { Search } = Input;
@@ -17,12 +31,41 @@ interface AdminPanelProps {
 
 export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
   const { language, t } = useI18n();
+  const [createForm] = Form.useForm<AdminUserCreatePayload>();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const statusOptions: Array<{ label: string; value: UserStatus | 'all' }> = [
     { label: t('allStatus'), value: 'all' },
     { label: userStatusLabelsByLanguage[language].active, value: 'active' },
     { label: userStatusLabelsByLanguage[language].pending, value: 'pending' },
     { label: userStatusLabelsByLanguage[language].disabled, value: 'disabled' },
   ];
+  const openCreateModal = () => {
+    createForm.resetFields();
+    createForm.setFieldsValue({
+      defaultCurrency: 'CNY',
+      emailVerified: true,
+      isAdmin: false,
+    });
+    setIsCreateModalOpen(true);
+  };
+  const handleCreateUser = async () => {
+    try {
+      const values = await createForm.validateFields();
+      const created = await controller.createUser({
+        ...values,
+        email: values.email.trim(),
+        username: values.username.trim(),
+        displayName: values.displayName.trim(),
+      });
+
+      if (created) {
+        setIsCreateModalOpen(false);
+        createForm.resetFields();
+      }
+    } catch {
+      // Ant Design has already rendered field-level validation errors.
+    }
+  };
   const columns: TableProps<AdminUser>['columns'] = [
     {
       title: t('user'),
@@ -115,7 +158,7 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
       render: (_value, record) => {
         const disabled = record.status === 'disabled';
         const nextStatus: UserStatus = disabled ? 'active' : 'disabled';
-        const buttonText = disabled ? t('active') : t('disabled');
+        const buttonText = disabled ? t('enableAccountAction') : t('disableAccountAction');
 
         return (
           <Popconfirm
@@ -147,25 +190,13 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
   ];
 
   return (
-    <section className="admin-panel">
-      <div className="admin-toolbar">
+    <div className="admin-page">
+      <header className="admin-page-header">
         <div>
-          <h2>{t('adminUserManagement')}</h2>
+          <span className="admin-page-kicker">{t('admin')}</span>
+          <h1>{t('adminTitle')}</h1>
         </div>
-        <Space wrap>
-          <Search
-            allowClear
-            className="admin-search"
-            enterButton={t('search')}
-            placeholder={t('searchUsersPlaceholder')}
-            onSearch={controller.applySearch}
-          />
-          <Select<UserStatus | 'all'>
-            className="admin-status-filter"
-            options={statusOptions}
-            value={controller.status}
-            onChange={controller.applyStatus}
-          />
+        <Space className="admin-page-actions" wrap>
           <Button
             icon={<ServerCog size={14} />}
             loading={controller.isEnvironmentLoading}
@@ -173,8 +204,24 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
           >
             {t('environmentCheck')}
           </Button>
+          <Popconfirm
+            title={t('cleanupExportCache')}
+            description={t('confirmCleanupExportCache')}
+            okText={t('cleanup')}
+            cancelText={t('cancel')}
+            okButtonProps={{ danger: true }}
+            onConfirm={() => void controller.cleanupExportCache()}
+          >
+            <Button
+              danger
+              icon={<Trash2 size={14} />}
+              loading={controller.isExportCacheCleaning}
+            >
+              {t('cleanupExportCache')}
+            </Button>
+          </Popconfirm>
         </Space>
-      </div>
+      </header>
 
       {controller.error ? (
         <Alert className="admin-alert" type="error" showIcon message={controller.error} />
@@ -186,28 +233,140 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
         <EnvironmentCheckSummary environment={controller.environment} />
       ) : null}
 
-      <Table<AdminUser>
-        bordered
-        columns={columns}
-        dataSource={controller.users}
-        loading={controller.loading}
-        locale={{ emptyText: t('noUsers') }}
-        pagination={{
-          current: controller.page,
-          pageSize: controller.pageSize,
-          total: controller.total,
-          showSizeChanger: true,
-          showTotal: (total) => `${total}`,
-          onChange: (nextPage, nextPageSize) => {
-            controller.setPage(nextPage);
-            controller.setPageSize(nextPageSize);
-          },
-        }}
-        rowKey="id"
-        scroll={{ x: 1200 }}
-        size="small"
-      />
-    </section>
+      <section className="admin-panel">
+        <div className="admin-toolbar">
+          <div>
+            <h2>{t('adminUserManagement')}</h2>
+          </div>
+          <Space wrap>
+            <Search
+              allowClear
+              className="admin-search"
+              enterButton={t('search')}
+              placeholder={t('searchUsersPlaceholder')}
+              onSearch={controller.applySearch}
+            />
+            <Select<UserStatus | 'all'>
+              className="admin-status-filter"
+              options={statusOptions}
+              value={controller.status}
+              onChange={controller.applyStatus}
+            />
+            <Button icon={<UserPlus size={14} />} type="primary" onClick={openCreateModal}>
+              {t('createAccount')}
+            </Button>
+          </Space>
+        </div>
+
+        <Table<AdminUser>
+          bordered
+          columns={columns}
+          dataSource={controller.users}
+          loading={controller.loading}
+          locale={{ emptyText: t('noUsers') }}
+          pagination={{
+            current: controller.page,
+            pageSize: controller.pageSize,
+            total: controller.total,
+            showSizeChanger: true,
+            showTotal: (total) => `${total}`,
+            onChange: (nextPage, nextPageSize) => {
+              controller.setPage(nextPage);
+              controller.setPageSize(nextPageSize);
+            },
+          }}
+          rowKey="id"
+          scroll={{ x: 1200 }}
+          size="small"
+        />
+      </section>
+
+      <Modal
+        destroyOnClose
+        confirmLoading={controller.isUserCreating}
+        okText={t('create')}
+        open={isCreateModalOpen}
+        title={t('createAccount')}
+        onCancel={() => setIsCreateModalOpen(false)}
+        onOk={() => void handleCreateUser()}
+      >
+        <Form<AdminUserCreatePayload>
+          form={createForm}
+          layout="vertical"
+          name="budget-centre-admin-create-user"
+          requiredMark={false}
+          initialValues={{
+            defaultCurrency: 'CNY',
+            emailVerified: true,
+            isAdmin: false,
+          }}
+        >
+          <Form.Item
+            label={t('email')}
+            name="email"
+            rules={[
+              { required: true, message: t('emailRequired') },
+              { type: 'email', message: t('emailValidRequired') },
+            ]}
+          >
+            <Input autoComplete="email" placeholder="name@example.com" />
+          </Form.Item>
+          <Form.Item
+            label={t('username')}
+            name="username"
+            rules={[
+              { required: true, message: t('usernameRequired') },
+              {
+                pattern: /^[a-zA-Z0-9._-]{3,32}$/,
+                message: t('usernamePattern'),
+              },
+            ]}
+          >
+            <Input autoComplete="username" />
+          </Form.Item>
+          <Form.Item
+            label={t('displayName')}
+            name="displayName"
+            rules={[
+              { required: true, message: t('displayNameRequired') },
+              { max: 120, message: t('displayNameMax120') },
+            ]}
+          >
+            <Input autoComplete="name" />
+          </Form.Item>
+          <Form.Item
+            label={t('password')}
+            name="password"
+            rules={[
+              { required: true, message: t('passwordRequired') },
+              { min: 10, message: t('passwordMin') },
+            ]}
+          >
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+          <Form.Item
+            label={t('defaultCurrency')}
+            name="defaultCurrency"
+            rules={[{ required: true, message: t('selectDefaultCurrency') }]}
+          >
+            <Select
+              showSearch
+              optionFilterProp="label"
+              options={currencyOptions}
+              placeholder={t('defaultCurrencyPlaceholder')}
+            />
+          </Form.Item>
+          <div className="admin-create-switches">
+            <Form.Item label={t('emailVerified')} name="emailVerified" valuePropName="checked">
+              <Switch checkedChildren={t('yes')} unCheckedChildren={t('no')} />
+            </Form.Item>
+            <Form.Item label={t('administrator')} name="isAdmin" valuePropName="checked">
+              <Switch checkedChildren={t('yes')} unCheckedChildren={t('no')} />
+            </Form.Item>
+          </div>
+        </Form>
+      </Modal>
+    </div>
   );
 }
 

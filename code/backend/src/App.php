@@ -108,9 +108,11 @@ final class App
             ['POST', '/api/exports'] => $this->exportCreate($request),
             ['GET', '/api/exports/download'] => $this->exportDownload($request),
             ['GET', '/api/admin/users'] => $this->adminUserList($request),
+            ['POST', '/api/admin/users'] => $this->adminUserCreate($request),
             ['PATCH', '/api/admin/users'] => $this->adminUserUpdate($request),
             ['POST', '/api/admin/users/email-verification'] => $this->adminUserEmailVerification($request),
             ['GET', '/api/admin/environment'] => $this->adminEnvironment($request),
+            ['POST', '/api/admin/export-cache/cleanup'] => $this->adminExportCacheCleanup($request),
             ['GET', '/api/templates/personal-living-budget'] => $this->templateResponse('personal_living_budget'),
             ['GET', '/api/auth/passkey/register/options'] => $this->passkeyRegistrationOptions($request),
             ['POST', '/api/auth/passkey/register/verify'] => $this->passkeyRegistrationVerify($request),
@@ -672,6 +674,16 @@ final class App
         );
     }
 
+    private function adminUserCreate(Request $request): JsonResponse
+    {
+        return $this->adminResponse(
+            fn (AdminUserService $admin): JsonResponse => JsonResponse::ok(
+                $admin->createUser($request->json(), $request),
+                201,
+            ),
+        );
+    }
+
     private function adminUserEmailVerification(Request $request): JsonResponse
     {
         return $this->adminResponse(
@@ -686,6 +698,15 @@ final class App
         return $this->adminResponse(
             fn (AdminUserService $admin): JsonResponse => JsonResponse::ok([
                 'environment' => $admin->environment($request),
+            ]),
+        );
+    }
+
+    private function adminExportCacheCleanup(Request $request): JsonResponse
+    {
+        return $this->adminResponse(
+            fn (AdminUserService $admin): JsonResponse => JsonResponse::ok([
+                'cleanup' => $admin->cleanupExportCache($request),
             ]),
         );
     }

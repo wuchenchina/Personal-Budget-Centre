@@ -1,7 +1,9 @@
 import { apiGet, apiPatch, apiPost } from './http';
 import type {
   AdminEnvironmentCheck,
+  AdminExportCacheCleanupResult,
   AdminUser,
+  AdminUserCreatePayload,
   AdminUserListResult,
   AdminUserUpdatePayload,
 } from '../types/admin';
@@ -28,6 +30,10 @@ export function listAdminUsers(params: AdminUserListParams): Promise<AdminUserLi
   return apiGet<AdminUserListResult>(`/api/admin/users?${query.toString()}`);
 }
 
+export function createAdminUser(payload: AdminUserCreatePayload): Promise<AdminUser> {
+  return apiPost<{ user: AdminUser }>('/api/admin/users', payload).then(({ user }) => user);
+}
+
 export function updateAdminUser(payload: AdminUserUpdatePayload): Promise<AdminUser> {
   return apiPatch<{ user: AdminUser }>('/api/admin/users', payload).then(({ user }) => user);
 }
@@ -45,4 +51,11 @@ export function getAdminEnvironment(): Promise<AdminEnvironmentCheck> {
   return apiGet<{ environment: AdminEnvironmentCheck }>('/api/admin/environment').then(
     ({ environment }) => environment,
   );
+}
+
+export function cleanupAdminExportCache(): Promise<AdminExportCacheCleanupResult> {
+  return apiPost<{ cleanup: AdminExportCacheCleanupResult }>(
+    '/api/admin/export-cache/cleanup',
+    {},
+  ).then(({ cleanup }) => cleanup);
 }

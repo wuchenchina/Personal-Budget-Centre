@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react';
 import {
+  cleanupAdminExportCache,
+  createAdminUser,
   getAdminEnvironment,
   listAdminUsers,
   resendAdminEmailVerification,
   updateAdminUser,
   type AdminUserListParams,
 } from '../api/admin';
-import type { AdminEnvironmentCheck, AdminUser, AdminUserUpdatePayload } from '../types/admin';
+import type {
+  AdminEnvironmentCheck,
+  AdminUser,
+  AdminUserCreatePayload,
+  AdminUserUpdatePayload,
+} from '../types/admin';
 import type { UserStatus } from '../types/auth';
 import { translateCurrent } from '../i18n';
 
@@ -19,8 +26,10 @@ export function useAdminController(enabled: boolean) {
   const [pageSize, setPageSize] = useState(30);
   const [loading, setLoading] = useState(false);
   const [savingUserId, setSavingUserId] = useState<number | null>(null);
+  const [isUserCreating, setIsUserCreating] = useState(false);
   const [environment, setEnvironment] = useState<AdminEnvironmentCheck | null>(null);
   const [isEnvironmentLoading, setIsEnvironmentLoading] = useState(false);
+  const [isExportCacheCleaning, setIsExportCacheCleaning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -63,6 +72,30 @@ export function useAdminController(enabled: boolean) {
       isMounted = false;
     };
   }, [enabled, page, pageSize, search, status]);
+
+  const createUser = async (payload: AdminUserCreatePayload): Promise<boolean> => {
+    setIsUserCreating(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const createdUser = await createAdminUser(payload);
+      setSearch('');
+      setStatus('all');
+      setPage(1);
+      setUsers((currentUsers) => [createdUser, ...currentUsers].slice(0, pageSize));
+      setTotal((currentTotal) => currentTotal + 1);
+      setNotice(translateCurrent('adminUserCreated', { email: createdUser.email }));
+
+      return true;
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : translateCurrent('authFailed'));
+
+      return false;
+    } finally {
+      setIsUserCreating(false);
+    }
+  };
 
   const updateUser = async (payload: AdminUserUpdatePayload) => {
     setSavingUserId(payload.id);
@@ -131,6 +164,26 @@ export function useAdminController(enabled: boolean) {
     }
   };
 
+  const cleanupExportCache = async () => {
+    setIsExportCacheCleaning(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const result = await cleanupAdminExportCache();
+      setNotice(
+        translateCurrent('exportCacheCleanupDone', {
+          files: result.deletedFiles,
+          directories: result.deletedDirectories,
+        }),
+      );
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : translateCurrent('exportCacheCleanupFailed'));
+    } finally {
+      setIsExportCacheCleaning(false);
+    }
+  };
+
   return {
     users,
     total,
@@ -140,17 +193,21 @@ export function useAdminController(enabled: boolean) {
     pageSize,
     loading,
     savingUserId,
+    isUserCreating,
     environment,
     isEnvironmentLoading,
+    isExportCacheCleaning,
     error,
     notice,
     applySearch,
     applyStatus,
     setPage,
     setPageSize,
+    createUser,
     updateUser,
     resendVerification,
     checkEnvironment,
+    cleanupExportCache,
   };
 }
 
