@@ -12,7 +12,13 @@ import {
 } from '../api/budgetEntries';
 import type { SaveBudgetItemPayload, SaveTransactionPayload } from '../api/budgetEntries';
 import { convertCurrency, refreshBochkRates } from '../api/exchangeRates';
-import type { BudgetDetail, BudgetItem, CurrencyCode, Transaction } from '../types/budget';
+import type {
+  BudgetDetail,
+  BudgetItem,
+  BudgetItemSplit,
+  CurrencyCode,
+  Transaction,
+} from '../types/budget';
 import type { BudgetItemFormValues, TransactionFormValues } from '../types/forms';
 import { translateCurrent } from '../i18n';
 import {
@@ -62,6 +68,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       budgetAmount: undefined,
       budgetRate: undefined,
       installmentConfig: emptyInstallmentConfig(),
+      split: defaultSplitFormValue(options.selectedBudget),
       sortOrder: options.selectedBudget.items.length + 1,
     });
     setBudgetItemModalFocus(null);
@@ -79,6 +86,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       budgetAmount: item.budget.amountOriginal,
       budgetRate: item.budget.rateToBase,
       installmentConfig: installmentConfigToForm(item.installmentConfig),
+      split: splitToFormValue(item, options.selectedBudget),
       sortOrder: item.sortOrder,
     });
     setBudgetItemModalFocus(focus);
@@ -117,6 +125,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         estimatedAmount: 0,
         estimatedRate: 1,
         installmentConfig,
+        split: splitPayloadFromForm(values, options.selectedBudget),
         sortOrder: values.sortOrder ?? 0,
       };
       const savedBudget =
@@ -353,6 +362,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         estimatedAmount: 0,
         estimatedRate: 1,
         installmentConfig: item.installmentConfig,
+        split: item.split,
         sortOrder: item.sortOrder,
       }));
     } catch (error: unknown) {
@@ -496,6 +506,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         estimatedAmount: 0,
         estimatedRate: 1,
         installmentConfig: item.installmentConfig,
+        split: item.split,
         sortOrder: item.sortOrder,
       }));
     } catch (error: unknown) {
@@ -524,6 +535,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       estimatedAmount: 0,
       estimatedRate: 1,
       installmentConfig,
+      split: item.split,
       sortOrder: item.sortOrder,
     });
   };
@@ -722,6 +734,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
             'Amount update',
           ),
         },
+        split: item.split,
         sortOrder: item.sortOrder,
       }));
     } catch (error: unknown) {
@@ -967,6 +980,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
             'Period reset',
           ),
         },
+        split: item.split,
         sortOrder: item.sortOrder,
       }));
     } catch (error: unknown) {
@@ -1089,6 +1103,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
             'Progress update',
           ),
         },
+        split: item.split,
         sortOrder: item.sortOrder,
       }));
     } catch (error: unknown) {
@@ -1171,6 +1186,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
             'Remark update',
           ),
         },
+        split: item.split,
         sortOrder: item.sortOrder,
       }));
     } catch (error: unknown) {
@@ -1374,6 +1390,75 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
 function normalizedAmount(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function defaultSplitFormValue(budget: BudgetDetail): BudgetItemFormValues['split'] {
+  if (budget.participantMode !== 'group' || budget.participants.length === 0) {
+    return undefined;
+  }
+
+  return {
+    paidByParticipantId: budget.participants[0].id,
+    splitType: 'equal',
+    participantIds: budget.participants.map((participant) => participant.id),
+    note: null,
+  };
+}
+
+function splitToFormValue(
+  item: BudgetItem,
+  budget: BudgetDetail | null,
+): BudgetItemFormValues['split'] {
+  if (budget === null || budget.participantMode !== 'group' || budget.participants.length === 0) {
+    return undefined;
+  }
+
+  if (item.split === null) {
+    return defaultSplitFormValue(budget);
+  }
+
+  return {
+    paidByParticipantId: item.split.paidByParticipantId,
+    splitType: item.split.splitType,
+    participantIds: item.split.participants
+      .filter((participant) => participant.isIncluded)
+      .map((participant) => participant.participantId),
+    note: item.split.note,
+  };
+}
+
+function splitPayloadFromForm(
+  values: BudgetItemFormValues,
+  budget: BudgetDetail,
+): BudgetItemSplit | null {
+  if (budget.participantMode !== 'group' || budget.participants.length === 0) {
+    return null;
+  }
+
+  const split = values.split ?? defaultSplitFormValue(budget);
+  if (split === undefined) {
+    return null;
+  }
+
+  const selectedParticipantIds = new Set(
+    split.splitType === 'excluded'
+      ? []
+      : (split.participantIds ?? budget.participants.map((participant) => participant.id)),
+  );
+
+  return {
+    paidByParticipantId: split.paidByParticipantId ?? null,
+    splitType: split.splitType ?? 'equal',
+    note: split.note?.trim() || null,
+    participants: budget.participants
+      .filter((participant) => selectedParticipantIds.has(participant.id))
+      .map((participant) => ({
+        participantId: participant.id,
+        isIncluded: true,
+        shareRatio: null,
+        shareAmountBase: null,
+      })),
+  };
 }
 
 function roundMoney(value: number): number {

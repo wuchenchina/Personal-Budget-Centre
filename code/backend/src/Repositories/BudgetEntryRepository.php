@@ -91,6 +91,72 @@ final readonly class BudgetEntryRepository
         return $this->budgetIdForTable('budget_items', $id);
     }
 
+    public function replaceItemSplit(int $itemId, ?array $split): void
+    {
+        if (!$this->hasGroupBudgetTables()) {
+            return;
+        }
+
+        $deleteStatement = $this->pdo->prepare(
+            'DELETE FROM budget_item_splits WHERE budget_item_id = :budget_item_id'
+        );
+        $deleteStatement->execute(['budget_item_id' => $itemId]);
+
+        if ($split === null) {
+            return;
+        }
+
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            INSERT INTO budget_item_splits (
+              budget_item_id,
+              paid_by_participant_id,
+              split_type,
+              note
+            ) VALUES (
+              :budget_item_id,
+              :paid_by_participant_id,
+              :split_type,
+              :note
+            )
+            SQL
+        );
+        $statement->execute([
+            'budget_item_id' => $itemId,
+            'paid_by_participant_id' => $split['paidByParticipantId'] ?? null,
+            'split_type' => $split['splitType'],
+            'note' => $split['note'] ?? null,
+        ]);
+        $splitId = (int) $this->pdo->lastInsertId();
+
+        $participantStatement = $this->pdo->prepare(
+            <<<'SQL'
+            INSERT INTO budget_item_split_participants (
+              split_id,
+              participant_id,
+              is_included,
+              share_ratio,
+              share_amount_base
+            ) VALUES (
+              :split_id,
+              :participant_id,
+              :is_included,
+              :share_ratio,
+              :share_amount_base
+            )
+            SQL
+        );
+        foreach ($split['participants'] ?? [] as $participant) {
+            $participantStatement->execute([
+                'split_id' => $splitId,
+                'participant_id' => $participant['participantId'],
+                'is_included' => ($participant['isIncluded'] ?? true) ? 1 : 0,
+                'share_ratio' => $participant['shareRatio'] ?? null,
+                'share_amount_base' => $participant['shareAmountBase'] ?? null,
+            ]);
+        }
+    }
+
     public function createTransaction(array $transaction): int
     {
         if (!$this->hasTransactionReferenceColumns()) {
@@ -325,5 +391,24 @@ final readonly class BudgetEntryRepository
         $statement->execute();
 
         return (int) $statement->fetchColumn() === 2;
+    }
+
+    private function hasGroupBudgetTables(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+              AND table_name IN (
+                'budget_participants',
+                'budget_item_splits',
+                'budget_item_split_participants'
+              )
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 3;
     }
 }

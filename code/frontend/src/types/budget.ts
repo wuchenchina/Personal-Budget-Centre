@@ -24,6 +24,8 @@ export type BudgetStatus = 'draft' | 'active' | 'closed' | 'archived';
 
 export type BudgetType = 'regular' | 'installment';
 
+export type BudgetParticipantMode = 'solo' | 'group';
+
 export type BudgetInstallmentDisplayMode = 'item' | 'overall';
 
 export type BudgetInstallmentPeriodUnit = 'day' | 'week' | 'month' | 'year';
@@ -160,6 +162,39 @@ export interface BudgetOverallInstallmentPlan {
   updatedAt: string | null;
 }
 
+export interface BudgetParticipant {
+  id: number;
+  memberUserId: number | null;
+  name: string;
+  email: string | null;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type BudgetItemSplitType =
+  | 'equal'
+  | 'personal'
+  | 'custom_amount'
+  | 'custom_share'
+  | 'excluded';
+
+export interface BudgetItemSplitParticipant {
+  participantId: number;
+  isIncluded: boolean;
+  shareRatio: number | null;
+  shareAmountBase: number | null;
+}
+
+export interface BudgetItemSplit {
+  id?: number;
+  budgetItemId?: number;
+  paidByParticipantId: number | null;
+  splitType: BudgetItemSplitType;
+  note: string | null;
+  participants: BudgetItemSplitParticipant[];
+}
+
 export interface BudgetItem {
   id: number;
   categoryId: number | null;
@@ -179,6 +214,7 @@ export interface BudgetItem {
   };
   varianceBase: number;
   installmentConfig: BudgetInstallmentConfig;
+  split: BudgetItemSplit | null;
   sortOrder: number;
 }
 
@@ -324,6 +360,7 @@ export interface BudgetSummary {
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
   budgetType: BudgetType;
+  participantMode: BudgetParticipantMode;
   installmentDisplayMode: BudgetInstallmentDisplayMode;
   installmentPeriodUnit: BudgetInstallmentPeriodUnit;
   visibility: Visibility;
@@ -337,6 +374,7 @@ export interface BudgetSummary {
 }
 
 export interface BudgetDetail extends BudgetSummary {
+  participants: BudgetParticipant[];
   items: BudgetItem[];
   overallInstallmentPlan: BudgetOverallInstallmentPlan;
   transactions: Transaction[];

@@ -12,6 +12,7 @@ import { BudgetMetrics } from './components/budget/BudgetMetrics';
 import { BudgetProjectDashboard } from './components/budget/BudgetProjectDashboard';
 import { BudgetProjectList } from './components/budget/BudgetProjectList';
 import { BudgetSignatureModal } from './components/budget/BudgetSignatureModal';
+import { GroupBudgetSummaryPanel } from './components/budget/GroupBudgetSummaryPanel';
 import { TransactionModal } from './components/budget/TransactionModal';
 import { AppShell } from './components/layout/AppShell';
 import { ProfilePage } from './components/profile/ProfilePage';
@@ -330,6 +331,10 @@ function App() {
   const budgetEditorContent = (
     <div className="budget-editor-shell">
       {budgetMetrics}
+      <GroupBudgetSummaryPanel
+        selectedBudget={budget.selectedBudget}
+        baseCurrency={baseCurrency}
+      />
       {budgetPreview}
     </div>
   );
@@ -384,6 +389,8 @@ function App() {
         categoryOptions={budgetItemPresetCategoryOptions}
         baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
         focus={budgetEntry.budgetItemModalFocus}
+        participantMode={budget.selectedBudget?.participantMode ?? 'solo'}
+        participants={budget.selectedBudget?.participants ?? []}
         transactions={budget.selectedBudget?.transactions ?? []}
         confirmLoading={budgetEntry.isBudgetItemSaving}
         onRefreshRates={budgetEntry.handleBudgetItemRateRefresh}

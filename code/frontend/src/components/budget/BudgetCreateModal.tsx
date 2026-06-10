@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Alert, Button, DatePicker, Form, Input, Modal, Select } from 'antd';
+import { Alert, Button, DatePicker, Form, Input, Modal, Radio, Select, Space } from 'antd';
 import type { FormInstance } from 'antd';
+import { Plus, Trash2 } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
 import { ModalFullscreenButton } from '../common/ModalFullscreenButton';
 import {
@@ -37,6 +38,7 @@ export function BudgetCreateModal({
   const [fullscreen, setFullscreen] = useState(false);
   const { language, t } = useI18n();
   const dateRange = Form.useWatch('dateRange', form);
+  const participantMode = Form.useWatch('participantMode', form) ?? 'solo';
   const visibilityOptions: Array<{ label: string; value: Visibility }> = [
     { label: visibilityLabelsByLanguage[language].private, value: 'private' },
     { label: visibilityLabelsByLanguage[language].workspace, value: 'workspace' },
@@ -145,6 +147,92 @@ export function BudgetCreateModal({
           >
             <Select options={visibilityOptions} />
           </Form.Item>
+          <Form.Item
+            label={t('participantMode')}
+            name="participantMode"
+            rules={[{ required: true, message: t('selectParticipantMode') }]}
+          >
+            <Radio.Group
+              optionType="button"
+              options={[
+                { label: t('soloBudget'), value: 'solo' },
+                { label: t('groupBudget'), value: 'group' },
+              ]}
+            />
+          </Form.Item>
+          {participantMode === 'group' ? (
+            <div className="budget-info-wide-field group-participants-editor">
+              <div className="group-participants-header">
+                <div>
+                  <strong>{t('participants')}</strong>
+                  <span>{t('participantsHelp')}</span>
+                </div>
+              </div>
+              <Form.List
+                name="participants"
+                rules={[
+                  {
+                    validator: async (_, participants) => {
+                      if (!Array.isArray(participants) || participants.length === 0) {
+                        throw new Error(t('participantsRequired'));
+                      }
+                    },
+                  },
+                ]}
+              >
+                {(fields, { add, remove }, { errors }) => (
+                  <>
+                    <div className="group-participant-list">
+                      {fields.map((field, index) => (
+                        <div className="group-participant-row" key={field.key}>
+                          <Form.Item name={[field.name, 'id']} hidden>
+                            <Input />
+                          </Form.Item>
+                          <Form.Item name={[field.name, 'memberUserId']} hidden>
+                            <Input />
+                          </Form.Item>
+                          <Form.Item
+                            label={index === 0 ? t('participantName') : undefined}
+                            name={[field.name, 'name']}
+                            rules={[
+                              { required: true, whitespace: true, message: t('participantNameRequired') },
+                              { max: 160, message: t('participantNameMax') },
+                            ]}
+                          >
+                            <Input maxLength={160} />
+                          </Form.Item>
+                          <Form.Item
+                            label={index === 0 ? t('participantEmail') : undefined}
+                            name={[field.name, 'email']}
+                            rules={[
+                              { type: 'email', message: t('emailFormatInvalid') },
+                              { max: 255, message: t('emailMax') },
+                            ]}
+                          >
+                            <Input maxLength={255} />
+                          </Form.Item>
+                          <Button
+                            aria-label={t('delete')}
+                            danger
+                            disabled={fields.length <= 1}
+                            icon={<Trash2 size={15} />}
+                            type="text"
+                            onClick={() => remove(field.name)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <Space className="group-participant-actions">
+                      <Button icon={<Plus size={15} />} type="dashed" onClick={() => add({ name: '' })}>
+                        {t('addParticipant')}
+                      </Button>
+                    </Space>
+                    <Form.ErrorList errors={errors} />
+                  </>
+                )}
+              </Form.List>
+            </div>
+          ) : null}
           <Form.Item
             className="budget-info-wide-field"
             label={t('note')}

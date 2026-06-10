@@ -3,6 +3,9 @@ import type {
   BudgetInstallmentConfig,
   BudgetInstallmentDisplayMode,
   BudgetInstallmentPeriodUnit,
+  BudgetItemSplitType,
+  BudgetParticipant,
+  BudgetParticipantMode,
   BudgetSignatureConfig,
   BudgetStatus,
   BudgetType,
@@ -18,6 +21,13 @@ export type BudgetSignatureFormRow = Omit<BudgetSignatureConfig['rows'][number],
 export type BudgetInstallmentFormConfig = Omit<BudgetInstallmentConfig, 'startMonth'> & {
   startMonth?: Dayjs | null;
 };
+
+export interface BudgetItemSplitFormValue {
+  paidByParticipantId?: number | null;
+  splitType: BudgetItemSplitType;
+  participantIds?: number[];
+  note?: string | null;
+}
 
 export type AuthMode = 'login' | 'register';
 
@@ -56,6 +66,8 @@ export interface BudgetFormValues {
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
   budgetType: BudgetType;
+  participantMode: BudgetParticipantMode;
+  participants?: Array<Partial<BudgetParticipant>>;
   installmentDisplayMode: BudgetInstallmentDisplayMode;
   installmentPeriodUnit: BudgetInstallmentPeriodUnit;
   visibility: Visibility;
@@ -74,6 +86,7 @@ export interface BudgetItemFormValues {
   budgetRate?: number;
   bankFee?: number;
   installmentConfig?: BudgetInstallmentFormConfig;
+  split?: BudgetItemSplitFormValue;
   sortOrder?: number;
 }
 

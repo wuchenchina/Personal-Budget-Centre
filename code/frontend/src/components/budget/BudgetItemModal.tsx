@@ -6,7 +6,13 @@ import { RefreshCcw } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
 import { useI18n } from '../../i18n';
 import { ModalFullscreenButton } from '../common/ModalFullscreenButton';
-import type { BudgetItem, CurrencyCode, Transaction } from '../../types/budget';
+import type {
+  BudgetItem,
+  BudgetItemSplitType,
+  BudgetParticipant,
+  CurrencyCode,
+  Transaction,
+} from '../../types/budget';
 import type { BudgetItemFormValues } from '../../types/forms';
 import type { BudgetItemModalFocus } from '../../hooks/useBudgetEntryController';
 import {
@@ -23,6 +29,8 @@ interface BudgetItemModalProps {
   categoryOptions: Array<{ label: string; value: number }>;
   baseCurrency: CurrencyCode;
   focus: BudgetItemModalFocus;
+  participantMode: 'solo' | 'group';
+  participants: BudgetParticipant[];
   transactions: Transaction[];
   confirmLoading: boolean;
   onCancel: () => void;
@@ -38,6 +46,8 @@ export function BudgetItemModal({
   categoryOptions,
   baseCurrency,
   focus,
+  participantMode,
+  participants,
   transactions,
   confirmLoading,
   onCancel,
@@ -53,6 +63,7 @@ export function BudgetItemModal({
   const budgetAmount = Form.useWatch('budgetAmount', form);
   const budgetRate = Form.useWatch('budgetRate', form);
   const selectedCategoryId = Form.useWatch('categoryId', form);
+  const selectedSplitType = Form.useWatch(['split', 'splitType'], form) ?? 'equal';
   const installmentEnabled = Form.useWatch(['installmentConfig', 'enabled'], form) === true;
   const installmentTotal = Form.useWatch(['installmentConfig', 'totalAmount'], form);
   const installmentMonths = Form.useWatch(['installmentConfig', 'months'], form);
@@ -105,6 +116,10 @@ export function BudgetItemModal({
     budgetBasePreview !== null
       ? roundMoney(budgetBasePreview - estimatedBasePreview)
       : transactionActuals?.varianceBase ?? null;
+  const participantOptions = participants.map((participant) => ({
+    label: participant.name,
+    value: participant.id,
+  }));
 
   useEffect(() => {
     if (!open || focus === null) {
@@ -131,6 +146,17 @@ export function BudgetItemModal({
       form.setFieldValue('categoryId', undefined);
     }
   }, [categoryOptions, form, open, selectedCategoryId]);
+
+  useEffect(() => {
+    if (!open || selectedSplitType !== 'personal') {
+      return;
+    }
+
+    const paidByParticipantId = form.getFieldValue(['split', 'paidByParticipantId']);
+    if (typeof paidByParticipantId === 'number') {
+      form.setFieldValue(['split', 'participantIds'], [paidByParticipantId]);
+    }
+  }, [form, open, selectedSplitType]);
 
   const handleCategoryChange = (categoryId: number | null | undefined) => {
     if (categoryId === null || categoryId === undefined) {
@@ -237,6 +263,66 @@ export function BudgetItemModal({
             />
           </Form.Item>
         </div>
+
+        {participantMode === 'group' && participants.length > 0 ? (
+          <div className="group-split-panel">
+            <div className="group-split-header">
+              <div>
+                <strong>{t('splitSettings')}</strong>
+                <span>{t('splitSettingsHelp')}</span>
+              </div>
+            </div>
+            <div className="modal-form-grid">
+              <Form.Item
+                label={t('paidBy')}
+                name={['split', 'paidByParticipantId']}
+                rules={[{ required: selectedSplitType === 'personal', message: t('selectPaidBy') }]}
+              >
+                <Select
+                  allowClear
+                  optionFilterProp="label"
+                  options={participantOptions}
+                  placeholder={t('selectPaidBy')}
+                  onChange={(participantId) => {
+                    if (selectedSplitType === 'personal' && typeof participantId === 'number') {
+                      form.setFieldValue(['split', 'participantIds'], [participantId]);
+                    }
+                  }}
+                />
+              </Form.Item>
+              <Form.Item
+                label={t('splitType')}
+                name={['split', 'splitType']}
+                rules={[{ required: true, message: t('selectSplitType') }]}
+              >
+                <Select
+                  options={[
+                    { label: t('splitEqual'), value: 'equal' },
+                    { label: t('splitPersonal'), value: 'personal' },
+                    { label: t('splitExcluded'), value: 'excluded' },
+                  ] satisfies Array<{ label: string; value: BudgetItemSplitType }>}
+                />
+              </Form.Item>
+            </div>
+            {selectedSplitType === 'excluded' || selectedSplitType === 'personal' ? null : (
+              <Form.Item
+                label={t('splitParticipants')}
+                name={['split', 'participantIds']}
+                rules={[{ required: true, message: t('selectSplitParticipants') }]}
+              >
+                <Select
+                  mode="multiple"
+                  optionFilterProp="label"
+                  options={participantOptions}
+                  placeholder={t('selectSplitParticipants')}
+                />
+              </Form.Item>
+            )}
+            <Form.Item label={t('splitNote')} name={['split', 'note']}>
+              <Input maxLength={500} />
+            </Form.Item>
+          </div>
+        ) : null}
 
         <div className="currency-config-panel currency-config-panel-wide">
           <div className="currency-config-header">

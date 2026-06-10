@@ -9,7 +9,13 @@ import {
   updateBudget,
 } from '../api/budgets';
 import type { AuthSession } from '../types/auth';
-import type { BudgetDetail, BudgetStatus, BudgetSummary, CurrencyCode } from '../types/budget';
+import type {
+  BudgetDetail,
+  BudgetParticipant,
+  BudgetStatus,
+  BudgetSummary,
+  CurrencyCode,
+} from '../types/budget';
 import type { BudgetFormValues } from '../types/forms';
 import { currentLanguage, translateCurrent } from '../i18n';
 import {
@@ -144,6 +150,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       baseCurrency,
       displayCurrency: baseCurrency,
       budgetType: 'regular',
+      participantMode: 'solo',
+      participants: defaultParticipants(session),
       installmentDisplayMode: 'item',
       installmentPeriodUnit: 'month',
       visibility: 'private',
@@ -178,6 +186,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       baseCurrency: budget.baseCurrency,
       displayCurrency: budget.displayCurrency,
       budgetType: budget.budgetType,
+      participantMode: budget.participantMode ?? 'solo',
+      participants: participantsForBudgetForm(budget, selectedBudget, session),
       installmentDisplayMode: budget.installmentDisplayMode,
       installmentPeriodUnit: budget.installmentPeriodUnit,
       visibility: budget.visibility,
@@ -203,6 +213,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       baseCurrency: budget.baseCurrency,
       displayCurrency: budget.displayCurrency,
       budgetType: budget.budgetType,
+      participantMode: budget.participantMode ?? 'solo',
+      participants: participantsForBudgetForm(budget, selectedBudget, session),
       installmentDisplayMode: budget.installmentDisplayMode,
       installmentPeriodUnit: budget.installmentPeriodUnit,
       visibility: budget.visibility,
@@ -228,6 +240,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       baseCurrency: budget.baseCurrency,
       displayCurrency: budget.displayCurrency,
       budgetType: budget.budgetType,
+      participantMode: budget.participantMode ?? 'solo',
+      participants: participantsForBudgetForm(budget, selectedBudget, session),
       installmentDisplayMode: budget.installmentDisplayMode,
       installmentPeriodUnit: budget.installmentPeriodUnit,
       visibility: budget.visibility,
@@ -262,6 +276,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         baseCurrency: values.baseCurrency,
         displayCurrency: values.displayCurrency,
         budgetType: values.budgetType ?? 'regular',
+        participantMode: values.participantMode ?? 'solo',
+        participants: normalizedParticipants(values.participants),
         installmentDisplayMode: values.installmentDisplayMode ?? 'item',
         installmentPeriodUnit: values.installmentPeriodUnit ?? 'month',
         visibility: values.visibility,
@@ -280,6 +296,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
               baseCurrency: payload.baseCurrency,
               displayCurrency: payload.displayCurrency,
               budgetType: payload.budgetType,
+              participantMode: payload.participantMode,
+              participants: payload.participants,
               installmentDisplayMode: payload.installmentDisplayMode,
               installmentPeriodUnit: payload.installmentPeriodUnit,
               visibility: payload.visibility,
@@ -334,6 +352,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         baseCurrency: selectedBudget.baseCurrency,
         displayCurrency: selectedBudget.displayCurrency,
         budgetType: selectedBudget.budgetType,
+        participantMode: selectedBudget.participantMode,
         installmentDisplayMode: selectedBudget.installmentDisplayMode,
         installmentPeriodUnit: selectedBudget.installmentPeriodUnit,
         visibility: selectedBudget.visibility,
@@ -385,6 +404,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         baseCurrency: selectedBudget.baseCurrency,
         displayCurrency: selectedBudget.displayCurrency,
         budgetType: values.budgetType ?? 'regular',
+        participantMode: selectedBudget.participantMode,
         installmentDisplayMode: values.installmentDisplayMode ?? 'item',
         installmentPeriodUnit: values.installmentPeriodUnit ?? 'month',
         visibility: selectedBudget.visibility,
@@ -442,6 +462,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         baseCurrency: selectedBudget.baseCurrency,
         displayCurrency: selectedBudget.displayCurrency,
         budgetType: selectedBudget.budgetType,
+        participantMode: selectedBudget.participantMode,
         installmentDisplayMode: selectedBudget.installmentDisplayMode,
         installmentPeriodUnit: selectedBudget.installmentPeriodUnit,
         visibility: selectedBudget.visibility,
@@ -489,6 +510,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         baseCurrency: sourceBudget.baseCurrency,
         displayCurrency: sourceBudget.displayCurrency,
         budgetType: sourceBudget.budgetType,
+        participantMode: sourceBudget.participantMode,
         installmentDisplayMode: sourceBudget.installmentDisplayMode,
         installmentPeriodUnit: sourceBudget.installmentPeriodUnit,
         visibility: sourceBudget.visibility,
@@ -606,3 +628,44 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
 }
 
 export type BudgetController = ReturnType<typeof useBudgetController>;
+
+function defaultParticipants(session: AuthSession | null): Array<Partial<BudgetParticipant>> {
+  if (session === null) {
+    return [];
+  }
+
+  return [
+    {
+      memberUserId: session.user.id,
+      name: session.user.displayName,
+      email: session.user.email,
+      sortOrder: 1,
+    },
+  ];
+}
+
+function participantsForBudgetForm(
+  budget: BudgetSummary,
+  selectedBudget: BudgetDetail | null,
+  session: AuthSession | null,
+): Array<Partial<BudgetParticipant>> {
+  if (selectedBudget?.id === budget.id && selectedBudget.participants.length > 0) {
+    return selectedBudget.participants;
+  }
+
+  return defaultParticipants(session);
+}
+
+function normalizedParticipants(
+  participants: BudgetFormValues['participants'],
+): Array<Partial<BudgetParticipant>> {
+  return (participants ?? [])
+    .map((participant, index) => ({
+      id: participant.id,
+      memberUserId: participant.memberUserId ?? null,
+      name: participant.name?.trim() ?? '',
+      email: participant.email?.trim() || null,
+      sortOrder: participant.sortOrder ?? index + 1,
+    }))
+    .filter((participant) => participant.name !== '');
+}

@@ -3,6 +3,8 @@ import type {
   BudgetDetail,
   BudgetInstallmentDisplayMode,
   BudgetInstallmentPeriodUnit,
+  BudgetParticipant,
+  BudgetParticipantMode,
   BudgetStatus,
   BudgetSummary,
   BudgetType,
@@ -28,6 +30,8 @@ export interface CreateBudgetPayload {
   baseCurrency: CurrencyCode;
   displayCurrency: CurrencyCode;
   budgetType?: BudgetType;
+  participantMode?: BudgetParticipantMode;
+  participants?: Array<Partial<BudgetParticipant>>;
   installmentDisplayMode?: BudgetInstallmentDisplayMode;
   installmentPeriodUnit?: BudgetInstallmentPeriodUnit;
   visibility: Visibility;

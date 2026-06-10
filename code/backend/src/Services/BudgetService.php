@@ -21,8 +21,10 @@ final readonly class BudgetService
     private const VISIBILITIES = ['private', 'workspace', 'custom'];
     private const STATUSES = ['draft', 'active', 'closed', 'archived'];
     private const BUDGET_TYPES = ['regular', 'installment'];
+    private const PARTICIPANT_MODES = ['solo', 'group'];
     private const INSTALLMENT_DISPLAY_MODES = ['item', 'overall'];
     private const INSTALLMENT_PERIOD_UNITS = ['day', 'week', 'month', 'year'];
+    private const PARTICIPANT_LIMIT = 50;
     private const SIGNATURE_ROW_LIMIT = 50;
     private const SIGNATURE_CUSTOM_FIELD_LIMIT = 12;
 
@@ -67,6 +69,9 @@ final readonly class BudgetService
                 ?? $baseCurrencyCode,
         );
         $budgetType = Input::string($input['budgetType'] ?? $input['budget_type'] ?? null) ?? 'regular';
+        $participantMode = Input::string(
+            $input['participantMode'] ?? $input['participant_mode'] ?? null,
+        ) ?? 'solo';
         $installmentDisplayMode = Input::string(
             $input['installmentDisplayMode'] ?? $input['installment_display_mode'] ?? null,
         ) ?? 'item';
@@ -77,6 +82,7 @@ final readonly class BudgetService
         $status = Input::string($input['status'] ?? null) ?? 'draft';
         $note = Input::string($input['note'] ?? null);
         $signatureConfig = $this->signatureConfigJsonFromInput($input);
+        $participants = $this->participantsFromInput($input, $participantMode, $session);
 
         if ($workspaceId === null) {
             throw new AuthException('VALIDATION_ERROR', 'workspaceId is required.', 422);
@@ -93,6 +99,7 @@ final readonly class BudgetService
             $startDate,
             $endDate,
             $budgetType,
+            $participantMode,
             $installmentDisplayMode,
             $installmentPeriodUnit,
             $visibility,
@@ -127,6 +134,7 @@ final readonly class BudgetService
                 $baseCurrencyId,
                 $displayCurrencyId,
                 $budgetType,
+                $participantMode,
                 $installmentDisplayMode,
                 $installmentPeriodUnit,
                 $visibility,
@@ -134,6 +142,9 @@ final readonly class BudgetService
                 $note,
                 $signatureConfig,
             );
+            if ($participantMode === 'group') {
+                $repository->replaceParticipants($budgetId, $participants);
+            }
             $this->pdo->commit();
         } catch (Throwable $exception) {
             $this->pdo->rollBack();
@@ -150,12 +161,14 @@ final readonly class BudgetService
             'baseCurrency' => $baseCurrencyCode,
             'displayCurrency' => $displayCurrencyCode,
             'budgetType' => $budgetType,
+            'participantMode' => $participantMode,
             'installmentDisplayMode' => $installmentDisplayMode,
             'installmentPeriodUnit' => $installmentPeriodUnit,
             'visibility' => $visibility,
             'status' => $status,
             'note' => $note,
             'signatureConfig' => $this->signatureConfigFromJson($signatureConfig),
+            'participants' => $participantMode === 'group' ? $participants : [],
             'items' => [],
             'transactions' => [],
         ];
@@ -198,9 +211,19 @@ final readonly class BudgetService
         );
 
         $payload = $this->validatedBudgetPayload($input, (string) $session['display_name']);
-        if (!$this->hasSignatureConfigInput($input)) {
+        $existingBudget = null;
+        if (!$this->hasSignatureConfigInput($input) || !$this->hasParticipantModeInput($input)) {
             $existingBudget = $repository->findForUser($budgetId, (int) $session['user_id'], true)
                 ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
+        }
+        if (!$this->hasParticipantModeInput($input)) {
+            $payload['participantMode'] = $existingBudget['participantMode'] ?? 'solo';
+        }
+        $hasParticipantsInput = $this->hasParticipantsInput($input);
+        $participants = $hasParticipantsInput
+            ? $this->participantsFromInput($input, $payload['participantMode'], $session)
+            : null;
+        if (!$this->hasSignatureConfigInput($input)) {
             $payload['signatureConfig'] = json_encode(
                 $existingBudget['signatureConfig'] ?? $this->emptySignatureConfig(),
                 JSON_UNESCAPED_UNICODE,
@@ -214,22 +237,35 @@ final readonly class BudgetService
             throw new AuthException('CURRENCY_NOT_FOUND', 'Budget currency is not available.', 422);
         }
 
-        $repository->update(
-            $budgetId,
-            $payload['title'],
-            $payload['ownerName'],
-            $payload['startDate'],
-            $payload['endDate'],
-            $baseCurrencyId,
-            $displayCurrencyId,
-            $payload['budgetType'],
-            $payload['installmentDisplayMode'],
-            $payload['installmentPeriodUnit'],
-            $payload['visibility'],
-            $payload['status'],
-            $payload['note'],
-            $payload['signatureConfig'],
-        );
+        $this->pdo->beginTransaction();
+        try {
+            $repository->update(
+                $budgetId,
+                $payload['title'],
+                $payload['ownerName'],
+                $payload['startDate'],
+                $payload['endDate'],
+                $baseCurrencyId,
+                $displayCurrencyId,
+                $payload['budgetType'],
+                $payload['participantMode'],
+                $payload['installmentDisplayMode'],
+                $payload['installmentPeriodUnit'],
+                $payload['visibility'],
+                $payload['status'],
+                $payload['note'],
+                $payload['signatureConfig'],
+            );
+            if ($payload['participantMode'] === 'solo') {
+                $repository->replaceParticipants($budgetId, []);
+            } elseif ($participants !== null) {
+                $repository->replaceParticipants($budgetId, $participants);
+            }
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
 
         return $repository->findForUser($budgetId, (int) $session['user_id'], true)
             ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
@@ -271,6 +307,9 @@ final readonly class BudgetService
                 ?? $baseCurrencyCode,
         );
         $budgetType = Input::string($input['budgetType'] ?? $input['budget_type'] ?? null) ?? 'regular';
+        $participantMode = Input::string(
+            $input['participantMode'] ?? $input['participant_mode'] ?? null,
+        ) ?? 'solo';
         $installmentDisplayMode = Input::string(
             $input['installmentDisplayMode'] ?? $input['installment_display_mode'] ?? null,
         ) ?? 'item';
@@ -288,6 +327,7 @@ final readonly class BudgetService
             $startDate,
             $endDate,
             $budgetType,
+            $participantMode,
             $installmentDisplayMode,
             $installmentPeriodUnit,
             $visibility,
@@ -303,6 +343,7 @@ final readonly class BudgetService
             'baseCurrency' => $baseCurrencyCode,
             'displayCurrency' => $displayCurrencyCode,
             'budgetType' => $budgetType,
+            'participantMode' => $participantMode,
             'installmentDisplayMode' => $installmentDisplayMode,
             'installmentPeriodUnit' => $installmentPeriodUnit,
             'visibility' => $visibility,
@@ -318,6 +359,7 @@ final readonly class BudgetService
         ?string $startDate,
         ?string $endDate,
         string $budgetType,
+        string $participantMode,
         string $installmentDisplayMode,
         string $installmentPeriodUnit,
         string $visibility,
@@ -342,6 +384,10 @@ final readonly class BudgetService
 
         if (!in_array($budgetType, self::BUDGET_TYPES, true)) {
             throw new AuthException('VALIDATION_ERROR', 'Budget type must be regular or installment.', 422);
+        }
+
+        if (!in_array($participantMode, self::PARTICIPANT_MODES, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Participant mode must be solo or group.', 422);
         }
 
         if (!in_array($installmentDisplayMode, self::INSTALLMENT_DISPLAY_MODES, true)) {
@@ -376,6 +422,83 @@ final readonly class BudgetService
         }
 
         return $defaultOwnerName;
+    }
+
+    private function hasParticipantModeInput(array $input): bool
+    {
+        return array_key_exists('participantMode', $input) || array_key_exists('participant_mode', $input);
+    }
+
+    private function hasParticipantsInput(array $input): bool
+    {
+        return array_key_exists('participants', $input);
+    }
+
+    private function participantsFromInput(array $input, string $participantMode, array $session): array
+    {
+        if ($participantMode === 'solo') {
+            return [];
+        }
+
+        $rawParticipants = $input['participants'] ?? null;
+        if ($rawParticipants === null) {
+            return [$this->defaultParticipantFromSession($session)];
+        }
+
+        if (!is_array($rawParticipants)) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget participants must be an array.', 422);
+        }
+
+        $participants = [];
+        foreach (array_slice($rawParticipants, 0, self::PARTICIPANT_LIMIT) as $index => $participant) {
+            if (!is_array($participant)) {
+                continue;
+            }
+
+            $name = Input::string($participant['name'] ?? null);
+            if ($name === null) {
+                continue;
+            }
+
+            if (strlen($name) > 160) {
+                throw new AuthException('VALIDATION_ERROR', 'Participant name must be 160 characters or less.', 422);
+            }
+
+            $email = $participant['email'] ?? null;
+            if (is_string($email) && trim($email) !== '') {
+                $email = Input::normalizedEmail($email);
+                if ($email === null) {
+                    throw new AuthException('VALIDATION_ERROR', 'Participant email must be valid.', 422);
+                }
+            } else {
+                $email = null;
+            }
+
+            $participants[] = [
+                'id' => $this->positiveInt($participant['id'] ?? null),
+                'memberUserId' => $this->positiveInt($participant['memberUserId'] ?? $participant['member_user_id'] ?? null),
+                'name' => $name,
+                'email' => $email,
+                'sortOrder' => $this->positiveInt($participant['sortOrder'] ?? $participant['sort_order'] ?? null) ?? ($index + 1),
+            ];
+        }
+
+        if ($participants === []) {
+            throw new AuthException('VALIDATION_ERROR', 'Group budget requires at least one participant.', 422);
+        }
+
+        return $participants;
+    }
+
+    private function defaultParticipantFromSession(array $session): array
+    {
+        return [
+            'id' => null,
+            'memberUserId' => (int) $session['user_id'],
+            'name' => (string) ($session['display_name'] ?? 'Me'),
+            'email' => is_string($session['email'] ?? null) ? (string) $session['email'] : null,
+            'sortOrder' => 1,
+        ];
     }
 
     private function optionalDateFromInput(array $input, string $camelKey, string $snakeKey): ?string
@@ -593,6 +716,25 @@ final readonly class BudgetService
         }
 
         return $string;
+    }
+
+    private function positiveInt(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value > 0 ? $value : null;
+        }
+
+        if (is_float($value) && floor($value) === $value) {
+            return $value > 0 ? (int) $value : null;
+        }
+
+        if (!is_string($value) || !ctype_digit($value)) {
+            return null;
+        }
+
+        $intValue = (int) $value;
+
+        return $intValue > 0 ? $intValue : null;
     }
 
     private function signatureLabelLanguage(mixed $value): string

@@ -11,25 +11,46 @@ final readonly class BudgetPdfDocumentRenderer
             'budgetHighlightsTitle' => '预算摘要',
             'datePrefix' => '日期：',
             'emptyBudgetItems' => '暂无预算项',
+            'emptyGroupSplitDetails' => '暂无分摊明细',
+            'emptySettlementInstructions' => '无需结算',
             'emptyInstallments' => '暂无分期目标',
             'emptyTransactions' => '暂无交易',
+            'groupExpenseSummaryTitle' => '多人费用摘要',
+            'groupSettlementSummaryTitle' => '多人结算摘要',
+            'groupSplitDetailsTitle' => '多人分摊明细',
             'installmentsTitle' => '分期明细',
+            'noParticipant' => '未指定',
             'remainingLabel' => '剩余',
+            'settlementInstructionsTitle' => '结算指引',
             'total' => '总计',
             'transactionBreakdownTitle' => '交易明细',
             'columnLabels' => [
                 'amount' => '金额',
+                'balance' => '差额',
                 'budget' => '预算',
                 'category' => '类别',
                 'estimated_actuals' => '预估实际',
+                'from' => '付款方',
+                'metric' => '项目',
+                'paid' => '已支付',
+                'paid_by' => '付款人',
+                'participant' => '参与者',
+                'participants' => '参与者',
                 'period' => '期间',
                 'period_amount' => '金额',
                 'progress' => '进度',
                 'remark' => '备注',
                 'sequence' => '序号',
+                'share' => '应承担',
+                'split_type' => '分摊方式',
                 'target_amount' => '目标',
+                'to' => '收款方',
                 'transaction_details' => '交易详情',
                 'variance' => '差额',
+            ],
+            'metrics' => [
+                'personalExpense' => '个人费用',
+                'sharedExpense' => '共同费用',
             ],
             'periodUnits' => [
                 'day' => '日',
@@ -37,36 +58,71 @@ final readonly class BudgetPdfDocumentRenderer
                 'week' => '周',
                 'year' => '年',
             ],
+            'splitTypes' => [
+                'custom_amount' => '自定义金额',
+                'custom_share' => '自定义比例',
+                'equal' => '平均分摊',
+                'excluded' => '不纳入结算',
+                'personal' => '个人自付',
+            ],
         ],
         'tc' => [
             'budgetHighlightsTitle' => '預算摘要',
             'datePrefix' => '日期：',
             'emptyBudgetItems' => '暫無預算項',
+            'emptyGroupSplitDetails' => '暫無分攤明細',
+            'emptySettlementInstructions' => '無需結算',
             'emptyInstallments' => '暫無分期目標',
             'emptyTransactions' => '暫無交易',
+            'groupExpenseSummaryTitle' => '多人費用摘要',
+            'groupSettlementSummaryTitle' => '多人結算摘要',
+            'groupSplitDetailsTitle' => '多人分攤明細',
             'installmentsTitle' => '分期明細',
+            'noParticipant' => '未指定',
             'remainingLabel' => '剩餘',
+            'settlementInstructionsTitle' => '結算指引',
             'total' => '總計',
             'transactionBreakdownTitle' => '交易明細',
             'columnLabels' => [
                 'amount' => '金額',
+                'balance' => '差額',
                 'budget' => '預算',
                 'category' => '類別',
                 'estimated_actuals' => '預估實際',
+                'from' => '付款方',
+                'metric' => '項目',
+                'paid' => '已支付',
+                'paid_by' => '付款人',
+                'participant' => '參與者',
+                'participants' => '參與者',
                 'period' => '期間',
                 'period_amount' => '金額',
                 'progress' => '進度',
                 'remark' => '備註',
                 'sequence' => '序號',
+                'share' => '應承擔',
+                'split_type' => '分攤方式',
                 'target_amount' => '目標',
+                'to' => '收款方',
                 'transaction_details' => '交易詳情',
                 'variance' => '差額',
+            ],
+            'metrics' => [
+                'personalExpense' => '個人費用',
+                'sharedExpense' => '共同費用',
             ],
             'periodUnits' => [
                 'day' => '日',
                 'month' => '月',
                 'week' => '週',
                 'year' => '年',
+            ],
+            'splitTypes' => [
+                'custom_amount' => '自訂金額',
+                'custom_share' => '自訂比例',
+                'equal' => '平均分攤',
+                'excluded' => '不納入結算',
+                'personal' => '個人自付',
             ],
         ],
     ];
@@ -122,6 +178,7 @@ final readonly class BudgetPdfDocumentRenderer
                 $this->tableText('No budget items', $tableContext['labels']['emptyBudgetItems'], $tableContext),
                 $this->datePrefix($tableContext),
             )
+            . $this->groupBudgetSectionsHtml($budget, $periodText, $tableContext)
             . $this->tableRenderer->render(
                 $transactionSection,
                 $periodText,
@@ -182,6 +239,10 @@ final readonly class BudgetPdfDocumentRenderer
 
         $title = match ((string) ($section['key'] ?? '')) {
             'budget_highlights' => $context['labels']['budgetHighlightsTitle'],
+            'group_expense_summary' => $context['labels']['groupExpenseSummaryTitle'],
+            'group_settlement_summary' => $context['labels']['groupSettlementSummaryTitle'],
+            'group_split_details' => $context['labels']['groupSplitDetailsTitle'],
+            'settlement_instructions' => $context['labels']['settlementInstructionsTitle'],
             'transaction_breakdown' => $context['labels']['transactionBreakdownTitle'],
             'installments' => $context['labels']['installmentsTitle'],
             default => (string) ($section['title'] ?? ''),
@@ -274,6 +335,557 @@ final readonly class BudgetPdfDocumentRenderer
             },
             is_array($budget['items'] ?? null) ? $budget['items'] : [],
         );
+    }
+
+    private function groupBudgetSectionsHtml(array $budget, string $periodText, array $context): string
+    {
+        if (($budget['participantMode'] ?? 'solo') !== 'group') {
+            return '';
+        }
+
+        $participants = $this->budgetParticipants($budget);
+        if ($participants === []) {
+            return '';
+        }
+
+        $summary = $this->groupBudgetSummary($budget, $participants);
+        $baseCurrency = (string) $budget['baseCurrency'];
+
+        return $this->tableRenderer->render(
+            $this->groupSplitDetailsSection($context),
+            $periodText,
+            $this->groupSplitDetailRows($budget, $participants, $baseCurrency, $context),
+            null,
+            $this->tableText(
+                'No split details',
+                $context['labels']['emptyGroupSplitDetails'],
+                $context,
+            ),
+            $this->datePrefix($context),
+        )
+            . $this->tableRenderer->render(
+                $this->groupExpenseSummarySection($context),
+                $periodText,
+                [
+                    [
+                        $this->tableText(
+                            'Shared expense',
+                            $context['labels']['metrics']['sharedExpense'],
+                            $context,
+                        ),
+                        $this->formatter->templateMoney($baseCurrency, $summary['sharedExpenseBase']),
+                    ],
+                    [
+                        $this->tableText(
+                            'Personal expense',
+                            $context['labels']['metrics']['personalExpense'],
+                            $context,
+                        ),
+                        $this->formatter->templateMoney($baseCurrency, $summary['personalExpenseBase']),
+                    ],
+                ],
+                [
+                    $this->tableText('Total', $context['labels']['total'], $context),
+                    $this->formatter->templateMoney(
+                        $baseCurrency,
+                        $summary['sharedExpenseBase'] + $summary['personalExpenseBase'],
+                        true,
+                    ),
+                ],
+                '',
+                $this->datePrefix($context),
+            )
+            . $this->tableRenderer->render(
+                $this->groupSettlementSummarySection($context),
+                $periodText,
+                array_map(
+                    fn (array $participantSummary): array => [
+                        $participantSummary['participant']['name'],
+                        $this->formatter->templateMoney($baseCurrency, $participantSummary['paidBase']),
+                        $this->formatter->templateMoney($baseCurrency, $participantSummary['shareBase']),
+                        $this->formatter->templateMoney($baseCurrency, $participantSummary['balanceBase']),
+                    ],
+                    $summary['participantSummaries'],
+                ),
+                [
+                    $this->tableText('Total', $context['labels']['total'], $context),
+                    $this->formatter->templateMoney($baseCurrency, $summary['paidTotalBase'], true),
+                    $this->formatter->templateMoney($baseCurrency, $summary['shareTotalBase'], true),
+                    $this->formatter->templateMoney($baseCurrency, 0.0, true),
+                ],
+                '',
+                $this->datePrefix($context),
+            )
+            . $this->tableRenderer->render(
+                $this->settlementInstructionsSection($context),
+                $periodText,
+                array_map(
+                    fn (array $settlement): array => [
+                        $this->participantName($settlement['fromParticipantId'], $participants, $context),
+                        $this->participantName($settlement['toParticipantId'], $participants, $context),
+                        $this->formatter->templateMoney($baseCurrency, $settlement['amountBase']),
+                    ],
+                    $summary['settlements'],
+                ),
+                null,
+                $this->tableText(
+                    'No settlement needed',
+                    $context['labels']['emptySettlementInstructions'],
+                    $context,
+                ),
+                $this->datePrefix($context),
+            );
+    }
+
+    private function groupSplitDetailRows(
+        array $budget,
+        array $participants,
+        string $baseCurrency,
+        array $context,
+    ): array {
+        $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
+        $rows = [];
+
+        foreach (is_array($budget['items'] ?? null) ? $budget['items'] : [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $effective = $this->effectiveItemAmounts($item, $transactions);
+            $split = $this->itemSplit($item, $participants);
+            $rows[] = [
+                (string) ($item['category'] ?? $item['label'] ?? ''),
+                $this->participantName($split['paidByParticipantId'], $participants, $context),
+                $this->splitTypeText($split['splitType'], $context),
+                $this->splitParticipantText($split, $participants, $baseCurrency, $context),
+                $this->formatter->templateMoney($baseCurrency, $effective['budgetBase']),
+                (string) ($split['note'] ?? ''),
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function groupSplitDetailsSection(array $context): array
+    {
+        return $this->localizedTemplateSection([
+            'key' => 'group_split_details',
+            'title' => 'Group Split Details',
+            'columns' => [
+                ['key' => 'category', 'label' => 'Category', 'align' => 'left', 'widthPercent' => 24, 'dataType' => 'text'],
+                ['key' => 'paid_by', 'label' => 'Paid By', 'align' => 'left', 'widthPercent' => 14, 'dataType' => 'text'],
+                ['key' => 'split_type', 'label' => 'Split Type', 'align' => 'left', 'widthPercent' => 16, 'dataType' => 'text'],
+                ['key' => 'participants', 'label' => 'Participants', 'align' => 'left', 'widthPercent' => 22, 'dataType' => 'text'],
+                ['key' => 'amount', 'label' => 'Amount', 'align' => 'right', 'widthPercent' => 14, 'dataType' => 'money'],
+                ['key' => 'remark', 'label' => 'Remark', 'align' => 'left', 'widthPercent' => 10, 'dataType' => 'text'],
+            ],
+        ], $context);
+    }
+
+    private function groupExpenseSummarySection(array $context): array
+    {
+        return $this->localizedTemplateSection([
+            'key' => 'group_expense_summary',
+            'title' => 'Group Expense Summary',
+            'columns' => [
+                ['key' => 'metric', 'label' => 'Metric', 'align' => 'left', 'widthPercent' => 70, 'dataType' => 'text'],
+                ['key' => 'amount', 'label' => 'Amount', 'align' => 'right', 'widthPercent' => 30, 'dataType' => 'money'],
+            ],
+        ], $context);
+    }
+
+    private function groupSettlementSummarySection(array $context): array
+    {
+        return $this->localizedTemplateSection([
+            'key' => 'group_settlement_summary',
+            'title' => 'Group Settlement Summary',
+            'columns' => [
+                ['key' => 'participant', 'label' => 'Participant', 'align' => 'left', 'widthPercent' => 34, 'dataType' => 'text'],
+                ['key' => 'paid', 'label' => 'Paid', 'align' => 'right', 'widthPercent' => 22, 'dataType' => 'money'],
+                ['key' => 'share', 'label' => 'Share', 'align' => 'right', 'widthPercent' => 22, 'dataType' => 'money'],
+                ['key' => 'balance', 'label' => 'Balance', 'align' => 'right', 'widthPercent' => 22, 'dataType' => 'money'],
+            ],
+        ], $context);
+    }
+
+    private function settlementInstructionsSection(array $context): array
+    {
+        return $this->localizedTemplateSection([
+            'key' => 'settlement_instructions',
+            'title' => 'Settlement Instructions',
+            'columns' => [
+                ['key' => 'from', 'label' => 'From', 'align' => 'left', 'widthPercent' => 38, 'dataType' => 'text'],
+                ['key' => 'to', 'label' => 'To', 'align' => 'left', 'widthPercent' => 38, 'dataType' => 'text'],
+                ['key' => 'amount', 'label' => 'Amount', 'align' => 'right', 'widthPercent' => 24, 'dataType' => 'money'],
+            ],
+        ], $context);
+    }
+
+    private function groupBudgetSummary(array $budget, array $participants): array
+    {
+        $totals = [];
+        foreach ($participants as $participant) {
+            $totals[(int) $participant['id']] = [
+                'paidBase' => 0.0,
+                'shareBase' => 0.0,
+            ];
+        }
+
+        $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
+        $sharedExpenseBase = 0.0;
+        $personalExpenseBase = 0.0;
+
+        foreach (is_array($budget['items'] ?? null) ? $budget['items'] : [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $amountBase = $this->effectiveItemAmounts($item, $transactions)['budgetBase'];
+            $split = $this->itemSplit($item, $participants);
+            $includedParticipants = array_values(array_filter(
+                $split['participants'],
+                fn (array $participant): bool => ($participant['isIncluded'] ?? true) === true
+                    && isset($totals[(int) $participant['participantId']]),
+            ));
+
+            if ($split['splitType'] === 'excluded' || $includedParticipants === []) {
+                continue;
+            }
+
+            $paidByParticipantId = $split['paidByParticipantId'];
+            if (is_int($paidByParticipantId) && isset($totals[$paidByParticipantId])) {
+                $totals[$paidByParticipantId]['paidBase'] = $this->roundMoney(
+                    $totals[$paidByParticipantId]['paidBase'] + $amountBase,
+                );
+            }
+
+            foreach ($this->sharesForSplit($split, $includedParticipants, $amountBase) as $participantId => $shareAmount) {
+                if (isset($totals[$participantId])) {
+                    $totals[$participantId]['shareBase'] = $this->roundMoney(
+                        $totals[$participantId]['shareBase'] + $shareAmount,
+                    );
+                }
+            }
+
+            if ($split['splitType'] === 'personal') {
+                $personalExpenseBase = $this->roundMoney($personalExpenseBase + $amountBase);
+            } else {
+                $sharedExpenseBase = $this->roundMoney($sharedExpenseBase + $amountBase);
+            }
+        }
+
+        $participantSummaries = array_map(
+            function (array $participant) use ($totals): array {
+                $participantId = (int) $participant['id'];
+                $total = $totals[$participantId] ?? ['paidBase' => 0.0, 'shareBase' => 0.0];
+
+                return [
+                    'participant' => $participant,
+                    'paidBase' => $this->roundMoney($total['paidBase']),
+                    'shareBase' => $this->roundMoney($total['shareBase']),
+                    'balanceBase' => $this->roundMoney($total['paidBase'] - $total['shareBase']),
+                ];
+            },
+            $participants,
+        );
+
+        return [
+            'paidTotalBase' => $this->roundMoney(array_reduce(
+                $participantSummaries,
+                static fn (float $total, array $summary): float => $total + $summary['paidBase'],
+                0.0,
+            )),
+            'participantSummaries' => $participantSummaries,
+            'personalExpenseBase' => $personalExpenseBase,
+            'settlements' => $this->settlementsFromSummaries($participantSummaries),
+            'sharedExpenseBase' => $sharedExpenseBase,
+            'shareTotalBase' => $this->roundMoney(array_reduce(
+                $participantSummaries,
+                static fn (float $total, array $summary): float => $total + $summary['shareBase'],
+                0.0,
+            )),
+        ];
+    }
+
+    private function budgetParticipants(array $budget): array
+    {
+        $participants = is_array($budget['participants'] ?? null) ? $budget['participants'] : [];
+
+        return array_values(array_filter(
+            array_map(
+                static function (array $participant): ?array {
+                    if (!is_numeric($participant['id'] ?? null)) {
+                        return null;
+                    }
+
+                    $name = trim((string) ($participant['name'] ?? ''));
+                    if ($name === '') {
+                        return null;
+                    }
+
+                    return [
+                        'id' => (int) $participant['id'],
+                        'name' => $name,
+                    ];
+                },
+                array_filter($participants, 'is_array'),
+            ),
+        ));
+    }
+
+    private function itemSplit(array $item, array $participants): array
+    {
+        $rawSplit = is_array($item['split'] ?? null) ? $item['split'] : null;
+        if ($rawSplit === null) {
+            return $this->defaultEqualSplit($participants);
+        }
+
+        $splitType = $this->splitType($rawSplit['splitType'] ?? null);
+        $paidByParticipantId = $this->participantIdOrNull($rawSplit['paidByParticipantId'] ?? null);
+        $participantIds = array_fill_keys(array_map(
+            static fn (array $participant): int => (int) $participant['id'],
+            $participants,
+        ), true);
+        $splitParticipants = [];
+
+        if (is_array($rawSplit['participants'] ?? null)) {
+            foreach ($rawSplit['participants'] as $participant) {
+                if (!is_array($participant)) {
+                    continue;
+                }
+
+                $participantId = $this->participantIdOrNull($participant['participantId'] ?? null);
+                if ($participantId === null || !isset($participantIds[$participantId])) {
+                    continue;
+                }
+
+                $splitParticipants[$participantId] = [
+                    'participantId' => $participantId,
+                    'isIncluded' => ($participant['isIncluded'] ?? true) !== false,
+                    'shareRatio' => is_numeric($participant['shareRatio'] ?? null)
+                        ? (float) $participant['shareRatio']
+                        : null,
+                    'shareAmountBase' => is_numeric($participant['shareAmountBase'] ?? null)
+                        ? (float) $participant['shareAmountBase']
+                        : null,
+                ];
+            }
+        }
+
+        if ($splitType === 'personal' && $splitParticipants === [] && $paidByParticipantId !== null) {
+            $splitParticipants[$paidByParticipantId] = [
+                'participantId' => $paidByParticipantId,
+                'isIncluded' => true,
+                'shareRatio' => null,
+                'shareAmountBase' => null,
+            ];
+        }
+        if ($splitType !== 'excluded' && $splitParticipants === []) {
+            return [
+                ...$this->defaultEqualSplit($participants),
+                'paidByParticipantId' => $paidByParticipantId,
+                'splitType' => $splitType,
+                'note' => is_string($rawSplit['note'] ?? null) ? trim((string) $rawSplit['note']) : '',
+            ];
+        }
+
+        return [
+            'paidByParticipantId' => $paidByParticipantId,
+            'splitType' => $splitType,
+            'note' => is_string($rawSplit['note'] ?? null) ? trim((string) $rawSplit['note']) : '',
+            'participants' => array_values($splitParticipants),
+        ];
+    }
+
+    private function defaultEqualSplit(array $participants): array
+    {
+        return [
+            'paidByParticipantId' => isset($participants[0]['id']) ? (int) $participants[0]['id'] : null,
+            'splitType' => 'equal',
+            'note' => '',
+            'participants' => array_map(
+                static fn (array $participant): array => [
+                    'participantId' => (int) $participant['id'],
+                    'isIncluded' => true,
+                    'shareRatio' => null,
+                    'shareAmountBase' => null,
+                ],
+                $participants,
+            ),
+        ];
+    }
+
+    private function sharesForSplit(array $split, array $participants, float $amountBase): array
+    {
+        if ($split['splitType'] === 'custom_amount') {
+            $shares = [];
+            foreach ($participants as $participant) {
+                $shares[(int) $participant['participantId']] = $this->roundMoney(
+                    max(0.0, (float) ($participant['shareAmountBase'] ?? 0.0)),
+                );
+            }
+
+            return $shares;
+        }
+
+        if ($split['splitType'] === 'custom_share') {
+            $totalRatio = array_reduce(
+                $participants,
+                static fn (float $total, array $participant): float => $total + max(0.0, (float) ($participant['shareRatio'] ?? 0.0)),
+                0.0,
+            );
+            if ($totalRatio > 0.0) {
+                $shares = [];
+                foreach ($participants as $participant) {
+                    $shares[(int) $participant['participantId']] = $this->roundMoney(
+                        $amountBase * max(0.0, (float) ($participant['shareRatio'] ?? 0.0)) / $totalRatio,
+                    );
+                }
+
+                return $shares;
+            }
+        }
+
+        $equalShare = $participants === [] ? 0.0 : $this->roundMoney($amountBase / count($participants));
+        $shares = [];
+        foreach ($participants as $participant) {
+            $shares[(int) $participant['participantId']] = $equalShare;
+        }
+
+        return $shares;
+    }
+
+    private function settlementsFromSummaries(array $summaries): array
+    {
+        $debtors = array_values(array_map(
+            static fn (array $summary): array => [
+                'participantId' => (int) $summary['participant']['id'],
+                'amount' => round(abs((float) $summary['balanceBase']), 2),
+            ],
+            array_filter($summaries, static fn (array $summary): bool => (float) $summary['balanceBase'] < -0.004),
+        ));
+        $creditors = array_values(array_map(
+            static fn (array $summary): array => [
+                'participantId' => (int) $summary['participant']['id'],
+                'amount' => round((float) $summary['balanceBase'], 2),
+            ],
+            array_filter($summaries, static fn (array $summary): bool => (float) $summary['balanceBase'] > 0.004),
+        ));
+
+        $settlements = [];
+        $debtorIndex = 0;
+        $creditorIndex = 0;
+        while ($debtorIndex < count($debtors) && $creditorIndex < count($creditors)) {
+            $amount = $this->roundMoney(min(
+                (float) $debtors[$debtorIndex]['amount'],
+                (float) $creditors[$creditorIndex]['amount'],
+            ));
+            if ($amount > 0.0) {
+                $settlements[] = [
+                    'amountBase' => $amount,
+                    'fromParticipantId' => (int) $debtors[$debtorIndex]['participantId'],
+                    'toParticipantId' => (int) $creditors[$creditorIndex]['participantId'],
+                ];
+            }
+
+            $debtors[$debtorIndex]['amount'] = $this->roundMoney((float) $debtors[$debtorIndex]['amount'] - $amount);
+            $creditors[$creditorIndex]['amount'] = $this->roundMoney((float) $creditors[$creditorIndex]['amount'] - $amount);
+            if ((float) $debtors[$debtorIndex]['amount'] <= 0.004) {
+                $debtorIndex++;
+            }
+            if ((float) $creditors[$creditorIndex]['amount'] <= 0.004) {
+                $creditorIndex++;
+            }
+        }
+
+        return $settlements;
+    }
+
+    private function splitParticipantText(
+        array $split,
+        array $participants,
+        string $baseCurrency,
+        array $context,
+    ): string
+    {
+        if ($split['splitType'] === 'excluded') {
+            return '';
+        }
+
+        $lines = [];
+        foreach ($split['participants'] as $participant) {
+            if (($participant['isIncluded'] ?? true) !== true) {
+                continue;
+            }
+
+            $participantId = (int) $participant['participantId'];
+            $line = $this->participantName($participantId, $participants, $context);
+            if ($split['splitType'] === 'custom_share' && is_numeric($participant['shareRatio'] ?? null)) {
+                $line .= ' (' . rtrim(rtrim(number_format((float) $participant['shareRatio'], 2, '.', ''), '0'), '.') . ')';
+            }
+            if ($split['splitType'] === 'custom_amount' && is_numeric($participant['shareAmountBase'] ?? null)) {
+                $line .= ' ' . $this->formatter->templateMoney($baseCurrency, (float) $participant['shareAmountBase']);
+            }
+            $lines[] = $line;
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function splitTypeText(string $splitType, array $context): string
+    {
+        $english = [
+            'custom_amount' => 'Custom Amount',
+            'custom_share' => 'Custom Share',
+            'equal' => 'Equal Split',
+            'excluded' => 'Excluded',
+            'personal' => 'Personal Expense',
+        ][$splitType] ?? 'Equal Split';
+
+        return $this->tableText(
+            $english,
+            $context['labels']['splitTypes'][$splitType] ?? $context['labels']['splitTypes']['equal'],
+            $context,
+        );
+    }
+
+    private function participantName(?int $participantId, array $participants, array $context): string
+    {
+        if ($participantId !== null) {
+            foreach ($participants as $participant) {
+                if ((int) $participant['id'] === $participantId) {
+                    return (string) $participant['name'];
+                }
+            }
+        }
+
+        return $this->tableText('Unspecified', $context['labels']['noParticipant'], $context);
+    }
+
+    private function splitType(mixed $value): string
+    {
+        return in_array($value, ['equal', 'personal', 'custom_amount', 'custom_share', 'excluded'], true)
+            ? (string) $value
+            : 'equal';
+    }
+
+    private function participantIdOrNull(mixed $value): ?int
+    {
+        if (is_int($value) && $value > 0) {
+            return $value;
+        }
+
+        if (is_float($value) && floor($value) === $value && $value > 0) {
+            return (int) $value;
+        }
+
+        if (is_string($value) && ctype_digit($value)) {
+            $intValue = (int) $value;
+
+            return $intValue > 0 ? $intValue : null;
+        }
+
+        return null;
     }
 
     private function transactionRows(array $transactions, string $baseCurrency): array
@@ -807,6 +1419,15 @@ final readonly class BudgetPdfDocumentRenderer
         }
 
         return round($amountBase / $rateToBase, 2);
+    }
+
+    private function roundMoney(float $value): float
+    {
+        if (abs($value) < 0.005) {
+            return 0.0;
+        }
+
+        return round($value, 2);
     }
 
     private function effectiveTotal(array $budget, string $key): float

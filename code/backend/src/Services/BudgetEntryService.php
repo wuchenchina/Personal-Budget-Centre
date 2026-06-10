@@ -14,6 +14,7 @@ use BudgetCentre\Repositories\BudgetRepository;
 use BudgetCentre\Repositories\CurrencyRepository;
 use BudgetCentre\Support\Input;
 use PDO;
+use Throwable;
 
 final readonly class BudgetEntryService
 {
@@ -31,10 +32,24 @@ final readonly class BudgetEntryService
         $budgetId = $this->budgetIdFromInput($input);
         $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
         $budget = $this->budgetCurrencyBasics($budgetId);
+        $repository = new BudgetEntryRepository($this->pdo);
+        $split = $this->hasItemSplitInput($input)
+            ? $this->itemSplitFromInput($input, $budgetId)
+            : null;
 
-        (new BudgetEntryRepository($this->pdo))->createItem(
-            $this->itemPayload($input, $budgetId, $workspaceId, (int) $session['user_id'], $budget),
-        );
+        $this->pdo->beginTransaction();
+        try {
+            $itemId = $repository->createItem(
+                $this->itemPayload($input, $budgetId, $workspaceId, (int) $session['user_id'], $budget),
+            );
+            if ($this->hasItemSplitInput($input)) {
+                $repository->replaceItemSplit($itemId, $split);
+            }
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
@@ -50,13 +65,27 @@ final readonly class BudgetEntryService
         }
 
         $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
-        $repository->updateItem($id, $this->itemPayload(
-            $input,
-            $budgetId,
-            $workspaceId,
-            (int) $session['user_id'],
-            $this->budgetCurrencyBasics($budgetId),
-        ));
+        $split = $this->hasItemSplitInput($input)
+            ? $this->itemSplitFromInput($input, $budgetId)
+            : null;
+
+        $this->pdo->beginTransaction();
+        try {
+            $repository->updateItem($id, $this->itemPayload(
+                $input,
+                $budgetId,
+                $workspaceId,
+                (int) $session['user_id'],
+                $this->budgetCurrencyBasics($budgetId),
+            ));
+            if ($this->hasItemSplitInput($input)) {
+                $repository->replaceItemSplit($id, $split);
+            }
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
@@ -294,6 +323,118 @@ final readonly class BudgetEntryService
             'remark' => Input::string($input['remark'] ?? null),
             'sort_order' => Input::positiveInt($input['sortOrder'] ?? $input['sort_order'] ?? null) ?? 0,
         ];
+    }
+
+    private function hasItemSplitInput(array $input): bool
+    {
+        return array_key_exists('split', $input) || array_key_exists('split_config', $input);
+    }
+
+    private function itemSplitFromInput(array $input, int $budgetId): ?array
+    {
+        $raw = $input['split'] ?? $input['split_config'] ?? null;
+        if ($raw === null) {
+            return null;
+        }
+
+        if (!is_array($raw)) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget item split must be an object.', 422);
+        }
+
+        $participantIds = (new BudgetRepository($this->pdo))->participantIdsForBudget($budgetId);
+        $participantIdSet = array_fill_keys($participantIds, true);
+        if ($participantIdSet === []) {
+            return null;
+        }
+
+        $paidByParticipantId = $this->positiveInt(
+            $raw['paidByParticipantId'] ?? $raw['paid_by_participant_id'] ?? null,
+        );
+        if ($paidByParticipantId !== null && !isset($participantIdSet[$paidByParticipantId])) {
+            throw new AuthException('VALIDATION_ERROR', 'Paid-by participant does not belong to this budget.', 422);
+        }
+
+        $splitType = $this->itemSplitType($raw['splitType'] ?? $raw['split_type'] ?? null);
+        $note = Input::string($raw['note'] ?? null);
+        if ($note !== null && strlen($note) > 500) {
+            throw new AuthException('VALIDATION_ERROR', 'Split note must be 500 characters or less.', 422);
+        }
+
+        $participants = $this->itemSplitParticipantsFromInput(
+            $raw['participants'] ?? null,
+            $participantIdSet,
+        );
+
+        if ($splitType === 'personal') {
+            if ($paidByParticipantId === null) {
+                throw new AuthException('VALIDATION_ERROR', 'Personal split requires a paid-by participant.', 422);
+            }
+            if ($participants === []) {
+                $participants[] = [
+                    'participantId' => $paidByParticipantId,
+                    'isIncluded' => true,
+                    'shareRatio' => null,
+                    'shareAmountBase' => null,
+                ];
+            }
+        }
+
+        if ($splitType !== 'excluded' && $participants === []) {
+            throw new AuthException('VALIDATION_ERROR', 'Split must include at least one participant.', 422);
+        }
+
+        return [
+            'paidByParticipantId' => $paidByParticipantId,
+            'splitType' => $splitType,
+            'note' => $note,
+            'participants' => $participants,
+        ];
+    }
+
+    private function itemSplitParticipantsFromInput(mixed $value, array $participantIdSet): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $participants = [];
+        foreach (array_slice($value, 0, 100) as $participant) {
+            if (!is_array($participant)) {
+                continue;
+            }
+
+            $participantId = $this->positiveInt(
+                $participant['participantId'] ?? $participant['participant_id'] ?? null,
+            );
+            if ($participantId === null || !isset($participantIdSet[$participantId])) {
+                throw new AuthException('VALIDATION_ERROR', 'Split participant does not belong to this budget.', 422);
+            }
+
+            $shareRatio = $this->number($participant['shareRatio'] ?? $participant['share_ratio'] ?? null);
+            $shareAmountBase = $this->number($participant['shareAmountBase'] ?? $participant['share_amount_base'] ?? null);
+            if ($shareRatio !== null && $shareRatio < 0.0) {
+                throw new AuthException('VALIDATION_ERROR', 'Split share ratio cannot be less than 0.', 422);
+            }
+            if ($shareAmountBase !== null && $shareAmountBase < 0.0) {
+                throw new AuthException('VALIDATION_ERROR', 'Split share amount cannot be less than 0.', 422);
+            }
+
+            $participants[$participantId] = [
+                'participantId' => $participantId,
+                'isIncluded' => ($participant['isIncluded'] ?? $participant['is_included'] ?? true) !== false,
+                'shareRatio' => $shareRatio,
+                'shareAmountBase' => $shareAmountBase,
+            ];
+        }
+
+        return array_values($participants);
+    }
+
+    private function itemSplitType(mixed $value): string
+    {
+        return in_array($value, ['equal', 'personal', 'custom_amount', 'custom_share', 'excluded'], true)
+            ? (string) $value
+            : 'equal';
     }
 
     private function requireBudgetWrite(int $budgetId, int $userId): int

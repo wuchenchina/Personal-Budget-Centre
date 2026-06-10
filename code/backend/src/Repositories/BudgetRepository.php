@@ -14,8 +14,11 @@ final readonly class BudgetRepository
 
     public function listForWorkspace(int $workspaceId, int $userId, bool $includePrivate): array
     {
+        $participantModeSelect = $this->hasBudgetParticipantModeColumn()
+            ? 'b.participant_mode,'
+            : "'solo' AS participant_mode,";
         $statement = $this->pdo->prepare(
-            <<<'SQL'
+            <<<SQL
             SELECT
               b.id,
               b.workspace_id,
@@ -24,6 +27,7 @@ final readonly class BudgetRepository
               b.start_date,
               b.end_date,
               b.budget_type,
+              {$participantModeSelect}
               b.installment_display_mode,
               b.installment_period_unit,
               b.visibility,
@@ -144,6 +148,7 @@ final readonly class BudgetRepository
         int $baseCurrencyId,
         int $displayCurrencyId,
         string $budgetType,
+        string $participantMode,
         string $installmentDisplayMode,
         string $installmentPeriodUnit,
         string $visibility,
@@ -151,8 +156,14 @@ final readonly class BudgetRepository
         ?string $note,
         ?string $signatureConfig,
     ): int {
+        $participantModeInsertColumn = $this->hasBudgetParticipantModeColumn()
+            ? 'participant_mode,'
+            : '';
+        $participantModeInsertValue = $this->hasBudgetParticipantModeColumn()
+            ? ':participant_mode,'
+            : '';
         $statement = $this->pdo->prepare(
-            <<<'SQL'
+            <<<SQL
             INSERT INTO budgets (
               workspace_id,
               user_id,
@@ -166,6 +177,7 @@ final readonly class BudgetRepository
               base_currency_id,
               display_currency_id,
               budget_type,
+              {$participantModeInsertColumn}
               installment_display_mode,
               installment_period_unit,
               visibility,
@@ -185,6 +197,7 @@ final readonly class BudgetRepository
               :base_currency_id,
               :display_currency_id,
               :budget_type,
+              {$participantModeInsertValue}
               :installment_display_mode,
               :installment_period_unit,
               :visibility,
@@ -194,7 +207,7 @@ final readonly class BudgetRepository
             )
             SQL
         );
-        $statement->execute([
+        $payload = [
             'workspace_id' => $workspaceId,
             'user_id' => $userId,
             'owner_user_id' => $ownerUserId,
@@ -213,15 +226,22 @@ final readonly class BudgetRepository
             'status' => $status,
             'note' => $note,
             'signature_config' => $signatureConfig,
-        ]);
+        ];
+        if ($this->hasBudgetParticipantModeColumn()) {
+            $payload['participant_mode'] = $participantMode;
+        }
+        $statement->execute($payload);
 
         return (int) $this->pdo->lastInsertId();
     }
 
     public function findForUser(int $budgetId, int $userId, bool $includePrivate): ?array
     {
+        $participantModeSelect = $this->hasBudgetParticipantModeColumn()
+            ? 'b.participant_mode,'
+            : "'solo' AS participant_mode,";
         $statement = $this->pdo->prepare(
-            <<<'SQL'
+            <<<SQL
             SELECT
               b.id,
               b.workspace_id,
@@ -230,6 +250,7 @@ final readonly class BudgetRepository
               b.start_date,
               b.end_date,
               b.budget_type,
+              {$participantModeSelect}
               b.installment_display_mode,
               b.installment_period_unit,
               b.visibility,
@@ -338,6 +359,7 @@ final readonly class BudgetRepository
 
         return [
             ...$this->budgetFromRow($row),
+            'participants' => $this->participantsForBudget($budgetId),
             'items' => $this->itemsForBudget(
                 $budgetId,
                 $this->installmentPeriodUnit($row['installment_period_unit'] ?? null),
@@ -434,6 +456,7 @@ final readonly class BudgetRepository
         int $baseCurrencyId,
         int $displayCurrencyId,
         string $budgetType,
+        string $participantMode,
         string $installmentDisplayMode,
         string $installmentPeriodUnit,
         string $visibility,
@@ -441,8 +464,11 @@ final readonly class BudgetRepository
         ?string $note,
         ?string $signatureConfig,
     ): void {
+        $participantModeSet = $this->hasBudgetParticipantModeColumn()
+            ? 'participant_mode = :participant_mode,'
+            : '';
         $statement = $this->pdo->prepare(
-            <<<'SQL'
+            <<<SQL
             UPDATE budgets
             SET
               title = :title,
@@ -452,6 +478,7 @@ final readonly class BudgetRepository
               base_currency_id = :base_currency_id,
               display_currency_id = :display_currency_id,
               budget_type = :budget_type,
+              {$participantModeSet}
               installment_display_mode = :installment_display_mode,
               installment_period_unit = :installment_period_unit,
               visibility = :visibility,
@@ -461,7 +488,7 @@ final readonly class BudgetRepository
             WHERE id = :budget_id
             SQL
         );
-        $statement->execute([
+        $payload = [
             'budget_id' => $budgetId,
             'title' => $title,
             'owner_name' => $ownerName,
@@ -476,13 +503,134 @@ final readonly class BudgetRepository
             'status' => $status,
             'note' => $note,
             'signature_config' => $signatureConfig,
-        ]);
+        ];
+        if ($this->hasBudgetParticipantModeColumn()) {
+            $payload['participant_mode'] = $participantMode;
+        }
+        $statement->execute($payload);
     }
 
     public function delete(int $budgetId): void
     {
         $statement = $this->pdo->prepare('DELETE FROM budgets WHERE id = :budget_id');
         $statement->execute(['budget_id' => $budgetId]);
+    }
+
+    public function participantsForBudget(int $budgetId): array
+    {
+        if (!$this->hasGroupBudgetTables()) {
+            return [];
+        }
+
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT
+              id,
+              member_user_id,
+              name,
+              email,
+              sort_order,
+              created_at,
+              updated_at
+            FROM budget_participants
+            WHERE budget_id = :budget_id
+            ORDER BY sort_order ASC, id ASC
+            SQL
+        );
+        $statement->execute(['budget_id' => $budgetId]);
+
+        return array_map(
+            fn (array $row): array => [
+                'id' => (int) $row['id'],
+                'memberUserId' => $row['member_user_id'] === null ? null : (int) $row['member_user_id'],
+                'name' => $row['name'],
+                'email' => $row['email'],
+                'sortOrder' => (int) $row['sort_order'],
+                'createdAt' => $row['created_at'],
+                'updatedAt' => $row['updated_at'],
+            ],
+            $statement->fetchAll(),
+        );
+    }
+
+    public function participantIdsForBudget(int $budgetId): array
+    {
+        return array_map(
+            static fn (array $participant): int => (int) $participant['id'],
+            $this->participantsForBudget($budgetId),
+        );
+    }
+
+    public function replaceParticipants(int $budgetId, array $participants): void
+    {
+        if (!$this->hasGroupBudgetTables()) {
+            return;
+        }
+
+        $existingIds = $this->participantIdsForBudget($budgetId);
+        $existingIdSet = array_fill_keys($existingIds, true);
+        $keptIds = [];
+
+        foreach ($participants as $index => $participant) {
+            $id = $participant['id'] ?? null;
+            $payload = [
+                'budget_id' => $budgetId,
+                'member_user_id' => $participant['memberUserId'] ?? null,
+                'name' => $participant['name'],
+                'email' => $participant['email'] ?? null,
+                'sort_order' => $participant['sortOrder'] ?? ($index + 1),
+            ];
+
+            if (is_int($id) && isset($existingIdSet[$id])) {
+                $statement = $this->pdo->prepare(
+                    <<<'SQL'
+                    UPDATE budget_participants
+                    SET
+                      member_user_id = :member_user_id,
+                      name = :name,
+                      email = :email,
+                      sort_order = :sort_order
+                    WHERE id = :id
+                      AND budget_id = :budget_id
+                    SQL
+                );
+                $statement->execute(['id' => $id, ...$payload]);
+                $keptIds[] = $id;
+
+                continue;
+            }
+
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                INSERT INTO budget_participants (
+                  budget_id,
+                  member_user_id,
+                  name,
+                  email,
+                  sort_order
+                ) VALUES (
+                  :budget_id,
+                  :member_user_id,
+                  :name,
+                  :email,
+                  :sort_order
+                )
+                SQL
+            );
+            $statement->execute($payload);
+            $keptIds[] = (int) $this->pdo->lastInsertId();
+        }
+
+        $idsToDelete = array_values(array_diff($existingIds, $keptIds));
+        if ($idsToDelete === []) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($idsToDelete), '?'));
+        $statement = $this->pdo->prepare(
+            "DELETE FROM budget_participants WHERE budget_id = ? AND id IN ({$placeholders})"
+        );
+        $statement->execute([$budgetId, ...$idsToDelete]);
     }
 
     private function itemsForBudget(int $budgetId, string $budgetInstallmentPeriodUnit): array
@@ -514,6 +662,8 @@ final readonly class BudgetRepository
             SQL
         );
         $statement->execute(['budget_id' => $budgetId]);
+        $rows = $statement->fetchAll();
+        $splits = $this->itemSplitsForBudget($budgetId);
 
         return array_map(
             fn (array $row): array => [
@@ -538,10 +688,94 @@ final readonly class BudgetRepository
                     $row['installment_config'] ?? null,
                     $budgetInstallmentPeriodUnit,
                 ),
+                'split' => $splits[(int) $row['id']] ?? null,
                 'sortOrder' => (int) $row['sort_order'],
             ],
-            $statement->fetchAll(),
+            $rows,
         );
+    }
+
+    private function itemSplitsForBudget(int $budgetId): array
+    {
+        if (!$this->hasGroupBudgetTables()) {
+            return [];
+        }
+
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT
+              bis.id,
+              bis.budget_item_id,
+              bis.paid_by_participant_id,
+              bis.split_type,
+              bis.note
+            FROM budget_item_splits bis
+            INNER JOIN budget_items bi ON bi.id = bis.budget_item_id
+            WHERE bi.budget_id = :budget_id
+            SQL
+        );
+        $statement->execute(['budget_id' => $budgetId]);
+        $splitRows = $statement->fetchAll();
+        if ($splitRows === []) {
+            return [];
+        }
+
+        $splitsById = [];
+        $splitsByItem = [];
+        foreach ($splitRows as $row) {
+            $splitId = (int) $row['id'];
+            $split = [
+                'id' => $splitId,
+                'budgetItemId' => (int) $row['budget_item_id'],
+                'paidByParticipantId' => $row['paid_by_participant_id'] === null
+                    ? null
+                    : (int) $row['paid_by_participant_id'],
+                'splitType' => $this->itemSplitType($row['split_type'] ?? null),
+                'note' => $row['note'],
+                'participants' => [],
+            ];
+            $splitsById[$splitId] = $split;
+            $splitsByItem[(int) $row['budget_item_id']] = $splitId;
+        }
+
+        $participantStatement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT
+              bisp.split_id,
+              bisp.participant_id,
+              bisp.is_included,
+              bisp.share_ratio,
+              bisp.share_amount_base
+            FROM budget_item_split_participants bisp
+            INNER JOIN budget_item_splits bis ON bis.id = bisp.split_id
+            INNER JOIN budget_items bi ON bi.id = bis.budget_item_id
+            WHERE bi.budget_id = :budget_id
+            ORDER BY bisp.id ASC
+            SQL
+        );
+        $participantStatement->execute(['budget_id' => $budgetId]);
+        foreach ($participantStatement->fetchAll() as $row) {
+            $splitId = (int) $row['split_id'];
+            if (!isset($splitsById[$splitId])) {
+                continue;
+            }
+
+            $splitsById[$splitId]['participants'][] = [
+                'participantId' => (int) $row['participant_id'],
+                'isIncluded' => (int) $row['is_included'] === 1,
+                'shareRatio' => $row['share_ratio'] === null ? null : $this->decimal($row['share_ratio']),
+                'shareAmountBase' => $row['share_amount_base'] === null
+                    ? null
+                    : $this->decimal($row['share_amount_base']),
+            ];
+        }
+
+        $result = [];
+        foreach ($splitsByItem as $itemId => $splitId) {
+            $result[$itemId] = $splitsById[$splitId];
+        }
+
+        return $result;
     }
 
     private function transactionsForBudget(int $budgetId): array
@@ -657,6 +891,7 @@ final readonly class BudgetRepository
             'baseCurrency' => $row['base_currency'],
             'displayCurrency' => $row['display_currency'],
             'budgetType' => $row['budget_type'] ?? 'regular',
+            'participantMode' => $this->participantMode($row['participant_mode'] ?? null),
             'installmentDisplayMode' => $row['installment_display_mode'] ?? 'item',
             'installmentPeriodUnit' => $this->installmentPeriodUnit($row['installment_period_unit'] ?? null),
             'visibility' => $row['visibility'],
@@ -687,6 +922,11 @@ final readonly class BudgetRepository
     private function installmentPeriodUnit(mixed $value): string
     {
         return in_array($value, ['day', 'week', 'month', 'year'], true) ? (string) $value : 'month';
+    }
+
+    private function participantMode(mixed $value): string
+    {
+        return in_array($value, ['solo', 'group'], true) ? (string) $value : 'solo';
     }
 
     private function installmentConfig(mixed $value, string $budgetInstallmentPeriodUnit): array
@@ -1115,5 +1355,47 @@ final readonly class BudgetRepository
         $statement->execute(['column' => $column]);
 
         return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasBudgetParticipantModeColumn(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budgets'
+              AND column_name = 'participant_mode'
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasGroupBudgetTables(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+              AND table_name IN (
+                'budget_participants',
+                'budget_item_splits',
+                'budget_item_split_participants'
+              )
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 3;
+    }
+
+    private function itemSplitType(mixed $value): string
+    {
+        return in_array($value, ['equal', 'personal', 'custom_amount', 'custom_share', 'excluded'], true)
+            ? (string) $value
+            : 'equal';
     }
 }
