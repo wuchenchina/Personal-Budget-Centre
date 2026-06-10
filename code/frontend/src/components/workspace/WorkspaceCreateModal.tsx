@@ -5,6 +5,14 @@ import { useI18n, workspaceTypeLabelsByLanguage } from '../../i18n';
 import type { CurrencyCode } from '../../types/budget';
 import type { WorkspaceFormValues } from '../../types/forms';
 
+type WorkspaceType = WorkspaceFormValues['type'];
+
+interface WorkspaceTypeOption {
+  label: string;
+  value: WorkspaceType;
+  description: string;
+}
+
 interface WorkspaceCreateModalProps {
   form: FormInstance<WorkspaceFormValues>;
   open: boolean;
@@ -23,10 +31,23 @@ export function WorkspaceCreateModal({
   onOk,
 }: WorkspaceCreateModalProps) {
   const { language, t } = useI18n();
-  const workspaceTypeOptions = [
-    { label: workspaceTypeLabelsByLanguage[language].family, value: 'family' },
-    { label: workspaceTypeLabelsByLanguage[language].team, value: 'team' },
-    { label: workspaceTypeLabelsByLanguage[language].custom, value: 'custom' },
+  const selectedType = Form.useWatch('type', form);
+  const workspaceTypeOptions: WorkspaceTypeOption[] = [
+    {
+      label: workspaceTypeLabelsByLanguage[language].family,
+      value: 'family',
+      description: t('workspaceTypeFamilyDesc'),
+    },
+    {
+      label: workspaceTypeLabelsByLanguage[language].team,
+      value: 'team',
+      description: t('workspaceTypeTeamDesc'),
+    },
+    {
+      label: workspaceTypeLabelsByLanguage[language].custom,
+      value: 'custom',
+      description: t('workspaceTypeCustomDesc'),
+    },
   ];
 
   return (
@@ -57,21 +78,47 @@ export function WorkspaceCreateModal({
             { max: 160, message: t('workspaceNameMax') },
           ]}
         >
-          <Input autoComplete="organization" />
+          <Input
+            autoComplete="organization"
+            placeholder={t('workspaceNamePlaceholder')}
+          />
         </Form.Item>
         <Form.Item
+          extra={selectedType === 'custom' ? t('workspaceCustomTypeHelp') : undefined}
           label={t('workspaceType')}
           name="type"
           rules={[{ required: true, message: t('selectWorkspaceType') }]}
         >
-          <Select options={workspaceTypeOptions} />
+          <Select
+            showSearch
+            optionFilterProp="label"
+            options={workspaceTypeOptions}
+            placeholder={t('workspaceTypePlaceholder')}
+            optionRender={(option) => {
+              const data = option.data as WorkspaceTypeOption;
+
+              return (
+                <div>
+                  <div>{data.label}</div>
+                  <div style={{ color: 'rgba(0, 0, 0, 0.45)', fontSize: 12 }}>
+                    {data.description}
+                  </div>
+                </div>
+              );
+            }}
+          />
         </Form.Item>
         <Form.Item
           label={t('defaultCurrency')}
           name="defaultCurrency"
           rules={[{ required: true, message: t('selectDefaultCurrency') }]}
         >
-          <Select options={currencyOptions} />
+          <Select
+            showSearch
+            optionFilterProp="label"
+            options={currencyOptions}
+            placeholder={t('defaultCurrencyPlaceholder')}
+          />
         </Form.Item>
       </Form>
     </Modal>
