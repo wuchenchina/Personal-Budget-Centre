@@ -1,10 +1,8 @@
-import { useRef, useState } from 'react';
-import Draggable from 'react-draggable';
-import type { DraggableBounds, DraggableData, DraggableEvent } from 'react-draggable';
-import { Alert, AutoComplete, Button, Checkbox, Collapse, DatePicker, Form, Input, Modal, Select, Space, Tooltip } from 'antd';
+import { useState } from 'react';
+import type { DragEvent } from 'react';
+import { Alert, AutoComplete, Button, Checkbox, Collapse, DatePicker, Form, Input, Modal, Select, Space } from 'antd';
 import type { CollapseProps, FormInstance } from 'antd';
-import { ChevronDown, ChevronUp, Minus, Plus, Trash2 } from 'lucide-react';
-import { ModalFullscreenButton } from '../common/ModalFullscreenButton';
+import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2 } from 'lucide-react';
 import {
   type AppLanguage,
   languageOptions,
@@ -43,15 +41,7 @@ export function BudgetSignatureModal({
   onCancel,
   onOk,
 }: BudgetSignatureModalProps) {
-  const [fullscreen, setFullscreen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
-  const [bounds, setBounds] = useState<DraggableBounds>({
-    bottom: 0,
-    left: 0,
-    right: 0,
-    top: 0,
-  });
-  const draggleRef = useRef<HTMLDivElement>(null);
+  const [draggingSignatureRowKey, setDraggingSignatureRowKey] = useState<number | null>(null);
   const { language, t } = useI18n();
   const signatureEnabled = Form.useWatch(['signatureConfig', 'enabled'], form) === true;
   const signatureInfoLanguage = normalizeSignatureLanguage(
@@ -60,6 +50,7 @@ export function BudgetSignatureModal({
   const signatureLabelLanguage = Form.useWatch(['signatureConfig', 'labelLanguage'], form) ?? 'en';
   const signatureLabelMode = Form.useWatch(['signatureConfig', 'labelMode'], form) ?? 'confirmation_signature';
   const signatureLabelSeparator = Form.useWatch(['signatureConfig', 'labelSeparator'], form) ?? 'space';
+  const signatureRows = Form.useWatch(['signatureConfig', 'rows'], form) ?? [];
   const onlineMemberOptions = memberOptions(workspaceMembers);
   const signatureUiLabels = signatureMetaLabelsForLanguage(language);
   const rolePhraseOptions = signatureRolePhraseOptions(language);
@@ -95,86 +86,55 @@ export function BudgetSignatureModal({
       email: memberRow.email,
     });
   };
-  const handleDragStart = (_event: DraggableEvent, data: DraggableData) => {
-    const { clientWidth, clientHeight } = window.document.documentElement;
-    const targetRect = draggleRef.current?.getBoundingClientRect();
+  const handleSignatureRowDragStart = (event: DragEvent<HTMLElement>, key: number) => {
+    event.stopPropagation();
+    setDraggingSignatureRowKey(key);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('application/x-budget-signature-row', String(key));
+    event.dataTransfer.setData('text/plain', String(key));
+  };
+  const handleSignatureRowDrop = (
+    event: DragEvent<HTMLDivElement>,
+    targetKey: number,
+    fields: Array<{ key: number }>,
+    move: (from: number, to: number) => void,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
 
-    if (targetRect === undefined) {
+    const sourceKey = signatureDragSourceKey(event);
+    const sourceIndex = fields.findIndex((field) => field.key === sourceKey);
+    const targetIndex = fields.findIndex((field) => field.key === targetKey);
+    if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
+      setDraggingSignatureRowKey(null);
       return;
     }
 
-    setBounds({
-      bottom: clientHeight - (targetRect.bottom - data.y),
-      left: -targetRect.left + data.x,
-      right: clientWidth - (targetRect.right - data.x),
-      top: -targetRect.top + data.y,
-    });
+    move(sourceIndex, targetIndex);
+    setDraggingSignatureRowKey(null);
   };
-  const titleTools = (
-    <div className="budget-signature-title-tools">
-      <Tooltip title={collapsed ? t('expand') : t('collapse')}>
-        <Button
-          icon={collapsed ? <ChevronDown size={14} /> : <Minus size={14} />}
-          size="small"
-          type="text"
-          onClick={() => setCollapsed((current) => !current)}
-        />
-      </Tooltip>
-      <ModalFullscreenButton fullscreen={fullscreen} setFullscreen={setFullscreen} />
-    </div>
-  );
 
   return (
     <Modal
       destroyOnClose
       forceRender
-      afterOpenChange={(nextOpen) => {
-        if (!nextOpen) {
-          setCollapsed(false);
-        }
-      }}
       confirmLoading={confirmLoading}
-      footer={collapsed ? null : undefined}
       okText={t('save')}
       open={open}
-      title={
-        <div className="modal-title-with-tools budget-signature-drag-handle">
-          <span>{t('signatureSettings')}</span>
-          {titleTools}
-        </div>
-      }
-      width={collapsed ? 420 : fullscreen ? 'calc(100vw - 24px)' : 'min(1280px, calc(100vw - 36px))'}
+      title={t('signatureSettings')}
+      width="min(1280px, calc(100vw - 36px))"
       style={{ top: 10 }}
-      wrapClassName={`budget-signature-modal large-form-modal${fullscreen ? ' modal-fullscreen' : ''}${collapsed ? ' modal-collapsed' : ''}`}
-      modalRender={(modal) => {
-        if (fullscreen) {
-          return modal;
-        }
-
-        return (
-          <Draggable
-            bounds={bounds}
-            cancel=".budget-signature-title-tools, .ant-modal-close"
-            handle=".budget-signature-drag-handle"
-            nodeRef={draggleRef}
-            onStart={handleDragStart}
-          >
-            <div ref={draggleRef}>{modal}</div>
-          </Draggable>
-        );
-      }}
+      wrapClassName="budget-signature-modal large-form-modal"
       onCancel={onCancel}
       onOk={onOk}
     >
-      {collapsed ? null : (
-        <>
-          {error ? <Alert className="modal-error" type="error" showIcon message={error} /> : null}
-          <Form<BudgetFormValues>
-            form={form}
-            layout="vertical"
-            name="budget-centre-budget-signature"
-            requiredMark={false}
-          >
+      {error ? <Alert className="modal-error" type="error" showIcon message={error} /> : null}
+      <Form<BudgetFormValues>
+        form={form}
+        layout="vertical"
+        name="budget-centre-budget-signature"
+        requiredMark={false}
+      >
             <div className="signature-config-panel signature-config-panel-top">
               <Form.Item name={['signatureConfig', 'enabled']} valuePropName="checked">
                 <Checkbox>{t('showSignatureSection')}</Checkbox>
@@ -247,16 +207,30 @@ export function BudgetSignatureModal({
                     <strong>{signatureLabelPreview}</strong>
                   </div>
                   <Form.List name={['signatureConfig', 'rows']}>
-                    {(fields, { add, remove }) => (
+                    {(fields, { add, remove, move }) => (
                       <div className="signature-row-list">
                         {fields.map((field) => {
+                          const rowTitle = signatureRowTitle(
+                            signatureRows[field.name]?.displayName,
+                            field.name,
+                            t('signatureParticipant'),
+                          );
                           const participantItems: CollapseProps['items'] = [
                             {
                               key: 'participant',
                               label: (
-                                <strong>
-                                  {t('signatureParticipant')} {field.name + 1}
-                                </strong>
+                                <span className="signature-row-collapse-title">
+                                  <span
+                                    className="signature-row-drag-handle"
+                                    draggable
+                                    onClick={(event) => event.stopPropagation()}
+                                    onDragEnd={() => setDraggingSignatureRowKey(null)}
+                                    onDragStart={(event) => handleSignatureRowDragStart(event, field.key)}
+                                  >
+                                    <GripVertical size={16} />
+                                  </span>
+                                  <strong>{rowTitle}</strong>
+                                </span>
                               ),
                               extra: (
                                 <Button
@@ -427,16 +401,28 @@ export function BudgetSignatureModal({
                           ];
 
                           return (
-                            <Collapse
-                              className="signature-config-row-collapse"
-                              defaultActiveKey={['participant']}
-                              expandIcon={({ isActive }) => (
-                                isActive ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                              )}
-                              ghost
-                              items={participantItems}
+                            <div
+                              className={[
+                                'signature-row-drop-target',
+                                draggingSignatureRowKey === field.key ? 'signature-row-drop-target-dragging' : '',
+                              ].filter(Boolean).join(' ')}
                               key={field.key}
-                            />
+                              onDragOver={(event) => {
+                                event.preventDefault();
+                                event.dataTransfer.dropEffect = 'move';
+                              }}
+                              onDrop={(event) => handleSignatureRowDrop(event, field.key, fields, move)}
+                            >
+                              <Collapse
+                                className="signature-config-row-collapse"
+                                defaultActiveKey={['participant']}
+                                expandIcon={({ isActive }) => (
+                                  isActive ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                                )}
+                                ghost
+                                items={participantItems}
+                              />
+                            </div>
                           );
                         })}
                         <Button
@@ -453,13 +439,25 @@ export function BudgetSignatureModal({
                 </>
               ) : null}
             </div>
-          </Form>
-        </>
-      )}
+      </Form>
     </Modal>
   );
 }
 
 function normalizeSignatureLanguage(value: unknown): AppLanguage {
   return value === 'sc' || value === 'tc' || value === 'en' ? value : 'en';
+}
+
+function signatureRowTitle(value: unknown, index: number, fallbackLabel: string): string {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value.trim()
+    : `${fallbackLabel} ${index + 1}`;
+}
+
+function signatureDragSourceKey(event: DragEvent<HTMLElement>): number | null {
+  const rawValue = event.dataTransfer.getData('application/x-budget-signature-row')
+    || event.dataTransfer.getData('text/plain');
+  const value = Number(rawValue);
+
+  return Number.isInteger(value) ? value : null;
 }

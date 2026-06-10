@@ -188,25 +188,6 @@
   height: 28px;
 }
 
-.budget-signature-drag-handle {
-  cursor: move;
-}
-
-.budget-signature-title-tools {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 0 0 auto;
-}
-
-.modal-fullscreen .budget-signature-drag-handle {
-  cursor: default;
-}
-
-.modal-collapsed .ant-modal-body {
-  display: none;
-}
-
 .modal-fullscreen .ant-modal {
   max-width: calc(100vw - 24px);
 }
@@ -610,6 +591,14 @@
   gap: 12px;
 }
 
+.signature-row-drop-target {
+  border-radius: 8px;
+}
+
+.signature-row-drop-target-dragging {
+  opacity: 0.58;
+}
+
 .signature-config-row {
   padding: 12px;
   background: #fafafa;
@@ -640,6 +629,33 @@
 
 .signature-config-row-collapse.ant-collapse > .ant-collapse-item > .ant-collapse-content > .ant-collapse-content-box {
   padding: 0 14px 14px;
+}
+
+.signature-row-collapse-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.signature-row-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: #8c8c8c;
+  cursor: grab;
+  border-radius: 4px;
+}
+
+.signature-row-drag-handle:active {
+  cursor: grabbing;
+}
+
+.signature-row-drag-handle:hover {
+  color: #1677ff;
+  background: #e6f4ff;
 }
 
 .signature-config-row-body {
