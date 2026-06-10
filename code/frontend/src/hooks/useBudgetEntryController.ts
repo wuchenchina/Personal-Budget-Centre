@@ -204,19 +204,36 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       await refreshBochkRates(options.selectedBudget.workspaceId);
       const values = transactionForm.getFieldsValue();
       const rate = await resolveRate(values.currency, options.selectedBudget.baseCurrency);
-      const referenceAmount = values.referenceCurrency === undefined
-        ? undefined
-        : await convertedTransactionReferenceAmount(values, rate);
 
       transactionForm.setFieldsValue({
         rate,
-        ...(referenceAmount === undefined ? {} : { referenceAmount }),
       });
     } catch (error: unknown) {
       setEntryError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
     } finally {
       setIsTransactionSaving(false);
     }
+  };
+
+  const handleTransactionReferenceSameAmount = () => {
+    const values = transactionForm.getFieldsValue();
+    const amount = normalizedAmount(values.amount);
+    if (amount === null) {
+      setEntryError(translateCurrent('amountRequired'));
+
+      return;
+    }
+
+    if (values.referenceCurrency === undefined) {
+      setEntryError(translateCurrent('selectReferenceCurrency'));
+
+      return;
+    }
+
+    setEntryError(null);
+    transactionForm.setFieldsValue({
+      referenceAmount: amount,
+    });
   };
 
   const handleTransactionReferenceConvert = async () => {
@@ -419,7 +436,12 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
   const closeTransactionModal = () => {
     setIsTransactionModalOpen(false);
     setEditingTransaction(null);
+    setEntryError(null);
     transactionForm.resetFields();
+  };
+
+  const clearEntryError = () => {
+    setEntryError(null);
   };
 
   const handleTransactionSave = async () => {
@@ -1362,6 +1384,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     handleTransactionSave,
     handleTransactionRateRefresh,
     handleTransactionReferenceConvert,
+    handleTransactionReferenceSameAmount,
+    clearEntryError,
     handleTransactionQuickAmountSave,
     handleTransactionQuickCurrencySave,
     handleTransactionCategoryQuickSave,
