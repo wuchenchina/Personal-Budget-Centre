@@ -624,12 +624,7 @@ final readonly class BudgetPdfDocumentRenderer
                 continue;
             }
 
-            $paidByParticipantId = $split['paidByParticipantId'];
-            if (is_int($paidByParticipantId) && isset($totals[$paidByParticipantId])) {
-                $totals[$paidByParticipantId]['paidBase'] = $this->roundMoney(
-                    $totals[$paidByParticipantId]['paidBase'] + $amountBase,
-                );
-            }
+            $this->applySinglePayerPayments($item, $transactions, $split, $amountBase, $totals);
 
             foreach ($this->sharesForSplit($split, $includedParticipants, $amountBase) as $participantId => $shareAmount) {
                 if (isset($totals[$participantId])) {
@@ -703,6 +698,48 @@ final readonly class BudgetPdfDocumentRenderer
                 array_filter($participants, 'is_array'),
             ),
         ));
+    }
+
+    private function applySinglePayerPayments(
+        array $item,
+        array $transactions,
+        array $split,
+        float $fallbackAmountBase,
+        array &$totals,
+    ): void {
+        $itemTransactions = $this->transactionsForItem($item, $transactions);
+        $hasTransactionPayer = false;
+        foreach ($itemTransactions as $transaction) {
+            $paidByParticipantId = $this->participantIdOrNull($transaction['paidByParticipantId'] ?? null);
+            if ($paidByParticipantId !== null && isset($totals[$paidByParticipantId])) {
+                $hasTransactionPayer = true;
+                break;
+            }
+        }
+
+        if ($hasTransactionPayer) {
+            foreach ($itemTransactions as $transaction) {
+                $paidByParticipantId = $this->participantIdOrNull($transaction['paidByParticipantId'] ?? null);
+                if ($paidByParticipantId === null || !isset($totals[$paidByParticipantId])) {
+                    $paidByParticipantId = $this->participantIdOrNull($split['paidByParticipantId'] ?? null);
+                }
+
+                if ($paidByParticipantId !== null && isset($totals[$paidByParticipantId])) {
+                    $totals[$paidByParticipantId]['paidBase'] = $this->roundMoney(
+                        $totals[$paidByParticipantId]['paidBase'] + (float) ($transaction['amountBase'] ?? 0),
+                    );
+                }
+            }
+
+            return;
+        }
+
+        $paidByParticipantId = $this->participantIdOrNull($split['paidByParticipantId'] ?? null);
+        if ($paidByParticipantId !== null && isset($totals[$paidByParticipantId])) {
+            $totals[$paidByParticipantId]['paidBase'] = $this->roundMoney(
+                $totals[$paidByParticipantId]['paidBase'] + $fallbackAmountBase,
+            );
+        }
     }
 
     private function itemSplit(array $item, array $participants): array
@@ -1503,19 +1540,9 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function transactionCurrencyTotalsForItem(array $item, array $transactions): array
     {
-        $categoryId = $item['categoryId'] ?? null;
-        $label = (string) ($item['label'] ?? '');
         $totals = [];
 
-        foreach ($transactions as $transaction) {
-            $transactionCategoryId = $transaction['categoryId'] ?? null;
-            $matches = $categoryId === null
-                ? $transactionCategoryId === null && (string) ($transaction['category'] ?? '') === $label
-                : $transactionCategoryId === $categoryId;
-            if (!$matches) {
-                continue;
-            }
-
+        foreach ($this->transactionsForItem($item, $transactions) as $transaction) {
             $currency = (string) ($transaction['currency'] ?? '');
             if ($currency === '') {
                 continue;
@@ -1541,6 +1568,23 @@ final readonly class BudgetPdfDocumentRenderer
             ],
             array_values($totals),
         );
+    }
+
+    private function transactionsForItem(array $item, array $transactions): array
+    {
+        $categoryId = $item['categoryId'] ?? null;
+        $label = (string) ($item['label'] ?? '');
+
+        return array_values(array_filter(
+            $transactions,
+            static function (array $transaction) use ($categoryId, $label): bool {
+                $transactionCategoryId = $transaction['categoryId'] ?? null;
+
+                return $categoryId === null
+                    ? $transactionCategoryId === null && (string) ($transaction['category'] ?? '') === $label
+                    : $transactionCategoryId === $categoryId;
+            },
+        ));
     }
 
     private function moneyWithTransactionBreakdown(string $baseCurrency, float $baseAmount, array $transactionTotals): string

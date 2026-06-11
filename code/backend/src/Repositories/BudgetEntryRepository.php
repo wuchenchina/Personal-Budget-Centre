@@ -159,72 +159,44 @@ final readonly class BudgetEntryRepository
 
     public function createTransaction(array $transaction): int
     {
-        if (!$this->hasTransactionReferenceColumns()) {
+        $columns = [
+            'budget_id',
+            'category_id',
+            'transaction_date',
+            'details',
+            'currency_id',
+            'amount_original',
+            'rate_to_base',
+            'amount_base',
+            'remark',
+            'sort_order',
+        ];
+        if ($this->hasTransactionPaidByColumn()) {
+            array_splice($columns, 2, 0, ['paid_by_participant_id']);
+        } else {
+            unset($transaction['paid_by_participant_id']);
+        }
+        if ($this->hasTransactionReferenceColumns()) {
+            array_splice($columns, -2, 0, ['reference_currency_id', 'reference_amount_original']);
+        } else {
             unset($transaction['reference_currency_id'], $transaction['reference_amount_original']);
-            $statement = $this->pdo->prepare(
-                <<<'SQL'
-                INSERT INTO budget_transactions (
-                  budget_id,
-                  category_id,
-                  transaction_date,
-                  details,
-                  currency_id,
-                  amount_original,
-                  rate_to_base,
-                  amount_base,
-                  remark,
-                  sort_order
-                ) VALUES (
-                  :budget_id,
-                  :category_id,
-                  :transaction_date,
-                  :details,
-                  :currency_id,
-                  :amount_original,
-                  :rate_to_base,
-                  :amount_base,
-                  :remark,
-                  :sort_order
-                )
-                SQL
-            );
-            $statement->execute($transaction);
-
-            return (int) $this->pdo->lastInsertId();
         }
 
+        $columnSql = implode(",\n              ", $columns);
+        $placeholderSql = implode(",\n              ", array_map(
+            static fn (string $column): string => ':' . $column,
+            $columns,
+        ));
         $statement = $this->pdo->prepare(
-            <<<'SQL'
+            <<<SQL
             INSERT INTO budget_transactions (
-              budget_id,
-              category_id,
-              transaction_date,
-              details,
-              currency_id,
-              amount_original,
-              rate_to_base,
-              amount_base,
-              reference_currency_id,
-              reference_amount_original,
-              remark,
-              sort_order
+              {$columnSql}
             ) VALUES (
-              :budget_id,
-              :category_id,
-              :transaction_date,
-              :details,
-              :currency_id,
-              :amount_original,
-              :rate_to_base,
-              :amount_base,
-              :reference_currency_id,
-              :reference_amount_original,
-              :remark,
-              :sort_order
+              {$placeholderSql}
             )
             SQL
         );
-        $statement->execute($transaction);
+        $statement->execute(array_intersect_key($transaction, array_fill_keys($columns, true)));
 
         return (int) $this->pdo->lastInsertId();
     }
@@ -232,48 +204,44 @@ final readonly class BudgetEntryRepository
     public function updateTransaction(int $id, array $transaction): void
     {
         unset($transaction['budget_id']);
-        if (!$this->hasTransactionReferenceColumns()) {
+        $columns = [
+            'category_id',
+            'transaction_date',
+            'details',
+            'currency_id',
+            'amount_original',
+            'rate_to_base',
+            'amount_base',
+            'remark',
+            'sort_order',
+        ];
+        if ($this->hasTransactionPaidByColumn()) {
+            array_splice($columns, 1, 0, ['paid_by_participant_id']);
+        } else {
+            unset($transaction['paid_by_participant_id']);
+        }
+        if ($this->hasTransactionReferenceColumns()) {
+            array_splice($columns, -2, 0, ['reference_currency_id', 'reference_amount_original']);
+        } else {
             unset($transaction['reference_currency_id'], $transaction['reference_amount_original']);
-            $statement = $this->pdo->prepare(
-                <<<'SQL'
-                UPDATE budget_transactions
-                SET
-                  category_id = :category_id,
-                  transaction_date = :transaction_date,
-                  details = :details,
-                  currency_id = :currency_id,
-                  amount_original = :amount_original,
-                  rate_to_base = :rate_to_base,
-                  amount_base = :amount_base,
-                  remark = :remark,
-                  sort_order = :sort_order
-                WHERE id = :id
-                SQL
-            );
-            $statement->execute(['id' => $id, ...$transaction]);
-
-            return;
         }
 
+        $assignmentSql = implode(",\n              ", array_map(
+            static fn (string $column): string => "{$column} = :{$column}",
+            $columns,
+        ));
         $statement = $this->pdo->prepare(
-            <<<'SQL'
+            <<<SQL
             UPDATE budget_transactions
             SET
-              category_id = :category_id,
-              transaction_date = :transaction_date,
-              details = :details,
-              currency_id = :currency_id,
-              amount_original = :amount_original,
-              rate_to_base = :rate_to_base,
-              amount_base = :amount_base,
-              reference_currency_id = :reference_currency_id,
-              reference_amount_original = :reference_amount_original,
-              remark = :remark,
-              sort_order = :sort_order
+              {$assignmentSql}
             WHERE id = :id
             SQL
         );
-        $statement->execute(['id' => $id, ...$transaction]);
+        $statement->execute([
+            'id' => $id,
+            ...array_intersect_key($transaction, array_fill_keys($columns, true)),
+        ]);
     }
 
     public function deleteTransaction(int $id): void
@@ -391,6 +359,22 @@ final readonly class BudgetEntryRepository
         $statement->execute();
 
         return (int) $statement->fetchColumn() === 2;
+    }
+
+    private function hasTransactionPaidByColumn(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_transactions'
+              AND column_name = 'paid_by_participant_id'
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 1;
     }
 
     private function hasGroupBudgetTables(): bool

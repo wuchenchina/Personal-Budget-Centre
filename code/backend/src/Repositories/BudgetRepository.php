@@ -737,11 +737,15 @@ final readonly class BudgetRepository
         $referenceJoin = $hasReferenceColumns
             ? 'LEFT JOIN currencies reference_currency ON reference_currency.id = bt.reference_currency_id'
             : '';
+        $paidBySelect = $this->hasTransactionPaidByColumn()
+            ? 'bt.paid_by_participant_id,'
+            : 'NULL AS paid_by_participant_id,';
         $statement = $this->pdo->prepare(
             <<<SQL
             SELECT
               bt.id,
               bt.category_id,
+              {$paidBySelect}
               bt.transaction_date,
               bt.details,
               bc.name AS category_name,
@@ -766,6 +770,9 @@ final readonly class BudgetRepository
             fn (array $row): array => [
                 'id' => (int) $row['id'],
                 'categoryId' => $row['category_id'] === null ? null : (int) $row['category_id'],
+                'paidByParticipantId' => $row['paid_by_participant_id'] === null
+                    ? null
+                    : (int) $row['paid_by_participant_id'],
                 'category' => $row['category_name'],
                 'transactionDate' => $row['transaction_date'],
                 'details' => $row['details'],
@@ -1268,6 +1275,22 @@ final readonly class BudgetRepository
         $statement->execute();
 
         return (int) $statement->fetchColumn() === 2;
+    }
+
+    private function hasTransactionPaidByColumn(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_transactions'
+              AND column_name = 'paid_by_participant_id'
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 1;
     }
 
     private function hasBudgetInstallmentPlanTable(): bool

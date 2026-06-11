@@ -35,6 +35,7 @@ export interface UpdateBudgetItemPayload extends SaveBudgetItemPayload {
 
 export interface SaveTransactionPayload {
   categoryId?: number;
+  paidByParticipantId?: number | null;
   transactionDate?: string | null;
   details: string;
   currency: CurrencyCode;

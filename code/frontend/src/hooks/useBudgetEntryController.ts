@@ -393,6 +393,10 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
     transactionForm.setFieldsValue({
       categoryId: firstCategoryId,
+      paidByParticipantId: defaultTransactionPaidByParticipantId(
+        options.selectedBudget,
+        firstCategoryId,
+      ) ?? undefined,
       transactionDate: dayjs(),
       currency: entryCurrency,
       referenceCurrency: undefined,
@@ -408,6 +412,12 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     transactionForm.resetFields();
     transactionForm.setFieldsValue({
       categoryId: transaction.categoryId ?? undefined,
+      paidByParticipantId: transaction.paidByParticipantId
+        ?? defaultTransactionPaidByParticipantId(
+          options.selectedBudget,
+          transaction.categoryId ?? undefined,
+        )
+        ?? undefined,
       transactionDate:
         transaction.transactionDate === null ? undefined : dayjs(transaction.transactionDate),
       details: transaction.details,
@@ -426,6 +436,17 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     setIsTransactionModalOpen(false);
     setEditingTransaction(null);
     setEntryError(null);
+  };
+
+  const handleTransactionCategoryChange = (categoryId: number | null | undefined) => {
+    if (options.selectedBudget === null) {
+      return;
+    }
+
+    transactionForm.setFieldValue(
+      'paidByParticipantId',
+      defaultTransactionPaidByParticipantId(options.selectedBudget, categoryId) ?? undefined,
+    );
   };
 
   const clearEntryError = () => {
@@ -447,6 +468,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
       const payload: SaveTransactionPayload = {
         categoryId: values.categoryId,
+        paidByParticipantId: transactionPaidByParticipantIdFromForm(values, options.selectedBudget),
         transactionDate: values.transactionDate?.format('YYYY-MM-DD') ?? null,
         details: values.details.trim(),
         currency: values.currency,
@@ -1215,6 +1237,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         currency: transaction.currency,
         amount: value,
         rate: transaction.rateToBase,
+        paidByParticipantId: transaction.paidByParticipantId,
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
@@ -1246,6 +1269,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         details: transaction.details,
         currency,
         amount: transaction.amountOriginal,
+        paidByParticipantId: transaction.paidByParticipantId,
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
@@ -1278,6 +1302,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         currency: transaction.currency,
         amount: transaction.amountOriginal,
         rate: transaction.rateToBase,
+        paidByParticipantId: defaultTransactionPaidByParticipantId(options.selectedBudget, categoryId),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
@@ -1316,6 +1341,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         currency: transaction.currency,
         amount: transaction.amountOriginal,
         rate: transaction.rateToBase,
+        paidByParticipantId: transaction.paidByParticipantId,
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: normalizedRemark,
@@ -1376,6 +1402,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     openTransactionEditModal,
     closeTransactionModal,
     handleTransactionSave,
+    handleTransactionCategoryChange,
     handleTransactionRateRefresh,
     handleTransactionReferenceConvert,
     clearEntryError,
@@ -1507,6 +1534,64 @@ function splitPayloadFromForm(
         shareAmountBase: null,
       })),
   };
+}
+
+function defaultTransactionPaidByParticipantId(
+  budget: BudgetDetail | null,
+  categoryId: number | null | undefined,
+): number | null {
+  if (budget === null || budget.participantMode !== 'group' || budget.participants.length === 0) {
+    return null;
+  }
+
+  const item = transactionItemForCategory(budget, categoryId);
+  if (item === null || !splitTypeNeedsTransactionPaidBy(item.split?.splitType ?? 'equal')) {
+    return null;
+  }
+
+  const participantIds = new Set(budget.participants.map((participant) => participant.id));
+  const paidByParticipantId = item.split?.paidByParticipantId ?? null;
+  if (paidByParticipantId !== null && participantIds.has(paidByParticipantId)) {
+    return paidByParticipantId;
+  }
+
+  return budget.participants[0]?.id ?? null;
+}
+
+function transactionPaidByParticipantIdFromForm(
+  values: TransactionFormValues,
+  budget: BudgetDetail | null,
+): number | null {
+  const fallbackPaidByParticipantId = defaultTransactionPaidByParticipantId(
+    budget,
+    values.categoryId,
+  );
+  if (fallbackPaidByParticipantId === null || budget === null) {
+    return null;
+  }
+
+  const participantIds = new Set(budget.participants.map((participant) => participant.id));
+  return typeof values.paidByParticipantId === 'number'
+    && participantIds.has(values.paidByParticipantId)
+    ? values.paidByParticipantId
+    : fallbackPaidByParticipantId;
+}
+
+function transactionItemForCategory(
+  budget: BudgetDetail,
+  categoryId: number | null | undefined,
+): BudgetItem | null {
+  if (typeof categoryId !== 'number') {
+    return null;
+  }
+
+  return budget.items.find((item) => item.categoryId === categoryId) ?? null;
+}
+
+function splitTypeNeedsTransactionPaidBy(splitType: BudgetItemSplit['splitType']): boolean {
+  return splitType !== 'excluded'
+    && splitType !== 'individual'
+    && splitType !== 'per_person';
 }
 
 function roundMoney(value: number): number {

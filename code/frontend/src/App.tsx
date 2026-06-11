@@ -395,7 +395,11 @@ function App() {
         error={budgetEntry.entryError}
         categoryOptions={transactionCategoryOptions}
         baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
+        participantMode={budget.selectedBudget?.participantMode ?? 'solo'}
+        participants={budget.selectedBudget?.participants ?? []}
+        items={budget.selectedBudget?.items ?? []}
         confirmLoading={budgetEntry.isTransactionSaving}
+        onCategoryChange={budgetEntry.handleTransactionCategoryChange}
         onRefreshRates={budgetEntry.handleTransactionRateRefresh}
         onReferenceConvert={budgetEntry.handleTransactionReferenceConvert}
         onValuesChange={budgetEntry.clearEntryError}

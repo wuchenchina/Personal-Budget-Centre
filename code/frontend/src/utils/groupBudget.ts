@@ -3,6 +3,7 @@ import type {
   BudgetItem,
   BudgetItemSplit,
   BudgetParticipant,
+  Transaction,
 } from '../types/budget';
 import { effectiveBudgetItemAmounts } from './budgetTemplate';
 
@@ -87,12 +88,7 @@ export function groupBudgetSummary(budget: BudgetDetail): GroupBudgetSummary {
       return;
     }
 
-    if (split.paidByParticipantId !== null && totals.has(split.paidByParticipantId)) {
-      const paidTotal = totals.get(split.paidByParticipantId);
-      if (paidTotal !== undefined) {
-        paidTotal.paidBase = roundMoney(paidTotal.paidBase + amountBase);
-      }
-    }
+    applySinglePayerPayments(item, budget.transactions, split, amountBase, totals);
 
     const shares = sharesForSplit(split, includedParticipants, amountBase);
     shares.forEach((shareAmount, participantId) => {
@@ -140,6 +136,53 @@ function defaultEqualSplit(participants: BudgetParticipant[]): BudgetItemSplit {
       shareAmountBase: null,
     })),
   };
+}
+
+function applySinglePayerPayments(
+  item: BudgetItem,
+  transactions: Transaction[],
+  split: BudgetItemSplit,
+  fallbackAmountBase: number,
+  totals: Map<number, { paidBase: number; shareBase: number }>,
+) {
+  const itemTransactions = transactionsForItem(item, transactions);
+  const hasTransactionPayer = itemTransactions.some(
+    (transaction) =>
+      transaction.paidByParticipantId !== null && totals.has(transaction.paidByParticipantId),
+  );
+
+  if (hasTransactionPayer) {
+    itemTransactions.forEach((transaction) => {
+      const paidByParticipantId =
+        transaction.paidByParticipantId !== null && totals.has(transaction.paidByParticipantId)
+          ? transaction.paidByParticipantId
+          : split.paidByParticipantId;
+
+      if (paidByParticipantId !== null && totals.has(paidByParticipantId)) {
+        const paidTotal = totals.get(paidByParticipantId);
+        if (paidTotal !== undefined) {
+          paidTotal.paidBase = roundMoney(paidTotal.paidBase + transaction.amountBase);
+        }
+      }
+    });
+
+    return;
+  }
+
+  if (split.paidByParticipantId !== null && totals.has(split.paidByParticipantId)) {
+    const paidTotal = totals.get(split.paidByParticipantId);
+    if (paidTotal !== undefined) {
+      paidTotal.paidBase = roundMoney(paidTotal.paidBase + fallbackAmountBase);
+    }
+  }
+}
+
+function transactionsForItem(item: BudgetItem, transactions: Transaction[]): Transaction[] {
+  return transactions.filter((transaction) =>
+    item.categoryId === null
+      ? transaction.categoryId === null && transaction.category === item.label
+      : transaction.categoryId === item.categoryId,
+  );
 }
 
 function sharesForSplit(

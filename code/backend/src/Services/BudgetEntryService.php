@@ -277,6 +277,9 @@ final readonly class BudgetEntryService
         $details = Input::string($input['details'] ?? null);
         $amount = $this->number($input['amount'] ?? null);
         $referenceAmount = $this->number($input['referenceAmount'] ?? $input['reference_amount'] ?? null);
+        $paidByParticipantId = Input::positiveInt(
+            $input['paidByParticipantId'] ?? $input['paid_by_participant_id'] ?? null,
+        );
 
         if ($details === null || strlen($details) > 500) {
             throw new AuthException('VALIDATION_ERROR', 'Transaction details are required and must be 500 characters or less.', 422);
@@ -288,6 +291,16 @@ final readonly class BudgetEntryService
 
         if ($referenceAmount !== null && $referenceAmount < 0.0) {
             throw new AuthException('VALIDATION_ERROR', 'Reference amount cannot be less than 0.', 422);
+        }
+
+        if ($paidByParticipantId !== null) {
+            $participantIdSet = array_fill_keys(
+                (new BudgetRepository($this->pdo))->participantIdsForBudget($budgetId),
+                true,
+            );
+            if (!isset($participantIdSet[$paidByParticipantId])) {
+                throw new AuthException('VALIDATION_ERROR', 'Paid-by participant does not belong to this budget.', 422);
+            }
         }
 
         $currencyId = $this->currencyId($input['currency'] ?? null);
@@ -312,6 +325,7 @@ final readonly class BudgetEntryService
         return [
             'budget_id' => $budgetId,
             'category_id' => $this->transactionCategoryId($budgetId, $workspaceId, $input),
+            'paid_by_participant_id' => $paidByParticipantId,
             'transaction_date' => $transactionDate,
             'details' => $details,
             'currency_id' => $currencyId,

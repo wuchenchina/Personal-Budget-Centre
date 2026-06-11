@@ -433,6 +433,7 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   budget_id BIGINT UNSIGNED NOT NULL,
   category_id BIGINT UNSIGNED NULL,
+  paid_by_participant_id BIGINT UNSIGNED NULL,
   account_id BIGINT UNSIGNED NULL,
   transaction_date DATE NULL,
   details VARCHAR(500) NOT NULL,
@@ -448,8 +449,10 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_budget_transactions_budget (budget_id),
   KEY idx_budget_transactions_category (category_id),
+  KEY idx_budget_transactions_paid_by (paid_by_participant_id),
   CONSTRAINT fk_budget_transactions_budget FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE,
   CONSTRAINT fk_budget_transactions_category FOREIGN KEY (category_id) REFERENCES budget_categories(id) ON DELETE SET NULL,
+  CONSTRAINT fk_budget_transactions_paid_by FOREIGN KEY (paid_by_participant_id) REFERENCES budget_participants(id) ON DELETE SET NULL,
   CONSTRAINT fk_budget_transactions_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL,
   CONSTRAINT fk_budget_transactions_currency FOREIGN KEY (currency_id) REFERENCES currencies(id),
   CONSTRAINT fk_budget_transactions_reference_currency FOREIGN KEY (reference_currency_id) REFERENCES currencies(id)

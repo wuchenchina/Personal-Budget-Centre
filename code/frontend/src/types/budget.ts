@@ -223,6 +223,7 @@ export interface BudgetItem {
 export interface Transaction {
   id: number;
   categoryId: number | null;
+  paidByParticipantId: number | null;
   category: string | null;
   transactionDate: string | null;
   details: string;

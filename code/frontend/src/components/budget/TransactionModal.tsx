@@ -3,7 +3,14 @@ import type { FormInstance } from 'antd';
 import { Calculator, RefreshCcw } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
 import { useI18n } from '../../i18n';
-import type { CurrencyCode, Transaction } from '../../types/budget';
+import type {
+  BudgetItem,
+  BudgetItemSplitType,
+  BudgetParticipant,
+  BudgetParticipantMode,
+  CurrencyCode,
+  Transaction,
+} from '../../types/budget';
 import type { TransactionFormValues } from '../../types/forms';
 
 interface TransactionModalProps {
@@ -13,8 +20,12 @@ interface TransactionModalProps {
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
   baseCurrency: CurrencyCode;
+  participantMode: BudgetParticipantMode;
+  participants: BudgetParticipant[];
+  items: BudgetItem[];
   confirmLoading: boolean;
   onCancel: () => void;
+  onCategoryChange: (categoryId: number | null | undefined) => void;
   onOk: () => void;
   onRefreshRates: () => void;
   onReferenceConvert: () => void;
@@ -28,8 +39,12 @@ export function TransactionModal({
   error,
   categoryOptions,
   baseCurrency,
+  participantMode,
+  participants,
+  items,
   confirmLoading,
   onCancel,
+  onCategoryChange,
   onOk,
   onRefreshRates,
   onReferenceConvert,
@@ -37,6 +52,7 @@ export function TransactionModal({
 }: TransactionModalProps) {
   const { t } = useI18n();
   const currency = Form.useWatch('currency', form) ?? baseCurrency;
+  const selectedCategoryId = Form.useWatch('categoryId', form);
   const amount = Form.useWatch('amount', form);
   const rate = Form.useWatch('rate', form);
   const referenceCurrency = Form.useWatch('referenceCurrency', form);
@@ -57,6 +73,16 @@ export function TransactionModal({
     && referenceAmount > 0
       ? `${referenceCurrency ?? t('currency')} 1 = ${currency} ${(amount / referenceAmount).toFixed(6)}`
       : null;
+  const selectedItem = items.find((item) => item.categoryId === selectedCategoryId) ?? null;
+  const showPaidBy =
+    participantMode === 'group'
+    && participants.length > 0
+    && selectedItem !== null
+    && splitTypeNeedsTransactionPaidBy(selectedItem.split?.splitType ?? 'equal');
+  const participantOptions = participants.map((participant) => ({
+    label: participant.name,
+    value: participant.id,
+  }));
 
   return (
     <Modal
@@ -107,8 +133,24 @@ export function TransactionModal({
             optionFilterProp="label"
             options={categoryOptions}
             placeholder={t('selectCategory')}
+            onChange={onCategoryChange}
           />
         </Form.Item>
+
+        {showPaidBy ? (
+          <Form.Item
+            label={t('paidBy')}
+            name="paidByParticipantId"
+            rules={[{ required: true, message: t('selectPaidBy') }]}
+          >
+            <Select
+              showSearch
+              optionFilterProp="label"
+              options={participantOptions}
+              placeholder={t('selectPaidBy')}
+            />
+          </Form.Item>
+        ) : null}
 
         <div className="currency-config-panel">
           <div className="currency-config-header">
@@ -237,4 +279,10 @@ export function TransactionModal({
       </Form>
     </Modal>
   );
+}
+
+function splitTypeNeedsTransactionPaidBy(splitType: BudgetItemSplitType): boolean {
+  return splitType !== 'excluded'
+    && splitType !== 'individual'
+    && splitType !== 'per_person';
 }
