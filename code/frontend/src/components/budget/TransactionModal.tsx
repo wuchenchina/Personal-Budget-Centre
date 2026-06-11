@@ -106,6 +106,18 @@ export function TransactionModal({
     }
   }, [form, open, participants, paymentMode, showPaymentPanel]);
 
+  useEffect(() => {
+    if (!open || showPaymentPanel) {
+      return;
+    }
+
+    form.setFieldsValue({
+      paymentMode: 'single',
+      paidByParticipantId: null,
+      payments: [],
+    });
+  }, [form, open, showPaymentPanel]);
+
   const defaultPaidByParticipantId =
     selectedItem?.split?.paidByParticipantId ?? participants[0]?.id ?? null;
   const handlePaymentModeChange = (mode: 'single' | 'multiple') => {
@@ -399,7 +411,7 @@ export function TransactionModal({
 type TransactionPaymentFormRows = NonNullable<TransactionFormValues['payments']>;
 
 function splitTypeSupportsTransactionPayments(splitType: BudgetItemSplitType): boolean {
-  return splitType !== 'excluded';
+  return splitType !== 'excluded' && splitType !== 'per_person';
 }
 
 function normalizePaymentRows(

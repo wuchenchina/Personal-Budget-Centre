@@ -412,15 +412,22 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     setEntryError(null);
     setEditingTransaction(transaction);
     transactionForm.resetFields();
+    const supportsTransactionPayments = transactionCategorySupportsTransactionPayments(
+      options.selectedBudget,
+      transaction.categoryId ?? undefined,
+    );
     transactionForm.setFieldsValue({
       categoryId: transaction.categoryId ?? undefined,
-      paymentMode: transaction.payments.length > 0 ? 'multiple' : 'single',
-      paidByParticipantId: transaction.paidByParticipantId
-        ?? defaultTransactionPaidByParticipantId(
-          options.selectedBudget,
-          transaction.categoryId ?? undefined,
-        )
-        ?? undefined,
+      paymentMode:
+        supportsTransactionPayments && transaction.payments.length > 0 ? 'multiple' : 'single',
+      paidByParticipantId: supportsTransactionPayments
+        ? transaction.paidByParticipantId
+          ?? defaultTransactionPaidByParticipantId(
+            options.selectedBudget,
+            transaction.categoryId ?? undefined,
+          )
+          ?? undefined
+        : null,
       payments: transactionPaymentRowsToForm(transaction, options.selectedBudget),
       transactionDate:
         transaction.transactionDate === null ? undefined : dayjs(transaction.transactionDate),
@@ -447,14 +454,18 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       return;
     }
 
-    transactionForm.setFieldValue(
-      'paidByParticipantId',
-      defaultTransactionPaidByParticipantId(options.selectedBudget, categoryId) ?? undefined,
+    const supportsTransactionPayments = transactionCategorySupportsTransactionPayments(
+      options.selectedBudget,
+      categoryId,
     );
-    transactionForm.setFieldValue(
-      'payments',
-      defaultTransactionPaymentRows(options.selectedBudget, categoryId),
-    );
+
+    transactionForm.setFieldsValue({
+      paymentMode: supportsTransactionPayments
+        ? transactionForm.getFieldValue('paymentMode') ?? 'single'
+        : 'single',
+      paidByParticipantId: defaultTransactionPaidByParticipantId(options.selectedBudget, categoryId),
+      payments: defaultTransactionPaymentRows(options.selectedBudget, categoryId),
+    });
   };
 
   const clearEntryError = () => {
@@ -473,11 +484,15 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       setIsTransactionSaving(true);
       setEntryError(null);
       const referenceAmount = normalizedAmount(values.referenceAmount);
+      const supportsTransactionPayments = transactionCategorySupportsTransactionPayments(
+        options.selectedBudget,
+        values.categoryId,
+      );
 
       const payload: SaveTransactionPayload = {
         categoryId: values.categoryId,
         paidByParticipantId: transactionPaidByParticipantIdFromForm(values, options.selectedBudget),
-        paymentMode: values.paymentMode ?? 'single',
+        paymentMode: supportsTransactionPayments ? values.paymentMode ?? 'single' : 'single',
         payments: transactionPaymentsFromForm(values, options.selectedBudget),
         transactionDate: values.transactionDate?.format('YYYY-MM-DD') ?? null,
         details: values.details.trim(),
@@ -1247,8 +1262,15 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         currency: transaction.currency,
         amount: value,
         rate: transaction.rateToBase,
-        paidByParticipantId: transaction.paidByParticipantId,
-        payments: transactionPaymentPayloadForQuickSave(transaction, value),
+        paidByParticipantId: transactionPaidByParticipantIdForQuickSave(
+          transaction,
+          options.selectedBudget,
+        ),
+        payments: transactionPaymentPayloadForQuickSave(
+          transaction,
+          options.selectedBudget,
+          value,
+        ),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
@@ -1280,8 +1302,11 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         details: transaction.details,
         currency,
         amount: transaction.amountOriginal,
-        paidByParticipantId: transaction.paidByParticipantId,
-        payments: transactionPaymentPayloadForQuickSave(transaction),
+        paidByParticipantId: transactionPaidByParticipantIdForQuickSave(
+          transaction,
+          options.selectedBudget,
+        ),
+        payments: transactionPaymentPayloadForQuickSave(transaction, options.selectedBudget),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
@@ -1359,8 +1384,11 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         currency: transaction.currency,
         amount: transaction.amountOriginal,
         rate: transaction.rateToBase,
-        paidByParticipantId: transaction.paidByParticipantId,
-        payments: transactionPaymentPayloadForQuickSave(transaction),
+        paidByParticipantId: transactionPaidByParticipantIdForQuickSave(
+          transaction,
+          options.selectedBudget,
+        ),
+        payments: transactionPaymentPayloadForQuickSave(transaction, options.selectedBudget),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: normalizedRemark,
@@ -1559,12 +1587,12 @@ function defaultTransactionPaidByParticipantId(
   budget: BudgetDetail | null,
   categoryId: number | null | undefined,
 ): number | null {
-  if (budget === null || budget.participantMode !== 'group' || budget.participants.length === 0) {
+  if (!transactionCategorySupportsTransactionPayments(budget, categoryId)) {
     return null;
   }
 
   const item = transactionItemForCategory(budget, categoryId);
-  if (item === null || !splitTypeSupportsTransactionPayments(item.split?.splitType ?? 'equal')) {
+  if (item === null) {
     return null;
   }
 
@@ -1604,12 +1632,7 @@ function defaultTransactionPaymentRows(
   budget: BudgetDetail | null,
   categoryId: number | null | undefined,
 ): NonNullable<TransactionFormValues['payments']> {
-  if (budget === null || budget.participantMode !== 'group' || budget.participants.length === 0) {
-    return [];
-  }
-
-  const item = transactionItemForCategory(budget, categoryId);
-  if (item === null || !splitTypeSupportsTransactionPayments(item.split?.splitType ?? 'equal')) {
+  if (!transactionCategorySupportsTransactionPayments(budget, categoryId)) {
     return [];
   }
 
@@ -1647,7 +1670,10 @@ function transactionPaymentsFromForm(
   values: TransactionFormValues,
   budget: BudgetDetail | null,
 ): SaveTransactionPayload['payments'] {
-  if ((values.paymentMode ?? 'single') !== 'multiple' || budget === null) {
+  if (
+    (values.paymentMode ?? 'single') !== 'multiple'
+    || !transactionCategorySupportsTransactionPayments(budget, values.categoryId)
+  ) {
     return [];
   }
 
@@ -1674,10 +1700,24 @@ function transactionPaymentsFromForm(
   return payments;
 }
 
+function transactionPaidByParticipantIdForQuickSave(
+  transaction: Transaction,
+  budget: BudgetDetail | null,
+): number | null {
+  return transactionCategorySupportsTransactionPayments(budget, transaction.categoryId ?? undefined)
+    ? transaction.paidByParticipantId
+    : null;
+}
+
 function transactionPaymentPayloadForQuickSave(
   transaction: Transaction,
+  budget: BudgetDetail | null,
   nextAmount?: number,
 ): SaveTransactionPayload['payments'] {
+  if (!transactionCategorySupportsTransactionPayments(budget, transaction.categoryId ?? undefined)) {
+    return [];
+  }
+
   if (transaction.payments.length === 0) {
     return [];
   }
@@ -1724,7 +1764,20 @@ function transactionItemForCategory(
 }
 
 function splitTypeSupportsTransactionPayments(splitType: BudgetItemSplit['splitType']): boolean {
-  return splitType !== 'excluded';
+  return splitType !== 'excluded' && splitType !== 'per_person';
+}
+
+function transactionCategorySupportsTransactionPayments(
+  budget: BudgetDetail | null,
+  categoryId: number | null | undefined,
+): budget is BudgetDetail {
+  if (budget === null || budget.participantMode !== 'group' || budget.participants.length === 0) {
+    return false;
+  }
+
+  const item = transactionItemForCategory(budget, categoryId);
+
+  return item !== null && splitTypeSupportsTransactionPayments(item.split?.splitType ?? 'equal');
 }
 
 function roundMoney(value: number): number {
