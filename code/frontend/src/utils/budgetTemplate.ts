@@ -44,20 +44,25 @@ export function effectiveBudgetItemAmounts(
   item: BudgetItem,
   transactions: Transaction[],
 ): EffectiveBudgetItemAmounts {
-  const transactionTotals = transactionCurrencyTotalsForItem(item, transactions);
+  const amountMultiplier = budgetItemAmountMultiplier(item);
+  const transactionTotals = transactionCurrencyTotalsForItem(item, transactions)
+    .map((total) => ({
+      ...total,
+      amountOriginal: roundMoney(total.amountOriginal * amountMultiplier),
+      amountBase: roundMoney(total.amountBase * amountMultiplier),
+    }));
   const transactionBaseTotal = roundMoney(
     transactionTotals.reduce((total, transaction) => total + transaction.amountBase, 0),
   );
   const hasTransactionActuals = transactionTotals.length > 0;
   const shouldUseTransactionsAsBudget =
     item.budget.amountOriginal === 0 && item.budget.amountBase === 0 && hasTransactionActuals;
-  const budgetMultiplier = shouldUseTransactionsAsBudget ? 1 : budgetItemAmountMultiplier(item);
   const budgetAmountBase = shouldUseTransactionsAsBudget
     ? transactionBaseTotal
-    : roundMoney(item.budget.amountBase * budgetMultiplier);
+    : roundMoney(item.budget.amountBase * amountMultiplier);
   const budgetAmountOriginal = shouldUseTransactionsAsBudget
     ? originalAmountFromBase(budgetAmountBase, item.budget.rateToBase)
-    : roundMoney(item.budget.amountOriginal * budgetMultiplier);
+    : roundMoney(item.budget.amountOriginal * amountMultiplier);
   const estimatedAmountBase = hasTransactionActuals ? transactionBaseTotal : 0;
   const estimatedAmountOriginal =
     transactionTotals.length === 1 ? transactionTotals[0].amountOriginal : estimatedAmountBase;

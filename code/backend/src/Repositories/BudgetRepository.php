@@ -1457,8 +1457,18 @@ final readonly class BudgetRepository
                 bi.budget_id,
                 SUM(
                   CASE
-                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
-                      THEN COALESCE(txc.transaction_total_base, 0)
+                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND (
+                      COALESCE(txc.transaction_total_base, 0) * CASE
+                        WHEN bis.split_type = 'per_person'
+                          THEN COALESCE(NULLIF(split_participants.included_count, 0), 1)
+                        ELSE 1
+                      END
+                    ) <> 0
+                      THEN COALESCE(txc.transaction_total_base, 0) * CASE
+                        WHEN bis.split_type = 'per_person'
+                          THEN COALESCE(NULLIF(split_participants.included_count, 0), 1)
+                        ELSE 1
+                      END
                     ELSE bi.budget_amount_base * CASE
                       WHEN bis.split_type = 'per_person'
                         THEN COALESCE(NULLIF(split_participants.included_count, 0), 1)
@@ -1466,17 +1476,37 @@ final readonly class BudgetRepository
                     END
                   END
                 ) AS total_budget_base,
-                SUM(COALESCE(txc.transaction_total_base, 0)) AS total_estimated_base,
+                SUM(
+                  COALESCE(txc.transaction_total_base, 0) * CASE
+                    WHEN bis.split_type = 'per_person'
+                      THEN COALESCE(NULLIF(split_participants.included_count, 0), 1)
+                    ELSE 1
+                  END
+                ) AS total_estimated_base,
                 SUM(
                   CASE
-                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(txc.transaction_total_base, 0) <> 0
-                      THEN COALESCE(txc.transaction_total_base, 0)
+                    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND (
+                      COALESCE(txc.transaction_total_base, 0) * CASE
+                        WHEN bis.split_type = 'per_person'
+                          THEN COALESCE(NULLIF(split_participants.included_count, 0), 1)
+                        ELSE 1
+                      END
+                    ) <> 0
+                      THEN COALESCE(txc.transaction_total_base, 0) * CASE
+                        WHEN bis.split_type = 'per_person'
+                          THEN COALESCE(NULLIF(split_participants.included_count, 0), 1)
+                        ELSE 1
+                      END
                     ELSE bi.budget_amount_base * CASE
                       WHEN bis.split_type = 'per_person'
                         THEN COALESCE(NULLIF(split_participants.included_count, 0), 1)
                       ELSE 1
                     END
-                  END - COALESCE(txc.transaction_total_base, 0)
+                  END - COALESCE(txc.transaction_total_base, 0) * CASE
+                    WHEN bis.split_type = 'per_person'
+                      THEN COALESCE(NULLIF(split_participants.included_count, 0), 1)
+                    ELSE 1
+                  END
                 ) AS total_variance_base
               FROM budget_items bi
               LEFT JOIN budget_item_splits bis ON bis.budget_item_id = bi.id

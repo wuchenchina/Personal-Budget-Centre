@@ -17,6 +17,7 @@ import type { BudgetItemModalFocus } from '../../hooks/useBudgetEntryController'
 import {
   effectiveBudgetItemAmounts,
   formatBudgetMoney,
+  transactionCurrencyTotalsForItem,
   type TransactionCurrencyTotal,
 } from '../../utils/budgetTemplate';
 
@@ -98,6 +99,12 @@ export function BudgetItemModal({
   const transactionActuals = editingItem === null
     ? null
     : effectiveBudgetItemAmounts(editingItem, transactions);
+  const transactionBaseAmountPerPerson = editingItem === null
+    ? null
+    : roundMoney(transactionCurrencyTotalsForItem(editingItem, transactions).reduce(
+      (total, transaction) => total + transaction.amountBase,
+      0,
+    ));
   const focusLabel =
     focus === 'category'
       ? t('category')
@@ -120,9 +127,9 @@ export function BudgetItemModal({
     ? transactionActuals?.budgetAmountBase ?? null
     : roundMoney(budgetBasePreview * countedPerPersonParticipantCount);
   const perPersonAmountBasePreview = budgetBasePreview
-    ?? (perPersonTotalBasePreview === null
+    ?? (transactionBaseAmountPerPerson === null
       ? null
-      : roundMoney(perPersonTotalBasePreview / countedPerPersonParticipantCount));
+      : transactionBaseAmountPerPerson);
   const perPersonAmountPreview = perPersonAmountBasePreview === null
     ? `${baseCurrency} --`
     : formatBudgetMoney(baseCurrency, perPersonAmountBasePreview);

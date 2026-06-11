@@ -1666,7 +1666,15 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function effectiveItemAmounts(array $item, array $transactions): array
     {
-        $transactionTotals = $this->transactionCurrencyTotalsForItem($item, $transactions);
+        $amountMultiplier = $this->budgetItemAmountMultiplier($item);
+        $transactionTotals = array_map(
+            fn (array $total): array => [
+                ...$total,
+                'amountOriginal' => $this->roundMoney((float) $total['amountOriginal'] * $amountMultiplier),
+                'amountBase' => $this->roundMoney((float) $total['amountBase'] * $amountMultiplier),
+            ],
+            $this->transactionCurrencyTotalsForItem($item, $transactions),
+        );
         $estimatedBase = round(
             array_reduce($transactionTotals, static fn (float $total, array $transaction): float => $total + $transaction['amountBase'], 0.0),
             2,
@@ -1674,12 +1682,9 @@ final readonly class BudgetPdfDocumentRenderer
         $budgetOriginal = (float) ($item['budget']['amountOriginal'] ?? 0);
         $storedBudgetBase = (float) ($item['budget']['amountBase'] ?? 0);
         $hasTransactionActuals = $transactionTotals !== [];
-        $budgetMultiplier = $hasTransactionActuals && $budgetOriginal === 0.0 && $storedBudgetBase === 0.0
-            ? 1
-            : $this->budgetItemAmountMultiplier($item);
         $budgetBase = $budgetOriginal === 0.0 && $storedBudgetBase === 0.0 && $hasTransactionActuals
             ? $estimatedBase
-            : round($storedBudgetBase * $budgetMultiplier, 2);
+            : round($storedBudgetBase * $amountMultiplier, 2);
         $budgetRate = (float) ($item['budget']['rateToBase'] ?? 0);
 
         return [
@@ -1705,7 +1710,7 @@ final readonly class BudgetPdfDocumentRenderer
         $storedBudgetBase = (float) ($item['budget']['amountBase'] ?? 0);
 
         if ($budgetOriginal === 0.0 && $storedBudgetBase === 0.0 && $transactionTotals !== []) {
-            return $this->roundMoney($estimatedBase / max(1, $participantCount ?? $this->budgetItemAmountMultiplier($item)));
+            return $this->roundMoney($estimatedBase);
         }
 
         return $this->roundMoney($storedBudgetBase);

@@ -5,7 +5,7 @@ import type {
   BudgetParticipant,
   Transaction,
 } from '../types/budget';
-import { effectiveBudgetItemAmounts } from './budgetTemplate';
+import { effectiveBudgetItemAmounts, transactionCurrencyTotalsForItem } from './budgetTemplate';
 
 export interface GroupBudgetParticipantSummary {
   participant: BudgetParticipant;
@@ -46,7 +46,8 @@ export function groupBudgetSummary(budget: BudgetDetail): GroupBudgetSummary {
   let personalExpenseBase = 0;
 
   budget.items.forEach((item) => {
-    const amountBase = effectiveBudgetItemAmounts(item, budget.transactions).budgetAmountBase;
+    const effective = effectiveBudgetItemAmounts(item, budget.transactions);
+    const amountBase = effective.budgetAmountBase;
     const split = item.split ?? defaultEqualSplit(budget.participants);
     const includedParticipants = split.participants.filter(
       (participant) => participant.isIncluded && totals.has(participant.participantId),
@@ -71,7 +72,7 @@ export function groupBudgetSummary(budget: BudgetDetail): GroupBudgetSummary {
     }
 
     if (split.splitType === 'per_person') {
-      const perPersonAmountBase = perPersonItemBase(item, includedParticipants.length, amountBase);
+      const perPersonAmountBase = perPersonItemBase(item, budget.transactions);
       let perPersonTotalBase = 0;
       includedParticipants.forEach((participant) => {
         const total = totals.get(participant.participantId);
@@ -367,14 +368,15 @@ function settlementsFromSummaries(
   return settlements;
 }
 
-function perPersonItemBase(item: BudgetItem, participantCount: number, effectiveAmountBase: number): number {
+function perPersonItemBase(item: BudgetItem, transactions: Transaction[]): number {
   if (item.budget.amountOriginal !== 0 || item.budget.amountBase !== 0) {
     return item.budget.amountBase;
   }
 
-  return participantCount <= 0
-    ? effectiveAmountBase
-    : roundMoney(effectiveAmountBase / participantCount);
+  return roundMoney(transactionCurrencyTotalsForItem(item, transactions).reduce(
+    (total, transaction) => total + transaction.amountBase,
+    0,
+  ));
 }
 
 function roundMoney(value: number): number {
