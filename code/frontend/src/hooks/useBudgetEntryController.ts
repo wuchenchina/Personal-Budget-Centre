@@ -393,10 +393,12 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
     transactionForm.setFieldsValue({
       categoryId: firstCategoryId,
+      paymentMode: 'single',
       paidByParticipantId: defaultTransactionPaidByParticipantId(
         options.selectedBudget,
         firstCategoryId,
       ) ?? undefined,
+      payments: defaultTransactionPaymentRows(options.selectedBudget, firstCategoryId),
       transactionDate: dayjs(),
       currency: entryCurrency,
       referenceCurrency: undefined,
@@ -412,12 +414,14 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     transactionForm.resetFields();
     transactionForm.setFieldsValue({
       categoryId: transaction.categoryId ?? undefined,
+      paymentMode: transaction.payments.length > 0 ? 'multiple' : 'single',
       paidByParticipantId: transaction.paidByParticipantId
         ?? defaultTransactionPaidByParticipantId(
           options.selectedBudget,
           transaction.categoryId ?? undefined,
         )
         ?? undefined,
+      payments: transactionPaymentRowsToForm(transaction, options.selectedBudget),
       transactionDate:
         transaction.transactionDate === null ? undefined : dayjs(transaction.transactionDate),
       details: transaction.details,
@@ -447,6 +451,10 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       'paidByParticipantId',
       defaultTransactionPaidByParticipantId(options.selectedBudget, categoryId) ?? undefined,
     );
+    transactionForm.setFieldValue(
+      'payments',
+      defaultTransactionPaymentRows(options.selectedBudget, categoryId),
+    );
   };
 
   const clearEntryError = () => {
@@ -469,6 +477,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       const payload: SaveTransactionPayload = {
         categoryId: values.categoryId,
         paidByParticipantId: transactionPaidByParticipantIdFromForm(values, options.selectedBudget),
+        paymentMode: values.paymentMode ?? 'single',
+        payments: transactionPaymentsFromForm(values, options.selectedBudget),
         transactionDate: values.transactionDate?.format('YYYY-MM-DD') ?? null,
         details: values.details.trim(),
         currency: values.currency,
@@ -1238,6 +1248,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         amount: value,
         rate: transaction.rateToBase,
         paidByParticipantId: transaction.paidByParticipantId,
+        payments: transactionPaymentPayloadForQuickSave(transaction, value),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
@@ -1270,6 +1281,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         currency,
         amount: transaction.amountOriginal,
         paidByParticipantId: transaction.paidByParticipantId,
+        payments: transactionPaymentPayloadForQuickSave(transaction),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
@@ -1303,6 +1315,12 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         amount: transaction.amountOriginal,
         rate: transaction.rateToBase,
         paidByParticipantId: defaultTransactionPaidByParticipantId(options.selectedBudget, categoryId),
+        payments: defaultTransactionPaymentRows(options.selectedBudget, categoryId)
+          .map((row) => ({
+            participantId: row.participantId ?? 0,
+            amount: row.amount ?? 0,
+          }))
+          .filter((row) => row.participantId > 0 && row.amount > 0),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
@@ -1342,6 +1360,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         amount: transaction.amountOriginal,
         rate: transaction.rateToBase,
         paidByParticipantId: transaction.paidByParticipantId,
+        payments: transactionPaymentPayloadForQuickSave(transaction),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: normalizedRemark,
@@ -1545,7 +1564,7 @@ function defaultTransactionPaidByParticipantId(
   }
 
   const item = transactionItemForCategory(budget, categoryId);
-  if (item === null || !splitTypeNeedsTransactionPaidBy(item.split?.splitType ?? 'equal')) {
+  if (item === null || !splitTypeSupportsTransactionPayments(item.split?.splitType ?? 'equal')) {
     return null;
   }
 
@@ -1562,6 +1581,10 @@ function transactionPaidByParticipantIdFromForm(
   values: TransactionFormValues,
   budget: BudgetDetail | null,
 ): number | null {
+  if ((values.paymentMode ?? 'single') === 'multiple') {
+    return null;
+  }
+
   const fallbackPaidByParticipantId = defaultTransactionPaidByParticipantId(
     budget,
     values.categoryId,
@@ -1577,6 +1600,118 @@ function transactionPaidByParticipantIdFromForm(
     : fallbackPaidByParticipantId;
 }
 
+function defaultTransactionPaymentRows(
+  budget: BudgetDetail | null,
+  categoryId: number | null | undefined,
+): NonNullable<TransactionFormValues['payments']> {
+  if (budget === null || budget.participantMode !== 'group' || budget.participants.length === 0) {
+    return [];
+  }
+
+  const item = transactionItemForCategory(budget, categoryId);
+  if (item === null || !splitTypeSupportsTransactionPayments(item.split?.splitType ?? 'equal')) {
+    return [];
+  }
+
+  return budget.participants.map((participant) => ({
+    participantId: participant.id,
+    amount: null,
+  }));
+}
+
+function transactionPaymentRowsToForm(
+  transaction: Transaction,
+  budget: BudgetDetail | null,
+): NonNullable<TransactionFormValues['payments']> {
+  const rows = defaultTransactionPaymentRows(budget, transaction.categoryId);
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const amountByParticipantId = new Map(
+    transaction.payments.map((payment) => [payment.participantId, payment.amountOriginal]),
+  );
+  if (amountByParticipantId.size === 0 && transaction.paidByParticipantId !== null) {
+    amountByParticipantId.set(transaction.paidByParticipantId, transaction.amountOriginal);
+  }
+
+  return rows.map((row) => ({
+    participantId: row.participantId,
+    amount: row.participantId === undefined
+      ? null
+      : amountByParticipantId.get(row.participantId) ?? null,
+  }));
+}
+
+function transactionPaymentsFromForm(
+  values: TransactionFormValues,
+  budget: BudgetDetail | null,
+): SaveTransactionPayload['payments'] {
+  if ((values.paymentMode ?? 'single') !== 'multiple' || budget === null) {
+    return [];
+  }
+
+  const participantIds = new Set(budget.participants.map((participant) => participant.id));
+  const payments = (values.payments ?? [])
+    .filter((row): row is { participantId: number; amount: number } =>
+      typeof row?.participantId === 'number'
+      && participantIds.has(row.participantId)
+      && typeof row.amount === 'number'
+      && Number.isFinite(row.amount)
+      && row.amount > 0,
+    )
+    .map((row) => ({
+      participantId: row.participantId,
+      amount: roundMoney(row.amount),
+    }));
+
+  const paymentTotal = roundMoney(payments.reduce((total, payment) => total + payment.amount, 0));
+  const amount = normalizedAmount(values.amount);
+  if (amount !== null && Math.abs(paymentTotal - roundMoney(amount)) > 0.01) {
+    throw new Error(translateCurrent('transactionPaymentTotalMismatch'));
+  }
+
+  return payments;
+}
+
+function transactionPaymentPayloadForQuickSave(
+  transaction: Transaction,
+  nextAmount?: number,
+): SaveTransactionPayload['payments'] {
+  if (transaction.payments.length === 0) {
+    return [];
+  }
+
+  if (typeof nextAmount !== 'number' || !Number.isFinite(nextAmount)) {
+    return transaction.payments.map((payment) => ({
+      participantId: payment.participantId,
+      amount: payment.amountOriginal,
+    }));
+  }
+
+  const currentTotal = roundMoney(transaction.payments.reduce(
+    (total, payment) => total + payment.amountOriginal,
+    0,
+  ));
+  if (currentTotal <= 0) {
+    return [];
+  }
+
+  let distributedTotal = 0;
+  return transaction.payments.map((payment, index) => {
+    const isLast = index === transaction.payments.length - 1;
+    const amount = isLast
+      ? roundMoney(nextAmount - distributedTotal)
+      : roundMoney(nextAmount * payment.amountOriginal / currentTotal);
+    distributedTotal = roundMoney(distributedTotal + amount);
+
+    return {
+      participantId: payment.participantId,
+      amount: Math.max(0, amount),
+    };
+  }).filter((payment) => payment.amount > 0);
+}
+
 function transactionItemForCategory(
   budget: BudgetDetail,
   categoryId: number | null | undefined,
@@ -1588,10 +1723,8 @@ function transactionItemForCategory(
   return budget.items.find((item) => item.categoryId === categoryId) ?? null;
 }
 
-function splitTypeNeedsTransactionPaidBy(splitType: BudgetItemSplit['splitType']): boolean {
-  return splitType !== 'excluded'
-    && splitType !== 'individual'
-    && splitType !== 'per_person';
+function splitTypeSupportsTransactionPayments(splitType: BudgetItemSplit['splitType']): boolean {
+  return splitType !== 'excluded';
 }
 
 function roundMoney(value: number): number {

@@ -244,6 +244,46 @@ final readonly class BudgetEntryRepository
         ]);
     }
 
+    public function replaceTransactionPayments(int $transactionId, array $payments): void
+    {
+        if (!$this->hasTransactionPaymentsTable()) {
+            return;
+        }
+
+        $deleteStatement = $this->pdo->prepare(
+            'DELETE FROM budget_transaction_payments WHERE transaction_id = :transaction_id'
+        );
+        $deleteStatement->execute(['transaction_id' => $transactionId]);
+
+        if ($payments === []) {
+            return;
+        }
+
+        $insertStatement = $this->pdo->prepare(
+            <<<'SQL'
+            INSERT INTO budget_transaction_payments (
+              transaction_id,
+              participant_id,
+              amount_original,
+              amount_base
+            ) VALUES (
+              :transaction_id,
+              :participant_id,
+              :amount_original,
+              :amount_base
+            )
+            SQL
+        );
+        foreach ($payments as $payment) {
+            $insertStatement->execute([
+                'transaction_id' => $transactionId,
+                'participant_id' => $payment['participantId'],
+                'amount_original' => $payment['amountOriginal'],
+                'amount_base' => $payment['amountBase'],
+            ]);
+        }
+    }
+
     public function deleteTransaction(int $id): void
     {
         $statement = $this->pdo->prepare('DELETE FROM budget_transactions WHERE id = :id');
@@ -370,6 +410,21 @@ final readonly class BudgetEntryRepository
             WHERE table_schema = DATABASE()
               AND table_name = 'budget_transactions'
               AND column_name = 'paid_by_participant_id'
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasTransactionPaymentsTable(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_transaction_payments'
             SQL
         );
         $statement->execute();

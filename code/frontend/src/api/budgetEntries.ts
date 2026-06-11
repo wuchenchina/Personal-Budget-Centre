@@ -35,7 +35,12 @@ export interface UpdateBudgetItemPayload extends SaveBudgetItemPayload {
 
 export interface SaveTransactionPayload {
   categoryId?: number;
+  paymentMode?: 'single' | 'multiple';
   paidByParticipantId?: number | null;
+  payments?: Array<{
+    participantId: number;
+    amount: number;
+  }>;
   transactionDate?: string | null;
   details: string;
   currency: CurrencyCode;

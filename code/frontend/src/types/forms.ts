@@ -96,7 +96,12 @@ export interface BudgetItemFormValues {
 
 export interface TransactionFormValues {
   categoryId?: number;
+  paymentMode?: 'single' | 'multiple';
   paidByParticipantId?: number | null;
+  payments?: Array<{
+    participantId?: number;
+    amount?: number | null;
+  }>;
   transactionDate?: Dayjs;
   details: string;
   currency: CurrencyCode;

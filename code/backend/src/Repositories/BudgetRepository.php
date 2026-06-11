@@ -765,30 +765,70 @@ final readonly class BudgetRepository
             SQL
         );
         $statement->execute(['budget_id' => $budgetId]);
+        $paymentsByTransaction = $this->transactionPaymentsForBudget($budgetId);
 
         return array_map(
-            fn (array $row): array => [
-                'id' => (int) $row['id'],
-                'categoryId' => $row['category_id'] === null ? null : (int) $row['category_id'],
-                'paidByParticipantId' => $row['paid_by_participant_id'] === null
-                    ? null
-                    : (int) $row['paid_by_participant_id'],
-                'category' => $row['category_name'],
-                'transactionDate' => $row['transaction_date'],
-                'details' => $row['details'],
-                'currency' => $row['currency'],
-                'amountOriginal' => $this->decimal($row['amount_original']),
-                'rateToBase' => $this->decimal($row['rate_to_base']),
-                'amountBase' => $this->decimal($row['amount_base']),
-                'referenceCurrency' => $row['reference_currency'],
-                'referenceAmountOriginal' => $row['reference_amount_original'] === null
-                    ? null
-                    : $this->decimal($row['reference_amount_original']),
-                'remark' => $row['remark'],
-                'sortOrder' => (int) $row['sort_order'],
-            ],
+            function (array $row) use ($paymentsByTransaction): array {
+                $transactionId = (int) $row['id'];
+
+                return [
+                    'id' => $transactionId,
+                    'categoryId' => $row['category_id'] === null ? null : (int) $row['category_id'],
+                    'paidByParticipantId' => $row['paid_by_participant_id'] === null
+                        ? null
+                        : (int) $row['paid_by_participant_id'],
+                    'payments' => $paymentsByTransaction[$transactionId] ?? [],
+                    'category' => $row['category_name'],
+                    'transactionDate' => $row['transaction_date'],
+                    'details' => $row['details'],
+                    'currency' => $row['currency'],
+                    'amountOriginal' => $this->decimal($row['amount_original']),
+                    'rateToBase' => $this->decimal($row['rate_to_base']),
+                    'amountBase' => $this->decimal($row['amount_base']),
+                    'referenceCurrency' => $row['reference_currency'],
+                    'referenceAmountOriginal' => $row['reference_amount_original'] === null
+                        ? null
+                        : $this->decimal($row['reference_amount_original']),
+                    'remark' => $row['remark'],
+                    'sortOrder' => (int) $row['sort_order'],
+                ];
+            },
             $statement->fetchAll(),
         );
+    }
+
+    private function transactionPaymentsForBudget(int $budgetId): array
+    {
+        if (!$this->hasTransactionPaymentsTable()) {
+            return [];
+        }
+
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT
+              btp.transaction_id,
+              btp.participant_id,
+              btp.amount_original,
+              btp.amount_base
+            FROM budget_transaction_payments btp
+            INNER JOIN budget_transactions bt ON bt.id = btp.transaction_id
+            WHERE bt.budget_id = :budget_id
+            ORDER BY btp.id ASC
+            SQL
+        );
+        $statement->execute(['budget_id' => $budgetId]);
+
+        $paymentsByTransaction = [];
+        foreach ($statement->fetchAll() as $row) {
+            $transactionId = (int) $row['transaction_id'];
+            $paymentsByTransaction[$transactionId][] = [
+                'participantId' => (int) $row['participant_id'],
+                'amountOriginal' => $this->decimal($row['amount_original']),
+                'amountBase' => $this->decimal($row['amount_base']),
+            ];
+        }
+
+        return $paymentsByTransaction;
     }
 
     private function overallInstallmentPlanForBudget(int $budgetId): array
@@ -1286,6 +1326,21 @@ final readonly class BudgetRepository
             WHERE table_schema = DATABASE()
               AND table_name = 'budget_transactions'
               AND column_name = 'paid_by_participant_id'
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasTransactionPaymentsTable(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_transaction_payments'
             SQL
         );
         $statement->execute();

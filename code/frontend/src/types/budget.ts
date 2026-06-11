@@ -224,6 +224,7 @@ export interface Transaction {
   id: number;
   categoryId: number | null;
   paidByParticipantId: number | null;
+  payments: TransactionPayment[];
   category: string | null;
   transactionDate: string | null;
   details: string;
@@ -235,6 +236,12 @@ export interface Transaction {
   referenceAmountOriginal: number | null;
   remark: string | null;
   sortOrder: number;
+}
+
+export interface TransactionPayment {
+  participantId: number;
+  amountOriginal: number;
+  amountBase: number;
 }
 
 export interface CurrencyRate {

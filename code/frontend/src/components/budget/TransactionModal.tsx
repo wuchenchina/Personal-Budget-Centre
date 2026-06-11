@@ -1,6 +1,7 @@
 import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import { Calculator, RefreshCcw } from 'lucide-react';
+import { useEffect } from 'react';
 import { currencyOptions } from '../../config/appConfig';
 import { useI18n } from '../../i18n';
 import type {
@@ -74,15 +75,62 @@ export function TransactionModal({
       ? `${referenceCurrency ?? t('currency')} 1 = ${currency} ${(amount / referenceAmount).toFixed(6)}`
       : null;
   const selectedItem = items.find((item) => item.categoryId === selectedCategoryId) ?? null;
-  const showPaidBy =
+  const showPaymentPanel =
     participantMode === 'group'
     && participants.length > 0
     && selectedItem !== null
-    && splitTypeNeedsTransactionPaidBy(selectedItem.split?.splitType ?? 'equal');
+    && splitTypeSupportsTransactionPayments(selectedItem.split?.splitType ?? 'equal');
+  const paymentMode = Form.useWatch('paymentMode', form) ?? 'single';
+  const paymentRows = Form.useWatch('payments', form) ?? [];
+  const paymentTotal = paymentRows.reduce((total, row) => (
+    total + (typeof row?.amount === 'number' && Number.isFinite(row.amount) ? row.amount : 0)
+  ), 0);
+  const paymentRemaining =
+    typeof amount === 'number' && Number.isFinite(amount)
+      ? amount - paymentTotal
+      : null;
   const participantOptions = participants.map((participant) => ({
     label: participant.name,
     value: participant.id,
   }));
+
+  useEffect(() => {
+    if (!open || !showPaymentPanel || paymentMode !== 'multiple') {
+      return;
+    }
+
+    const currentRows = form.getFieldValue('payments') as TransactionPaymentFormRows | undefined;
+    const nextRows = normalizePaymentRows(currentRows, participants);
+    if (!paymentRowsEqual(currentRows, nextRows)) {
+      form.setFieldValue('payments', nextRows);
+    }
+  }, [form, open, participants, paymentMode, showPaymentPanel]);
+
+  const defaultPaidByParticipantId =
+    selectedItem?.split?.paidByParticipantId ?? participants[0]?.id ?? null;
+  const handlePaymentModeChange = (mode: 'single' | 'multiple') => {
+    if (mode === 'single') {
+      form.setFieldsValue({
+        paymentMode: 'single',
+        paidByParticipantId: form.getFieldValue('paidByParticipantId')
+          ?? defaultPaidByParticipantId
+          ?? undefined,
+      });
+
+      return;
+    }
+
+    form.setFieldsValue({
+      paymentMode: 'multiple',
+      paidByParticipantId: null,
+      payments: normalizePaymentRows(
+        form.getFieldValue('payments') as TransactionPaymentFormRows | undefined,
+        participants,
+        form.getFieldValue('paidByParticipantId') ?? defaultPaidByParticipantId,
+        amount,
+      ),
+    });
+  };
 
   return (
     <Modal
@@ -137,19 +185,86 @@ export function TransactionModal({
           />
         </Form.Item>
 
-        {showPaidBy ? (
-          <Form.Item
-            label={t('paidBy')}
-            name="paidByParticipantId"
-            rules={[{ required: true, message: t('selectPaidBy') }]}
-          >
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={participantOptions}
-              placeholder={t('selectPaidBy')}
-            />
-          </Form.Item>
+        {showPaymentPanel ? (
+          <div className="group-split-panel transaction-payment-panel">
+            <div className="group-split-header">
+              <div>
+                <strong>{t('transactionPaymentBreakdown')}</strong>
+                <span>{t('transactionPaymentBreakdownHelp')}</span>
+              </div>
+            </div>
+            <div className="modal-form-grid">
+              <Form.Item
+                label={t('paymentEntryMode')}
+                name="paymentMode"
+                rules={[{ required: true, message: t('paymentEntryModeRequired') }]}
+              >
+                <Select
+                  options={[
+                    { label: t('paymentSingle'), value: 'single' },
+                    { label: t('paymentMultiple'), value: 'multiple' },
+                  ]}
+                  onChange={handlePaymentModeChange}
+                />
+              </Form.Item>
+              {paymentMode === 'single' ? (
+                <Form.Item
+                  label={t('paidBy')}
+                  name="paidByParticipantId"
+                  rules={[{ required: true, message: t('selectPaidBy') }]}
+                >
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    options={participantOptions}
+                    placeholder={t('selectPaidBy')}
+                  />
+                </Form.Item>
+              ) : null}
+            </div>
+            {paymentMode === 'multiple' ? (
+              <Form.List name="payments">
+                {(_, __, { errors }) => (
+                  <div className="individual-split-list transaction-payment-list">
+                    <div className="individual-split-list-head">
+                      <div>
+                        <strong>{t('paymentMultiple')}</strong>
+                        <span>
+                          {paymentRemaining === null
+                            ? t('paymentTotal', { amount: `${currency} ${paymentTotal.toFixed(2)}` })
+                            : t('paymentRemaining', {
+                              amount: `${currency} ${paymentRemaining.toFixed(2)}`,
+                            })}
+                        </span>
+                      </div>
+                      <strong>{`${currency} ${paymentTotal.toFixed(2)}`}</strong>
+                    </div>
+                    {participants.map((participant, index) => (
+                      <div className="individual-split-row" key={participant.id}>
+                        <span>{participant.name}</span>
+                        <Form.Item name={[index, 'participantId']} hidden>
+                          <InputNumber />
+                        </Form.Item>
+                        <Form.Item
+                          name={[index, 'amount']}
+                          rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+                        >
+                          <InputNumber
+                            addonBefore={currency}
+                            className="form-full-width"
+                            min={0}
+                            precision={2}
+                            step={100}
+                          />
+                        </Form.Item>
+                      </div>
+                    ))}
+                    <Form.ErrorList errors={errors} />
+                  </div>
+                )}
+              </Form.List>
+            ) : null}
+          </div>
         ) : null}
 
         <div className="currency-config-panel">
@@ -281,8 +396,57 @@ export function TransactionModal({
   );
 }
 
-function splitTypeNeedsTransactionPaidBy(splitType: BudgetItemSplitType): boolean {
-  return splitType !== 'excluded'
-    && splitType !== 'individual'
-    && splitType !== 'per_person';
+type TransactionPaymentFormRows = NonNullable<TransactionFormValues['payments']>;
+
+function splitTypeSupportsTransactionPayments(splitType: BudgetItemSplitType): boolean {
+  return splitType !== 'excluded';
+}
+
+function normalizePaymentRows(
+  rows: TransactionPaymentFormRows | undefined,
+  participants: BudgetParticipant[],
+  paidByParticipantId?: number | null,
+  amount?: number,
+): TransactionPaymentFormRows {
+  const amountByParticipantId = new Map<number, number | null>();
+  rows?.forEach((row) => {
+    if (typeof row?.participantId !== 'number') {
+      return;
+    }
+
+    amountByParticipantId.set(
+      row.participantId,
+      typeof row.amount === 'number' && Number.isFinite(row.amount) ? row.amount : null,
+    );
+  });
+
+  if (
+    typeof paidByParticipantId === 'number'
+    && typeof amount === 'number'
+    && Number.isFinite(amount)
+    && !amountByParticipantId.has(paidByParticipantId)
+  ) {
+    amountByParticipantId.set(paidByParticipantId, amount);
+  }
+
+  return participants.map((participant) => ({
+    participantId: participant.id,
+    amount: amountByParticipantId.get(participant.id) ?? null,
+  }));
+}
+
+function paymentRowsEqual(
+  currentRows: TransactionPaymentFormRows | undefined,
+  nextRows: TransactionPaymentFormRows,
+): boolean {
+  if (!Array.isArray(currentRows) || currentRows.length !== nextRows.length) {
+    return false;
+  }
+
+  return nextRows.every((nextRow, index) => {
+    const currentRow = currentRows[index];
+
+    return currentRow?.participantId === nextRow.participantId
+      && (currentRow?.amount ?? null) === (nextRow.amount ?? null);
+  });
 }

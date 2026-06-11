@@ -44,6 +44,7 @@ import type {
   BudgetExportChineseLanguage,
   BudgetExportTableLanguageMode,
   BudgetItem,
+  BudgetParticipant,
   BudgetSignatureConfig,
   BudgetSignatureRow,
   BudgetTemplateDefinition,
@@ -350,13 +351,17 @@ export function BudgetDocumentPreview({
   const transactionColumns = useMemo(
     () =>
       appendTransactionActions(
-        appendTransactionQuickEditors(
-          createTransactionColumns(localizedTransactionBreakdown?.columns ?? []),
-          canWriteBudgets,
-          entry,
-          transactionCategoryOptions,
-          selectedBudget?.baseCurrency ?? baseCurrency,
-          t('referenceShort'),
+        appendTransactionPaymentColumn(
+          appendTransactionQuickEditors(
+            createTransactionColumns(localizedTransactionBreakdown?.columns ?? []),
+            canWriteBudgets,
+            entry,
+            transactionCategoryOptions,
+            selectedBudget?.baseCurrency ?? baseCurrency,
+            t('referenceShort'),
+          ),
+          selectedBudget?.participants ?? [],
+          t('paidBy'),
         ),
         canWriteBudgets,
         entry,
@@ -372,6 +377,7 @@ export function BudgetDocumentPreview({
       canWriteBudgets,
       entry,
       selectedBudget?.baseCurrency,
+      selectedBudget?.participants,
       t,
       localizedTransactionBreakdown,
       transactionCategoryOptions,
@@ -1924,6 +1930,70 @@ function appendTransactionQuickEditors(
       ),
     };
   });
+}
+
+function appendTransactionPaymentColumn(
+  columns: TableProps<Transaction>['columns'],
+  participants: BudgetParticipant[],
+  title: string,
+): TableProps<Transaction>['columns'] {
+  if (columns === undefined || participants.length === 0) {
+    return columns;
+  }
+
+  const paymentColumn: NonNullable<TableProps<Transaction>['columns']>[number] = {
+    key: 'paid_by',
+    title,
+    align: 'left',
+    width: '16%',
+    render: (_value: unknown, row: Transaction) => transactionPaymentCell(row, participants),
+  };
+  if (columns.some((column) => String(column.key ?? '') === 'paid_by')) {
+    return columns.map((column) =>
+      String(column.key ?? '') === 'paid_by'
+        ? { ...column, render: paymentColumn.render }
+        : column,
+    );
+  }
+
+  const nextColumns: NonNullable<TableProps<Transaction>['columns']> = [];
+  let inserted = false;
+  columns.forEach((column) => {
+    nextColumns.push(column);
+    if (!inserted && String(column.key ?? '') === 'category') {
+      nextColumns.push(paymentColumn);
+      inserted = true;
+    }
+  });
+
+  if (!inserted) {
+    nextColumns.splice(Math.min(1, nextColumns.length), 0, paymentColumn);
+  }
+
+  return nextColumns;
+}
+
+function transactionPaymentCell(transaction: Transaction, participants: BudgetParticipant[]) {
+  const participantName = new Map(participants.map((participant) => [participant.id, participant.name]));
+  if (transaction.payments.length > 0) {
+    return (
+      <div className="budget-money-stack">
+        {transaction.payments.map((payment) => (
+          <span key={payment.participantId} className="budget-money-secondary">
+            {participantName.get(payment.participantId) ?? ''}
+            {': '}
+            {formatBudgetMoney(transaction.currency, payment.amountOriginal)}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  if (transaction.paidByParticipantId !== null) {
+    return participantName.get(transaction.paidByParticipantId) ?? '';
+  }
+
+  return '';
 }
 
 function InlineTransactionCategoryCell({

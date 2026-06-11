@@ -164,6 +164,15 @@ final readonly class BudgetPdfDocumentRenderer
             $tableContext,
         );
         $transactions = is_array($budget['transactions'] ?? null) ? $budget['transactions'] : [];
+        $transactionParticipants = (($budget['participantMode'] ?? 'solo') === 'group')
+            ? $this->budgetParticipants($budget)
+            : [];
+        $transactionSection = $this->transactionSectionWithPaymentColumn(
+            $transactionSection,
+            $transactionParticipants,
+            $tableContext,
+        );
+        $hasTransactionPaymentColumn = $this->sectionHasColumn($transactionSection, 'paid_by');
 
         return '<!doctype html><html lang="' . $this->documentLanguage($tableContext) . '"><head><meta charset="utf-8">'
             . '<style>'
@@ -186,7 +195,13 @@ final readonly class BudgetPdfDocumentRenderer
             . $this->tableRenderer->render(
                 $transactionSection,
                 $periodText,
-                $this->transactionRows($transactions, (string) $budget['baseCurrency']),
+                $this->transactionRows(
+                    $transactions,
+                    (string) $budget['baseCurrency'],
+                    $transactionParticipants,
+                    $tableContext,
+                    $hasTransactionPaymentColumn,
+                ),
                 null,
                 $this->tableText('No transactions', $tableContext['labels']['emptyTransactions'], $tableContext),
                 $this->datePrefix($tableContext),
@@ -279,6 +294,54 @@ final readonly class BudgetPdfDocumentRenderer
                 ? (string) ($column['label'] ?? '') . "\n" . $localizedLabel
                 : $localizedLabel,
         ];
+    }
+
+    private function transactionSectionWithPaymentColumn(
+        array $section,
+        array $participants,
+        array $context,
+    ): array {
+        if ($participants === [] || $this->sectionHasColumn($section, 'paid_by')) {
+            return $section;
+        }
+
+        $label = $context['mode'] === 'en'
+            ? 'Paid By'
+            : ($context['mode'] === 'bilingual'
+                ? "Paid By\n" . $context['labels']['columnLabels']['paid_by']
+                : $context['labels']['columnLabels']['paid_by']);
+        $paymentColumn = [
+            'key' => 'paid_by',
+            'label' => $label,
+            'align' => 'left',
+            'widthPercent' => 16,
+            'dataType' => 'text',
+        ];
+        $columns = is_array($section['columns'] ?? null) ? array_values($section['columns']) : [];
+        $insertIndex = 1;
+        foreach ($columns as $index => $column) {
+            if (($column['key'] ?? null) === 'category') {
+                $insertIndex = $index + 1;
+                break;
+            }
+        }
+        array_splice($columns, $insertIndex, 0, [$paymentColumn]);
+
+        return [
+            ...$section,
+            'columns' => $columns,
+        ];
+    }
+
+    private function sectionHasColumn(array $section, string $key): bool
+    {
+        foreach (is_array($section['columns'] ?? null) ? $section['columns'] : [] as $column) {
+            if (is_array($column) && ($column['key'] ?? null) === $key) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function tableText(string $english, string $chinese, array $context): string
@@ -583,18 +646,14 @@ final readonly class BudgetPdfDocumentRenderer
             }
 
             if ($split['splitType'] === 'individual') {
-                $individualTotalBase = 0.0;
-                foreach ($this->sharesForSplit($split, $includedParticipants, $amountBase) as $participantId => $shareAmount) {
-                    if (isset($totals[$participantId])) {
-                        $totals[$participantId]['paidBase'] = $this->roundMoney(
-                            $totals[$participantId]['paidBase'] + $shareAmount,
-                        );
-                        $totals[$participantId]['shareBase'] = $this->roundMoney(
-                            $totals[$participantId]['shareBase'] + $shareAmount,
-                        );
-                        $individualTotalBase = $this->roundMoney($individualTotalBase + $shareAmount);
-                    }
-                }
+                $individualTotalBase = $this->applyIndividualPayments(
+                    $item,
+                    $transactions,
+                    $split,
+                    $includedParticipants,
+                    $amountBase,
+                    $totals,
+                );
                 $personalExpenseBase = $this->roundMoney($personalExpenseBase + $individualTotalBase);
 
                 continue;
@@ -708,17 +767,34 @@ final readonly class BudgetPdfDocumentRenderer
         array &$totals,
     ): void {
         $itemTransactions = $this->transactionsForItem($item, $transactions);
-        $hasTransactionPayer = false;
+        $hasTransactionPaymentInfo = false;
         foreach ($itemTransactions as $transaction) {
             $paidByParticipantId = $this->participantIdOrNull($transaction['paidByParticipantId'] ?? null);
-            if ($paidByParticipantId !== null && isset($totals[$paidByParticipantId])) {
-                $hasTransactionPayer = true;
+            if (
+                $this->transactionPayments($transaction) !== []
+                || ($paidByParticipantId !== null && isset($totals[$paidByParticipantId]))
+            ) {
+                $hasTransactionPaymentInfo = true;
                 break;
             }
         }
 
-        if ($hasTransactionPayer) {
+        if ($hasTransactionPaymentInfo) {
             foreach ($itemTransactions as $transaction) {
+                $payments = $this->transactionPayments($transaction);
+                if ($payments !== []) {
+                    foreach ($payments as $payment) {
+                        $participantId = (int) $payment['participantId'];
+                        if (isset($totals[$participantId])) {
+                            $totals[$participantId]['paidBase'] = $this->roundMoney(
+                                $totals[$participantId]['paidBase'] + (float) $payment['amountBase'],
+                            );
+                        }
+                    }
+
+                    continue;
+                }
+
                 $paidByParticipantId = $this->participantIdOrNull($transaction['paidByParticipantId'] ?? null);
                 if ($paidByParticipantId === null || !isset($totals[$paidByParticipantId])) {
                     $paidByParticipantId = $this->participantIdOrNull($split['paidByParticipantId'] ?? null);
@@ -740,6 +816,85 @@ final readonly class BudgetPdfDocumentRenderer
                 $totals[$paidByParticipantId]['paidBase'] + $fallbackAmountBase,
             );
         }
+    }
+
+    private function applyIndividualPayments(
+        array $item,
+        array $transactions,
+        array $split,
+        array $includedParticipants,
+        float $fallbackAmountBase,
+        array &$totals,
+    ): float {
+        $itemTransactions = $this->transactionsForItem($item, $transactions);
+        $hasTransactionPaymentInfo = false;
+        foreach ($itemTransactions as $transaction) {
+            $paidByParticipantId = $this->participantIdOrNull($transaction['paidByParticipantId'] ?? null);
+            if (
+                $this->transactionPayments($transaction) !== []
+                || ($paidByParticipantId !== null && isset($totals[$paidByParticipantId]))
+            ) {
+                $hasTransactionPaymentInfo = true;
+                break;
+            }
+        }
+
+        if ($hasTransactionPaymentInfo) {
+            $transactionTotalBase = 0.0;
+            foreach ($itemTransactions as $transaction) {
+                $payments = $this->transactionPayments($transaction);
+                if ($payments !== []) {
+                    foreach ($payments as $payment) {
+                        $participantId = (int) $payment['participantId'];
+                        if (isset($totals[$participantId])) {
+                            $amountBase = (float) $payment['amountBase'];
+                            $totals[$participantId]['paidBase'] = $this->roundMoney(
+                                $totals[$participantId]['paidBase'] + $amountBase,
+                            );
+                            $totals[$participantId]['shareBase'] = $this->roundMoney(
+                                $totals[$participantId]['shareBase'] + $amountBase,
+                            );
+                            $transactionTotalBase = $this->roundMoney($transactionTotalBase + $amountBase);
+                        }
+                    }
+
+                    continue;
+                }
+
+                $paidByParticipantId = $this->participantIdOrNull($transaction['paidByParticipantId'] ?? null);
+                if ($paidByParticipantId === null || !isset($totals[$paidByParticipantId])) {
+                    $paidByParticipantId = $this->participantIdOrNull($split['paidByParticipantId'] ?? null);
+                }
+
+                if ($paidByParticipantId !== null && isset($totals[$paidByParticipantId])) {
+                    $amountBase = (float) ($transaction['amountBase'] ?? 0);
+                    $totals[$paidByParticipantId]['paidBase'] = $this->roundMoney(
+                        $totals[$paidByParticipantId]['paidBase'] + $amountBase,
+                    );
+                    $totals[$paidByParticipantId]['shareBase'] = $this->roundMoney(
+                        $totals[$paidByParticipantId]['shareBase'] + $amountBase,
+                    );
+                    $transactionTotalBase = $this->roundMoney($transactionTotalBase + $amountBase);
+                }
+            }
+
+            return $transactionTotalBase;
+        }
+
+        $individualTotalBase = 0.0;
+        foreach ($this->sharesForSplit($split, $includedParticipants, $fallbackAmountBase) as $participantId => $shareAmount) {
+            if (isset($totals[$participantId])) {
+                $totals[$participantId]['paidBase'] = $this->roundMoney(
+                    $totals[$participantId]['paidBase'] + $shareAmount,
+                );
+                $totals[$participantId]['shareBase'] = $this->roundMoney(
+                    $totals[$participantId]['shareBase'] + $shareAmount,
+                );
+                $individualTotalBase = $this->roundMoney($individualTotalBase + $shareAmount);
+            }
+        }
+
+        return $individualTotalBase;
     }
 
     private function itemSplit(array $item, array $participants): array
@@ -1031,17 +1186,56 @@ final readonly class BudgetPdfDocumentRenderer
         return null;
     }
 
-    private function transactionRows(array $transactions, string $baseCurrency): array
+    private function transactionRows(
+        array $transactions,
+        string $baseCurrency,
+        array $participants,
+        array $context,
+        bool $includePaymentColumn,
+    ): array
     {
         return array_map(
-            fn (array $transaction): array => [
-                $transaction['details'],
-                $transaction['category'] ?? '',
-                $this->transactionAmountText($transaction, $baseCurrency),
-                $transaction['remark'] ?? '',
-            ],
+            function (array $transaction) use ($baseCurrency, $participants, $context, $includePaymentColumn): array {
+                $row = [
+                    $transaction['details'],
+                    $transaction['category'] ?? '',
+                ];
+                if ($includePaymentColumn) {
+                    $row[] = $this->transactionPaymentText($transaction, $participants, $baseCurrency, $context);
+                }
+                $row[] = $this->transactionAmountText($transaction, $baseCurrency);
+                $row[] = $transaction['remark'] ?? '';
+
+                return $row;
+            },
             $transactions,
         );
+    }
+
+    private function transactionPaymentText(
+        array $transaction,
+        array $participants,
+        string $baseCurrency,
+        array $context,
+    ): string {
+        $payments = $this->transactionPayments($transaction);
+        $currency = (string) ($transaction['currency'] ?? $baseCurrency);
+        if ($payments !== []) {
+            return implode('; ', array_map(
+                fn (array $payment): string =>
+                    $this->participantName((int) $payment['participantId'], $participants, $context)
+                    . ': '
+                    . $this->formatter->templateMoney($currency, (float) $payment['amountOriginal']),
+                $payments,
+            ));
+        }
+
+        $paidByParticipantId = $this->participantIdOrNull($transaction['paidByParticipantId'] ?? null);
+        if ($paidByParticipantId === null) {
+            return '';
+        }
+
+        return $this->participantName($paidByParticipantId, $participants, $context);
     }
 
     private function installmentRows(array $budget, array $context): array
@@ -1584,6 +1778,21 @@ final readonly class BudgetPdfDocumentRenderer
                     ? $transactionCategoryId === null && (string) ($transaction['category'] ?? '') === $label
                     : $transactionCategoryId === $categoryId;
             },
+        ));
+    }
+
+    private function transactionPayments(array $transaction): array
+    {
+        if (!is_array($transaction['payments'] ?? null)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $transaction['payments'],
+            static fn (mixed $payment): bool => is_array($payment)
+                && is_numeric($payment['participantId'] ?? null)
+                && is_numeric($payment['amountOriginal'] ?? null)
+                && is_numeric($payment['amountBase'] ?? null),
         ));
     }
 

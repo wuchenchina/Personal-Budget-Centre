@@ -112,10 +112,22 @@ final readonly class BudgetEntryService
         $budgetId = $this->budgetIdFromInput($input);
         $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
         $budget = $this->budgetCurrencyBasics($budgetId);
+        $repository = new BudgetEntryRepository($this->pdo);
+        $payload = $this->transactionPayload($input, $budgetId, $workspaceId, $budget);
+        $payments = $payload['payments'] ?? [];
+        unset($payload['payments']);
 
-        (new BudgetEntryRepository($this->pdo))->createTransaction(
-            $this->transactionPayload($input, $budgetId, $workspaceId, $budget),
-        );
+        $this->pdo->beginTransaction();
+        try {
+            $transactionId = $repository->createTransaction($payload);
+            if ($payments !== null) {
+                $repository->replaceTransactionPayments($transactionId, $payments);
+            }
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
@@ -131,12 +143,26 @@ final readonly class BudgetEntryService
         }
 
         $workspaceId = $this->requireBudgetWrite($budgetId, (int) $session['user_id']);
-        $repository->updateTransaction($id, $this->transactionPayload(
+        $payload = $this->transactionPayload(
             $input,
             $budgetId,
             $workspaceId,
             $this->budgetCurrencyBasics($budgetId),
-        ));
+        );
+        $payments = $payload['payments'] ?? [];
+        unset($payload['payments']);
+
+        $this->pdo->beginTransaction();
+        try {
+            $repository->updateTransaction($id, $payload);
+            if ($payments !== null) {
+                $repository->replaceTransactionPayments($id, $payments);
+            }
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
 
         return $this->budgetDetail($budgetId, (int) $session['user_id']);
     }
@@ -293,11 +319,9 @@ final readonly class BudgetEntryService
             throw new AuthException('VALIDATION_ERROR', 'Reference amount cannot be less than 0.', 422);
         }
 
+        $participantIds = (new BudgetRepository($this->pdo))->participantIdsForBudget($budgetId);
+        $participantIdSet = array_fill_keys($participantIds, true);
         if ($paidByParticipantId !== null) {
-            $participantIdSet = array_fill_keys(
-                (new BudgetRepository($this->pdo))->participantIdsForBudget($budgetId),
-                true,
-            );
             if (!isset($participantIdSet[$paidByParticipantId])) {
                 throw new AuthException('VALIDATION_ERROR', 'Paid-by participant does not belong to this budget.', 422);
             }
@@ -321,6 +345,12 @@ final readonly class BudgetEntryService
             $rateDate,
             $this->rateInput($input, ['rate'], 'Transaction rate'),
         );
+        $payments = $this->transactionPaymentsFromInput($input, $participantIdSet, $amount, $rate);
+        if (is_array($payments) && count($payments) > 1) {
+            $paidByParticipantId = null;
+        } elseif (is_array($payments) && count($payments) === 1) {
+            $paidByParticipantId = $payments[0]['participantId'];
+        }
 
         return [
             'budget_id' => $budgetId,
@@ -336,7 +366,78 @@ final readonly class BudgetEntryService
             'reference_amount_original' => $referenceAmount,
             'remark' => Input::string($input['remark'] ?? null),
             'sort_order' => Input::positiveInt($input['sortOrder'] ?? $input['sort_order'] ?? null) ?? 0,
+            'payments' => $payments,
         ];
+    }
+
+    private function transactionPaymentsFromInput(
+        array $input,
+        array $participantIdSet,
+        float $transactionAmount,
+        float $rateToBase,
+    ): ?array {
+        $hasPaymentsInput = array_key_exists('payments', $input)
+            || array_key_exists('paymentAllocations', $input)
+            || array_key_exists('payment_allocations', $input);
+        if (!$hasPaymentsInput) {
+            return null;
+        }
+
+        $rawPayments = $input['payments'] ?? $input['paymentAllocations'] ?? $input['payment_allocations'] ?? null;
+        if ($rawPayments === null) {
+            return [];
+        }
+
+        if (!is_array($rawPayments)) {
+            throw new AuthException('VALIDATION_ERROR', 'Transaction payments must be an array.', 422);
+        }
+
+        if ($participantIdSet === [] && $rawPayments !== []) {
+            throw new AuthException('VALIDATION_ERROR', 'Transaction payments require budget participants.', 422);
+        }
+
+        $amountsByParticipantId = [];
+        foreach (array_slice($rawPayments, 0, 100) as $payment) {
+            if (!is_array($payment)) {
+                continue;
+            }
+
+            $participantId = Input::positiveInt(
+                $payment['participantId'] ?? $payment['participant_id'] ?? null,
+            );
+            if ($participantId === null || !isset($participantIdSet[$participantId])) {
+                throw new AuthException('VALIDATION_ERROR', 'Payment participant does not belong to this budget.', 422);
+            }
+
+            $amount = $this->number(
+                $payment['amount'] ?? $payment['amountOriginal'] ?? $payment['amount_original'] ?? null,
+            );
+            if ($amount === null || $amount <= 0.0) {
+                continue;
+            }
+
+            $amountsByParticipantId[$participantId] = ($amountsByParticipantId[$participantId] ?? 0.0) + $amount;
+        }
+
+        if ($amountsByParticipantId === []) {
+            return [];
+        }
+
+        $paymentTotal = array_sum($amountsByParticipantId);
+        if (abs(round($paymentTotal, 2) - round($transactionAmount, 2)) > 0.01) {
+            throw new AuthException('VALIDATION_ERROR', 'Payment amounts must match the transaction amount.', 422);
+        }
+
+        $payments = [];
+        foreach ($amountsByParticipantId as $participantId => $amountOriginal) {
+            $payments[] = [
+                'participantId' => (int) $participantId,
+                'amountOriginal' => $amountOriginal,
+                'amountBase' => $amountOriginal * $rateToBase,
+            ];
+        }
+
+        return $payments;
     }
 
     private function hasItemSplitInput(array $input): bool
