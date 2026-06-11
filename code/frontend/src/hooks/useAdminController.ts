@@ -3,6 +3,7 @@ import {
   cleanupAdminExportCache,
   createAdminUser,
   getAdminEnvironment,
+  listAdminLogs,
   listAdminUsers,
   resendAdminEmailVerification,
   updateAdminUser,
@@ -10,6 +11,7 @@ import {
 } from '../api/admin';
 import type {
   AdminEnvironmentCheck,
+  AdminLogEntry,
   AdminUser,
   AdminUserCreatePayload,
   AdminUserUpdatePayload,
@@ -29,6 +31,9 @@ export function useAdminController(enabled: boolean) {
   const [isUserCreating, setIsUserCreating] = useState(false);
   const [environment, setEnvironment] = useState<AdminEnvironmentCheck | null>(null);
   const [isEnvironmentLoading, setIsEnvironmentLoading] = useState(false);
+  const [logs, setLogs] = useState<AdminLogEntry[]>([]);
+  const [logPath, setLogPath] = useState<string | null>(null);
+  const [isLogsLoading, setIsLogsLoading] = useState(false);
   const [isExportCacheCleaning, setIsExportCacheCleaning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -72,6 +77,44 @@ export function useAdminController(enabled: boolean) {
       isMounted = false;
     };
   }, [enabled, page, pageSize, search, status]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    let isMounted = true;
+
+    queueMicrotask(() => {
+      if (!isMounted) {
+        return;
+      }
+
+      setIsLogsLoading(true);
+      listAdminLogs()
+        .then((result) => {
+          if (!isMounted) {
+            return;
+          }
+          setLogs(result.entries);
+          setLogPath(result.path);
+        })
+        .catch((caught: unknown) => {
+          if (isMounted) {
+            setError(caught instanceof Error ? caught.message : translateCurrent('logsLoadFailed'));
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsLogsLoading(false);
+          }
+        });
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled]);
 
   const createUser = async (payload: AdminUserCreatePayload): Promise<boolean> => {
     setIsUserCreating(true);
@@ -185,6 +228,22 @@ export function useAdminController(enabled: boolean) {
     }
   };
 
+  const refreshLogs = async () => {
+    setIsLogsLoading(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const result = await listAdminLogs();
+      setLogs(result.entries);
+      setLogPath(result.path);
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : translateCurrent('logsLoadFailed'));
+    } finally {
+      setIsLogsLoading(false);
+    }
+  };
+
   return {
     users,
     total,
@@ -197,6 +256,9 @@ export function useAdminController(enabled: boolean) {
     isUserCreating,
     environment,
     isEnvironmentLoading,
+    logs,
+    logPath,
+    isLogsLoading,
     isExportCacheCleaning,
     error,
     notice,
@@ -208,6 +270,7 @@ export function useAdminController(enabled: boolean) {
     updateUser,
     resendVerification,
     checkEnvironment,
+    refreshLogs,
     cleanupExportCache,
   };
 }

@@ -69,3 +69,26 @@ export interface AdminExportCacheCleanupResult {
   deletedTempDirectories: number;
   deletedTempBytes: number;
 }
+
+export interface AdminLogEntry {
+  id: string;
+  timestamp: string;
+  level: string;
+  code: string;
+  status: number;
+  message: string;
+  exception: string;
+  file: string;
+  line: number | null;
+  method: string | null;
+  path: string | null;
+  query: Record<string, unknown>;
+  ipAddress: string | null;
+  userAgent: string | null;
+  trace: string[];
+}
+
+export interface AdminLogsResult {
+  path: string;
+  entries: AdminLogEntry[];
+}

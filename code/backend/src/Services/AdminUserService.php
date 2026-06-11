@@ -15,6 +15,7 @@ use BudgetCentre\Repositories\CurrencyRepository;
 use BudgetCentre\Repositories\UserRepository;
 use BudgetCentre\Repositories\WorkspaceRepository;
 use BudgetCentre\Support\Env;
+use BudgetCentre\Support\AppLog;
 use BudgetCentre\Support\Input;
 use FilesystemIterator;
 use PDO;
@@ -236,6 +237,14 @@ final readonly class AdminUserService
         $this->requireAdmin($request);
 
         return (new SystemCheckService())->environment();
+    }
+
+    public function logs(Request $request): array
+    {
+        $this->requireAdmin($request);
+        $limit = min(200, max(20, (int) ($request->query['limit'] ?? 100)));
+
+        return AppLog::recent($limit);
     }
 
     public function cleanupExportCache(Request $request): array

@@ -2,6 +2,7 @@ import { apiGet, apiPatch, apiPost } from './http';
 import type {
   AdminEnvironmentCheck,
   AdminExportCacheCleanupResult,
+  AdminLogsResult,
   AdminUser,
   AdminUserCreatePayload,
   AdminUserListResult,
@@ -50,6 +51,14 @@ export function resendAdminEmailVerification(
 export function getAdminEnvironment(): Promise<AdminEnvironmentCheck> {
   return apiGet<{ environment: AdminEnvironmentCheck }>('/api/admin/environment').then(
     ({ environment }) => environment,
+  );
+}
+
+export function listAdminLogs(limit = 100): Promise<AdminLogsResult> {
+  const query = new URLSearchParams({ limit: String(limit) });
+
+  return apiGet<{ logs: AdminLogsResult }>(`/api/admin/logs?${query.toString()}`).then(
+    ({ logs }) => logs,
   );
 }
 

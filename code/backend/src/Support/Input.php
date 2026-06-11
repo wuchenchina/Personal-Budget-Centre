@@ -30,6 +30,15 @@ final class Input
         return $trimmed === '' ? null : $trimmed;
     }
 
+    public static function lowercase(string $value): string
+    {
+        $trimmed = trim($value);
+
+        return function_exists('mb_strtolower')
+            ? mb_strtolower($trimmed, 'UTF-8')
+            : strtolower($trimmed);
+    }
+
     public static function username(mixed $value): ?string
     {
         if (!is_string($value)) {

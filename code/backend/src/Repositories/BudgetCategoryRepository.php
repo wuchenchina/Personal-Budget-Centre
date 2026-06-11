@@ -6,6 +6,7 @@ namespace BudgetCentre\Repositories;
 
 use PDO;
 use PDOException;
+use BudgetCentre\Support\Input;
 
 final readonly class BudgetCategoryRepository
 {
@@ -217,7 +218,7 @@ final readonly class BudgetCategoryRepository
             return $this->workspaceIdForCategory($categoryId) === $workspaceId ? $categoryId : null;
         }
 
-        $normalized = mb_strtolower(trim($text));
+        $normalized = Input::lowercase($text);
         if ($normalized === '') {
             return null;
         }
@@ -286,7 +287,7 @@ final readonly class BudgetCategoryRepository
         );
         $statement->execute([
             'workspace_id' => $workspaceId,
-            'name' => mb_strtolower(trim($name)),
+            'name' => Input::lowercase($name),
         ]);
         $id = $statement->fetchColumn();
 

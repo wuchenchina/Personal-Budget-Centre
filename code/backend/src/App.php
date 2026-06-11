@@ -31,6 +31,7 @@ use BudgetCentre\Services\SystemCheckService;
 use BudgetCentre\Services\WorkspaceService;
 use BudgetCentre\Services\WorkgroupService;
 use BudgetCentre\Support\Env;
+use BudgetCentre\Support\AppLog;
 use JsonException;
 use PDO;
 use PDOException;
@@ -38,8 +39,11 @@ use RuntimeException;
 
 final class App
 {
+    private ?Request $currentRequest = null;
+
     public function handle(Request $request): JsonResponse|FileResponse
     {
+        $this->currentRequest = $request;
         $this->applyCorsHeaders();
 
         if ($request->method === 'OPTIONS') {
@@ -114,6 +118,7 @@ final class App
             ['PATCH', '/api/admin/users'] => $this->adminUserUpdate($request),
             ['POST', '/api/admin/users/email-verification'] => $this->adminUserEmailVerification($request),
             ['GET', '/api/admin/environment'] => $this->adminEnvironment($request),
+            ['GET', '/api/admin/logs'] => $this->adminLogs($request),
             ['POST', '/api/admin/export-cache/cleanup'] => $this->adminExportCacheCleanup($request),
             ['GET', '/api/templates/personal-living-budget'] => $this->templateResponse('personal_living_budget'),
             ['GET', '/api/auth/passkey/register/options'] => $this->passkeyRegistrationOptions($request),
@@ -722,6 +727,15 @@ final class App
         );
     }
 
+    private function adminLogs(Request $request): JsonResponse
+    {
+        return $this->adminResponse(
+            fn (AdminUserService $admin): JsonResponse => JsonResponse::ok([
+                'logs' => $admin->logs($request),
+            ]),
+        );
+    }
+
     private function adminExportCacheCleanup(Request $request): JsonResponse
     {
         return $this->adminResponse(
@@ -880,6 +894,10 @@ final class App
     private function apiExceptionResponse(
         InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException | RuntimeException $exception,
     ): JsonResponse {
+        if (!($exception instanceof AuthException && $exception->status() < 500)) {
+            AppLog::error($exception, $this->currentRequest);
+        }
+
         if ($exception instanceof InvalidJsonRequestException) {
             return JsonResponse::error('INVALID_JSON', $exception->getMessage(), 400);
         }
