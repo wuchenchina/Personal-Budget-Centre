@@ -347,7 +347,7 @@ final readonly class BudgetEntryService
             return null;
         }
 
-        $paidByParticipantId = $this->positiveInt(
+        $paidByParticipantId = Input::positiveInt(
             $raw['paidByParticipantId'] ?? $raw['paid_by_participant_id'] ?? null,
         );
         if ($paidByParticipantId !== null && !isset($participantIdSet[$paidByParticipantId])) {
@@ -423,7 +423,7 @@ final readonly class BudgetEntryService
                 continue;
             }
 
-            $participantId = $this->positiveInt(
+            $participantId = Input::positiveInt(
                 $participant['participantId'] ?? $participant['participant_id'] ?? null,
             );
             if ($participantId === null || !isset($participantIdSet[$participantId])) {
