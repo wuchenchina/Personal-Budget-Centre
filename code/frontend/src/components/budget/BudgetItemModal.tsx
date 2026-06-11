@@ -109,6 +109,7 @@ export function BudgetItemModal({
             ? t('variance')
             : null;
   const budgetBasePreview = previewBaseAmount(budgetAmount, budgetRate);
+  const effectiveBudgetBasePreview = budgetBasePreview ?? transactionActuals?.budgetAmountBase ?? null;
   const individualAmounts = Form.useWatch(['split', 'individualAmounts'], form);
   const selectedSplitParticipantIds = Form.useWatch(['split', 'participantIds'], form);
   const perPersonParticipantCount = Array.isArray(selectedSplitParticipantIds)
@@ -116,14 +117,18 @@ export function BudgetItemModal({
     : participants.length;
   const countedPerPersonParticipantCount = Math.max(1, perPersonParticipantCount);
   const perPersonTotalBasePreview = budgetBasePreview === null
-    ? null
+    ? transactionActuals?.budgetAmountBase ?? null
     : roundMoney(budgetBasePreview * countedPerPersonParticipantCount);
-  const perPersonAmountPreview = budgetBasePreview === null
+  const perPersonAmountBasePreview = budgetBasePreview
+    ?? (perPersonTotalBasePreview === null
+      ? null
+      : roundMoney(perPersonTotalBasePreview / countedPerPersonParticipantCount));
+  const perPersonAmountPreview = perPersonAmountBasePreview === null
     ? `${baseCurrency} --`
-    : formatBudgetMoney(baseCurrency, budgetBasePreview);
-  const settlementBudgetBasePreview = selectedSplitType === 'per_person' && budgetBasePreview !== null
+    : formatBudgetMoney(baseCurrency, perPersonAmountBasePreview);
+  const settlementBudgetBasePreview = selectedSplitType === 'per_person'
     ? perPersonTotalBasePreview
-    : budgetBasePreview;
+    : effectiveBudgetBasePreview;
   const estimatedBasePreview = transactionActuals?.estimatedAmountBase ?? 0;
   const computedVariance =
     settlementBudgetBasePreview !== null
