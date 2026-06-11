@@ -83,7 +83,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       categoryId: item.categoryId ?? undefined,
       label: item.label,
       budgetCurrency: item.budget.currency,
-      budgetAmount: item.budget.amountOriginal,
+      budgetAmount: itemBudgetAmountFormValue(item),
       budgetRate: item.budget.rateToBase,
       installmentConfig: installmentConfigToForm(item.installmentConfig),
       split: splitToFormValue(item, options.selectedBudget),
@@ -1391,6 +1391,12 @@ function normalizedAmount(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function itemBudgetAmountFormValue(item: BudgetItem): number | undefined {
+  return item.budget.amountOriginal === 0 && item.budget.amountBase === 0
+    ? undefined
+    : item.budget.amountOriginal;
+}
+
 function defaultSplitFormValue(budget: BudgetDetail): BudgetItemFormValues['split'] {
   if (budget.participantMode !== 'group' || budget.participants.length === 0) {
     return undefined;
@@ -1455,23 +1461,30 @@ function splitPayloadFromForm(
 
   const splitType = split.splitType ?? 'equal';
   if (splitType === 'individual') {
+    const amountByParticipantId = new Map<number, number | null>();
+    (split.individualAmounts ?? []).forEach((row) => {
+      if (typeof row?.participantId !== 'number') {
+        return;
+      }
+
+      amountByParticipantId.set(
+        row.participantId,
+        typeof row.amountBase === 'number' && Number.isFinite(row.amountBase) && row.amountBase > 0
+          ? roundMoney(row.amountBase)
+          : null,
+      );
+    });
+
     return {
       paidByParticipantId: null,
       splitType,
       note: split.note?.trim() || null,
-      participants: (split.individualAmounts ?? [])
-        .filter((row) =>
-          typeof row?.participantId === 'number'
-          && typeof row.amountBase === 'number'
-          && Number.isFinite(row.amountBase)
-          && row.amountBase > 0,
-        )
-        .map((row) => ({
-          participantId: row.participantId,
-          isIncluded: true,
-          shareRatio: null,
-          shareAmountBase: roundMoney(row.amountBase ?? 0),
-        })),
+      participants: budget.participants.map((participant) => ({
+        participantId: participant.id,
+        isIncluded: true,
+        shareRatio: null,
+        shareAmountBase: amountByParticipantId.get(participant.id) ?? null,
+      })),
     };
   }
 

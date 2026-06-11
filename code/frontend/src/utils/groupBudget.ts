@@ -4,6 +4,7 @@ import type {
   BudgetItemSplit,
   BudgetParticipant,
 } from '../types/budget';
+import { effectiveBudgetItemAmounts } from './budgetTemplate';
 
 export interface GroupBudgetParticipantSummary {
   participant: BudgetParticipant;
@@ -44,7 +45,7 @@ export function groupBudgetSummary(budget: BudgetDetail): GroupBudgetSummary {
   let personalExpenseBase = 0;
 
   budget.items.forEach((item) => {
-    const amountBase = effectiveItemBase(item);
+    const amountBase = effectiveBudgetItemAmounts(item, budget.transactions).budgetAmountBase;
     const split = item.split ?? defaultEqualSplit(budget.participants);
     const includedParticipants = split.participants.filter(
       (participant) => participant.isIncluded && totals.has(participant.participantId),
@@ -71,7 +72,7 @@ export function groupBudgetSummary(budget: BudgetDetail): GroupBudgetSummary {
     }
 
     if (split.splitType === 'per_person') {
-      const perPersonAmountBase = perPersonItemBase(item, includedParticipants.length);
+      const perPersonAmountBase = perPersonItemBase(item, includedParticipants.length, amountBase);
       let perPersonTotalBase = 0;
       includedParticipants.forEach((participant) => {
         const total = totals.get(participant.participantId);
@@ -157,8 +158,23 @@ function sharesForSplit(
 
   if (split.splitType === 'individual') {
     const individualShares = new Map<number, number>();
+    const explicitTotal = roundMoney(participants.reduce(
+      (total, participant) => total + (participant.shareAmountBase === null
+        ? 0
+        : Math.max(0, participant.shareAmountBase)),
+      0,
+    ));
+    const flexibleCount = participants.filter((participant) => participant.shareAmountBase === null).length;
+    const fallbackShare = flexibleCount === 0
+      ? 0
+      : roundMoney(Math.max(0, amountBase - explicitTotal) / flexibleCount);
     participants.forEach((participant) => {
-      individualShares.set(participant.participantId, roundMoney(participant.shareAmountBase ?? 0));
+      individualShares.set(
+        participant.participantId,
+        participant.shareAmountBase === null
+          ? fallbackShare
+          : roundMoney(Math.max(0, participant.shareAmountBase)),
+      );
     });
 
     return individualShares;
@@ -233,20 +249,14 @@ function settlementsFromSummaries(
   return settlements;
 }
 
-function effectiveItemBase(item: BudgetItem): number {
-  return item.budget.amountOriginal === 0 && item.budget.amountBase === 0
-    ? item.estimatedActuals.amountBase
-    : item.budget.amountBase;
-}
-
-function perPersonItemBase(item: BudgetItem, participantCount: number): number {
+function perPersonItemBase(item: BudgetItem, participantCount: number, effectiveAmountBase: number): number {
   if (item.budget.amountOriginal !== 0 || item.budget.amountBase !== 0) {
     return item.budget.amountBase;
   }
 
   return participantCount <= 0
-    ? item.estimatedActuals.amountBase
-    : roundMoney(item.estimatedActuals.amountBase / participantCount);
+    ? effectiveAmountBase
+    : roundMoney(effectiveAmountBase / participantCount);
 }
 
 function roundMoney(value: number): number {

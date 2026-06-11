@@ -457,11 +457,30 @@ final readonly class BudgetPdfDocumentRenderer
 
             $effective = $this->effectiveItemAmounts($item, $transactions);
             $split = $this->itemSplit($item, $participants);
+            $amountBase = (float) $effective['budgetBase'];
             if ($split['splitType'] === 'per_person') {
                 $split['perPersonAmountBase'] = $this->perPersonItemBudgetBase(
                     $item,
                     $transactions,
                     $this->includedParticipantCount($split['participants']),
+                );
+            }
+            if ($split['splitType'] === 'individual') {
+                $includedParticipants = array_values(array_filter(
+                    $split['participants'],
+                    static fn (array $participant): bool => ($participant['isIncluded'] ?? true) === true,
+                ));
+                $individualShares = $this->sharesForSplit($split, $includedParticipants, $amountBase);
+                $split['participants'] = array_map(
+                    static function (array $participant) use ($individualShares): array {
+                        $participantId = (int) $participant['participantId'];
+                        if (($participant['shareAmountBase'] ?? null) === null && isset($individualShares[$participantId])) {
+                            $participant['shareAmountBase'] = $individualShares[$participantId];
+                        }
+
+                        return $participant;
+                    },
+                    $split['participants'],
                 );
             }
             $rows[] = [
@@ -770,11 +789,38 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function sharesForSplit(array $split, array $participants, float $amountBase): array
     {
-        if ($split['splitType'] === 'custom_amount' || $split['splitType'] === 'individual') {
+        if ($split['splitType'] === 'custom_amount') {
             $shares = [];
             foreach ($participants as $participant) {
                 $shares[(int) $participant['participantId']] = $this->roundMoney(
                     max(0.0, (float) ($participant['shareAmountBase'] ?? 0.0)),
+                );
+            }
+
+            return $shares;
+        }
+
+        if ($split['splitType'] === 'individual') {
+            $explicitTotal = 0.0;
+            $flexibleCount = 0;
+            foreach ($participants as $participant) {
+                if (is_numeric($participant['shareAmountBase'] ?? null)) {
+                    $explicitTotal = $this->roundMoney(
+                        $explicitTotal + max(0.0, (float) $participant['shareAmountBase']),
+                    );
+                } else {
+                    $flexibleCount++;
+                }
+            }
+            $fallbackShare = $flexibleCount === 0
+                ? 0.0
+                : $this->roundMoney(max(0.0, $amountBase - $explicitTotal) / $flexibleCount);
+            $shares = [];
+            foreach ($participants as $participant) {
+                $shares[(int) $participant['participantId']] = $this->roundMoney(
+                    is_numeric($participant['shareAmountBase'] ?? null)
+                        ? max(0.0, (float) $participant['shareAmountBase'])
+                        : $fallbackShare,
                 );
             }
 

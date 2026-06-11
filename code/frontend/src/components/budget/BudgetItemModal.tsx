@@ -379,23 +379,7 @@ export function BudgetItemModal({
               </Form.Item>
             )}
             {selectedSplitType === 'individual' ? (
-              <Form.List
-                name={['split', 'individualAmounts']}
-                rules={[
-                  {
-                    validator: async (_, rows: IndividualAmountRows | undefined) => {
-                      const hasPositiveAmount = Array.isArray(rows) && rows.some((row) =>
-                        typeof row?.amountBase === 'number'
-                        && Number.isFinite(row.amountBase)
-                        && row.amountBase > 0,
-                      );
-                      if (!hasPositiveAmount) {
-                        throw new Error(t('individualAmountRequired'));
-                      }
-                    },
-                  },
-                ]}
-              >
+              <Form.List name={['split', 'individualAmounts']}>
                 {(_, __, { errors }) => (
                   <div className="individual-split-list">
                     <div className="individual-split-list-head">

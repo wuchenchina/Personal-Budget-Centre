@@ -241,9 +241,9 @@ final readonly class BudgetEntryService
             $estimatedBase = $transactionTotalBase;
             $estimatedAmount = $this->originalAmountFromBase($estimatedBase, $estimatedRate);
         } elseif ($budgetAmount === null) {
-            $budgetBase = $transactionTotalBase;
+            $budgetAmount = 0.0;
+            $budgetBase = 0.0;
             $estimatedBase = $transactionTotalBase;
-            $budgetAmount = $this->originalAmountFromBase($budgetBase, $budgetRate);
             $estimatedAmount = $this->originalAmountFromBase($estimatedBase, $estimatedRate);
         } else {
             $budgetBase = $budgetAmount * $budgetRate;
@@ -385,12 +385,7 @@ final readonly class BudgetEntryService
                 static fn (array $participant): bool => ($participant['isIncluded'] ?? true) === true,
             ));
             if ($includedIndividualParticipants === []) {
-                throw new AuthException('VALIDATION_ERROR', 'Individual split requires at least one payment amount.', 422);
-            }
-            foreach ($includedIndividualParticipants as $participant) {
-                if (($participant['shareAmountBase'] ?? null) === null || (float) $participant['shareAmountBase'] <= 0.0) {
-                    throw new AuthException('VALIDATION_ERROR', 'Individual split amounts must be greater than 0.', 422);
-                }
+                throw new AuthException('VALIDATION_ERROR', 'Individual split requires at least one participant.', 422);
             }
             $participants = $includedIndividualParticipants;
             $paidByParticipantId = null;

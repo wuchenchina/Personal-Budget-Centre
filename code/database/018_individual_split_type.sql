@@ -16,7 +16,7 @@ SET @split_type_has_individual := (
 
 SET @sql := IF(
   @budget_item_splits_exists = 1 AND @split_type_has_individual = 0,
-  'ALTER TABLE budget_item_splits MODIFY split_type ENUM(''equal'', ''personal'', ''individual'', ''custom_amount'', ''custom_share'', ''excluded'') NOT NULL DEFAULT ''equal''',
+  'ALTER TABLE budget_item_splits MODIFY split_type ENUM(''equal'', ''personal'', ''individual'', ''per_person'', ''custom_amount'', ''custom_share'', ''excluded'') NOT NULL DEFAULT ''equal''',
   'DO 0'
 );
 
