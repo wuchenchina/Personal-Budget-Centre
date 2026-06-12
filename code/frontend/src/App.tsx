@@ -380,6 +380,7 @@ function App() {
         categoryOptions={budgetItemPresetCategoryOptions}
         baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
         focus={budgetEntry.budgetItemModalFocus}
+        pricingEnabled={budget.selectedBudget?.pricingEnabled ?? false}
         participantMode={budget.selectedBudget?.participantMode ?? 'solo'}
         participants={budget.selectedBudget?.participants ?? []}
         transactions={budget.selectedBudget?.transactions ?? []}

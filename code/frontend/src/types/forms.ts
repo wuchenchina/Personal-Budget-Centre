@@ -3,6 +3,7 @@ import type {
   BudgetInstallmentConfig,
   BudgetInstallmentDisplayMode,
   BudgetInstallmentPeriodUnit,
+  BudgetItemPricingConfig,
   BudgetItemSplitType,
   BudgetParticipant,
   BudgetParticipantMode,
@@ -74,6 +75,7 @@ export interface BudgetFormValues {
   participants?: Array<Partial<BudgetParticipant>>;
   installmentDisplayMode: BudgetInstallmentDisplayMode;
   installmentPeriodUnit: BudgetInstallmentPeriodUnit;
+  pricingEnabled: boolean;
   visibility: Visibility;
   status: BudgetStatus;
   note?: string;
@@ -89,6 +91,7 @@ export interface BudgetItemFormValues {
   budgetAmount?: number;
   budgetRate?: number;
   bankFee?: number;
+  pricingConfig?: BudgetItemPricingConfig;
   installmentConfig?: BudgetInstallmentFormConfig;
   split?: BudgetItemSplitFormValue;
   sortOrder?: number;

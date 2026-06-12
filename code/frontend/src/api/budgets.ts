@@ -34,6 +34,7 @@ export interface CreateBudgetPayload {
   participants?: Array<Partial<BudgetParticipant>>;
   installmentDisplayMode?: BudgetInstallmentDisplayMode;
   installmentPeriodUnit?: BudgetInstallmentPeriodUnit;
+  pricingEnabled?: boolean;
   visibility: Visibility;
   status?: BudgetStatus;
   note?: string | null;

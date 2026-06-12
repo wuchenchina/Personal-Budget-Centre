@@ -67,6 +67,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       budgetCurrency: budgetBaseCurrency,
       budgetAmount: undefined,
       budgetRate: undefined,
+      pricingConfig: emptyPricingConfig(),
       installmentConfig: emptyInstallmentConfig(),
       split: defaultSplitFormValue(options.selectedBudget),
       sortOrder: options.selectedBudget.items.length + 1,
@@ -85,6 +86,9 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       budgetCurrency: item.budget.currency,
       budgetAmount: itemBudgetAmountFormValue(item),
       budgetRate: item.budget.rateToBase,
+      pricingConfig: options.selectedBudget?.pricingEnabled === true
+        ? item.pricingConfig
+        : emptyPricingConfig(),
       installmentConfig: installmentConfigToForm(item.installmentConfig),
       split: splitToFormValue(item, options.selectedBudget),
       sortOrder: item.sortOrder,
@@ -112,6 +116,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       setEntryError(null);
       const installmentConfig = installmentConfigFromForm(values.installmentConfig);
       const amounts = await completeBudgetItemAmounts(values);
+      const pricingConfig = pricingConfigFromForm(values.pricingConfig, options.selectedBudget.pricingEnabled);
 
       const payload: SaveBudgetItemPayload = {
         categoryId: values.categoryId,
@@ -123,6 +128,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         estimatedCurrency: options.selectedBudget.baseCurrency,
         estimatedAmount: 0,
         estimatedRate: 1,
+        pricingConfig,
         installmentConfig,
         split: splitPayloadFromForm(values, options.selectedBudget),
         sortOrder: values.sortOrder ?? 0,
@@ -154,7 +160,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       throw new Error(translateCurrent('selectBudgetFirst'));
     }
 
-    const budgetAmount = normalizedAmount(values.budgetAmount);
+    const pricingTotal = pricingTotalFromForm(values.pricingConfig, options.selectedBudget.pricingEnabled);
+    const budgetAmount = pricingTotal ?? normalizedAmount(values.budgetAmount);
     const budgetRate = normalizedAmount(values.budgetRate);
 
     if (budgetAmount === null) {
@@ -326,6 +333,12 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       return;
     }
 
+    if (options.selectedBudget.pricingEnabled && item.pricingConfig.enabled && field !== 'estimated_actuals') {
+      setEntryError(translateCurrent('unitPricingQuickEditBlocked'));
+
+      return;
+    }
+
     const effective = effectiveBudgetItemAmounts(item, options.selectedBudget.transactions);
     const amountMultiplier = budgetItemAmountMultiplier(item);
     const finalBudgetOriginal = field === 'budget'
@@ -361,6 +374,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         estimatedCurrency: options.selectedBudget.baseCurrency,
         estimatedAmount: 0,
         estimatedRate: 1,
+        pricingConfig: pricingConfigForBudget(options.selectedBudget, item.pricingConfig),
         installmentConfig: item.installmentConfig,
         split: item.split,
         sortOrder: item.sortOrder,
@@ -551,6 +565,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         estimatedCurrency: options.selectedBudget.baseCurrency,
         estimatedAmount: 0,
         estimatedRate: 1,
+        pricingConfig: pricingConfigForBudget(options.selectedBudget, item.pricingConfig),
         installmentConfig: item.installmentConfig,
         split: item.split,
         sortOrder: item.sortOrder,
@@ -580,6 +595,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       estimatedCurrency: options.selectedBudget.baseCurrency,
       estimatedAmount: 0,
       estimatedRate: 1,
+      pricingConfig: pricingConfigForBudget(options.selectedBudget, item.pricingConfig),
       installmentConfig,
       split: item.split,
       sortOrder: item.sortOrder,
@@ -761,6 +777,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         estimatedCurrency: options.selectedBudget.baseCurrency,
         estimatedAmount: 0,
         estimatedRate: 1,
+        pricingConfig: pricingConfigForBudget(options.selectedBudget, item.pricingConfig),
         installmentConfig: {
           ...item.installmentConfig,
           enabled: true,
@@ -1006,6 +1023,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         estimatedCurrency: options.selectedBudget.baseCurrency,
         estimatedAmount: 0,
         estimatedRate: 1,
+        pricingConfig: pricingConfigForBudget(options.selectedBudget, item.pricingConfig),
         installmentConfig: {
           ...item.installmentConfig,
           enabled: true,
@@ -1130,6 +1148,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         estimatedCurrency: options.selectedBudget.baseCurrency,
         estimatedAmount: 0,
         estimatedRate: 1,
+        pricingConfig: pricingConfigForBudget(options.selectedBudget, item.pricingConfig),
         installmentConfig: {
           ...item.installmentConfig,
           enabled: true,
@@ -1213,6 +1232,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         estimatedCurrency: options.selectedBudget.baseCurrency,
         estimatedAmount: 0,
         estimatedRate: 1,
+        pricingConfig: pricingConfigForBudget(options.selectedBudget, item.pricingConfig),
         installmentConfig: {
           ...item.installmentConfig,
           enabled: true,
@@ -1463,6 +1483,59 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
 function normalizedAmount(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function normalizedNonNegativeAmount(value: number | null | undefined): number | null {
+  const amount = normalizedAmount(value);
+
+  return amount === null || amount < 0 ? null : amount;
+}
+
+function emptyPricingConfig(): BudgetItem['pricingConfig'] {
+  return {
+    enabled: false,
+    unitPrice: null,
+    quantity: null,
+    totalAmount: null,
+  };
+}
+
+function pricingConfigForBudget(
+  budget: BudgetDetail,
+  config: BudgetItem['pricingConfig'],
+): BudgetItem['pricingConfig'] {
+  return budget.pricingEnabled ? config : emptyPricingConfig();
+}
+
+function pricingConfigFromForm(
+  config: BudgetItemFormValues['pricingConfig'],
+  pricingEnabled: boolean,
+): BudgetItem['pricingConfig'] {
+  if (!pricingEnabled || config?.enabled !== true) {
+    return emptyPricingConfig();
+  }
+
+  const unitPrice = normalizedNonNegativeAmount(config.unitPrice);
+  const quantity = normalizedNonNegativeAmount(config.quantity);
+  const totalAmount = unitPrice === null || quantity === null
+    ? null
+    : roundMoney(unitPrice * quantity);
+
+  return {
+    enabled: true,
+    unitPrice,
+    quantity,
+    totalAmount,
+  };
+}
+
+function pricingTotalFromForm(
+  config: BudgetItemFormValues['pricingConfig'],
+  pricingEnabled: boolean,
+): number | null {
+  const pricingConfig = pricingConfigFromForm(config, pricingEnabled);
+
+  return pricingConfig.enabled ? pricingConfig.totalAmount : null;
 }
 
 function itemBudgetAmountFormValue(item: BudgetItem): number | undefined {

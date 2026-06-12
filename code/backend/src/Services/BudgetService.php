@@ -78,6 +78,7 @@ final readonly class BudgetService
         $installmentPeriodUnit = Input::string(
             $input['installmentPeriodUnit'] ?? $input['installment_period_unit'] ?? null,
         ) ?? 'month';
+        $pricingEnabled = $this->boolFromInput($input['pricingEnabled'] ?? $input['pricing_enabled'] ?? null) ?? false;
         $visibility = Input::string($input['visibility'] ?? null) ?? 'private';
         $status = Input::string($input['status'] ?? null) ?? 'draft';
         $note = Input::string($input['note'] ?? null);
@@ -137,6 +138,7 @@ final readonly class BudgetService
                 $participantMode,
                 $installmentDisplayMode,
                 $installmentPeriodUnit,
+                $pricingEnabled,
                 $visibility,
                 $status,
                 $note,
@@ -164,6 +166,7 @@ final readonly class BudgetService
             'participantMode' => $participantMode,
             'installmentDisplayMode' => $installmentDisplayMode,
             'installmentPeriodUnit' => $installmentPeriodUnit,
+            'pricingEnabled' => $pricingEnabled,
             'visibility' => $visibility,
             'status' => $status,
             'note' => $note,
@@ -212,12 +215,19 @@ final readonly class BudgetService
 
         $payload = $this->validatedBudgetPayload($input, (string) $session['display_name']);
         $existingBudget = null;
-        if (!$this->hasSignatureConfigInput($input) || !$this->hasParticipantModeInput($input)) {
+        if (
+            !$this->hasSignatureConfigInput($input)
+            || !$this->hasParticipantModeInput($input)
+            || !$this->hasPricingEnabledInput($input)
+        ) {
             $existingBudget = $repository->findForUser($budgetId, (int) $session['user_id'], true)
                 ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
         }
         if (!$this->hasParticipantModeInput($input)) {
             $payload['participantMode'] = $existingBudget['participantMode'] ?? 'solo';
+        }
+        if (!$this->hasPricingEnabledInput($input)) {
+            $payload['pricingEnabled'] = $existingBudget['pricingEnabled'] ?? false;
         }
         $hasParticipantsInput = $this->hasParticipantsInput($input);
         $participants = $hasParticipantsInput
@@ -251,6 +261,7 @@ final readonly class BudgetService
                 $payload['participantMode'],
                 $payload['installmentDisplayMode'],
                 $payload['installmentPeriodUnit'],
+                $payload['pricingEnabled'],
                 $payload['visibility'],
                 $payload['status'],
                 $payload['note'],
@@ -316,6 +327,7 @@ final readonly class BudgetService
         $installmentPeriodUnit = Input::string(
             $input['installmentPeriodUnit'] ?? $input['installment_period_unit'] ?? null,
         ) ?? 'month';
+        $pricingEnabled = $this->boolFromInput($input['pricingEnabled'] ?? $input['pricing_enabled'] ?? null) ?? false;
         $visibility = Input::string($input['visibility'] ?? null) ?? 'private';
         $status = Input::string($input['status'] ?? null) ?? 'draft';
         $note = Input::string($input['note'] ?? null);
@@ -346,6 +358,7 @@ final readonly class BudgetService
             'participantMode' => $participantMode,
             'installmentDisplayMode' => $installmentDisplayMode,
             'installmentPeriodUnit' => $installmentPeriodUnit,
+            'pricingEnabled' => $pricingEnabled,
             'visibility' => $visibility,
             'status' => $status,
             'note' => $note,
@@ -432,6 +445,32 @@ final readonly class BudgetService
     private function hasParticipantsInput(array $input): bool
     {
         return array_key_exists('participants', $input);
+    }
+
+    private function hasPricingEnabledInput(array $input): bool
+    {
+        return array_key_exists('pricingEnabled', $input) || array_key_exists('pricing_enabled', $input);
+    }
+
+    private function boolFromInput(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value)) {
+            return $value === 1 ? true : ($value === 0 ? false : null);
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        return match (strtolower(trim($value))) {
+            '1', 'true', 'yes', 'on' => true,
+            '0', 'false', 'no', 'off', '' => false,
+            default => null,
+        };
     }
 
     private function participantsFromInput(array $input, string $participantMode, array $session): array

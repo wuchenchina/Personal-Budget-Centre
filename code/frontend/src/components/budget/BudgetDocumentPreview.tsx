@@ -316,6 +316,7 @@ export function BudgetDocumentPreview({
         localizedBudgetHighlights?.columns ?? [],
         selectedBudget?.baseCurrency ?? baseCurrency,
         selectedBudget?.transactions ?? [],
+        selectedBudget?.pricingEnabled ?? false,
       );
 
       return appendBudgetItemActions(
@@ -344,6 +345,7 @@ export function BudgetDocumentPreview({
       entry,
       localizedBudgetHighlights,
       selectedBudget?.baseCurrency,
+      selectedBudget?.pricingEnabled,
       selectedBudget?.transactions,
       t,
     ],

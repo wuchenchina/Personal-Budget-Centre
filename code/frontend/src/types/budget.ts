@@ -197,6 +197,13 @@ export interface BudgetItemSplit {
   participants: BudgetItemSplitParticipant[];
 }
 
+export interface BudgetItemPricingConfig {
+  enabled: boolean;
+  unitPrice: number | null;
+  quantity: number | null;
+  totalAmount: number | null;
+}
+
 export interface BudgetItem {
   id: number;
   categoryId: number | null;
@@ -216,6 +223,7 @@ export interface BudgetItem {
   };
   varianceBase: number;
   installmentConfig: BudgetInstallmentConfig;
+  pricingConfig: BudgetItemPricingConfig;
   split: BudgetItemSplit | null;
   sortOrder: number;
 }
@@ -373,6 +381,7 @@ export interface BudgetSummary {
   participantMode: BudgetParticipantMode;
   installmentDisplayMode: BudgetInstallmentDisplayMode;
   installmentPeriodUnit: BudgetInstallmentPeriodUnit;
+  pricingEnabled: boolean;
   visibility: Visibility;
   status: BudgetStatus;
   note: string | null;
@@ -401,6 +410,7 @@ export interface BudgetDocument {
   displayCurrency: CurrencyCode;
   status: BudgetStatus;
   visibility: Visibility;
+  pricingEnabled: boolean;
   workspace: string;
   ownerRole: WorkspaceRole;
   items: BudgetItem[];

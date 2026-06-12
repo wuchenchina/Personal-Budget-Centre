@@ -17,6 +17,9 @@ final readonly class BudgetRepository
         $participantModeSelect = $this->hasBudgetParticipantModeColumn()
             ? 'b.participant_mode,'
             : "'solo' AS participant_mode,";
+        $pricingEnabledSelect = $this->hasBudgetPricingEnabledColumn()
+            ? 'b.pricing_enabled,'
+            : '0 AS pricing_enabled,';
         $budgetTotalsJoin = $this->budgetTotalsJoinSql();
         $statement = $this->pdo->prepare(
             <<<SQL
@@ -31,6 +34,7 @@ final readonly class BudgetRepository
               {$participantModeSelect}
               b.installment_display_mode,
               b.installment_period_unit,
+              {$pricingEnabledSelect}
               b.visibility,
               b.status,
               b.note,
@@ -123,6 +127,7 @@ final readonly class BudgetRepository
         string $participantMode,
         string $installmentDisplayMode,
         string $installmentPeriodUnit,
+        bool $pricingEnabled,
         string $visibility,
         string $status,
         ?string $note,
@@ -133,6 +138,12 @@ final readonly class BudgetRepository
             : '';
         $participantModeInsertValue = $this->hasBudgetParticipantModeColumn()
             ? ':participant_mode,'
+            : '';
+        $pricingEnabledInsertColumn = $this->hasBudgetPricingEnabledColumn()
+            ? 'pricing_enabled,'
+            : '';
+        $pricingEnabledInsertValue = $this->hasBudgetPricingEnabledColumn()
+            ? ':pricing_enabled,'
             : '';
         $statement = $this->pdo->prepare(
             <<<SQL
@@ -152,6 +163,7 @@ final readonly class BudgetRepository
               {$participantModeInsertColumn}
               installment_display_mode,
               installment_period_unit,
+              {$pricingEnabledInsertColumn}
               visibility,
               status,
               note,
@@ -172,6 +184,7 @@ final readonly class BudgetRepository
               {$participantModeInsertValue}
               :installment_display_mode,
               :installment_period_unit,
+              {$pricingEnabledInsertValue}
               :visibility,
               :status,
               :note,
@@ -202,6 +215,9 @@ final readonly class BudgetRepository
         if ($this->hasBudgetParticipantModeColumn()) {
             $payload['participant_mode'] = $participantMode;
         }
+        if ($this->hasBudgetPricingEnabledColumn()) {
+            $payload['pricing_enabled'] = $pricingEnabled ? 1 : 0;
+        }
         $statement->execute($payload);
 
         return (int) $this->pdo->lastInsertId();
@@ -212,6 +228,9 @@ final readonly class BudgetRepository
         $participantModeSelect = $this->hasBudgetParticipantModeColumn()
             ? 'b.participant_mode,'
             : "'solo' AS participant_mode,";
+        $pricingEnabledSelect = $this->hasBudgetPricingEnabledColumn()
+            ? 'b.pricing_enabled,'
+            : '0 AS pricing_enabled,';
         $budgetTotalsJoin = $this->budgetTotalsJoinSql();
         $statement = $this->pdo->prepare(
             <<<SQL
@@ -226,6 +245,7 @@ final readonly class BudgetRepository
               {$participantModeSelect}
               b.installment_display_mode,
               b.installment_period_unit,
+              {$pricingEnabledSelect}
               b.visibility,
               b.status,
               b.note,
@@ -403,6 +423,7 @@ final readonly class BudgetRepository
         string $participantMode,
         string $installmentDisplayMode,
         string $installmentPeriodUnit,
+        bool $pricingEnabled,
         string $visibility,
         string $status,
         ?string $note,
@@ -410,6 +431,9 @@ final readonly class BudgetRepository
     ): void {
         $participantModeSet = $this->hasBudgetParticipantModeColumn()
             ? 'participant_mode = :participant_mode,'
+            : '';
+        $pricingEnabledSet = $this->hasBudgetPricingEnabledColumn()
+            ? 'pricing_enabled = :pricing_enabled,'
             : '';
         $statement = $this->pdo->prepare(
             <<<SQL
@@ -425,6 +449,7 @@ final readonly class BudgetRepository
               {$participantModeSet}
               installment_display_mode = :installment_display_mode,
               installment_period_unit = :installment_period_unit,
+              {$pricingEnabledSet}
               visibility = :visibility,
               status = :status,
               note = :note,
@@ -450,6 +475,9 @@ final readonly class BudgetRepository
         ];
         if ($this->hasBudgetParticipantModeColumn()) {
             $payload['participant_mode'] = $participantMode;
+        }
+        if ($this->hasBudgetPricingEnabledColumn()) {
+            $payload['pricing_enabled'] = $pricingEnabled ? 1 : 0;
         }
         $statement->execute($payload);
     }
@@ -579,8 +607,11 @@ final readonly class BudgetRepository
 
     private function itemsForBudget(int $budgetId, string $budgetInstallmentPeriodUnit): array
     {
+        $pricingConfigSelect = $this->hasBudgetItemPricingConfigColumn()
+            ? 'bi.pricing_config,'
+            : 'NULL AS pricing_config,';
         $statement = $this->pdo->prepare(
-            <<<'SQL'
+            <<<SQL
             SELECT
               bi.id,
               bi.category_id,
@@ -596,6 +627,7 @@ final readonly class BudgetRepository
               bi.estimated_amount_base,
               bi.variance_amount_base,
               bi.installment_config,
+              {$pricingConfigSelect}
               bi.sort_order
             FROM budget_items bi
             LEFT JOIN budget_categories bc ON bc.id = bi.category_id
@@ -632,6 +664,7 @@ final readonly class BudgetRepository
                     $row['installment_config'] ?? null,
                     $budgetInstallmentPeriodUnit,
                 ),
+                'pricingConfig' => $this->pricingConfig($row['pricing_config'] ?? null),
                 'split' => $splits[(int) $row['id']] ?? null,
                 'sortOrder' => (int) $row['sort_order'],
             ],
@@ -885,6 +918,7 @@ final readonly class BudgetRepository
             'participantMode' => $this->participantMode($row['participant_mode'] ?? null),
             'installmentDisplayMode' => $row['installment_display_mode'] ?? 'item',
             'installmentPeriodUnit' => $this->installmentPeriodUnit($row['installment_period_unit'] ?? null),
+            'pricingEnabled' => (int) ($row['pricing_enabled'] ?? 0) === 1,
             'visibility' => $row['visibility'],
             'status' => $row['status'],
             'note' => $row['note'],
@@ -961,6 +995,39 @@ final readonly class BudgetRepository
         ];
     }
 
+    private function pricingConfig(mixed $value): array
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return $this->emptyPricingConfig();
+        }
+
+        $decoded = json_decode($value, true);
+        if (!is_array($decoded) || ($decoded['enabled'] ?? false) !== true) {
+            return $this->emptyPricingConfig();
+        }
+
+        $unitPrice = is_numeric($decoded['unitPrice'] ?? null)
+            ? max(0.0, (float) $decoded['unitPrice'])
+            : null;
+        $quantity = is_numeric($decoded['quantity'] ?? null)
+            ? max(0.0, (float) $decoded['quantity'])
+            : null;
+        $totalAmount = is_numeric($decoded['totalAmount'] ?? null)
+            ? max(0.0, (float) $decoded['totalAmount'])
+            : null;
+
+        if ($unitPrice !== null && $quantity !== null) {
+            $totalAmount = round($unitPrice * $quantity, 2);
+        }
+
+        return [
+            'enabled' => true,
+            'unitPrice' => $unitPrice,
+            'quantity' => $quantity,
+            'totalAmount' => $totalAmount,
+        ];
+    }
+
     private function emptyInstallmentConfig(): array
     {
         return [
@@ -977,6 +1044,16 @@ final readonly class BudgetRepository
             'startMonth' => null,
             'periodUnit' => 'month',
             'remark' => null,
+        ];
+    }
+
+    private function emptyPricingConfig(): array
+    {
+        return [
+            'enabled' => false,
+            'unitPrice' => null,
+            'quantity' => null,
+            'totalAmount' => null,
         ];
     }
 
@@ -1388,6 +1465,38 @@ final readonly class BudgetRepository
             WHERE table_schema = DATABASE()
               AND table_name = 'budgets'
               AND column_name = 'participant_mode'
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasBudgetPricingEnabledColumn(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budgets'
+              AND column_name = 'pricing_enabled'
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasBudgetItemPricingConfigColumn(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_items'
+              AND column_name = 'pricing_config'
             SQL
         );
         $statement->execute();

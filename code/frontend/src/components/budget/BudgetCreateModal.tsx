@@ -1,4 +1,4 @@
-import { Alert, Button, DatePicker, Form, Input, Modal, Radio, Select, Space } from 'antd';
+import { Alert, Button, Checkbox, DatePicker, Form, Input, Modal, Radio, Select, Space } from 'antd';
 import type { FormInstance } from 'antd';
 import { Plus, Trash2 } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
@@ -151,6 +151,14 @@ export function BudgetCreateModal({
                 { label: t('groupBudget'), value: 'group' },
               ]}
             />
+          </Form.Item>
+          <Form.Item
+            className="budget-info-wide-field"
+            name="pricingEnabled"
+            valuePropName="checked"
+            extra={t('pricingEnabledHelp')}
+          >
+            <Checkbox>{t('pricingEnabled')}</Checkbox>
           </Form.Item>
           {participantMode === 'group' ? (
             <div className="budget-info-wide-field group-participants-editor">

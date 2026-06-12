@@ -14,42 +14,43 @@ final readonly class BudgetEntryRepository
 
     public function createItem(array $item): int
     {
+        $columns = [
+            'budget_id',
+            'category_id',
+            'label',
+            'budget_currency_id',
+            'budget_amount_original',
+            'budget_rate_to_base',
+            'budget_amount_base',
+            'estimated_currency_id',
+            'estimated_amount_original',
+            'estimated_rate_to_base',
+            'estimated_amount_base',
+            'variance_amount_base',
+            'installment_config',
+            'sort_order',
+        ];
+        if ($this->hasBudgetItemPricingConfigColumn()) {
+            array_splice($columns, -1, 0, ['pricing_config']);
+        } else {
+            unset($item['pricing_config']);
+        }
+
+        $columnSql = implode(",\n              ", $columns);
+        $placeholderSql = implode(",\n              ", array_map(
+            static fn (string $column): string => ':' . $column,
+            $columns,
+        ));
         $statement = $this->pdo->prepare(
-            <<<'SQL'
+            <<<SQL
             INSERT INTO budget_items (
-              budget_id,
-              category_id,
-              label,
-              budget_currency_id,
-              budget_amount_original,
-              budget_rate_to_base,
-              budget_amount_base,
-              estimated_currency_id,
-              estimated_amount_original,
-              estimated_rate_to_base,
-              estimated_amount_base,
-              variance_amount_base,
-              installment_config,
-              sort_order
+              {$columnSql}
             ) VALUES (
-              :budget_id,
-              :category_id,
-              :label,
-              :budget_currency_id,
-              :budget_amount_original,
-              :budget_rate_to_base,
-              :budget_amount_base,
-              :estimated_currency_id,
-              :estimated_amount_original,
-              :estimated_rate_to_base,
-              :estimated_amount_base,
-              :variance_amount_base,
-              :installment_config,
-              :sort_order
+              {$placeholderSql}
             )
             SQL
         );
-        $statement->execute($item);
+        $statement->execute(array_intersect_key($item, array_fill_keys($columns, true)));
 
         return (int) $this->pdo->lastInsertId();
     }
@@ -57,27 +58,43 @@ final readonly class BudgetEntryRepository
     public function updateItem(int $id, array $item): void
     {
         unset($item['budget_id']);
+        $columns = [
+            'category_id',
+            'label',
+            'budget_currency_id',
+            'budget_amount_original',
+            'budget_rate_to_base',
+            'budget_amount_base',
+            'estimated_currency_id',
+            'estimated_amount_original',
+            'estimated_rate_to_base',
+            'estimated_amount_base',
+            'variance_amount_base',
+            'installment_config',
+            'sort_order',
+        ];
+        if ($this->hasBudgetItemPricingConfigColumn()) {
+            array_splice($columns, -1, 0, ['pricing_config']);
+        } else {
+            unset($item['pricing_config']);
+        }
+
+        $assignmentSql = implode(",\n              ", array_map(
+            static fn (string $column): string => "{$column} = :{$column}",
+            $columns,
+        ));
         $statement = $this->pdo->prepare(
-            <<<'SQL'
+            <<<SQL
             UPDATE budget_items
             SET
-              category_id = :category_id,
-              label = :label,
-              budget_currency_id = :budget_currency_id,
-              budget_amount_original = :budget_amount_original,
-              budget_rate_to_base = :budget_rate_to_base,
-              budget_amount_base = :budget_amount_base,
-              estimated_currency_id = :estimated_currency_id,
-              estimated_amount_original = :estimated_amount_original,
-              estimated_rate_to_base = :estimated_rate_to_base,
-              estimated_amount_base = :estimated_amount_base,
-              variance_amount_base = :variance_amount_base,
-              installment_config = :installment_config,
-              sort_order = :sort_order
+              {$assignmentSql}
             WHERE id = :id
             SQL
         );
-        $statement->execute(['id' => $id, ...$item]);
+        $statement->execute([
+            'id' => $id,
+            ...array_intersect_key($item, array_fill_keys($columns, true)),
+        ]);
     }
 
     public function deleteItem(int $id): void
@@ -399,6 +416,22 @@ final readonly class BudgetEntryRepository
         $statement->execute();
 
         return (int) $statement->fetchColumn() === 2;
+    }
+
+    private function hasBudgetItemPricingConfigColumn(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_items'
+              AND column_name = 'pricing_config'
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 1;
     }
 
     private function hasTransactionPaidByColumn(): bool

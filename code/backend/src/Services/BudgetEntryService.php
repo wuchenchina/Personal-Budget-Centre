@@ -228,6 +228,11 @@ final readonly class BudgetEntryService
         $specifiedAmount = $this->number($input['currencyAmount'] ?? $input['currency_amount'] ?? null);
         $bankFeeMultiplier = 1 + (($this->number($input['bankFee'] ?? $input['bank_fee'] ?? null) ?? 0.0) / 100);
         $usesUnifiedCurrencyPayload = array_key_exists('currency', $input) || array_key_exists('currency_amount', $input) || array_key_exists('currencyAmount', $input);
+        $pricingConfig = $this->pricingConfigFromInput($input);
+
+        if ($pricingConfig['enabled'] && $pricingConfig['totalAmount'] !== null) {
+            $budgetAmount = $pricingConfig['totalAmount'];
+        }
 
         if ($label === null || strlen($label) > 160) {
             throw new AuthException('VALIDATION_ERROR', 'Category name is required and must be 160 characters or less.', 422);
@@ -294,6 +299,7 @@ final readonly class BudgetEntryService
                 $input,
                 $budget['installmentPeriodUnit'] ?? 'month',
             ),
+            'pricing_config' => $this->pricingConfigJson($pricingConfig),
             'sort_order' => Input::positiveInt($input['sortOrder'] ?? $input['sort_order'] ?? null) ?? 0,
         ];
     }
@@ -714,6 +720,72 @@ final readonly class BudgetEntryService
         }
 
         return $amountBase / $rateToBase;
+    }
+
+    private function pricingConfigFromInput(array $input): array
+    {
+        $raw = $input['pricingConfig'] ?? $input['pricing_config'] ?? null;
+        if ($raw === null) {
+            return $this->emptyPricingConfig();
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (!is_array($decoded)) {
+                throw new AuthException('VALIDATION_ERROR', 'Pricing settings must be valid JSON.', 422);
+            }
+            $raw = $decoded;
+        }
+
+        if (!is_array($raw)) {
+            throw new AuthException('VALIDATION_ERROR', 'Pricing settings must be an object.', 422);
+        }
+
+        if (($raw['enabled'] ?? false) !== true) {
+            return $this->emptyPricingConfig();
+        }
+
+        $unitPrice = $this->number($raw['unitPrice'] ?? $raw['unit_price'] ?? null);
+        $quantity = $this->number($raw['quantity'] ?? null);
+        if ($unitPrice !== null && $unitPrice < 0.0) {
+            throw new AuthException('VALIDATION_ERROR', 'Unit price cannot be less than 0.', 422);
+        }
+        if ($quantity !== null && $quantity < 0.0) {
+            throw new AuthException('VALIDATION_ERROR', 'Quantity cannot be less than 0.', 422);
+        }
+
+        return [
+            'enabled' => true,
+            'unitPrice' => $unitPrice,
+            'quantity' => $quantity,
+            'totalAmount' => $unitPrice === null || $quantity === null
+                ? null
+                : round($unitPrice * $quantity, 2),
+        ];
+    }
+
+    private function pricingConfigJson(array $config): ?string
+    {
+        if (($config['enabled'] ?? false) !== true) {
+            return null;
+        }
+
+        $json = json_encode($config, JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            throw new AuthException('VALIDATION_ERROR', 'Pricing settings could not be encoded.', 422);
+        }
+
+        return $json;
+    }
+
+    private function emptyPricingConfig(): array
+    {
+        return [
+            'enabled' => false,
+            'unitPrice' => null,
+            'quantity' => null,
+            'totalAmount' => null,
+        ];
     }
 
     private function installmentConfigJsonFromInput(

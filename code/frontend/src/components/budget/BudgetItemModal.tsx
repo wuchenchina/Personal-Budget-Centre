@@ -29,6 +29,7 @@ interface BudgetItemModalProps {
   categoryOptions: Array<{ label: string; value: number }>;
   baseCurrency: CurrencyCode;
   focus: BudgetItemModalFocus;
+  pricingEnabled: boolean;
   participantMode: 'solo' | 'group';
   participants: BudgetParticipant[];
   transactions: Transaction[];
@@ -46,6 +47,7 @@ export function BudgetItemModal({
   categoryOptions,
   baseCurrency,
   focus,
+  pricingEnabled,
   participantMode,
   participants,
   transactions,
@@ -62,6 +64,9 @@ export function BudgetItemModal({
   const budgetAmount = Form.useWatch('budgetAmount', form);
   const budgetRate = Form.useWatch('budgetRate', form);
   const selectedCategoryId = Form.useWatch('categoryId', form);
+  const pricingConfigEnabled = Form.useWatch(['pricingConfig', 'enabled'], form) === true;
+  const pricingUnitPrice = Form.useWatch(['pricingConfig', 'unitPrice'], form);
+  const pricingQuantity = Form.useWatch(['pricingConfig', 'quantity'], form);
   const selectedSplitType = Form.useWatch(['split', 'splitType'], form) ?? 'equal';
   const installmentEnabled = Form.useWatch(['installmentConfig', 'enabled'], form) === true;
   const installmentTotal = Form.useWatch(['installmentConfig', 'totalAmount'], form);
@@ -154,6 +159,15 @@ export function BudgetItemModal({
     label: participant.name,
     value: participant.id,
   }));
+  const pricingTotal =
+    typeof pricingUnitPrice === 'number'
+    && Number.isFinite(pricingUnitPrice)
+    && pricingUnitPrice >= 0
+    && typeof pricingQuantity === 'number'
+    && Number.isFinite(pricingQuantity)
+    && pricingQuantity >= 0
+      ? roundMoney(pricingUnitPrice * pricingQuantity)
+      : null;
 
   useEffect(() => {
     if (!open || focus === null) {
@@ -208,6 +222,17 @@ export function BudgetItemModal({
       form.setFieldValue(['split', 'paidByParticipantId'], null);
     }
   }, [form, open, participants, selectedSplitType]);
+
+  useEffect(() => {
+    if (!open || !pricingEnabled || !pricingConfigEnabled || pricingTotal === null) {
+      return;
+    }
+
+    const nextBudgetAmount = Number(pricingTotal.toFixed(2));
+    if (form.getFieldValue('budgetAmount') !== nextBudgetAmount) {
+      form.setFieldValue('budgetAmount', nextBudgetAmount);
+    }
+  }, [form, open, pricingConfigEnabled, pricingEnabled, pricingTotal]);
 
   const handleCategoryChange = (categoryId: number | null | undefined) => {
     if (categoryId === null || categoryId === undefined) {
@@ -321,6 +346,69 @@ export function BudgetItemModal({
             />
           </Form.Item>
         </div>
+
+        {pricingEnabled ? (
+          <div className="pricing-config-panel installment-config-panel">
+            <Form.Item name={['pricingConfig', 'enabled']} valuePropName="checked">
+              <Checkbox>{t('enableUnitPricing')}</Checkbox>
+            </Form.Item>
+            {pricingConfigEnabled ? (
+              <>
+                <div className="installment-config-copy">
+                  <strong>{t('unitPricingTitle')}</strong>
+                  <span>{t('unitPricingHelp')}</span>
+                </div>
+                <div className="modal-form-grid">
+                  <Form.Item
+                    label={t('unitPrice')}
+                    name={['pricingConfig', 'unitPrice']}
+                    rules={[
+                      { required: true, message: t('unitPriceRequired') },
+                      { type: 'number', min: 0, message: t('unitPriceMin') },
+                    ]}
+                  >
+                    <InputNumber
+                      addonBefore={budgetCurrency ?? t('currency')}
+                      className="form-full-width"
+                      min={0}
+                      precision={2}
+                      step={100}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label={t('quantity')}
+                    name={['pricingConfig', 'quantity']}
+                    rules={[
+                      { required: true, message: t('quantityRequired') },
+                      { type: 'number', min: 0, message: t('quantityMin') },
+                    ]}
+                  >
+                    <InputNumber
+                      className="form-full-width"
+                      min={0}
+                      precision={2}
+                      step={1}
+                    />
+                  </Form.Item>
+                </div>
+                <div className="installment-config-summary">
+                  <span>{t('totalPrice')}</span>
+                  <strong>
+                    {pricingTotal === null
+                      ? `${budgetCurrency ?? t('currency')} --`
+                      : `${budgetCurrency ?? t('currency')} ${pricingTotal.toFixed(2)}`}
+                  </strong>
+                  <span>{t('budgetAmount')}</span>
+                  <strong>
+                    {pricingTotal === null
+                      ? '--'
+                      : t('unitPricingSyncTarget')}
+                  </strong>
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
 
         {participantMode === 'group' && participants.length > 0 ? (
           <div className="group-split-panel">

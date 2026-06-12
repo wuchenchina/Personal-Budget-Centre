@@ -137,6 +137,7 @@ export function createBudgetItemColumns(
   columns: TemplateColumn[],
   baseCurrency: CurrencyCode,
   transactions: Transaction[] = [],
+  pricingEnabled = true,
 ): TableProps<BudgetItem>['columns'] {
   return columns.map((column) => ({
     key: column.key,
@@ -144,10 +145,15 @@ export function createBudgetItemColumns(
     align: column.align,
     render: (_: unknown, row: BudgetItem) => {
       if (column.key === 'category') {
+        const pricingSummary = pricingEnabled ? pricingSummaryForItem(row) : null;
+
         return createElement(
           'div',
           { className: 'budget-item-category-cell' },
           createElement('span', null, row.category ?? row.label),
+          pricingSummary === null
+            ? null
+            : createElement('small', { className: 'budget-money-secondary' }, pricingSummary),
         );
       }
 
@@ -178,6 +184,23 @@ export function createBudgetItemColumns(
     },
     width: `${column.widthPercent}%`,
   }));
+}
+
+function pricingSummaryForItem(item: BudgetItem): string | null {
+  if (!item.pricingConfig.enabled || item.pricingConfig.totalAmount === null) {
+    return null;
+  }
+
+  const unitPrice = item.pricingConfig.unitPrice;
+  const quantity = item.pricingConfig.quantity;
+  if (unitPrice === null || quantity === null) {
+    return null;
+  }
+
+  return `${formatBudgetMoney(item.budget.currency, unitPrice)} x ${quantity} = ${formatBudgetMoney(
+    item.budget.currency,
+    item.pricingConfig.totalAmount,
+  )}`;
 }
 
 function createMoneyWithSecondary(

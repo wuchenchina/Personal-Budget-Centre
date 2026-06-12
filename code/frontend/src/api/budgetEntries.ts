@@ -2,6 +2,7 @@ import { apiDelete, apiPatch, apiPost } from './http';
 import type {
   BudgetDetail,
   BudgetInstallmentConfig,
+  BudgetItemPricingConfig,
   BudgetItemSplit,
   CurrencyCode,
 } from '../types/budget';
@@ -20,6 +21,7 @@ export interface SaveBudgetItemPayload {
   estimatedCurrency: CurrencyCode;
   estimatedAmount?: number;
   estimatedRate?: number;
+  pricingConfig?: BudgetItemPricingConfig;
   installmentConfig?: BudgetInstallmentConfig;
   split?: BudgetItemSplit | null;
   sortOrder?: number;
