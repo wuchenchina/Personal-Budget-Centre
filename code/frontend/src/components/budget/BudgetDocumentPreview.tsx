@@ -1816,6 +1816,70 @@ function InlineMoneyCell({
   );
 }
 
+function InlineCompactMoneyCell({
+  currency,
+  disabled,
+  editable,
+  value,
+  onCommit,
+}: {
+  currency: CurrencyCode;
+  disabled: boolean;
+  editable: boolean;
+  value: number;
+  onCommit: (value: number) => void;
+}) {
+  const [draftState, setDraftState] = useState<{ sourceValue: number; draftValue: number | null }>({
+    sourceValue: value,
+    draftValue: value,
+  });
+  const draftValue = draftState.sourceValue === value ? draftState.draftValue : value;
+  const setDraftValue = (nextValue: number | null) => {
+    setDraftState({ sourceValue: value, draftValue: nextValue });
+  };
+
+  if (!editable) {
+    return (
+      <span className="budget-inline-compact-money-cell">
+        <span className="budget-inline-compact-currency">{currency}</span>
+        <span className="budget-inline-compact-money-readonly">{value.toFixed(2)}</span>
+      </span>
+    );
+  }
+
+  const commit = () => {
+    if (draftValue === null || !Number.isFinite(draftValue)) {
+      setDraftValue(value);
+
+      return;
+    }
+
+    if (Math.abs(draftValue - value) >= 0.005) {
+      onCommit(draftValue);
+    }
+  };
+
+  return (
+    <span className="budget-inline-compact-money-cell">
+      <span className="budget-inline-compact-currency">{currency}</span>
+      <InputNumber
+        changeOnWheel={false}
+        className="budget-inline-compact-money-input"
+        controls={false}
+        disabled={disabled}
+        min={0}
+        precision={2}
+        size="small"
+        value={draftValue}
+        variant="borderless"
+        onBlur={commit}
+        onChange={(nextValue) => setDraftValue(typeof nextValue === 'number' ? nextValue : null)}
+        onPressEnter={commit}
+      />
+    </span>
+  );
+}
+
 function InlineNumberCell({
   disabled,
   editable,
@@ -2043,7 +2107,7 @@ function appendTransactionQuickEditors(
       align: 'right',
       width: '12%',
       render: (_value: unknown, row: Transaction) => (
-        <InlineMoneyCell
+        <InlineCompactMoneyCell
           currency={row.currency}
           disabled={entry.isTransactionSaving}
           editable={canWriteBudgets}

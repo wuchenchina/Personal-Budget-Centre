@@ -46,6 +46,8 @@ final readonly class BudgetPdfDocumentRenderer
                 'target_amount' => '目标',
                 'to' => '收款方',
                 'transaction_details' => '交易详情',
+                'unit_price' => '单价',
+                'quantity' => '数量',
                 'variance' => '差额',
             ],
             'metrics' => [
@@ -107,6 +109,8 @@ final readonly class BudgetPdfDocumentRenderer
                 'target_amount' => '目標',
                 'to' => '收款方',
                 'transaction_details' => '交易詳情',
+                'unit_price' => '單價',
+                'quantity' => '數量',
                 'variance' => '差額',
             ],
             'metrics' => [
@@ -172,7 +176,11 @@ final readonly class BudgetPdfDocumentRenderer
             $transactionParticipants,
             $tableContext,
         );
-        $hasTransactionPaymentColumn = $this->sectionHasColumn($transactionSection, 'paid_by');
+        $transactionSection = $this->transactionSectionWithPricingColumns(
+            $transactionSection,
+            ((bool) ($budget['pricingEnabled'] ?? false)),
+            $tableContext,
+        );
 
         return '<!doctype html><html lang="' . $this->documentLanguage($tableContext) . '"><head><meta charset="utf-8">'
             . '<style>'
@@ -200,7 +208,7 @@ final readonly class BudgetPdfDocumentRenderer
                     (string) $budget['baseCurrency'],
                     $transactionParticipants,
                     $tableContext,
-                    $hasTransactionPaymentColumn,
+                    is_array($transactionSection['columns'] ?? null) ? $transactionSection['columns'] : [],
                 ),
                 null,
                 $this->tableText('No transactions', $tableContext['labels']['emptyTransactions'], $tableContext),
@@ -305,14 +313,9 @@ final readonly class BudgetPdfDocumentRenderer
             return $section;
         }
 
-        $label = $context['mode'] === 'en'
-            ? 'Paid By'
-            : ($context['mode'] === 'bilingual'
-                ? "Paid By\n" . $context['labels']['columnLabels']['paid_by']
-                : $context['labels']['columnLabels']['paid_by']);
         $paymentColumn = [
             'key' => 'paid_by',
-            'label' => $label,
+            'label' => $this->localizedColumnLabel('paid_by', 'Paid By', $context),
             'align' => 'left',
             'widthPercent' => 16,
             'dataType' => 'text',
@@ -331,6 +334,107 @@ final readonly class BudgetPdfDocumentRenderer
             ...$section,
             'columns' => $columns,
         ];
+    }
+
+    private function transactionSectionWithPricingColumns(
+        array $section,
+        bool $pricingEnabled,
+        array $context,
+    ): array {
+        if (!$pricingEnabled) {
+            return $section;
+        }
+
+        $columns = is_array($section['columns'] ?? null) ? array_values($section['columns']) : [];
+        $columnsToInsert = [];
+        if (!$this->sectionHasColumn($section, 'unit_price')) {
+            $columnsToInsert[] = [
+                'key' => 'unit_price',
+                'label' => $this->localizedColumnLabel('unit_price', 'Unit Price', $context),
+                'align' => 'right',
+                'widthPercent' => 11,
+                'dataType' => 'money',
+            ];
+        }
+        if (!$this->sectionHasColumn($section, 'quantity')) {
+            $columnsToInsert[] = [
+                'key' => 'quantity',
+                'label' => $this->localizedColumnLabel('quantity', 'Quantity', $context),
+                'align' => 'right',
+                'widthPercent' => 8,
+                'dataType' => 'text',
+            ];
+        }
+
+        if ($columnsToInsert !== []) {
+            $insertIndex = count($columns);
+            foreach ($columns as $index => $column) {
+                if (($column['key'] ?? null) === 'amount') {
+                    $insertIndex = $index;
+                    break;
+                }
+            }
+            array_splice($columns, $insertIndex, 0, $columnsToInsert);
+            $section = [
+                ...$section,
+                'columns' => $columns,
+            ];
+        }
+
+        return $this->transactionSectionWithPricingWidths($section);
+    }
+
+    private function transactionSectionWithPricingWidths(array $section): array
+    {
+        $columns = is_array($section['columns'] ?? null) ? array_values($section['columns']) : [];
+        $hasPaymentColumn = $this->sectionHasColumn($section, 'paid_by');
+        $widths = $hasPaymentColumn
+            ? [
+                'transaction_details' => 29,
+                'category' => 14,
+                'paid_by' => 11,
+                'unit_price' => 11,
+                'quantity' => 8,
+                'amount' => 13,
+                'remark' => 14,
+            ]
+            : [
+                'transaction_details' => 32,
+                'category' => 16,
+                'unit_price' => 13,
+                'quantity' => 8,
+                'amount' => 14,
+                'remark' => 17,
+            ];
+
+        return [
+            ...$section,
+            'columns' => array_map(
+                static function (array $column) use ($widths): array {
+                    $key = (string) ($column['key'] ?? '');
+                    if (!array_key_exists($key, $widths)) {
+                        return $column;
+                    }
+
+                    return [
+                        ...$column,
+                        'widthPercent' => $widths[$key],
+                    ];
+                },
+                $columns,
+            ),
+        ];
+    }
+
+    private function localizedColumnLabel(string $key, string $english, array $context): string
+    {
+        if ($context['mode'] === 'en') {
+            return $english;
+        }
+
+        $chinese = $context['labels']['columnLabels'][$key] ?? $english;
+
+        return $context['mode'] === 'bilingual' ? $english . "\n" . $chinese : $chinese;
     }
 
     private function sectionHasColumn(array $section, string $key): bool
@@ -1191,25 +1295,43 @@ final readonly class BudgetPdfDocumentRenderer
         string $baseCurrency,
         array $participants,
         array $context,
-        bool $includePaymentColumn,
+        array $columns,
     ): array
     {
         return array_map(
-            function (array $transaction) use ($baseCurrency, $participants, $context, $includePaymentColumn): array {
-                $row = [
-                    $transaction['details'],
-                    $transaction['category'] ?? '',
-                ];
-                if ($includePaymentColumn) {
-                    $row[] = $this->transactionPaymentText($transaction, $participants, $baseCurrency, $context);
-                }
-                $row[] = $this->transactionAmountText($transaction, $baseCurrency);
-                $row[] = $transaction['remark'] ?? '';
-
-                return $row;
+            function (array $transaction) use ($baseCurrency, $participants, $context, $columns): array {
+                return array_map(
+                    fn (array $column): string => $this->transactionColumnText(
+                        $transaction,
+                        (string) ($column['key'] ?? ''),
+                        $baseCurrency,
+                        $participants,
+                        $context,
+                    ),
+                    $columns,
+                );
             },
             $transactions,
         );
+    }
+
+    private function transactionColumnText(
+        array $transaction,
+        string $key,
+        string $baseCurrency,
+        array $participants,
+        array $context,
+    ): string {
+        return match ($key) {
+            'transaction_details' => (string) ($transaction['details'] ?? ''),
+            'category' => (string) ($transaction['category'] ?? ''),
+            'paid_by' => $this->transactionPaymentText($transaction, $participants, $baseCurrency, $context),
+            'unit_price' => $this->transactionUnitPriceText($transaction, $baseCurrency),
+            'quantity' => $this->transactionQuantityText($transaction),
+            'amount' => $this->transactionAmountText($transaction, $baseCurrency),
+            'remark' => (string) ($transaction['remark'] ?? ''),
+            default => '',
+        };
     }
 
     private function transactionPaymentText(
@@ -1534,6 +1656,37 @@ final readonly class BudgetPdfDocumentRenderer
             'year' => date('Y', $time),
             default => date('M Y', $time),
         };
+    }
+
+    private function transactionUnitPriceText(array $transaction, string $baseCurrency): string
+    {
+        $currency = (string) ($transaction['currency'] ?? $baseCurrency);
+        $unitPrice = $this->transactionPricingNumber($transaction, 'unitPrice', 'unit_price')
+            ?? (float) ($transaction['amountOriginal'] ?? 0);
+
+        return $this->formatter->templateMoney($currency, $unitPrice);
+    }
+
+    private function transactionQuantityText(array $transaction): string
+    {
+        $quantity = $this->transactionPricingNumber($transaction, 'quantity') ?? 1.0;
+
+        return number_format($quantity, 2, '.', '');
+    }
+
+    private function transactionPricingNumber(array $transaction, string $camelKey, ?string $snakeKey = null): ?float
+    {
+        $config = is_array($transaction['pricingConfig'] ?? null) ? $transaction['pricingConfig'] : [];
+        if (!in_array($config['enabled'] ?? false, [true, 1, '1'], true)) {
+            return null;
+        }
+
+        $value = $config[$camelKey] ?? ($snakeKey === null ? null : ($config[$snakeKey] ?? null));
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return max(0.0, (float) $value);
     }
 
     private function transactionAmountText(array $transaction, string $baseCurrency): string

@@ -405,6 +405,38 @@
   font-size: 7.5pt;
 }
 
+.budget-inline-compact-money-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.budget-inline-compact-currency,
+.budget-inline-compact-money-readonly,
+.budget-inline-compact-money-input input {
+  font-family: var(--font-mono), var(--font-cjk), monospace;
+  font-size: 7.5pt;
+}
+
+.budget-inline-compact-currency {
+  flex: 0 0 auto;
+}
+
+.budget-inline-compact-money-input {
+  flex: 0 1 76px;
+  width: 76px;
+  min-width: 0;
+  text-align: right;
+}
+
+.budget-inline-compact-money-input input {
+  padding-inline: 2px;
+  text-align: right !important;
+}
+
 .budget-inline-number-input {
   width: 72px;
   text-align: right;
