@@ -21,6 +21,7 @@ interface TransactionModalProps {
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
   baseCurrency: CurrencyCode;
+  pricingEnabled: boolean;
   participantMode: BudgetParticipantMode;
   participants: BudgetParticipant[];
   items: BudgetItem[];
@@ -40,6 +41,7 @@ export function TransactionModal({
   error,
   categoryOptions,
   baseCurrency,
+  pricingEnabled,
   participantMode,
   participants,
   items,
@@ -58,6 +60,8 @@ export function TransactionModal({
   const rate = Form.useWatch('rate', form);
   const referenceCurrency = Form.useWatch('referenceCurrency', form);
   const referenceAmount = Form.useWatch('referenceAmount', form);
+  const pricingUnitPrice = Form.useWatch(['pricingConfig', 'unitPrice'], form);
+  const pricingQuantity = Form.useWatch(['pricingConfig', 'quantity'], form);
   const basePreview =
     typeof amount === 'number' && Number.isFinite(amount)
       ? amount * (typeof rate === 'number' && Number.isFinite(rate) && rate > 0 ? rate : 1)
@@ -93,6 +97,15 @@ export function TransactionModal({
     label: participant.name,
     value: participant.id,
   }));
+  const pricingTotal =
+    typeof pricingUnitPrice === 'number'
+    && Number.isFinite(pricingUnitPrice)
+    && pricingUnitPrice >= 0
+    && typeof pricingQuantity === 'number'
+    && Number.isFinite(pricingQuantity)
+    && pricingQuantity >= 0
+      ? roundMoney(pricingUnitPrice * pricingQuantity)
+      : null;
 
   useEffect(() => {
     if (!open || !showPaymentPanel || paymentMode !== 'multiple') {
@@ -117,6 +130,17 @@ export function TransactionModal({
       payments: [],
     });
   }, [form, open, showPaymentPanel]);
+
+  useEffect(() => {
+    if (!open || !pricingEnabled || pricingTotal === null) {
+      return;
+    }
+
+    const nextAmount = Number(pricingTotal.toFixed(2));
+    if (form.getFieldValue('amount') !== nextAmount) {
+      form.setFieldValue('amount', nextAmount);
+    }
+  }, [form, open, pricingEnabled, pricingTotal]);
 
   const defaultPaidByParticipantId =
     selectedItem?.split?.paidByParticipantId ?? participants[0]?.id ?? null;
@@ -296,7 +320,7 @@ export function TransactionModal({
               {t('refreshBochkRates')}
             </Button>
           </div>
-          <div className="currency-transaction-grid">
+          <div className={`currency-transaction-grid${pricingEnabled ? ' currency-transaction-grid-pricing' : ''}`}>
             <Form.Item
               label={t('currency')}
               name="currency"
@@ -304,6 +328,41 @@ export function TransactionModal({
             >
               <Select options={currencyOptions} />
             </Form.Item>
+            {pricingEnabled ? (
+              <Form.Item
+                label={t('unitPrice')}
+                name={['pricingConfig', 'unitPrice']}
+                rules={[
+                  { required: true, message: t('unitPriceRequired') },
+                  { type: 'number', min: 0, message: t('unitPriceMin') },
+                ]}
+              >
+                <InputNumber
+                  addonBefore={currency ?? t('currency')}
+                  className="form-full-width"
+                  min={0}
+                  precision={2}
+                  step={100}
+                />
+              </Form.Item>
+            ) : null}
+            {pricingEnabled ? (
+              <Form.Item
+                label={t('quantity')}
+                name={['pricingConfig', 'quantity']}
+                rules={[
+                  { required: true, message: t('quantityRequired') },
+                  { type: 'number', min: 0, message: t('quantityMin') },
+                ]}
+              >
+                <InputNumber
+                  className="form-full-width"
+                  min={0}
+                  precision={2}
+                  step={1}
+                />
+              </Form.Item>
+            ) : null}
             <Form.Item
               label={t('amount')}
               name="amount"
@@ -313,6 +372,7 @@ export function TransactionModal({
                 addonBefore={currency}
                 className="form-full-width"
                 precision={2}
+                readOnly={pricingEnabled}
                 step={100}
               />
             </Form.Item>
@@ -412,6 +472,10 @@ type TransactionPaymentFormRows = NonNullable<TransactionFormValues['payments']>
 
 function splitTypeSupportsTransactionPayments(splitType: BudgetItemSplitType): boolean {
   return splitType !== 'excluded' && splitType !== 'per_person';
+}
+
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 function normalizePaymentRows(

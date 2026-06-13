@@ -443,6 +443,7 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
   amount_original DECIMAL(18, 4) NOT NULL,
   rate_to_base DECIMAL(20, 10) NOT NULL DEFAULT 1,
   amount_base DECIMAL(18, 4) NOT NULL,
+  pricing_config JSON NULL,
   reference_currency_id BIGINT UNSIGNED NULL,
   reference_amount_original DECIMAL(18, 4) NULL,
   remark VARCHAR(500) NULL,

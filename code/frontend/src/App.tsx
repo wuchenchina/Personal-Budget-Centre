@@ -396,6 +396,7 @@ function App() {
         error={budgetEntry.entryError}
         categoryOptions={transactionCategoryOptions}
         baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
+        pricingEnabled={budget.selectedBudget?.pricingEnabled ?? false}
         participantMode={budget.selectedBudget?.participantMode ?? 'solo'}
         participants={budget.selectedBudget?.participants ?? []}
         items={budget.selectedBudget?.items ?? []}

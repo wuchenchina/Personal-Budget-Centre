@@ -308,6 +308,12 @@ final readonly class BudgetEntryService
     {
         $details = Input::string($input['details'] ?? null);
         $amount = $this->number($input['amount'] ?? null);
+        $pricingConfig = ((bool) ($budget['pricingEnabled'] ?? false))
+            ? $this->pricingConfigFromInput($input)
+            : $this->emptyPricingConfig();
+        if ($pricingConfig['enabled'] && $pricingConfig['totalAmount'] !== null) {
+            $amount = $pricingConfig['totalAmount'];
+        }
         $referenceAmount = $this->number($input['referenceAmount'] ?? $input['reference_amount'] ?? null);
         $paidByParticipantId = Input::positiveInt(
             $input['paidByParticipantId'] ?? $input['paid_by_participant_id'] ?? null,
@@ -368,6 +374,7 @@ final readonly class BudgetEntryService
             'amount_original' => $amount,
             'rate_to_base' => $rate,
             'amount_base' => $amount * $rate,
+            'pricing_config' => $this->pricingConfigJson($pricingConfig),
             'reference_currency_id' => $referenceCurrencyId,
             'reference_amount_original' => $referenceAmount,
             'remark' => Input::string($input['remark'] ?? null),

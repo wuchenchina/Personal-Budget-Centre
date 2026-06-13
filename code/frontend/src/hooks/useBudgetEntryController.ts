@@ -286,7 +286,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       throw new Error(translateCurrent('selectBudgetFirst'));
     }
 
-    const amount = normalizedAmount(values.amount);
+    const pricingTotal = transactionPricingTotalFromForm(values.pricingConfig, options.selectedBudget.pricingEnabled);
+    const amount = pricingTotal ?? normalizedAmount(values.amount);
     if (amount === null) {
       throw new Error(translateCurrent('amountRequired'));
     }
@@ -417,6 +418,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       currency: entryCurrency,
       referenceCurrency: undefined,
       referenceAmount: undefined,
+      pricingConfig: transactionPricingConfigForCreateForm(options.selectedBudget),
       sortOrder: options.selectedBudget.transactions.length + 1,
     });
     setIsTransactionModalOpen(true);
@@ -449,6 +451,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       currency: transaction.currency,
       amount: transaction.amountOriginal,
       rate: transaction.rateToBase,
+      pricingConfig: transactionPricingConfigForEditForm(transaction, options.selectedBudget),
       referenceCurrency: transaction.referenceCurrency ?? undefined,
       referenceAmount: transaction.referenceAmountOriginal ?? undefined,
       remark: transaction.remark ?? undefined,
@@ -498,6 +501,15 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       setIsTransactionSaving(true);
       setEntryError(null);
       const referenceAmount = normalizedAmount(values.referenceAmount);
+      const pricingConfig = transactionPricingConfigFromForm(
+        values.pricingConfig,
+        options.selectedBudget?.pricingEnabled === true,
+      );
+      const pricingTotal = pricingConfig.enabled ? pricingConfig.totalAmount : null;
+      const transactionAmount = pricingTotal ?? normalizedAmount(values.amount);
+      if (transactionAmount === null) {
+        throw new Error(translateCurrent('amountRequired'));
+      }
       const supportsTransactionPayments = transactionCategorySupportsTransactionPayments(
         options.selectedBudget,
         values.categoryId,
@@ -507,13 +519,14 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         categoryId: values.categoryId,
         paidByParticipantId: transactionPaidByParticipantIdFromForm(values, options.selectedBudget),
         paymentMode: supportsTransactionPayments ? values.paymentMode ?? 'single' : 'single',
-        payments: transactionPaymentsFromForm(values, options.selectedBudget),
+        payments: transactionPaymentsFromForm(values, options.selectedBudget, transactionAmount),
         transactionDate: values.transactionDate?.format('YYYY-MM-DD') ?? null,
         details: values.details.trim(),
         currency: values.currency,
-        amount: values.amount,
+        amount: transactionAmount,
         referenceCurrency: referenceAmount === null ? undefined : values.referenceCurrency,
         referenceAmount,
+        pricingConfig,
         remark: values.remark?.trim() || null,
         sortOrder: values.sortOrder ?? 0,
       };
@@ -1270,6 +1283,12 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       return;
     }
 
+    if (options.selectedBudget.pricingEnabled) {
+      setEntryError(translateCurrent('unitPricingQuickEditBlocked'));
+
+      return;
+    }
+
     setIsTransactionSaving(true);
     setEntryError(null);
 
@@ -1291,6 +1310,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
           options.selectedBudget,
           value,
         ),
+        pricingConfig: transactionPricingConfigForBudget(options.selectedBudget, transaction),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
@@ -1327,6 +1347,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
           options.selectedBudget,
         ),
         payments: transactionPaymentPayloadForQuickSave(transaction, options.selectedBudget),
+        pricingConfig: transactionPricingConfigForBudget(options.selectedBudget, transaction),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
@@ -1366,6 +1387,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
             amount: row.amount ?? 0,
           }))
           .filter((row) => row.participantId > 0 && row.amount > 0),
+        pricingConfig: transactionPricingConfigForBudget(options.selectedBudget, transaction),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: transaction.remark,
@@ -1409,6 +1431,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
           options.selectedBudget,
         ),
         payments: transactionPaymentPayloadForQuickSave(transaction, options.selectedBudget),
+        pricingConfig: transactionPricingConfigForBudget(options.selectedBudget, transaction),
         referenceCurrency: transaction.referenceCurrency ?? undefined,
         referenceAmount: transaction.referenceAmountOriginal,
         remark: normalizedRemark,
@@ -1534,6 +1557,88 @@ function pricingTotalFromForm(
   pricingEnabled: boolean,
 ): number | null {
   const pricingConfig = pricingConfigFromForm(config, pricingEnabled);
+
+  return pricingConfig.enabled ? pricingConfig.totalAmount : null;
+}
+
+function transactionPricingConfigForCreateForm(
+  budget: BudgetDetail,
+): BudgetItem['pricingConfig'] {
+  return budget.pricingEnabled
+    ? {
+        enabled: true,
+        unitPrice: null,
+        quantity: 1,
+        totalAmount: null,
+      }
+    : emptyPricingConfig();
+}
+
+function transactionPricingConfigForEditForm(
+  transaction: Transaction,
+  budget: BudgetDetail | null,
+): BudgetItem['pricingConfig'] {
+  if (budget?.pricingEnabled !== true) {
+    return emptyPricingConfig();
+  }
+
+  if (
+    transaction.pricingConfig.enabled
+    && transaction.pricingConfig.unitPrice !== null
+    && transaction.pricingConfig.quantity !== null
+  ) {
+    return transaction.pricingConfig;
+  }
+
+  const unitPrice = transaction.pricingConfig.enabled && transaction.pricingConfig.unitPrice !== null
+    ? transaction.pricingConfig.unitPrice
+    : transaction.amountOriginal;
+  const quantity = transaction.pricingConfig.enabled && transaction.pricingConfig.quantity !== null
+    ? transaction.pricingConfig.quantity
+    : 1;
+
+  return {
+    enabled: true,
+    unitPrice,
+    quantity,
+    totalAmount: roundMoney(unitPrice * quantity),
+  };
+}
+
+function transactionPricingConfigForBudget(
+  budget: BudgetDetail,
+  transaction: Transaction,
+): BudgetItem['pricingConfig'] {
+  return transactionPricingConfigForEditForm(transaction, budget);
+}
+
+function transactionPricingConfigFromForm(
+  config: TransactionFormValues['pricingConfig'],
+  pricingEnabled: boolean,
+): BudgetItem['pricingConfig'] {
+  if (!pricingEnabled) {
+    return emptyPricingConfig();
+  }
+
+  const unitPrice = normalizedNonNegativeAmount(config?.unitPrice);
+  const quantity = normalizedNonNegativeAmount(config?.quantity ?? 1);
+  const totalAmount = unitPrice === null || quantity === null
+    ? null
+    : roundMoney(unitPrice * quantity);
+
+  return {
+    enabled: true,
+    unitPrice,
+    quantity,
+    totalAmount,
+  };
+}
+
+function transactionPricingTotalFromForm(
+  config: TransactionFormValues['pricingConfig'],
+  pricingEnabled: boolean,
+): number | null {
+  const pricingConfig = transactionPricingConfigFromForm(config, pricingEnabled);
 
   return pricingConfig.enabled ? pricingConfig.totalAmount : null;
 }
@@ -1742,6 +1847,7 @@ function transactionPaymentRowsToForm(
 function transactionPaymentsFromForm(
   values: TransactionFormValues,
   budget: BudgetDetail | null,
+  amount: number,
 ): SaveTransactionPayload['payments'] {
   if (
     (values.paymentMode ?? 'single') !== 'multiple'
@@ -1765,8 +1871,7 @@ function transactionPaymentsFromForm(
     }));
 
   const paymentTotal = roundMoney(payments.reduce((total, payment) => total + payment.amount, 0));
-  const amount = normalizedAmount(values.amount);
-  if (amount !== null && Math.abs(paymentTotal - roundMoney(amount)) > 0.01) {
+  if (Math.abs(paymentTotal - roundMoney(amount)) > 0.01) {
     throw new Error(translateCurrent('transactionPaymentTotalMismatch'));
   }
 

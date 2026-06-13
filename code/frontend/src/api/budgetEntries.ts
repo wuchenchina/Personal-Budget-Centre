@@ -50,6 +50,7 @@ export interface SaveTransactionPayload {
   rate?: number;
   referenceCurrency?: CurrencyCode;
   referenceAmount?: number | null;
+  pricingConfig?: BudgetItemPricingConfig;
   remark?: string | null;
   sortOrder?: number;
 }

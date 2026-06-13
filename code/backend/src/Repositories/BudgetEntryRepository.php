@@ -198,6 +198,11 @@ final readonly class BudgetEntryRepository
         } else {
             unset($transaction['reference_currency_id'], $transaction['reference_amount_original']);
         }
+        if ($this->hasTransactionPricingConfigColumn()) {
+            array_splice($columns, -2, 0, ['pricing_config']);
+        } else {
+            unset($transaction['pricing_config']);
+        }
 
         $columnSql = implode(",\n              ", $columns);
         $placeholderSql = implode(",\n              ", array_map(
@@ -241,6 +246,11 @@ final readonly class BudgetEntryRepository
             array_splice($columns, -2, 0, ['reference_currency_id', 'reference_amount_original']);
         } else {
             unset($transaction['reference_currency_id'], $transaction['reference_amount_original']);
+        }
+        if ($this->hasTransactionPricingConfigColumn()) {
+            array_splice($columns, -2, 0, ['pricing_config']);
+        } else {
+            unset($transaction['pricing_config']);
         }
 
         $assignmentSql = implode(",\n              ", array_map(
@@ -426,6 +436,22 @@ final readonly class BudgetEntryRepository
             FROM information_schema.columns
             WHERE table_schema = DATABASE()
               AND table_name = 'budget_items'
+              AND column_name = 'pricing_config'
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasTransactionPricingConfigColumn(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_transactions'
               AND column_name = 'pricing_config'
             SQL
         );

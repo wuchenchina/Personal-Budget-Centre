@@ -361,6 +361,7 @@ export function BudgetDocumentPreview({
             transactionCategoryOptions,
             selectedBudget?.baseCurrency ?? baseCurrency,
             t('referenceShort'),
+            selectedBudget?.pricingEnabled ?? false,
           ),
           selectedBudget?.participants ?? [],
           t('paidBy'),
@@ -380,6 +381,7 @@ export function BudgetDocumentPreview({
       entry,
       selectedBudget?.baseCurrency,
       selectedBudget?.participants,
+      selectedBudget?.pricingEnabled,
       t,
       localizedTransactionBreakdown,
       transactionCategoryOptions,
@@ -1843,8 +1845,14 @@ function transactionSecondaryText(
   row: Transaction,
   baseCurrency: CurrencyCode,
   referenceLabel: string,
+  pricingEnabled: boolean,
 ): string | null {
   const lines: string[] = [];
+  const pricingSummary = pricingSummaryForTransaction(row, pricingEnabled);
+  if (pricingSummary !== null) {
+    lines.push(pricingSummary);
+  }
+
   if (row.currency !== baseCurrency) {
     lines.push(formatBudgetMoney(baseCurrency, row.amountBase));
   }
@@ -1854,6 +1862,23 @@ function transactionSecondaryText(
   }
 
   return lines.length === 0 ? null : lines.join(' · ');
+}
+
+function pricingSummaryForTransaction(row: Transaction, pricingEnabled: boolean): string | null {
+  if (!pricingEnabled || !row.pricingConfig.enabled || row.pricingConfig.totalAmount === null) {
+    return null;
+  }
+
+  const unitPrice = row.pricingConfig.unitPrice;
+  const quantity = row.pricingConfig.quantity;
+  if (unitPrice === null || quantity === null) {
+    return null;
+  }
+
+  return `${formatBudgetMoney(row.currency, unitPrice)} x ${quantity} = ${formatBudgetMoney(
+    row.currency,
+    row.pricingConfig.totalAmount,
+  )}`;
 }
 
 function roundMoney(value: number): number {
@@ -1867,6 +1892,7 @@ function appendTransactionQuickEditors(
   categoryOptions: Array<{ label: string; value: number }>,
   baseCurrency: CurrencyCode,
   referenceLabel: string,
+  pricingEnabled: boolean,
 ): TableProps<Transaction>['columns'] {
   if (columns === undefined) {
     return columns;
@@ -1919,7 +1945,7 @@ function appendTransactionQuickEditors(
           currencyOptions={currencyOptions}
           disabled={entry.isTransactionSaving}
           editable={canWriteBudgets}
-          secondaryText={transactionSecondaryText(row, baseCurrency, referenceLabel)}
+          secondaryText={transactionSecondaryText(row, baseCurrency, referenceLabel, pricingEnabled)}
           value={row.amountOriginal}
           onCurrencyCommit={(nextCurrency) => {
             void entry.handleTransactionQuickCurrencySave(row, nextCurrency);

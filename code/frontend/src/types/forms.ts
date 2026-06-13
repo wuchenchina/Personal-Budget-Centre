@@ -110,6 +110,7 @@ export interface TransactionFormValues {
   currency: CurrencyCode;
   amount: number;
   rate?: number;
+  pricingConfig?: BudgetItemPricingConfig;
   referenceCurrency?: CurrencyCode;
   referenceAmount?: number;
   remark?: string;

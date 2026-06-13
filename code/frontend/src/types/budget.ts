@@ -240,6 +240,7 @@ export interface Transaction {
   amountOriginal: number;
   rateToBase: number;
   amountBase: number;
+  pricingConfig: BudgetItemPricingConfig;
   referenceCurrency: CurrencyCode | null;
   referenceAmountOriginal: number | null;
   remark: string | null;

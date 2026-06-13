@@ -773,6 +773,9 @@ final readonly class BudgetRepository
         $paidBySelect = $this->hasTransactionPaidByColumn()
             ? 'bt.paid_by_participant_id,'
             : 'NULL AS paid_by_participant_id,';
+        $pricingConfigSelect = $this->hasTransactionPricingConfigColumn()
+            ? 'bt.pricing_config,'
+            : 'NULL AS pricing_config,';
         $statement = $this->pdo->prepare(
             <<<SQL
             SELECT
@@ -786,6 +789,7 @@ final readonly class BudgetRepository
               bt.amount_original,
               bt.rate_to_base,
               bt.amount_base,
+              {$pricingConfigSelect}
             {$referenceSelect}
               bt.remark,
               bt.sort_order
@@ -818,6 +822,7 @@ final readonly class BudgetRepository
                     'amountOriginal' => $this->decimal($row['amount_original']),
                     'rateToBase' => $this->decimal($row['rate_to_base']),
                     'amountBase' => $this->decimal($row['amount_base']),
+                    'pricingConfig' => $this->pricingConfig($row['pricing_config'] ?? null),
                     'referenceCurrency' => $row['reference_currency'],
                     'referenceAmountOriginal' => $row['reference_amount_original'] === null
                         ? null
@@ -1496,6 +1501,22 @@ final readonly class BudgetRepository
             FROM information_schema.columns
             WHERE table_schema = DATABASE()
               AND table_name = 'budget_items'
+              AND column_name = 'pricing_config'
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasTransactionPricingConfigColumn(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_transactions'
               AND column_name = 'pricing_config'
             SQL
         );
