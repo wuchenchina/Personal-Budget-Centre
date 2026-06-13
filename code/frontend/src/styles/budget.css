@@ -405,6 +405,24 @@
   font-size: 7.5pt;
 }
 
+.budget-inline-number-input {
+  width: 72px;
+  text-align: right;
+}
+
+.budget-inline-number-input input,
+.budget-inline-number-readonly {
+  padding-inline: 2px;
+  text-align: right !important;
+  font-family: var(--font-mono), var(--font-cjk), monospace;
+  font-size: 7.5pt;
+}
+
+.budget-inline-number-readonly {
+  display: inline-block;
+  width: 100%;
+}
+
 .budget-inline-money-wrap small,
 .budget-inline-money-readonly small {
   color: #595959;

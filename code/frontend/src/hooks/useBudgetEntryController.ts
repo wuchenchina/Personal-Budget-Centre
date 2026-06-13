@@ -1360,6 +1360,126 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     }
   };
 
+  const handleTransactionQuickUnitPriceSave = async (
+    transaction: Transaction,
+    value: number,
+  ) => {
+    if (options.selectedBudget === null || !Number.isFinite(value) || value < 0) {
+      return;
+    }
+
+    const pricingConfig = transactionPricingConfigWithChange(
+      transaction,
+      options.selectedBudget,
+      { unitPrice: value },
+    );
+    if (pricingConfig.totalAmount === null) {
+      return;
+    }
+
+    const nextUnitPrice = pricingConfig.unitPrice ?? transaction.amountOriginal;
+    if (
+      transaction.pricingConfig.enabled
+      && Math.abs((transaction.pricingConfig.unitPrice ?? transaction.amountOriginal) - nextUnitPrice) < 0.005
+      && Math.abs(transaction.amountOriginal - pricingConfig.totalAmount) < 0.005
+    ) {
+      return;
+    }
+
+    setIsTransactionSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateTransaction({
+        id: transaction.id,
+        categoryId: transaction.categoryId ?? undefined,
+        transactionDate: transaction.transactionDate,
+        details: transaction.details,
+        currency: transaction.currency,
+        amount: pricingConfig.totalAmount,
+        rate: transaction.rateToBase,
+        paidByParticipantId: transactionPaidByParticipantIdForQuickSave(
+          transaction,
+          options.selectedBudget,
+        ),
+        payments: transactionPaymentPayloadForQuickSave(
+          transaction,
+          options.selectedBudget,
+          pricingConfig.totalAmount,
+        ),
+        pricingConfig,
+        referenceCurrency: transaction.referenceCurrency ?? undefined,
+        referenceAmount: transaction.referenceAmountOriginal,
+        remark: transaction.remark,
+        sortOrder: transaction.sortOrder,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsTransactionSaving(false);
+    }
+  };
+
+  const handleTransactionQuickQuantitySave = async (
+    transaction: Transaction,
+    value: number,
+  ) => {
+    if (options.selectedBudget === null || !Number.isFinite(value) || value < 0) {
+      return;
+    }
+
+    const pricingConfig = transactionPricingConfigWithChange(
+      transaction,
+      options.selectedBudget,
+      { quantity: value },
+    );
+    if (pricingConfig.totalAmount === null) {
+      return;
+    }
+
+    const nextQuantity = pricingConfig.quantity ?? 1;
+    if (
+      transaction.pricingConfig.enabled
+      && Math.abs((transaction.pricingConfig.quantity ?? 1) - nextQuantity) < 0.005
+      && Math.abs(transaction.amountOriginal - pricingConfig.totalAmount) < 0.005
+    ) {
+      return;
+    }
+
+    setIsTransactionSaving(true);
+    setEntryError(null);
+
+    try {
+      options.replaceBudgetDetail(await updateTransaction({
+        id: transaction.id,
+        categoryId: transaction.categoryId ?? undefined,
+        transactionDate: transaction.transactionDate,
+        details: transaction.details,
+        currency: transaction.currency,
+        amount: pricingConfig.totalAmount,
+        rate: transaction.rateToBase,
+        paidByParticipantId: transactionPaidByParticipantIdForQuickSave(
+          transaction,
+          options.selectedBudget,
+        ),
+        payments: transactionPaymentPayloadForQuickSave(
+          transaction,
+          options.selectedBudget,
+          pricingConfig.totalAmount,
+        ),
+        pricingConfig,
+        referenceCurrency: transaction.referenceCurrency ?? undefined,
+        referenceAmount: transaction.referenceAmountOriginal,
+        remark: transaction.remark,
+        sortOrder: transaction.sortOrder,
+      }));
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+    } finally {
+      setIsTransactionSaving(false);
+    }
+  };
+
   const handleTransactionCategoryQuickSave = async (
     transaction: Transaction,
     categoryId: number,
@@ -1498,6 +1618,8 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     clearEntryError,
     handleTransactionQuickAmountSave,
     handleTransactionQuickCurrencySave,
+    handleTransactionQuickUnitPriceSave,
+    handleTransactionQuickQuantitySave,
     handleTransactionCategoryQuickSave,
     handleTransactionQuickRemarkSave,
     handleTransactionDelete,
@@ -1610,6 +1732,30 @@ function transactionPricingConfigForBudget(
   transaction: Transaction,
 ): BudgetItem['pricingConfig'] {
   return transactionPricingConfigForEditForm(transaction, budget);
+}
+
+function transactionPricingConfigWithChange(
+  transaction: Transaction,
+  budget: BudgetDetail,
+  change: { unitPrice?: number; quantity?: number },
+): BudgetItem['pricingConfig'] {
+  if (!budget.pricingEnabled) {
+    return emptyPricingConfig();
+  }
+
+  const current = transactionPricingConfigForEditForm(transaction, budget);
+  const unitPrice = normalizedNonNegativeAmount(change.unitPrice ?? current.unitPrice);
+  const quantity = normalizedNonNegativeAmount(change.quantity ?? current.quantity ?? 1);
+  const totalAmount = unitPrice === null || quantity === null
+    ? null
+    : roundMoney(unitPrice * quantity);
+
+  return {
+    enabled: true,
+    unitPrice,
+    quantity,
+    totalAmount,
+  };
 }
 
 function transactionPricingConfigFromForm(

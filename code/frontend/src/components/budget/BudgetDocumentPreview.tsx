@@ -117,6 +117,8 @@ const documentTableText = {
       sequence: { primary: '序号' },
       target: { primary: '目标' },
       transaction_details: { primary: '交易详情' },
+      unit_price: { primary: '单价' },
+      quantity: { primary: '数量' },
       variance: { primary: '差额' },
     },
     datePrefix: '日期：',
@@ -144,6 +146,8 @@ const documentTableText = {
       sequence: { primary: '序號' },
       target: { primary: '目標' },
       transaction_details: { primary: '交易詳情' },
+      unit_price: { primary: '單價' },
+      quantity: { primary: '數量' },
       variance: { primary: '差額' },
     },
     datePrefix: '日期：',
@@ -351,8 +355,10 @@ export function BudgetDocumentPreview({
     ],
   );
   const transactionColumns = useMemo(
-    () =>
-      appendTransactionActions(
+    () => {
+      const transactionColumnLabels = documentTableLabels(tableChineseLanguage).columnLabels;
+
+      return appendTransactionActions(
         appendTransactionPaymentColumn(
           appendTransactionQuickEditors(
             createTransactionColumns(localizedTransactionBreakdown?.columns ?? []),
@@ -362,6 +368,19 @@ export function BudgetDocumentPreview({
             selectedBudget?.baseCurrency ?? baseCurrency,
             t('referenceShort'),
             selectedBudget?.pricingEnabled ?? false,
+            {
+              unitPrice: tableLabel(
+                'Unit Price',
+                transactionColumnLabels.unit_price.primary,
+                tableLanguageMode,
+              ),
+              quantity: tableLabel(
+                'Quantity',
+                transactionColumnLabels.quantity.primary,
+                tableLanguageMode,
+              ),
+            },
+            columnLabelStyle,
           ),
           selectedBudget?.participants ?? [],
           t('paidBy'),
@@ -374,7 +393,8 @@ export function BudgetDocumentPreview({
           deleteTitle: t('deleteTransactionTitle'),
           edit: t('edit'),
         },
-      ),
+      );
+    },
     [
       baseCurrency,
       canWriteBudgets,
@@ -383,6 +403,9 @@ export function BudgetDocumentPreview({
       selectedBudget?.participants,
       selectedBudget?.pricingEnabled,
       t,
+      tableChineseLanguage,
+      tableLanguageMode,
+      columnLabelStyle,
       localizedTransactionBreakdown,
       transactionCategoryOptions,
     ],
@@ -1793,6 +1816,62 @@ function InlineMoneyCell({
   );
 }
 
+function InlineNumberCell({
+  disabled,
+  editable,
+  precision,
+  value,
+  onCommit,
+}: {
+  disabled: boolean;
+  editable: boolean;
+  precision?: number;
+  value: number;
+  onCommit: (value: number) => void;
+}) {
+  const [draftState, setDraftState] = useState<{ sourceValue: number; draftValue: number | null }>({
+    sourceValue: value,
+    draftValue: value,
+  });
+  const draftValue = draftState.sourceValue === value ? draftState.draftValue : value;
+  const setDraftValue = (nextValue: number | null) => {
+    setDraftState({ sourceValue: value, draftValue: nextValue });
+  };
+
+  if (!editable) {
+    return <span className="budget-inline-number-readonly">{value.toFixed(precision ?? 2)}</span>;
+  }
+
+  const commit = () => {
+    if (draftValue === null || !Number.isFinite(draftValue)) {
+      setDraftValue(value);
+
+      return;
+    }
+
+    if (Math.abs(draftValue - value) >= 0.005) {
+      onCommit(draftValue);
+    }
+  };
+
+  return (
+    <InputNumber
+      changeOnWheel={false}
+      className="budget-inline-number-input"
+      controls={false}
+      disabled={disabled}
+      min={0}
+      precision={precision}
+      size="small"
+      value={draftValue}
+      variant="borderless"
+      onBlur={commit}
+      onChange={(nextValue) => setDraftValue(typeof nextValue === 'number' ? nextValue : null)}
+      onPressEnter={commit}
+    />
+  );
+}
+
 function secondaryTextForBudgetCell(
   row: BudgetItem,
   key: string,
@@ -1845,14 +1924,8 @@ function transactionSecondaryText(
   row: Transaction,
   baseCurrency: CurrencyCode,
   referenceLabel: string,
-  pricingEnabled: boolean,
 ): string | null {
   const lines: string[] = [];
-  const pricingSummary = pricingSummaryForTransaction(row, pricingEnabled);
-  if (pricingSummary !== null) {
-    lines.push(pricingSummary);
-  }
-
   if (row.currency !== baseCurrency) {
     lines.push(formatBudgetMoney(baseCurrency, row.amountBase));
   }
@@ -1864,25 +1937,20 @@ function transactionSecondaryText(
   return lines.length === 0 ? null : lines.join(' · ');
 }
 
-function pricingSummaryForTransaction(row: Transaction, pricingEnabled: boolean): string | null {
-  if (!pricingEnabled || !row.pricingConfig.enabled || row.pricingConfig.totalAmount === null) {
-    return null;
-  }
-
-  const unitPrice = row.pricingConfig.unitPrice;
-  const quantity = row.pricingConfig.quantity;
-  if (unitPrice === null || quantity === null) {
-    return null;
-  }
-
-  return `${formatBudgetMoney(row.currency, unitPrice)} x ${quantity} = ${formatBudgetMoney(
-    row.currency,
-    row.pricingConfig.totalAmount,
-  )}`;
-}
-
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function transactionUnitPrice(row: Transaction): number {
+  return row.pricingConfig.enabled && row.pricingConfig.unitPrice !== null
+    ? row.pricingConfig.unitPrice
+    : row.amountOriginal;
+}
+
+function transactionQuantity(row: Transaction): number {
+  return row.pricingConfig.enabled && row.pricingConfig.quantity !== null
+    ? row.pricingConfig.quantity
+    : 1;
 }
 
 function appendTransactionQuickEditors(
@@ -1893,12 +1961,17 @@ function appendTransactionQuickEditors(
   baseCurrency: CurrencyCode,
   referenceLabel: string,
   pricingEnabled: boolean,
+  pricingLabels: {
+    unitPrice: BudgetTableLabel;
+    quantity: BudgetTableLabel;
+  },
+  labelStyle: BudgetColumnLabelStyle,
 ): TableProps<Transaction>['columns'] {
   if (columns === undefined) {
     return columns;
   }
 
-  return columns.map((column) => {
+  const editedColumns = columns.map((column) => {
     const key = String(column.key ?? '');
     if (key === 'category') {
       return {
@@ -1944,8 +2017,8 @@ function appendTransactionQuickEditors(
           currency={row.currency}
           currencyOptions={currencyOptions}
           disabled={entry.isTransactionSaving}
-          editable={canWriteBudgets}
-          secondaryText={transactionSecondaryText(row, baseCurrency, referenceLabel, pricingEnabled)}
+          editable={canWriteBudgets && !pricingEnabled}
+          secondaryText={transactionSecondaryText(row, baseCurrency, referenceLabel)}
           value={row.amountOriginal}
           onCurrencyCommit={(nextCurrency) => {
             void entry.handleTransactionQuickCurrencySave(row, nextCurrency);
@@ -1958,6 +2031,58 @@ function appendTransactionQuickEditors(
       ),
     };
   });
+
+  if (!pricingEnabled) {
+    return editedColumns;
+  }
+
+  const pricingColumns: NonNullable<TableProps<Transaction>['columns']> = [
+    {
+      key: 'unit_price',
+      title: renderBudgetColumnTitle(pricingLabels.unitPrice, labelStyle),
+      align: 'right',
+      width: '12%',
+      render: (_value: unknown, row: Transaction) => (
+        <InlineMoneyCell
+          currency={row.currency}
+          disabled={entry.isTransactionSaving}
+          editable={canWriteBudgets}
+          value={transactionUnitPrice(row)}
+          onCommit={(nextValue) => {
+            void entry.handleTransactionQuickUnitPriceSave(row, nextValue);
+          }}
+        />
+      ),
+    },
+    {
+      key: 'quantity',
+      title: renderBudgetColumnTitle(pricingLabels.quantity, labelStyle),
+      align: 'right',
+      width: '10%',
+      render: (_value: unknown, row: Transaction) => (
+        <InlineNumberCell
+          disabled={entry.isTransactionSaving}
+          editable={canWriteBudgets}
+          precision={2}
+          value={transactionQuantity(row)}
+          onCommit={(nextValue) => {
+            void entry.handleTransactionQuickQuantitySave(row, nextValue);
+          }}
+        />
+      ),
+    },
+  ];
+  const nextColumns: NonNullable<TableProps<Transaction>['columns']> = [];
+  let inserted = false;
+  editedColumns.forEach((column) => {
+    if (!inserted && String(column.key ?? '') === 'amount') {
+      nextColumns.push(...pricingColumns);
+      inserted = true;
+    }
+    nextColumns.push(column);
+  });
+
+  return inserted ? nextColumns : [...editedColumns, ...pricingColumns];
 }
 
 function appendTransactionPaymentColumn(
