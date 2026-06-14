@@ -110,15 +110,16 @@ export function BookkeepingRecordModal({
           <Input autoComplete="off" />
         </Form.Item>
 
-        <div className="modal-form-grid">
-          <Form.Item
-            label={t(transactionType === 'sof' ? 'sourceOfFunds' : 'sourceAccount')}
-            name="sourceAccountName"
-            rules={[{ max: 160, message: t('accountNameMax') }]}
-          >
-            <Input autoComplete="off" placeholder={t('sourceAccountPlaceholder')} />
-          </Form.Item>
-          {showDestinationFields ? (
+        <Form.Item
+          label={t('sourceOfFunds')}
+          name="sourceAccountName"
+          rules={[{ max: 160, message: t('accountNameMax') }]}
+        >
+          <Input autoComplete="off" placeholder={t('sourceAccountPlaceholder')} />
+        </Form.Item>
+
+        {showDestinationFields ? (
+          <div className="modal-form-grid">
             <Form.Item
               label={t('destinationAccount')}
               name="destinationAccountName"
@@ -126,8 +127,8 @@ export function BookkeepingRecordModal({
             >
               <Input autoComplete="off" placeholder={t('destinationAccountPlaceholder')} />
             </Form.Item>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         <div className="currency-config-panel">
           <div className="currency-config-header">
@@ -255,7 +256,6 @@ export function BookkeepingRecordModal({
 function transactionTypeOptions(
   t: (key: 'transactionTypeExpense'
     | 'transactionTypeIncome'
-    | 'transactionTypeSof'
     | 'transactionTypeTransfer'
     | 'transactionTypeFxExchange'
     | 'transactionTypeCrossBorderRemittance') => string,
@@ -263,7 +263,6 @@ function transactionTypeOptions(
   return [
     { label: t('transactionTypeExpense'), value: 'expense' },
     { label: t('transactionTypeIncome'), value: 'income' },
-    { label: t('transactionTypeSof'), value: 'sof' },
     { label: t('transactionTypeTransfer'), value: 'transfer' },
     { label: t('transactionTypeFxExchange'), value: 'fx_exchange' },
     { label: t('transactionTypeCrossBorderRemittance'), value: 'cross_border_remittance' },

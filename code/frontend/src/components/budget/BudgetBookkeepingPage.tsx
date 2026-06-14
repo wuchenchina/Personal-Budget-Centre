@@ -22,7 +22,7 @@ interface BudgetBookkeepingPageProps {
   onDeleteRecord: (recordId: number) => void;
 }
 
-type LedgerFilter = 'all' | 'orders' | 'sof' | 'transfers';
+type LedgerFilter = 'all' | 'orders' | 'transfers';
 
 export function BudgetBookkeepingPage({
   selectedBudget,
@@ -49,7 +49,6 @@ export function BudgetBookkeepingPage({
       const matchesFilter =
         activeFilter === 'all'
         || (activeFilter === 'orders' && isOrderTransaction(record.transactionType))
-        || (activeFilter === 'sof' && record.transactionType === 'sof')
         || (activeFilter === 'transfers' && isTransferTransaction(record.transactionType));
       const matchesSearch =
         normalizedSearch.length === 0
@@ -212,7 +211,6 @@ export function BudgetBookkeepingPage({
 
       <section className="project-overview-grid bookkeeping-overview-grid">
         <BookkeepingTile label={t('ledgerRecords')} value={records.length.toLocaleString('en-US')} />
-        <BookkeepingTile label={t('sofRecords')} value={totals.sofCount.toLocaleString('en-US')} />
         <BookkeepingTile label={t('transferRecords')} value={totals.transferCount.toLocaleString('en-US')} />
         <BookkeepingTile
           label={t('ledgerAmountBase')}
@@ -227,7 +225,6 @@ export function BudgetBookkeepingPage({
             items={[
               { key: 'all', label: t('all') },
               { key: 'orders', label: t('orderRecords') },
-              { key: 'sof', label: t('sofRecords') },
               { key: 'transfers', label: t('transferRecords') },
             ]}
             onChange={(key) => setActiveFilter(key as LedgerFilter)}
@@ -272,10 +269,9 @@ function ledgerTotals(records: BookkeepingRecord[], currency: CurrencyCode) {
       baseAmount: totals.baseAmount + (record.currency === currency
         ? record.amountOriginal
         : record.amountBase),
-      sofCount: totals.sofCount + (record.transactionType === 'sof' ? 1 : 0),
       transferCount: totals.transferCount + (isTransferTransaction(record.transactionType) ? 1 : 0),
     }),
-    { baseAmount: 0, sofCount: 0, transferCount: 0 },
+    { baseAmount: 0, transferCount: 0 },
   );
 }
 
