@@ -55,8 +55,10 @@ SSH_OPTS=(
   -p "${SERVER_PORT}"
   -o IdentitiesOnly=yes
   -o StrictHostKeyChecking=accept-new
+  -o ServerAliveInterval=15
+  -o ServerAliveCountMax=4
 )
-RSYNC_SSH="ssh -i ${SERVER_SSH_KEY} -p ${SERVER_PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+RSYNC_SSH="ssh -i ${SERVER_SSH_KEY} -p ${SERVER_PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
 
 if [[ -t 1 && "${NO_COLOR:-0}" != "1" ]]; then
   C_RESET=$'\033[0m'
@@ -252,9 +254,11 @@ remote_clear_root() {
 }
 
 remote_fix_permissions() {
-  remote_exec_tracked "find '${REMOTE_PATH}' -type d -exec chmod 755 {} + && \
-    find '${REMOTE_PATH}' -type f -exec chmod 644 {} + && \
-    chmod -R 775 '${REMOTE_PATH}/backend/storage' && \
+  remote_exec_tracked "mkdir -p '${REMOTE_PATH}/backend/storage/exports' && \
+    chmod 755 '${REMOTE_PATH}' '${REMOTE_PATH}/backend' '${REMOTE_PATH}/database' '${REMOTE_PATH}/font' && \
+    if [ -d '${REMOTE_PATH}/backend/public' ]; then chmod 755 '${REMOTE_PATH}/backend/public'; fi && \
+    if [ -f '${REMOTE_PATH}/backend/public/index.php' ]; then chmod 644 '${REMOTE_PATH}/backend/public/index.php'; fi && \
+    chmod -R u=rwX,g=rwX,o=rx '${REMOTE_PATH}/backend/storage' && \
     if id -u www >/dev/null 2>&1; then \
       chown -R www:www '${REMOTE_PATH}/backend/storage' && \
       chown www:www '${REMOTE_PATH}/backend/.env' && \
@@ -262,7 +266,7 @@ remote_fix_permissions() {
     else \
       chmod 644 '${REMOTE_PATH}/backend/.env'; \
     fi && \
-    find '${REMOTE_PATH}/backend/bin' -type f -name '*.php' -exec chmod 755 {} +"
+    find '${REMOTE_PATH}/backend/bin' -maxdepth 1 -type f -name '*.php' -exec chmod 755 {} +"
 }
 
 build_frontend() {
