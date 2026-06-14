@@ -91,6 +91,7 @@ final readonly class BudgetBookkeepingPdfRenderer
             $context['labels']['bookkeepingLedgerSubtitle'],
             $context,
         );
+        $subtitleHtml = '<div class="subtitle">' . $this->multilineBlockHtml($subtitle, 'subtitle-line') . '</div>';
         $periodText = $this->formatter->periodText($budget);
 
         return '<!doctype html><html lang="' . $this->documentLanguage($context) . '"><head><meta charset="utf-8">'
@@ -100,7 +101,7 @@ final readonly class BudgetBookkeepingPdfRenderer
             . '</style></head><body>'
             . '<htmlpagefooter name="budgetPageFooter"><div class="page-footer">Page {PAGENO} of {nbpg}</div></htmlpagefooter>'
             . '<div class="title">' . $titleHtml . '</div>'
-            . '<div class="subtitle">' . $this->formatter->escapeHtml($subtitle) . '</div>'
+            . $subtitleHtml
             . $this->tableRenderer->render(
                 $this->bookkeepingSection($context),
                 $periodText,
@@ -122,7 +123,9 @@ final readonly class BudgetBookkeepingPdfRenderer
             . 'body{font-family:"SF-Mono",TCSongti,monospace;color:#000;font-size:7.5pt;}'
             . '.title{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 4mm;}'
             . '.title-line{display:block;line-height:1.25;}'
-            . '.subtitle{font-family:TimesNewRoman,TCSongti,serif;font-size:12pt;font-weight:400;text-align:center;margin:0 0 7mm;}'
+            . '.title sup{font-size:7pt;line-height:0;vertical-align:super;}'
+            . '.subtitle{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 7mm;}'
+            . '.subtitle-line{display:block;line-height:1.25;}'
             . '.page-footer{font-family:"SF-Mono",TCSongti,monospace;font-size:7pt;color:#666;text-align:center;}';
     }
 
@@ -225,7 +228,13 @@ final readonly class BudgetBookkeepingPdfRenderer
 
     private function columnLabel(string $key, string $english, array $context): string
     {
-        return $this->tableText($english, $context['labels']['columns'][$key] ?? $english, $context);
+        if ($context['mode'] === 'en') {
+            return $english;
+        }
+
+        $chinese = $context['labels']['columns'][$key] ?? $english;
+
+        return $context['mode'] === 'bilingual' ? $english . "\n" . $chinese : $chinese;
     }
 
     private function tableContext(array $options): array

@@ -384,10 +384,9 @@ function App() {
       exportingPdf={operations.creatingExportFormat === 'pdf'}
       onBackToProjects={() => navigateToPath('/budgets')}
       onOpenEditor={openBudgetProjectInNewTab}
-      onExportPdf={() => operations.createExport('pdf', {
+      onExportPdf={(exportOptions) => operations.createExport('pdf', {
         exportScope: 'bookkeeping',
-        tableChineseLanguage: language === 'sc' ? 'sc' : 'tc',
-        tableLanguageMode: language === 'en' ? 'en' : 'zh',
+        ...exportOptions,
       })}
       onNewRecord={bookkeeping.openCreateModal}
       onEditRecord={bookkeeping.openEditModal}

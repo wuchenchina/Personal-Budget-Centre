@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Empty, Input, Popconfirm, Space, Table, Tabs, Tag, Tooltip } from 'antd';
+import { Alert, Button, Empty, Input, Popconfirm, Segmented, Space, Table, Tabs, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
-import { ArrowLeft, Download, Landmark, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Landmark, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useI18n } from '../../i18n';
-import type { BookkeepingRecord, BudgetDetail, CurrencyCode, TransactionType } from '../../types/budget';
+import type {
+  BookkeepingRecord,
+  BudgetDetail,
+  BudgetExportChineseLanguage,
+  BudgetExportTableLanguageMode,
+  CurrencyCode,
+  TransactionType,
+} from '../../types/budget';
 import { formatMoney } from '../../utils/currency';
 
 interface BudgetBookkeepingPageProps {
@@ -18,7 +25,10 @@ interface BudgetBookkeepingPageProps {
   exportingPdf: boolean;
   onBackToProjects: () => void;
   onOpenEditor: (budgetId: number) => void;
-  onExportPdf: () => void;
+  onExportPdf: (options: {
+    tableChineseLanguage: BudgetExportChineseLanguage;
+    tableLanguageMode: BudgetExportTableLanguageMode;
+  }) => void;
   onNewRecord: () => void;
   onEditRecord: (record: BookkeepingRecord) => void;
   onDeleteRecord: (recordId: number) => void;
@@ -43,9 +53,15 @@ export function BudgetBookkeepingPage({
   onEditRecord,
   onDeleteRecord,
 }: BudgetBookkeepingPageProps) {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const [activeFilter, setActiveFilter] = useState<LedgerFilter>('all');
   const [searchText, setSearchText] = useState('');
+  const [tableLanguageMode, setTableLanguageMode] = useState<BudgetExportTableLanguageMode>(
+    language === 'en' ? 'en' : 'zh',
+  );
+  const [tableChineseLanguage, setTableChineseLanguage] = useState<BudgetExportChineseLanguage>(
+    language === 'sc' ? 'sc' : 'tc',
+  );
   const currency = selectedBudget?.baseCurrency ?? baseCurrency;
   const normalizedSearch = searchText.trim().toLowerCase();
   const filteredRecords = useMemo(
@@ -203,14 +219,6 @@ export function BudgetBookkeepingPage({
               {t('newTabEdit')}
             </Button>
           ) : null}
-          <Button
-            disabled={selectedBudget === null}
-            icon={<Download size={15} />}
-            loading={exportingPdf}
-            onClick={onExportPdf}
-          >
-            {t('exportPdf')}
-          </Button>
           {canWriteBudgets ? (
             <Button type="primary" icon={<Plus size={16} />} onClick={onNewRecord}>
               {t('addBookkeepingRecord')}
@@ -220,6 +228,51 @@ export function BudgetBookkeepingPage({
       </section>
 
       {error ? <Alert type="error" showIcon message={error} /> : null}
+
+      <div className="budget-export-strip">
+        <div className="budget-export-actions">
+          <span className="budget-export-label">
+            <FileText size={15} />
+            {t('export')}
+          </span>
+          <Button
+            disabled={selectedBudget === null}
+            icon={<Download size={13} />}
+            loading={exportingPdf}
+            size="small"
+            onClick={() => onExportPdf({
+              tableChineseLanguage,
+              tableLanguageMode,
+            })}
+          >
+            PDF
+          </Button>
+        </div>
+        <div className="budget-table-language-controls">
+          <span className="budget-export-label">{t('tableLanguage')}</span>
+          <Segmented<BudgetExportTableLanguageMode>
+            options={[
+              { label: t('tableLanguageEnglish'), value: 'en' },
+              { label: t('tableLanguageChinese'), value: 'zh' },
+              { label: t('tableLanguageBilingual'), value: 'bilingual' },
+            ]}
+            size="small"
+            value={tableLanguageMode}
+            onChange={setTableLanguageMode}
+          />
+          {tableLanguageMode !== 'en' ? (
+            <Segmented<BudgetExportChineseLanguage>
+              options={[
+                { label: t('tableChineseTraditional'), value: 'tc' },
+                { label: t('tableChineseSimplified'), value: 'sc' },
+              ]}
+              size="small"
+              value={tableChineseLanguage}
+              onChange={setTableChineseLanguage}
+            />
+          ) : null}
+        </div>
+      </div>
 
       <section className="project-overview-grid bookkeeping-overview-grid">
         <BookkeepingTile label={t('ledgerRecords')} value={records.length.toLocaleString('en-US')} />
