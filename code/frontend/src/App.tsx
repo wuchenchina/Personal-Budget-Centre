@@ -228,6 +228,22 @@ function App() {
       left.label.localeCompare(right.label),
     );
   }, [budget.selectedBudget?.items]);
+  const bookkeepingCategoryOptions = useMemo(() => {
+    const seenLabels = new Set<string>();
+    const options: Array<{ label: string; value: string }> = [];
+
+    budget.selectedBudget?.items.forEach((item) => {
+      const label = (item.category ?? item.label).trim();
+      if (label === '' || seenLabels.has(label)) {
+        return;
+      }
+
+      seenLabels.add(label);
+      options.push({ label, value: label });
+    });
+
+    return options;
+  }, [budget.selectedBudget?.items]);
   const admin = useAdminController(auth.session?.user.isAdmin === true && activeKey === 'admin');
   const isEmailVerificationRoute = window.location.pathname === '/email/verify';
   const isStandaloneBudgetEditor = route.budgetId !== null;
@@ -447,6 +463,7 @@ function App() {
         editingRecord={bookkeeping.editingRecord}
         open={bookkeeping.modalOpen}
         error={bookkeeping.error}
+        categoryOptions={bookkeepingCategoryOptions}
         baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
         confirmLoading={bookkeeping.saving}
         onValuesChange={() => undefined}

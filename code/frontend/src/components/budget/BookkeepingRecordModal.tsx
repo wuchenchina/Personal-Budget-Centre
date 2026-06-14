@@ -10,6 +10,7 @@ interface BookkeepingRecordModalProps {
   editingRecord: BookkeepingRecord | null;
   open: boolean;
   error: string | null;
+  categoryOptions: Array<{ label: string; value: string }>;
   baseCurrency: CurrencyCode;
   confirmLoading: boolean;
   onCancel: () => void;
@@ -22,6 +23,7 @@ export function BookkeepingRecordModal({
   editingRecord,
   open,
   error,
+  categoryOptions,
   baseCurrency,
   confirmLoading,
   onCancel,
@@ -105,9 +107,16 @@ export function BookkeepingRecordModal({
         <Form.Item
           label={t('category')}
           name="categoryLabel"
+          extra={t('bookkeepingCategoryFromHighlightsOnly')}
           rules={[{ max: 160, message: t('categoryNameMax') }]}
         >
-          <Input autoComplete="off" />
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            options={categoryOptions}
+            placeholder={t('selectCategory')}
+          />
         </Form.Item>
 
         <Form.Item
