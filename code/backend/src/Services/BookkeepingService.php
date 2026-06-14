@@ -190,7 +190,7 @@ final readonly class BookkeepingService
             throw new AuthException('VALIDATION_ERROR', 'Currency is required.', 422);
         }
 
-        $currencyId = (new CurrencyRepository($this->pdo))->idByCode($code);
+        $currencyId = (new CurrencyRepository($this->pdo))->findIdByCode($code);
         if ($currencyId === null) {
             throw new AuthException('VALIDATION_ERROR', 'Unsupported currency.', 422);
         }
