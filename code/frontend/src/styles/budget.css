@@ -942,6 +942,7 @@
 .project-library {
   display: grid;
   gap: 18px;
+  min-width: 0;
   width: 100%;
 }
 
@@ -961,7 +962,13 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
+  min-width: 0;
   padding: 22px;
+}
+
+.project-hero > div,
+.project-page-header > div {
+  min-width: 0;
 }
 
 .project-hero h1,
@@ -1209,6 +1216,7 @@
 
 .project-panel,
 .project-list-card {
+  min-width: 0;
   padding: 18px;
 }
 
@@ -1270,6 +1278,8 @@
 .bookkeeping-page {
   display: grid;
   gap: 18px;
+  width: 100%;
+  min-width: 0;
 }
 
 .bookkeeping-header {
@@ -1283,6 +1293,8 @@
 .bookkeeping-ledger-panel {
   display: grid;
   gap: 12px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .bookkeeping-toolbar {
@@ -1290,6 +1302,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  min-width: 0;
 }
 
 .bookkeeping-toolbar .ant-tabs {
@@ -1301,7 +1314,19 @@
 }
 
 .bookkeeping-search {
-  flex: 0 0 320px;
+  flex: 0 1 320px;
+  min-width: 220px;
+}
+
+.bookkeeping-ledger-table {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.bookkeeping-ledger-table .ant-table,
+.bookkeeping-ledger-table .ant-table-container,
+.bookkeeping-ledger-table .ant-table-content {
+  max-width: 100%;
 }
 
 .bookkeeping-detail-cell,

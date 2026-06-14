@@ -88,7 +88,7 @@ export function BudgetBookkeepingPage({
     {
       key: 'type',
       title: t('transactionType'),
-      width: 140,
+      width: 104,
       render: (_value, row) => (
         <Tag color={transactionTypeColor(row.transactionType)}>
           {transactionTypeLabel(row.transactionType, t)}
@@ -99,14 +99,14 @@ export function BudgetBookkeepingPage({
       key: 'date',
       title: t('date'),
       dataIndex: 'recordDate',
-      width: 118,
+      width: 106,
       render: (value: BookkeepingRecord['recordDate']) => value ?? '-',
     },
     {
       key: 'order',
       title: t('orderReference'),
       dataIndex: 'orderReference',
-      width: 210,
+      width: 170,
       render: (value: BookkeepingRecord['orderReference']) => (
         <span className="bookkeeping-order-cell">{value ?? '-'}</span>
       ),
@@ -126,7 +126,7 @@ export function BudgetBookkeepingPage({
       key: 'category',
       title: t('category'),
       dataIndex: 'categoryLabel',
-      width: 170,
+      width: 140,
       render: (value: BookkeepingRecord['categoryLabel']) => (
         <span className="bookkeeping-category-cell">{value ?? '-'}</span>
       ),
@@ -134,7 +134,7 @@ export function BudgetBookkeepingPage({
     {
       key: 'accounts',
       title: t('fundsAccounts'),
-      width: 180,
+      width: 128,
       render: (_value, row) => (
         <span className="bookkeeping-account-cell">{accountRouteText(row) ?? '-'}</span>
       ),
@@ -143,7 +143,7 @@ export function BudgetBookkeepingPage({
       key: 'amount',
       title: t('amount'),
       align: 'right',
-      width: 160,
+      width: 138,
       render: (_value, row) => (
         <div className="bookkeeping-money-cell">
           <strong>{formatMoney({ currency: row.currency, amount: row.amountOriginal })}</strong>
@@ -157,7 +157,7 @@ export function BudgetBookkeepingPage({
       key: 'destination',
       title: t('destinationAmount'),
       align: 'right',
-      width: 170,
+      width: 138,
       render: (_value, row) => (
         row.destinationCurrency && row.destinationAmountOriginal !== null
           ? formatMoney({
@@ -171,14 +171,14 @@ export function BudgetBookkeepingPage({
       key: 'remark',
       title: t('note'),
       dataIndex: 'remark',
-      minWidth: 180,
+      minWidth: 120,
       render: (value: BookkeepingRecord['remark']) => value ?? '-',
     },
     {
       key: 'actions',
       title: '',
       align: 'center',
-      width: 82,
+      width: 70,
       render: (_value, row) => (
         canWriteBudgets ? (
           <Space size={2}>
@@ -323,13 +323,14 @@ export function BudgetBookkeepingPage({
         </div>
         <Table<BookkeepingRecord>
           bordered
+          className="bookkeeping-ledger-table"
           columns={columns}
           dataSource={filteredRecords}
           loading={loading || saving}
           locale={{ emptyText: <Empty image={<Landmark size={34} />} description={t('bookkeepingRecordsEmpty')} /> }}
           pagination={{ pageSize: 12, hideOnSinglePage: true }}
           rowKey="id"
-          scroll={{ x: 1560 }}
+          scroll={{ x: 1314 }}
           size="small"
         />
       </section>
