@@ -58,6 +58,9 @@ export function AppShell({
     menuItems.push({ key: 'admin', icon: <ShieldCheck size={iconSize} />, label: 'Admin' });
   }
   const workspaceName = session.workspace?.name ?? t('selectWorkspace');
+  const selectedMenuKey = ['budget-editor', 'budget-bookkeeping'].includes(activeKey)
+    ? 'budgets'
+    : activeKey;
 
   return (
     <Layout className="app-shell">
@@ -74,7 +77,7 @@ export function AppShell({
         <Menu
           className="app-menu"
           mode="inline"
-          selectedKeys={[['budget-editor', 'budget-bookkeeping'].includes(activeKey) ? 'budgets' : activeKey]}
+          selectedKeys={[selectedMenuKey]}
           items={menuItems}
           onClick={({ key }) => onNavigate(key)}
         />
@@ -125,6 +128,13 @@ export function AppShell({
               {t('logout')}
             </Button>
           </Space>
+          <Menu
+            className="mobile-nav"
+            mode="horizontal"
+            selectedKeys={[selectedMenuKey]}
+            items={menuItems}
+            onClick={({ key }) => onNavigate(key)}
+          />
         </Header>
 
         <Content className="app-content">{children}</Content>

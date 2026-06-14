@@ -3,6 +3,10 @@
   background: #f5f5f5;
 }
 
+.app-shell > .ant-layout {
+  min-width: 0;
+}
+
 .app-sidebar {
   background: #fff;
   border-right: 1px solid #f0f0f0;
@@ -122,6 +126,10 @@
 
 .language-switcher {
   min-width: 132px;
+}
+
+.mobile-nav {
+  display: none;
 }
 
 .app-content {
