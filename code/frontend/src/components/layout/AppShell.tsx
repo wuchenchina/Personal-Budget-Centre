@@ -74,7 +74,7 @@ export function AppShell({
         <Menu
           className="app-menu"
           mode="inline"
-          selectedKeys={[activeKey === 'budget-editor' ? 'budgets' : activeKey]}
+          selectedKeys={[['budget-editor', 'budget-bookkeeping'].includes(activeKey) ? 'budgets' : activeKey]}
           items={menuItems}
           onClick={({ key }) => onNavigate(key)}
         />

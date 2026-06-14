@@ -11,6 +11,7 @@ import type {
   BudgetStatus,
   BudgetType,
   CurrencyCode,
+  TransactionType,
   Visibility,
   WorkspaceRole,
 } from './budget';
@@ -99,6 +100,10 @@ export interface BudgetItemFormValues {
 
 export interface TransactionFormValues {
   categoryId?: number;
+  transactionType?: TransactionType;
+  orderReference?: string;
+  sourceAccountName?: string;
+  destinationAccountName?: string;
   paymentMode?: 'single' | 'multiple';
   paidByParticipantId?: number | null;
   payments?: Array<{
@@ -113,6 +118,9 @@ export interface TransactionFormValues {
   pricingConfig?: BudgetItemPricingConfig;
   referenceCurrency?: CurrencyCode;
   referenceAmount?: number;
+  destinationCurrency?: CurrencyCode;
+  destinationAmount?: number;
+  destinationRate?: number;
   remark?: string;
   sortOrder?: number;
 }

@@ -1,5 +1,5 @@
 import { Button, Empty, Space, Tag } from 'antd';
-import { ArrowRight, BriefcaseBusiness, CalendarRange, Plus } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, CalendarRange, Plus, ReceiptText } from 'lucide-react';
 import { budgetStatusLabelsByLanguage, useI18n } from '../../i18n';
 import type { BudgetDetail, BudgetStatus, BudgetSummary, CurrencyCode } from '../../types/budget';
 import { formatBudgetPeriod } from '../../utils/budgetPeriod';
@@ -13,6 +13,7 @@ interface BudgetProjectDashboardProps {
   loading: boolean;
   onNavigate: (key: string) => void;
   onNewProject: () => void;
+  onOpenBookkeeping: (budgetId: number) => void;
   onOpenProject: (budgetId: number) => void;
 }
 
@@ -31,6 +32,7 @@ export function BudgetProjectDashboard({
   loading,
   onNavigate,
   onNewProject,
+  onOpenBookkeeping,
   onOpenProject,
 }: BudgetProjectDashboardProps) {
   const { language, t } = useI18n();
@@ -134,13 +136,21 @@ export function BudgetProjectDashboard({
                   value={activeProject.totals.transactionCount.toLocaleString('en-US')}
                 />
               </div>
-              <Button
-                type="primary"
-                icon={<ArrowRight size={15} />}
-                onClick={() => onOpenProject(activeProject.id)}
-              >
-                {t('newTabEdit')}
-              </Button>
+              <Space wrap>
+                <Button
+                  type="primary"
+                  icon={<ArrowRight size={15} />}
+                  onClick={() => onOpenProject(activeProject.id)}
+                >
+                  {t('newTabEdit')}
+                </Button>
+                <Button
+                  icon={<ReceiptText size={15} />}
+                  onClick={() => onOpenBookkeeping(activeProject.id)}
+                >
+                  {t('bookkeeping')}
+                </Button>
+              </Space>
             </>
           )}
         </div>

@@ -4,6 +4,7 @@ import { AdminPanel } from './components/admin/AdminPanel';
 import { AuthLoadingScreen } from './components/auth/AuthLoadingScreen';
 import { EmailVerificationScreen } from './components/auth/EmailVerificationScreen';
 import { AuthScreen } from './components/auth/AuthScreen';
+import { BudgetBookkeepingPage } from './components/budget/BudgetBookkeepingPage';
 import { BudgetCreateModal } from './components/budget/BudgetCreateModal';
 import { BudgetDocumentPreview } from './components/budget/BudgetDocumentPreview';
 import { BudgetInstallmentModal } from './components/budget/BudgetInstallmentModal';
@@ -50,7 +51,7 @@ const navigationPaths: Record<string, string> = {
 };
 
 function budgetProjectIdFromPath(pathname: string): number | null {
-  const match = pathname.match(/^\/budgets\/(\d+)\/?$/);
+  const match = pathname.match(/^\/budgets\/(\d+)(?:\/bookkeeping)?\/?$/);
   if (match === null) {
     return null;
   }
@@ -63,7 +64,12 @@ function budgetProjectIdFromPath(pathname: string): number | null {
 function routeFromPath(pathname: string): AppRoute {
   const budgetId = budgetProjectIdFromPath(pathname);
   if (budgetId !== null) {
-    return { activeKey: 'budget-editor', budgetId };
+    return {
+      activeKey: pathname.replace(/\/+$/, '').endsWith('/bookkeeping')
+        ? 'budget-bookkeeping'
+        : 'budget-editor',
+      budgetId,
+    };
   }
 
   const normalizedPath = pathname.replace(/\/+$/, '') || '/';
@@ -273,6 +279,11 @@ function App() {
 
     window.open(url, '_blank', 'noopener,noreferrer');
   };
+  const openBudgetBookkeepingInNewTab = (budgetId: number) => {
+    const url = `${window.location.origin}/budgets/${budgetId}/bookkeeping`;
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
   const openSelectedBudgetSettings = () => {
     if (budget.selectedBudget !== null) {
       budget.openBudgetEditModal(budget.selectedBudget);
@@ -337,6 +348,22 @@ function App() {
       />
       {budgetPreview}
     </div>
+  );
+  const budgetBookkeepingContent = (
+    <BudgetBookkeepingPage
+      selectedBudget={budget.selectedBudget}
+      baseCurrency={baseCurrency}
+      canWriteBudgets={canWriteBudgets}
+      loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
+      error={budget.budgetError ?? budgetEntry.entryError}
+      isTransactionSaving={budgetEntry.isTransactionSaving}
+      deletingTransactionId={budgetEntry.deletingTransactionId}
+      onBackToProjects={() => navigateToPath('/budgets')}
+      onOpenEditor={openBudgetProjectInNewTab}
+      onNewTransaction={budgetEntry.openTransactionCreateModal}
+      onEditTransaction={budgetEntry.openTransactionEditModal}
+      onDeleteTransaction={(transactionId) => void budgetEntry.handleTransactionDelete(transactionId)}
+    />
   );
   const modals = (
     <>
@@ -478,6 +505,7 @@ function App() {
           loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
           onNavigate={handleNavigate}
           onNewProject={budget.openBudgetModal}
+          onOpenBookkeeping={openBudgetBookkeepingInNewTab}
           onOpenProject={openBudgetProjectInNewTab}
         />
       );
@@ -503,6 +531,7 @@ function App() {
           onDeleteProject={(budgetId) => void budget.handleBudgetDelete(budgetId)}
           onEditProjectInfo={budget.openBudgetEditModal}
           onNewProject={budget.openBudgetModal}
+          onOpenBookkeeping={openBudgetBookkeepingInNewTab}
           onOpenProject={openBudgetProjectInNewTab}
           onSelectProject={(budgetId) => void budget.handleBudgetSelect(budgetId)}
           onStatusChange={(budgetSummary, status) =>
@@ -514,6 +543,10 @@ function App() {
 
     if (activeKey === 'budget-editor') {
       return budgetEditorContent;
+    }
+
+    if (activeKey === 'budget-bookkeeping') {
+      return budgetBookkeepingContent;
     }
 
     if (['categories', 'rates'].includes(activeKey)) {
@@ -543,6 +576,7 @@ function App() {
         loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
         onNavigate={handleNavigate}
         onNewProject={budget.openBudgetModal}
+        onOpenBookkeeping={openBudgetBookkeepingInNewTab}
         onOpenProject={openBudgetProjectInNewTab}
       />
     );
@@ -554,7 +588,7 @@ function App() {
         {isStandaloneBudgetEditor ? (
           <>
             <main className="standalone-budget-editor">
-              {budgetEditorContent}
+              {activeKey === 'budget-bookkeeping' ? budgetBookkeepingContent : budgetEditorContent}
             </main>
             {modals}
           </>

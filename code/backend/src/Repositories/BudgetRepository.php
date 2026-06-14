@@ -776,6 +776,29 @@ final readonly class BudgetRepository
         $pricingConfigSelect = $this->hasTransactionPricingConfigColumn()
             ? 'bt.pricing_config,'
             : 'NULL AS pricing_config,';
+        $hasBookkeepingColumns = $this->hasTransactionBookkeepingColumns();
+        $bookkeepingSelect = $hasBookkeepingColumns
+            ? <<<'SQL'
+              bt.transaction_type,
+              bt.order_reference,
+              bt.source_account_name,
+              bt.destination_account_name,
+              destination_currency.code AS destination_currency,
+              bt.destination_amount_original,
+              bt.destination_rate,
+            SQL
+            : <<<'SQL'
+              'expense' AS transaction_type,
+              NULL AS order_reference,
+              NULL AS source_account_name,
+              NULL AS destination_account_name,
+              NULL AS destination_currency,
+              NULL AS destination_amount_original,
+              NULL AS destination_rate,
+            SQL;
+        $bookkeepingJoin = $hasBookkeepingColumns
+            ? 'LEFT JOIN currencies destination_currency ON destination_currency.id = bt.destination_currency_id'
+            : '';
         $statement = $this->pdo->prepare(
             <<<SQL
             SELECT
@@ -790,6 +813,7 @@ final readonly class BudgetRepository
               bt.rate_to_base,
               bt.amount_base,
               {$pricingConfigSelect}
+            {$bookkeepingSelect}
             {$referenceSelect}
               bt.remark,
               bt.sort_order
@@ -797,6 +821,7 @@ final readonly class BudgetRepository
             LEFT JOIN budget_categories bc ON bc.id = bt.category_id
             INNER JOIN currencies currency ON currency.id = bt.currency_id
             {$referenceJoin}
+            {$bookkeepingJoin}
             WHERE bt.budget_id = :budget_id
             ORDER BY bt.sort_order ASC, bt.id ASC
             SQL
@@ -823,6 +848,17 @@ final readonly class BudgetRepository
                     'rateToBase' => $this->decimal($row['rate_to_base']),
                     'amountBase' => $this->decimal($row['amount_base']),
                     'pricingConfig' => $this->pricingConfig($row['pricing_config'] ?? null),
+                    'transactionType' => $row['transaction_type'] ?? 'expense',
+                    'orderReference' => $row['order_reference'],
+                    'sourceAccountName' => $row['source_account_name'],
+                    'destinationAccountName' => $row['destination_account_name'],
+                    'destinationCurrency' => $row['destination_currency'],
+                    'destinationAmountOriginal' => $row['destination_amount_original'] === null
+                        ? null
+                        : $this->decimal($row['destination_amount_original']),
+                    'destinationRate' => $row['destination_rate'] === null
+                        ? null
+                        : $this->decimal($row['destination_rate']),
                     'referenceCurrency' => $row['reference_currency'],
                     'referenceAmountOriginal' => $row['reference_amount_original'] === null
                         ? null
@@ -1523,6 +1559,30 @@ final readonly class BudgetRepository
         $statement->execute();
 
         return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasTransactionBookkeepingColumns(): bool
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'budget_transactions'
+              AND column_name IN (
+                'transaction_type',
+                'order_reference',
+                'source_account_name',
+                'destination_account_name',
+                'destination_currency_id',
+                'destination_amount_original',
+                'destination_rate'
+              )
+            SQL
+        );
+        $statement->execute();
+
+        return (int) $statement->fetchColumn() === 7;
     }
 
     private function hasGroupBudgetTables(): bool

@@ -30,6 +30,14 @@ export type BudgetInstallmentDisplayMode = 'item' | 'overall';
 
 export type BudgetInstallmentPeriodUnit = 'day' | 'week' | 'month' | 'year';
 
+export type TransactionType =
+  | 'expense'
+  | 'income'
+  | 'sof'
+  | 'transfer'
+  | 'fx_exchange'
+  | 'cross_border_remittance';
+
 export type Visibility = 'private' | 'workspace' | 'custom';
 
 export type PrincipalType = 'user' | 'workgroup' | 'workspace';
@@ -234,6 +242,10 @@ export interface Transaction {
   paidByParticipantId: number | null;
   payments: TransactionPayment[];
   category: string | null;
+  transactionType: TransactionType;
+  orderReference: string | null;
+  sourceAccountName: string | null;
+  destinationAccountName: string | null;
   transactionDate: string | null;
   details: string;
   currency: CurrencyCode;
@@ -243,6 +255,9 @@ export interface Transaction {
   pricingConfig: BudgetItemPricingConfig;
   referenceCurrency: CurrencyCode | null;
   referenceAmountOriginal: number | null;
+  destinationCurrency: CurrencyCode | null;
+  destinationAmountOriginal: number | null;
+  destinationRate: number | null;
   remark: string | null;
   sortOrder: number;
 }

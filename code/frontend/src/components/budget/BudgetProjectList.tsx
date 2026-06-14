@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button, Empty, Input, Popconfirm, Segmented, Select, Tag } from 'antd';
-import { CalendarRange, ExternalLink, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { CalendarRange, ExternalLink, Pencil, Plus, ReceiptText, Search, Trash2 } from 'lucide-react';
 import { budgetStatusLabelsByLanguage, useI18n } from '../../i18n';
 import type { BudgetStatus, BudgetSummary } from '../../types/budget';
 import { formatBudgetPeriod } from '../../utils/budgetPeriod';
@@ -16,6 +16,7 @@ interface BudgetProjectListProps {
   onEditProjectInfo: (budget: BudgetSummary) => void;
   onDeleteProject: (budgetId: number) => void;
   onNewProject: () => void;
+  onOpenBookkeeping: (budgetId: number) => void;
   onOpenProject: (budgetId: number) => void;
   onSelectProject: (budgetId: number) => void;
   onStatusChange: (budget: BudgetSummary, status: BudgetStatus) => void;
@@ -36,6 +37,7 @@ export function BudgetProjectList({
   onEditProjectInfo,
   onDeleteProject,
   onNewProject,
+  onOpenBookkeeping,
   onOpenProject,
   onSelectProject,
   onStatusChange,
@@ -181,6 +183,12 @@ export function BudgetProjectList({
                     onClick={() => onOpenProject(budget.id)}
                   >
                     {t('newTabEdit')}
+                  </Button>
+                  <Button
+                    icon={<ReceiptText size={15} />}
+                    onClick={() => onOpenBookkeeping(budget.id)}
+                  >
+                    {t('bookkeeping')}
                   </Button>
                   <Button onClick={() => onSelectProject(budget.id)}>{t('setCurrent')}</Button>
                   {canWriteBudgets ? (

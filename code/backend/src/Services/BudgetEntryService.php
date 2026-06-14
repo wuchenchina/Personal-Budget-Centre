@@ -19,6 +19,14 @@ use Throwable;
 final readonly class BudgetEntryService
 {
     private const INSTALLMENT_MAX_MONTHS = 600;
+    private const TRANSACTION_TYPES = [
+        'expense',
+        'income',
+        'sof',
+        'transfer',
+        'fx_exchange',
+        'cross_border_remittance',
+    ];
 
     public function __construct(
         private PDO $pdo,
@@ -307,6 +315,22 @@ final readonly class BudgetEntryService
     private function transactionPayload(array $input, int $budgetId, int $workspaceId, array $budget): array
     {
         $details = Input::string($input['details'] ?? null);
+        $transactionType = $this->transactionTypeFromInput($input);
+        $orderReference = $this->limitedString(
+            $input['orderReference'] ?? $input['order_reference'] ?? null,
+            120,
+            'Order reference',
+        );
+        $sourceAccountName = $this->limitedString(
+            $input['sourceAccountName'] ?? $input['source_account_name'] ?? null,
+            160,
+            'Source account',
+        );
+        $destinationAccountName = $this->limitedString(
+            $input['destinationAccountName'] ?? $input['destination_account_name'] ?? null,
+            160,
+            'Destination account',
+        );
         $amount = $this->number($input['amount'] ?? null);
         $pricingConfig = ((bool) ($budget['pricingEnabled'] ?? false))
             ? $this->pricingConfigFromInput($input)
@@ -315,6 +339,22 @@ final readonly class BudgetEntryService
             $amount = $pricingConfig['totalAmount'];
         }
         $referenceAmount = $this->number($input['referenceAmount'] ?? $input['reference_amount'] ?? null);
+        $destinationAmount = $this->number(
+            $input['destinationAmount'] ?? $input['destination_amount_original'] ?? $input['destination_amount'] ?? null,
+        );
+        if ($destinationAmount !== null && $destinationAmount < 0.0) {
+            throw new AuthException('VALIDATION_ERROR', 'Destination amount cannot be less than 0.', 422);
+        }
+
+        $destinationCurrencyInput = $input['destinationCurrency'] ?? $input['destination_currency'] ?? null;
+        if ($destinationAmount !== null && Input::string($destinationCurrencyInput) === null) {
+            throw new AuthException('VALIDATION_ERROR', 'Destination currency is required when destination amount is filled.', 422);
+        }
+
+        $destinationCurrencyId = $destinationAmount === null
+            ? null
+            : $this->currencyId($destinationCurrencyInput);
+        $destinationRate = $this->rateInput($input, ['destinationRate', 'destination_rate'], 'Destination rate');
         $paidByParticipantId = Input::positiveInt(
             $input['paidByParticipantId'] ?? $input['paid_by_participant_id'] ?? null,
         );
@@ -368,6 +408,10 @@ final readonly class BudgetEntryService
             'budget_id' => $budgetId,
             'category_id' => $this->transactionCategoryId($budgetId, $workspaceId, $input),
             'paid_by_participant_id' => $paidByParticipantId,
+            'transaction_type' => $transactionType,
+            'order_reference' => $orderReference,
+            'source_account_name' => $sourceAccountName,
+            'destination_account_name' => $destinationAccountName,
             'transaction_date' => $transactionDate,
             'details' => $details,
             'currency_id' => $currencyId,
@@ -377,10 +421,37 @@ final readonly class BudgetEntryService
             'pricing_config' => $this->pricingConfigJson($pricingConfig),
             'reference_currency_id' => $referenceCurrencyId,
             'reference_amount_original' => $referenceAmount,
+            'destination_currency_id' => $destinationCurrencyId,
+            'destination_amount_original' => $destinationAmount,
+            'destination_rate' => $destinationRate,
             'remark' => Input::string($input['remark'] ?? null),
             'sort_order' => Input::positiveInt($input['sortOrder'] ?? $input['sort_order'] ?? null) ?? 0,
             'payments' => $payments,
         ];
+    }
+
+    private function transactionTypeFromInput(array $input): string
+    {
+        $type = Input::string($input['transactionType'] ?? $input['transaction_type'] ?? null) ?? 'expense';
+        if (!in_array($type, self::TRANSACTION_TYPES, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Transaction type is not supported.', 422);
+        }
+
+        return $type;
+    }
+
+    private function limitedString(mixed $value, int $maxLength, string $label): ?string
+    {
+        $text = Input::string($value);
+        if ($text === null) {
+            return null;
+        }
+
+        if (strlen($text) > $maxLength) {
+            throw new AuthException('VALIDATION_ERROR', "{$label} must be {$maxLength} characters or less.", 422);
+        }
+
+        return $text;
     }
 
     private function transactionPaymentsFromInput(

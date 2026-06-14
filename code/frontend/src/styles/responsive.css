@@ -13,6 +13,16 @@
     grid-template-columns: 1fr;
   }
 
+  .bookkeeping-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bookkeeping-search {
+    flex-basis: auto;
+    width: 100%;
+  }
+
   .workspace-command-grid {
     grid-template-columns: 1fr;
   }
@@ -71,6 +81,7 @@
   .project-hero,
   .project-page-header,
   .workspace-command-header,
+  .bookkeeping-toolbar,
   .project-filter-row,
   .project-list-card-main {
     align-items: flex-start;

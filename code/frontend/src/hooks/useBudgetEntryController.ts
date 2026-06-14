@@ -408,6 +408,10 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
     transactionForm.setFieldsValue({
       categoryId: firstCategoryId,
+      transactionType: 'expense',
+      orderReference: undefined,
+      sourceAccountName: undefined,
+      destinationAccountName: undefined,
       paymentMode: 'single',
       paidByParticipantId: defaultTransactionPaidByParticipantId(
         options.selectedBudget,
@@ -420,6 +424,9 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       referenceAmount: undefined,
       pricingConfig: transactionPricingConfigForCreateForm(options.selectedBudget),
       sortOrder: options.selectedBudget.transactions.length + 1,
+      destinationCurrency: undefined,
+      destinationAmount: undefined,
+      destinationRate: undefined,
     });
     setIsTransactionModalOpen(true);
   };
@@ -434,6 +441,10 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     );
     transactionForm.setFieldsValue({
       categoryId: transaction.categoryId ?? undefined,
+      transactionType: transaction.transactionType,
+      orderReference: transaction.orderReference ?? undefined,
+      sourceAccountName: transaction.sourceAccountName ?? undefined,
+      destinationAccountName: transaction.destinationAccountName ?? undefined,
       paymentMode:
         supportsTransactionPayments && transaction.payments.length > 0 ? 'multiple' : 'single',
       paidByParticipantId: supportsTransactionPayments
@@ -454,6 +465,9 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       pricingConfig: transactionPricingConfigForEditForm(transaction, options.selectedBudget),
       referenceCurrency: transaction.referenceCurrency ?? undefined,
       referenceAmount: transaction.referenceAmountOriginal ?? undefined,
+      destinationCurrency: transaction.destinationCurrency ?? undefined,
+      destinationAmount: transaction.destinationAmountOriginal ?? undefined,
+      destinationRate: transaction.destinationRate ?? undefined,
       remark: transaction.remark ?? undefined,
       sortOrder: transaction.sortOrder,
     });
@@ -517,6 +531,10 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
       const payload: SaveTransactionPayload = {
         categoryId: values.categoryId,
+        transactionType: values.transactionType ?? 'expense',
+        orderReference: normalizedText(values.orderReference),
+        sourceAccountName: normalizedText(values.sourceAccountName),
+        destinationAccountName: normalizedText(values.destinationAccountName),
         paidByParticipantId: transactionPaidByParticipantIdFromForm(values, options.selectedBudget),
         paymentMode: supportsTransactionPayments ? values.paymentMode ?? 'single' : 'single',
         payments: transactionPaymentsFromForm(values, options.selectedBudget, transactionAmount),
@@ -526,6 +544,11 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
         amount: transactionAmount,
         referenceCurrency: referenceAmount === null ? undefined : values.referenceCurrency,
         referenceAmount,
+        destinationCurrency: normalizedAmount(values.destinationAmount) === null
+          ? undefined
+          : values.destinationCurrency,
+        destinationAmount: normalizedAmount(values.destinationAmount),
+        destinationRate: normalizedAmount(values.destinationRate) ?? undefined,
         pricingConfig,
         remark: values.remark?.trim() || null,
         sortOrder: values.sortOrder ?? 0,
@@ -1295,6 +1318,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       options.replaceBudgetDetail(await updateTransaction({
         id: transaction.id,
+        ...transactionBookkeepingPayload(transaction),
         categoryId: transaction.categoryId ?? undefined,
         transactionDate: transaction.transactionDate,
         details: transaction.details,
@@ -1337,6 +1361,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       options.replaceBudgetDetail(await updateTransaction({
         id: transaction.id,
+        ...transactionBookkeepingPayload(transaction),
         categoryId: transaction.categoryId ?? undefined,
         transactionDate: transaction.transactionDate,
         details: transaction.details,
@@ -1392,6 +1417,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       options.replaceBudgetDetail(await updateTransaction({
         id: transaction.id,
+        ...transactionBookkeepingPayload(transaction),
         categoryId: transaction.categoryId ?? undefined,
         transactionDate: transaction.transactionDate,
         details: transaction.details,
@@ -1452,6 +1478,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       options.replaceBudgetDetail(await updateTransaction({
         id: transaction.id,
+        ...transactionBookkeepingPayload(transaction),
         categoryId: transaction.categoryId ?? undefined,
         transactionDate: transaction.transactionDate,
         details: transaction.details,
@@ -1494,6 +1521,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       options.replaceBudgetDetail(await updateTransaction({
         id: transaction.id,
+        ...transactionBookkeepingPayload(transaction),
         categoryId,
         transactionDate: transaction.transactionDate,
         details: transaction.details,
@@ -1540,6 +1568,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
     try {
       options.replaceBudgetDetail(await updateTransaction({
         id: transaction.id,
+        ...transactionBookkeepingPayload(transaction),
         categoryId: transaction.categoryId ?? undefined,
         transactionDate: transaction.transactionDate,
         details: transaction.details,
@@ -1628,6 +1657,35 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
 function normalizedAmount(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function normalizedText(value: string | null | undefined): string | null {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+
+  return trimmed === '' ? null : trimmed;
+}
+
+function transactionBookkeepingPayload(transaction: Transaction): Pick<
+  SaveTransactionPayload,
+  | 'transactionType'
+  | 'orderReference'
+  | 'sourceAccountName'
+  | 'destinationAccountName'
+  | 'destinationCurrency'
+  | 'destinationAmount'
+  | 'destinationRate'
+> {
+  return {
+    transactionType: transaction.transactionType,
+    orderReference: transaction.orderReference,
+    sourceAccountName: transaction.sourceAccountName,
+    destinationAccountName: transaction.destinationAccountName,
+    destinationCurrency: transaction.destinationAmountOriginal === null
+      ? undefined
+      : transaction.destinationCurrency ?? undefined,
+    destinationAmount: transaction.destinationAmountOriginal,
+    destinationRate: transaction.destinationRate ?? undefined,
+  };
 }
 
 function normalizedNonNegativeAmount(value: number | null | undefined): number | null {
