@@ -316,6 +316,7 @@ const dictionaries = {
     estimatedRateToBase: 'Estimated rate to base',
     exchangeRate: 'Exchange rate',
     export: 'Export',
+    exportPdf: 'Export PDF',
     exportCacheCleanupDone:
       'PDF exports cleaned. Removed {exports} records, {files} PDF files, and {tempFiles} temporary files.',
     exportCacheCleanupFailed: 'PDF export cleanup failed.',
@@ -917,6 +918,7 @@ const dictionaries = {
     estimatedRateToBase: '预计兑基准汇率',
     exchangeRate: '汇率',
     export: '导出',
+    exportPdf: '导出 PDF',
     exportCacheCleanupDone:
       'PDF 导出已清理，删除了 {exports} 条记录、{files} 个 PDF 文件和 {tempFiles} 个临时文件。',
     exportCacheCleanupFailed: 'PDF 导出清理失败。',
@@ -1510,6 +1512,7 @@ const dictionaries = {
     estimatedRateToBase: '預計兌基準匯率',
     exchangeRate: '匯率',
     export: '匯出',
+    exportPdf: '匯出 PDF',
     exportCacheCleanupDone:
       'PDF 匯出已清理，刪除了 {exports} 筆記錄、{files} 個 PDF 檔案和 {tempFiles} 個暫存檔。',
     exportCacheCleanupFailed: 'PDF 匯出清理失敗。',

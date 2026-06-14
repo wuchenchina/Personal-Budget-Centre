@@ -377,12 +377,18 @@ function App() {
       baseCurrency={baseCurrency}
       canWriteBudgets={canWriteBudgets}
       loading={budget.isBudgetLoading || budget.isBudgetDetailLoading || bookkeeping.loading}
-      error={budget.budgetError ?? bookkeeping.error}
+      error={budget.budgetError ?? bookkeeping.error ?? operations.operationsError}
       records={bookkeeping.records}
       saving={bookkeeping.saving}
       deletingRecordId={bookkeeping.deletingRecordId}
+      exportingPdf={operations.creatingExportFormat === 'pdf'}
       onBackToProjects={() => navigateToPath('/budgets')}
       onOpenEditor={openBudgetProjectInNewTab}
+      onExportPdf={() => operations.createExport('pdf', {
+        exportScope: 'bookkeeping',
+        tableChineseLanguage: language === 'sc' ? 'sc' : 'tc',
+        tableLanguageMode: language === 'en' ? 'en' : 'zh',
+      })}
       onNewRecord={bookkeeping.openCreateModal}
       onEditRecord={bookkeeping.openEditModal}
       onDeleteRecord={(recordId) => void bookkeeping.deleteRecord(recordId)}

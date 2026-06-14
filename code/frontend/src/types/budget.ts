@@ -336,6 +336,7 @@ export type BudgetExportTableLanguageMode = 'en' | 'zh' | 'bilingual';
 export type BudgetExportChineseLanguage = 'sc' | 'tc';
 
 export interface BudgetExportOptions {
+  exportScope?: 'budget' | 'bookkeeping';
   tableLanguageMode?: BudgetExportTableLanguageMode;
   tableChineseLanguage?: BudgetExportChineseLanguage;
 }

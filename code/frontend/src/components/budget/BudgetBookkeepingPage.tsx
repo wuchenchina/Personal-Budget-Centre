@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Button, Empty, Input, Popconfirm, Space, Table, Tabs, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
-import { ArrowLeft, Landmark, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, Download, Landmark, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useI18n } from '../../i18n';
 import type { BookkeepingRecord, BudgetDetail, CurrencyCode, TransactionType } from '../../types/budget';
 import { formatMoney } from '../../utils/currency';
@@ -15,8 +15,10 @@ interface BudgetBookkeepingPageProps {
   records: BookkeepingRecord[];
   saving: boolean;
   deletingRecordId: number | null;
+  exportingPdf: boolean;
   onBackToProjects: () => void;
   onOpenEditor: (budgetId: number) => void;
+  onExportPdf: () => void;
   onNewRecord: () => void;
   onEditRecord: (record: BookkeepingRecord) => void;
   onDeleteRecord: (recordId: number) => void;
@@ -33,8 +35,10 @@ export function BudgetBookkeepingPage({
   records,
   saving,
   deletingRecordId,
+  exportingPdf,
   onBackToProjects,
   onOpenEditor,
+  onExportPdf,
   onNewRecord,
   onEditRecord,
   onDeleteRecord,
@@ -199,6 +203,14 @@ export function BudgetBookkeepingPage({
               {t('newTabEdit')}
             </Button>
           ) : null}
+          <Button
+            disabled={selectedBudget === null}
+            icon={<Download size={15} />}
+            loading={exportingPdf}
+            onClick={onExportPdf}
+          >
+            {t('exportPdf')}
+          </Button>
           {canWriteBudgets ? (
             <Button type="primary" icon={<Plus size={16} />} onClick={onNewRecord}>
               {t('addBookkeepingRecord')}

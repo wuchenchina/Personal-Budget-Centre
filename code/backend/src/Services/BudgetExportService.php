@@ -9,6 +9,7 @@ use BudgetCentre\Auth\PermissionGuard;
 use BudgetCentre\Auth\SessionAuthenticator;
 use BudgetCentre\Http\FileResponse;
 use BudgetCentre\Http\Request;
+use BudgetCentre\Repositories\BookkeepingRepository;
 use BudgetCentre\Repositories\BudgetExportRepository;
 use BudgetCentre\Repositories\BudgetRepository;
 use BudgetCentre\Repositories\BudgetTemplateRepository;
@@ -56,13 +57,14 @@ final readonly class BudgetExportService
 
         $repository = new BudgetExportRepository($this->pdo);
         $pdfOptions = $this->pdfOptions($input);
-        $fileName = $this->fileName($budget, $format);
+        $exportScope = $this->exportScope($input);
+        $fileName = $this->fileName($budget, $format, $exportScope);
         $path = $this->storagePath($fileName);
         $this->ensureStorageDirectory(dirname($path));
 
         try {
             match ($format) {
-                'pdf' => $this->writePdf($budget, $path, $pdfOptions),
+                'pdf' => $this->writePdf($budget, $path, $pdfOptions, $exportScope),
             };
         } catch (AuthException $exception) {
             throw $exception;
@@ -117,12 +119,31 @@ final readonly class BudgetExportService
         );
     }
 
-    private function writePdf(array $budget, string $path, array $options): void
+    private function writePdf(array $budget, string $path, array $options, string $exportScope): void
     {
         $tempDir = $this->mpdfTempRoot();
         $this->ensureStorageDirectory($tempDir);
 
+        if ($exportScope === 'bookkeeping') {
+            $records = (new BookkeepingRepository($this->pdo))->recordsForBudget((int) $budget['id']);
+            (new BudgetBookkeepingPdfRenderer())->write($budget, $records, $path, $tempDir, $options);
+
+            return;
+        }
+
         (new BudgetPdfRenderer())->write($budget, $this->templateForBudget($budget), $path, $tempDir, $options);
+    }
+
+    private function exportScope(array $input): string
+    {
+        $scope = Input::string(
+            $input['exportScope']
+            ?? $input['export_scope']
+            ?? $input['scope']
+            ?? null,
+        ) ?? 'budget';
+
+        return in_array($scope, ['budget', 'bookkeeping'], true) ? $scope : 'budget';
     }
 
     private function pdfOptions(array $input): array
@@ -163,12 +184,13 @@ final readonly class BudgetExportService
         return new PermissionGuard($this->pdo, $this->authenticator);
     }
 
-    private function fileName(array $budget, string $format): string
+    private function fileName(array $budget, string $format, string $exportScope = 'budget'): string
     {
         $slug = preg_replace('/[^a-z0-9]+/i', '-', strtolower((string) $budget['title'])) ?: 'budget';
         $slug = trim((string) $slug, '-');
+        $suffix = $exportScope === 'bookkeeping' ? '-bookkeeping-ledger' : '';
 
-        return date('Ymd-His') . '-' . ($slug === '' ? 'budget' : $slug) . '.' . $format;
+        return date('Ymd-His') . '-' . ($slug === '' ? 'budget' : $slug) . $suffix . '.' . $format;
     }
 
     private function pruneOldExports(
