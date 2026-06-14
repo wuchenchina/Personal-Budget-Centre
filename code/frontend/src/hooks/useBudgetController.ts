@@ -36,6 +36,8 @@ interface UseBudgetControllerOptions {
   onWorkspaceSelected?: (workspaceId: number) => Promise<void> | void;
 }
 
+const SELECTED_BUDGET_STORAGE_KEY = 'budgetCentre.selectedBudgetByWorkspace';
+
 export function useBudgetController(options: UseBudgetControllerOptions) {
   const [budgetForm] = Form.useForm<BudgetFormValues>();
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
@@ -50,6 +52,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
   const [editingBudgetId, setEditingBudgetId] = useState<number | null>(null);
   const [deletingBudgetId, setDeletingBudgetId] = useState<number | null>(null);
   const requestedBudgetId = useRef<number | null>(options.initialBudgetId ?? null);
+  const requestedBudgetWorkspaceId = useRef<number | null>(null);
   const { activeWorkspaceId, baseCurrency, session } = options;
 
   useEffect(() => {
@@ -90,8 +93,19 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         setBudgetError(null);
 
         const firstBudgetId = nextBudgets[0]?.id ?? null;
-        const budgetIdToOpen = requestedBudgetId.current ?? firstBudgetId;
+        const scopedRequestedBudgetId =
+          requestedBudgetWorkspaceId.current === null ||
+          requestedBudgetWorkspaceId.current === workspaceId
+            ? requestedBudgetId.current
+            : null;
+        const storedBudgetId = selectedBudgetIdForWorkspace(workspaceId);
+        const availableStoredBudgetId =
+          storedBudgetId !== null && nextBudgets.some((budget) => budget.id === storedBudgetId)
+            ? storedBudgetId
+            : null;
+        const budgetIdToOpen = scopedRequestedBudgetId ?? availableStoredBudgetId ?? firstBudgetId;
         if (budgetIdToOpen === null) {
+          clearSelectedBudgetIdForWorkspace(workspaceId);
           return;
         }
 
@@ -100,6 +114,9 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
           const budgetDetail = await getBudgetDetail(budgetIdToOpen);
           if (isMounted) {
             setSelectedBudget(budgetDetail);
+            requestedBudgetId.current = budgetDetail.id;
+            requestedBudgetWorkspaceId.current = workspaceId;
+            rememberSelectedBudgetId(workspaceId, budgetDetail.id);
             setBudgets((currentBudgets) => {
               const hasBudget = currentBudgets.some((budget) => budget.id === budgetDetail.id);
 
@@ -314,6 +331,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
             });
 
       requestedBudgetId.current = savedBudget.id;
+      requestedBudgetWorkspaceId.current = workspaceId;
+      rememberSelectedBudgetId(workspaceId, savedBudget.id);
       if (editingBudgetId === null && workspaceId !== activeWorkspaceId) {
         await options.onWorkspaceSelected?.(workspaceId);
       }
@@ -369,6 +388,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       });
 
       requestedBudgetId.current = savedBudget.id;
+      requestedBudgetWorkspaceId.current = savedBudget.workspaceId;
+      rememberSelectedBudgetId(savedBudget.workspaceId, savedBudget.id);
       setSelectedBudget(savedBudget);
       setBudgets((currentBudgets) =>
         currentBudgets.map((budget) =>
@@ -422,6 +443,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       });
 
       requestedBudgetId.current = savedBudget.id;
+      requestedBudgetWorkspaceId.current = savedBudget.workspaceId;
+      rememberSelectedBudgetId(savedBudget.workspaceId, savedBudget.id);
       setSelectedBudget(savedBudget);
       setBudgets((currentBudgets) =>
         currentBudgets.map((budget) =>
@@ -480,6 +503,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         signatureConfig: selectedBudget.signatureConfig,
       });
       requestedBudgetId.current = savedBudget.id;
+      requestedBudgetWorkspaceId.current = savedBudget.workspaceId;
+      rememberSelectedBudgetId(savedBudget.workspaceId, savedBudget.id);
       setSelectedBudget(savedBudget);
       setBudgets((currentBudgets) =>
         currentBudgets.map((budget) =>
@@ -529,6 +554,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         signatureConfig: sourceBudget.signatureConfig,
       });
       requestedBudgetId.current = savedBudget.id;
+      requestedBudgetWorkspaceId.current = savedBudget.workspaceId;
+      rememberSelectedBudgetId(savedBudget.workspaceId, savedBudget.id);
       if (selectedBudget?.id === savedBudget.id) {
         setSelectedBudget(savedBudget);
       }
@@ -559,11 +586,17 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
         setSelectedBudget(null);
         const nextBudget = remainingBudgets[0];
         requestedBudgetId.current = nextBudget?.id ?? null;
+        requestedBudgetWorkspaceId.current = activeWorkspaceId;
         if (nextBudget !== undefined) {
           await handleBudgetSelect(nextBudget.id);
+        } else if (activeWorkspaceId !== null) {
+          clearSelectedBudgetIdForWorkspace(activeWorkspaceId);
         }
       } else if (requestedBudgetId.current === budgetId) {
         requestedBudgetId.current = null;
+        if (activeWorkspaceId !== null) {
+          clearSelectedBudgetIdForWorkspace(activeWorkspaceId);
+        }
       }
     } catch (error: unknown) {
       setBudgetError(error instanceof Error ? error.message : translateCurrent('authFailed'));
@@ -574,7 +607,12 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
 
   const handleBudgetSelect = async (budgetId: number) => {
     requestedBudgetId.current = budgetId;
+    requestedBudgetWorkspaceId.current = activeWorkspaceId;
     if (selectedBudget?.id === budgetId) {
+      if (activeWorkspaceId !== null) {
+        rememberSelectedBudgetId(activeWorkspaceId, budgetId);
+      }
+
       return;
     }
 
@@ -584,6 +622,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     try {
       const budgetDetail = await getBudgetDetail(budgetId);
       setSelectedBudget(budgetDetail);
+      requestedBudgetWorkspaceId.current = budgetDetail.workspaceId;
+      rememberSelectedBudgetId(budgetDetail.workspaceId, budgetDetail.id);
     } catch (error: unknown) {
       setBudgetError(error instanceof Error ? error.message : translateCurrent('loadingBudget'));
     } finally {
@@ -593,6 +633,9 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
 
   const replaceBudgetDetail = (budgetDetail: BudgetDetail) => {
     setSelectedBudget(budgetDetail);
+    requestedBudgetId.current = budgetDetail.id;
+    requestedBudgetWorkspaceId.current = budgetDetail.workspaceId;
+    rememberSelectedBudgetId(budgetDetail.workspaceId, budgetDetail.id);
     setBudgets((currentBudgets) => {
       const hasBudget = currentBudgets.some((budget) => budget.id === budgetDetail.id);
 
@@ -678,4 +721,53 @@ function normalizedParticipants(
       sortOrder: participant.sortOrder ?? index + 1,
     }))
     .filter((participant) => participant.name !== '');
+}
+
+function selectedBudgetIdForWorkspace(workspaceId: number): number | null {
+  const selectedBudgets = selectedBudgetStorage();
+  const budgetId = selectedBudgets[String(workspaceId)];
+
+  return Number.isInteger(budgetId) && budgetId > 0 ? budgetId : null;
+}
+
+function rememberSelectedBudgetId(workspaceId: number, budgetId: number): void {
+  const selectedBudgets = selectedBudgetStorage();
+  selectedBudgets[String(workspaceId)] = budgetId;
+  writeSelectedBudgetStorage(selectedBudgets);
+}
+
+function clearSelectedBudgetIdForWorkspace(workspaceId: number): void {
+  const selectedBudgets = selectedBudgetStorage();
+  delete selectedBudgets[String(workspaceId)];
+  writeSelectedBudgetStorage(selectedBudgets);
+}
+
+function selectedBudgetStorage(): Record<string, number> {
+  try {
+    const rawValue = window.localStorage.getItem(SELECTED_BUDGET_STORAGE_KEY);
+    if (rawValue === null) {
+      return {};
+    }
+
+    const parsedValue: unknown = JSON.parse(rawValue);
+    if (parsedValue === null || typeof parsedValue !== 'object' || Array.isArray(parsedValue)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(parsedValue)
+        .map(([workspaceId, budgetId]) => [workspaceId, Number(budgetId)] as const)
+        .filter(([, budgetId]) => Number.isInteger(budgetId) && budgetId > 0),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeSelectedBudgetStorage(selectedBudgets: Record<string, number>): void {
+  try {
+    window.localStorage.setItem(SELECTED_BUDGET_STORAGE_KEY, JSON.stringify(selectedBudgets));
+  } catch {
+    // Browsers can block localStorage in private or restricted contexts.
+  }
 }
