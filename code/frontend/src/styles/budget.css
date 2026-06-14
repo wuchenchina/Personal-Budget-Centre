@@ -1329,6 +1329,16 @@
   max-width: 100%;
 }
 
+.bookkeeping-total-row .ant-table-cell {
+  background: #fafafa;
+  color: #1f1f1f;
+  font-weight: 650;
+}
+
+.bookkeeping-total-row .ant-table-cell:first-child {
+  text-align: right;
+}
+
 .bookkeeping-detail-cell,
 .bookkeeping-money-cell {
   display: grid;

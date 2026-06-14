@@ -84,6 +84,10 @@ export function BudgetBookkeepingPage({
     [activeFilter, normalizedSearch, records],
   );
   const totals = useMemo(() => ledgerTotals(records, currency), [currency, records]);
+  const visibleOrderTotal = useMemo(
+    () => orderTransactionTotal(filteredRecords, currency),
+    [currency, filteredRecords],
+  );
   const columns = useMemo<TableProps<BookkeepingRecord>['columns']>(() => [
     {
       key: 'type',
@@ -332,6 +336,21 @@ export function BudgetBookkeepingPage({
           rowKey="id"
           scroll={{ x: 1314 }}
           size="small"
+          summary={() => (
+            <Table.Summary fixed>
+              <Table.Summary.Row className="bookkeeping-total-row">
+                <Table.Summary.Cell index={0} colSpan={6}>
+                  {t('bookkeepingIncomeExpenseTotal')}
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={6} align="right">
+                  <strong>{formatMoney({ currency, amount: visibleOrderTotal })}</strong>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={7} />
+                <Table.Summary.Cell index={8} />
+                <Table.Summary.Cell index={9} />
+              </Table.Summary.Row>
+            </Table.Summary>
+          )}
         />
       </section>
     </div>
@@ -357,6 +376,17 @@ function ledgerTotals(records: BookkeepingRecord[], currency: CurrencyCode) {
     }),
     { baseAmount: 0, transferCount: 0 },
   );
+}
+
+function orderTransactionTotal(records: BookkeepingRecord[], currency: CurrencyCode): number {
+  return records.reduce((total, record) => {
+    if (!isOrderTransaction(record.transactionType)) {
+      return total;
+    }
+
+    const amount = record.currency === currency ? record.amountOriginal : record.amountBase;
+    return total + amount;
+  }, 0);
 }
 
 function isOrderTransaction(type: TransactionType): boolean {

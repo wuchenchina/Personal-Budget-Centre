@@ -15,6 +15,7 @@ final readonly class BudgetBookkeepingPdfRenderer
             'bookkeepingLedgerSubtitle' => '记账流水',
             'bookkeepingRecordsTitle' => '记账记录',
             'emptyBookkeepingRecords' => '暂无记账记录',
+            'bookkeepingIncomeExpenseTotal' => '收入 / 支出总计',
             'datePrefix' => '日期：',
             'columns' => [
                 'type' => '交易类型',
@@ -40,6 +41,7 @@ final readonly class BudgetBookkeepingPdfRenderer
             'bookkeepingLedgerSubtitle' => '記帳流水',
             'bookkeepingRecordsTitle' => '記帳記錄',
             'emptyBookkeepingRecords' => '暫無記帳記錄',
+            'bookkeepingIncomeExpenseTotal' => '收入 / 支出總計',
             'datePrefix' => '日期：',
             'columns' => [
                 'type' => '交易類型',
@@ -114,6 +116,8 @@ final readonly class BudgetBookkeepingPdfRenderer
                     $context,
                 ),
                 $this->datePrefix($context),
+                $this->bookkeepingTotalLabel($context),
+                $this->bookkeepingOrderTotalText($budget, $records),
             )
             . '</body></html>';
     }
@@ -141,6 +145,8 @@ final readonly class BudgetBookkeepingPdfRenderer
             . '.bookkeeping-header-row th + th{border-left:0.2mm solid #7e7e7e;}'
             . '.bookkeeping-body-row td{font-size:6.4pt;line-height:1.24;}'
             . '.bookkeeping-empty-row td{text-align:center;color:#595959;font-size:6.4pt;}'
+            . '.bookkeeping-total-row td{background:#f4f4f4;border-top:0.2mm solid #7e7e7e;font-size:6.4pt;font-weight:700;line-height:1.24;}'
+            . '.bookkeeping-total-label{text-align:right;}'
             . '.bookkeeping-align-right{text-align:right;}'
             . '.bookkeeping-align-center{text-align:center;}'
             . '.bookkeeping-text-cell{white-space:normal;overflow-wrap:anywhere;word-break:break-word;}'
@@ -157,6 +163,8 @@ final readonly class BudgetBookkeepingPdfRenderer
         array $rows,
         string $emptyText,
         string $datePrefix,
+        string $totalLabel,
+        string $totalAmountText,
     ): string {
         $columns = array_values(array_filter($section['columns'] ?? [], 'is_array'));
         $colspan = max(1, count($columns));
@@ -202,6 +210,8 @@ final readonly class BudgetBookkeepingPdfRenderer
             }
             $html .= '</tr>';
         }
+
+        $html .= $this->bookkeepingTotalRowHtml($columns, $totalLabel, $totalAmountText);
 
         return $html . '</tbody></table></div>';
     }
@@ -280,6 +290,72 @@ final readonly class BudgetBookkeepingPdfRenderer
         }
 
         return $this->formatter->templateMoney($currency, (float) $record['destinationAmountOriginal']);
+    }
+
+    private function bookkeepingOrderTotalText(array $budget, array $records): string
+    {
+        $baseCurrency = (string) ($budget['baseCurrency'] ?? '');
+        $total = array_reduce(
+            array_filter($records, 'is_array'),
+            function (float $total, array $record) use ($baseCurrency): float {
+                if (!in_array((string) ($record['transactionType'] ?? ''), ['expense', 'income'], true)) {
+                    return $total;
+                }
+
+                $currency = (string) ($record['currency'] ?? $baseCurrency);
+                $amount = $currency === $baseCurrency
+                    ? (float) ($record['amountOriginal'] ?? 0.0)
+                    : (float) ($record['amountBase'] ?? 0.0);
+
+                return $total + $amount;
+            },
+            0.0,
+        );
+
+        return $this->formatter->templateMoney($baseCurrency, $total);
+    }
+
+    private function bookkeepingTotalLabel(array $context): string
+    {
+        return $this->tableText(
+            'Total income / expense',
+            $context['labels']['bookkeepingIncomeExpenseTotal'],
+            $context,
+        );
+    }
+
+    private function bookkeepingTotalRowHtml(array $columns, string $label, string $amountText): string
+    {
+        $amountIndex = 0;
+        foreach ($columns as $index => $column) {
+            if (($column['key'] ?? null) === 'amount') {
+                $amountIndex = $index;
+                break;
+            }
+        }
+
+        $html = '<tr class="bookkeeping-total-row">';
+        if ($amountIndex > 0) {
+            $html .= '<td class="bookkeeping-total-label" colspan="' . $amountIndex . '">'
+                . $this->templateCellText($label)
+                . '</td>';
+        }
+
+        $amountColumn = $columns[$amountIndex] ?? ['align' => 'right', 'dataType' => 'money'];
+        $html .= '<td class="' . $this->bookkeepingColumnClass($amountColumn) . '"'
+            . $this->bookkeepingCellWidthStyle($amountColumn)
+            . '>'
+            . $this->templateMoneyCellText($amountText)
+            . '</td>';
+
+        for ($index = $amountIndex + 1, $count = count($columns); $index < $count; $index += 1) {
+            $column = $columns[$index];
+            $html .= '<td class="' . $this->bookkeepingColumnClass($column) . '"'
+                . $this->bookkeepingCellWidthStyle($column)
+                . '></td>';
+        }
+
+        return $html . '</tr>';
     }
 
     private function bookkeepingColgroupHtml(array $columns): string
