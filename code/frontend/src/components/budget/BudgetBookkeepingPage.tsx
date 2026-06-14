@@ -84,8 +84,8 @@ export function BudgetBookkeepingPage({
     [activeFilter, normalizedSearch, records],
   );
   const totals = useMemo(() => ledgerTotals(records, currency), [currency, records]);
-  const visibleOrderTotal = useMemo(
-    () => orderTransactionTotal(filteredRecords, currency),
+  const visibleOrderTotals = useMemo(
+    () => orderTransactionTotals(filteredRecords, currency),
     [currency, filteredRecords],
   );
   const columns = useMemo<TableProps<BookkeepingRecord>['columns']>(() => [
@@ -340,10 +340,21 @@ export function BudgetBookkeepingPage({
             <Table.Summary fixed>
               <Table.Summary.Row className="bookkeeping-total-row">
                 <Table.Summary.Cell index={0} colSpan={6}>
-                  {t('bookkeepingIncomeExpenseTotal')}
+                  {t('bookkeepingIncomeTotal')}
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={6} align="right">
-                  <strong>{formatMoney({ currency, amount: visibleOrderTotal })}</strong>
+                  <strong>{formatMoney({ currency, amount: visibleOrderTotals.income })}</strong>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={7} />
+                <Table.Summary.Cell index={8} />
+                <Table.Summary.Cell index={9} />
+              </Table.Summary.Row>
+              <Table.Summary.Row className="bookkeeping-total-row">
+                <Table.Summary.Cell index={0} colSpan={6}>
+                  {t('bookkeepingExpenseTotal')}
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={6} align="right">
+                  <strong>{formatMoney({ currency, amount: visibleOrderTotals.expense })}</strong>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={7} />
                 <Table.Summary.Cell index={8} />
@@ -378,15 +389,22 @@ function ledgerTotals(records: BookkeepingRecord[], currency: CurrencyCode) {
   );
 }
 
-function orderTransactionTotal(records: BookkeepingRecord[], currency: CurrencyCode): number {
-  return records.reduce((total, record) => {
+function orderTransactionTotals(
+  records: BookkeepingRecord[],
+  currency: CurrencyCode,
+): { income: number; expense: number } {
+  return records.reduce((totals, record) => {
     if (!isOrderTransaction(record.transactionType)) {
-      return total;
+      return totals;
     }
 
     const amount = record.currency === currency ? record.amountOriginal : record.amountBase;
-    return total + amount;
-  }, 0);
+    if (record.transactionType === 'income') {
+      return { ...totals, income: totals.income + amount };
+    }
+
+    return { ...totals, expense: totals.expense + amount };
+  }, { income: 0, expense: 0 });
 }
 
 function isOrderTransaction(type: TransactionType): boolean {

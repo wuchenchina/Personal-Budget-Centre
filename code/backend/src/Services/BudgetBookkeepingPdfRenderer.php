@@ -15,7 +15,8 @@ final readonly class BudgetBookkeepingPdfRenderer
             'bookkeepingLedgerSubtitle' => '记账流水',
             'bookkeepingRecordsTitle' => '记账记录',
             'emptyBookkeepingRecords' => '暂无记账记录',
-            'bookkeepingIncomeExpenseTotal' => '收入 / 支出总计',
+            'bookkeepingExpenseTotal' => '支出总计',
+            'bookkeepingIncomeTotal' => '收入总计',
             'datePrefix' => '日期：',
             'columns' => [
                 'type' => '交易类型',
@@ -41,7 +42,8 @@ final readonly class BudgetBookkeepingPdfRenderer
             'bookkeepingLedgerSubtitle' => '記帳流水',
             'bookkeepingRecordsTitle' => '記帳記錄',
             'emptyBookkeepingRecords' => '暫無記帳記錄',
-            'bookkeepingIncomeExpenseTotal' => '收入 / 支出總計',
+            'bookkeepingExpenseTotal' => '支出總計',
+            'bookkeepingIncomeTotal' => '收入總計',
             'datePrefix' => '日期：',
             'columns' => [
                 'type' => '交易類型',
@@ -116,8 +118,7 @@ final readonly class BudgetBookkeepingPdfRenderer
                     $context,
                 ),
                 $this->datePrefix($context),
-                $this->bookkeepingTotalLabel($context),
-                $this->bookkeepingOrderTotalText($budget, $records),
+                $this->bookkeepingTotalRows($budget, $records, $context),
             )
             . '</body></html>';
     }
@@ -163,8 +164,7 @@ final readonly class BudgetBookkeepingPdfRenderer
         array $rows,
         string $emptyText,
         string $datePrefix,
-        string $totalLabel,
-        string $totalAmountText,
+        array $totalRows,
     ): string {
         $columns = array_values(array_filter($section['columns'] ?? [], 'is_array'));
         $colspan = max(1, count($columns));
@@ -211,7 +211,13 @@ final readonly class BudgetBookkeepingPdfRenderer
             $html .= '</tr>';
         }
 
-        $html .= $this->bookkeepingTotalRowHtml($columns, $totalLabel, $totalAmountText);
+        foreach ($totalRows as $totalRow) {
+            $html .= $this->bookkeepingTotalRowHtml(
+                $columns,
+                (string) ($totalRow['label'] ?? ''),
+                (string) ($totalRow['amountText'] ?? ''),
+            );
+        }
 
         return $html . '</tbody></table></div>';
     }
@@ -292,14 +298,15 @@ final readonly class BudgetBookkeepingPdfRenderer
         return $this->formatter->templateMoney($currency, (float) $record['destinationAmountOriginal']);
     }
 
-    private function bookkeepingOrderTotalText(array $budget, array $records): string
+    private function bookkeepingOrderTotals(array $budget, array $records): array
     {
         $baseCurrency = (string) ($budget['baseCurrency'] ?? '');
-        $total = array_reduce(
+        return array_reduce(
             array_filter($records, 'is_array'),
-            function (float $total, array $record) use ($baseCurrency): float {
-                if (!in_array((string) ($record['transactionType'] ?? ''), ['expense', 'income'], true)) {
-                    return $total;
+            function (array $totals, array $record) use ($baseCurrency): array {
+                $type = (string) ($record['transactionType'] ?? '');
+                if (!in_array($type, ['expense', 'income'], true)) {
+                    return $totals;
                 }
 
                 $currency = (string) ($record['currency'] ?? $baseCurrency);
@@ -307,21 +314,37 @@ final readonly class BudgetBookkeepingPdfRenderer
                     ? (float) ($record['amountOriginal'] ?? 0.0)
                     : (float) ($record['amountBase'] ?? 0.0);
 
-                return $total + $amount;
-            },
-            0.0,
-        );
+                $totals[$type] = (float) $totals[$type] + $amount;
 
-        return $this->formatter->templateMoney($baseCurrency, $total);
+                return $totals;
+            },
+            ['expense' => 0.0, 'income' => 0.0],
+        );
     }
 
-    private function bookkeepingTotalLabel(array $context): string
+    private function bookkeepingTotalRows(array $budget, array $records, array $context): array
     {
-        return $this->tableText(
-            'Total income / expense',
-            $context['labels']['bookkeepingIncomeExpenseTotal'],
-            $context,
-        );
+        $baseCurrency = (string) ($budget['baseCurrency'] ?? '');
+        $totals = $this->bookkeepingOrderTotals($budget, $records);
+
+        return [
+            [
+                'label' => $this->tableText(
+                    'Income total',
+                    $context['labels']['bookkeepingIncomeTotal'],
+                    $context,
+                ),
+                'amountText' => $this->formatter->templateMoney($baseCurrency, (float) $totals['income']),
+            ],
+            [
+                'label' => $this->tableText(
+                    'Expense total',
+                    $context['labels']['bookkeepingExpenseTotal'],
+                    $context,
+                ),
+                'amountText' => $this->formatter->templateMoney($baseCurrency, (float) $totals['expense']),
+            ],
+        ];
     }
 
     private function bookkeepingTotalRowHtml(array $columns, string $label, string $amountText): string
