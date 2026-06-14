@@ -6,7 +6,6 @@ namespace BudgetCentre\Services;
 
 use BudgetCentre\Services\BudgetPdf\BudgetPdfConfigFactory;
 use BudgetCentre\Services\BudgetPdf\BudgetPdfFormatter;
-use BudgetCentre\Services\BudgetPdf\BudgetPdfTableRenderer;
 use Mpdf\Mpdf;
 
 final readonly class BudgetBookkeepingPdfRenderer
@@ -22,6 +21,7 @@ final readonly class BudgetBookkeepingPdfRenderer
                 'date' => '日期',
                 'order' => '订单号',
                 'details' => '交易详情',
+                'category' => '分类',
                 'accounts' => '资金/账户',
                 'amount' => '金额',
                 'destination' => '目的金额',
@@ -46,6 +46,7 @@ final readonly class BudgetBookkeepingPdfRenderer
                 'date' => '日期',
                 'order' => '訂單號',
                 'details' => '交易詳情',
+                'category' => '分類',
                 'accounts' => '資金/帳戶',
                 'amount' => '金額',
                 'destination' => '目的金額',
@@ -65,7 +66,6 @@ final readonly class BudgetBookkeepingPdfRenderer
     public function __construct(
         private BudgetPdfConfigFactory $configFactory = new BudgetPdfConfigFactory(),
         private BudgetPdfFormatter $formatter = new BudgetPdfFormatter(),
-        private BudgetPdfTableRenderer $tableRenderer = new BudgetPdfTableRenderer(),
     ) {
     }
 
@@ -76,7 +76,9 @@ final readonly class BudgetBookkeepingPdfRenderer
         string $tempDir,
         array $options = [],
     ): void {
-        $mpdf = new Mpdf($this->configFactory->config($tempDir));
+        $config = $this->configFactory->config($tempDir);
+        $config['format'] = 'A4-L';
+        $mpdf = new Mpdf($config);
         $mpdf->WriteHTML($this->renderHtml($budget, $records, $options));
         $mpdf->Output($path, 'F');
     }
@@ -97,16 +99,15 @@ final readonly class BudgetBookkeepingPdfRenderer
         return '<!doctype html><html lang="' . $this->documentLanguage($context) . '"><head><meta charset="utf-8">'
             . '<style>'
             . $this->baseCss()
-            . $this->tableRenderer->css()
+            . $this->bookkeepingTableCss()
             . '</style></head><body>'
             . '<htmlpagefooter name="budgetPageFooter"><div class="page-footer">Page {PAGENO} of {nbpg}</div></htmlpagefooter>'
             . '<div class="title">' . $titleHtml . '</div>'
             . $subtitleHtml
-            . $this->tableRenderer->render(
+            . $this->renderBookkeepingTable(
                 $this->bookkeepingSection($context),
                 $periodText,
                 $this->bookkeepingRows($budget, $records, $context),
-                null,
                 $this->tableText(
                     'No bookkeeping records',
                     $context['labels']['emptyBookkeepingRecords'],
@@ -119,14 +120,90 @@ final readonly class BudgetBookkeepingPdfRenderer
 
     private function baseCss(): string
     {
-        return '@page{margin:29mm 29mm 22mm;footer:html_budgetPageFooter;}'
-            . 'body{font-family:"SF-Mono",TCSongti,monospace;color:#000;font-size:7.5pt;}'
-            . '.title{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 4mm;}'
+        return '@page{margin:18mm 14mm 15mm;footer:html_budgetPageFooter;}'
+            . 'body{font-family:"SF-Mono",TCSongti,monospace;color:#000;font-size:6.8pt;}'
+            . '.title{font-family:TimesNewRoman,TCSongti,serif;font-size:13pt;font-weight:400;text-align:center;margin:0 0 3mm;}'
             . '.title-line{display:block;line-height:1.25;}'
             . '.title sup{font-size:7pt;line-height:0;vertical-align:super;}'
-            . '.subtitle{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 7mm;}'
+            . '.subtitle{font-family:TimesNewRoman,TCSongti,serif;font-size:13pt;font-weight:400;text-align:center;margin:0 0 6mm;}'
             . '.subtitle-line{display:block;line-height:1.25;}'
             . '.page-footer{font-family:"SF-Mono",TCSongti,monospace;font-size:7pt;color:#666;text-align:center;}';
+    }
+
+    private function bookkeepingTableCss(): string
+    {
+        return '.bookkeeping-section{width:100%;margin-top:5mm;}'
+            . '.bookkeeping-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0;}'
+            . '.bookkeeping-table th,.bookkeeping-table td{border:0;padding:0.12mm 1.15mm;vertical-align:top;}'
+            . '.bookkeeping-section-row td{background:#a4a4a4;border:0.2mm solid #7e7e7e;font-family:"SF-Mono",TCSongti,monospace;font-size:9pt;font-weight:400;line-height:1.12;padding-top:0.35mm;padding-bottom:0.35mm;}'
+            . '.bookkeeping-date-row td{border-top:0.2mm solid #7e7e7e;text-decoration:underline;line-height:1.2;font-family:"SF-Mono-Light",TCSongti,monospace;font-size:6.4pt;}'
+            . '.bookkeeping-header-row th{background:#d7d7d7;font-family:"SF-Mono",TCSongti,monospace;font-size:6.1pt;font-weight:400;line-height:1.14;text-align:left;}'
+            . '.bookkeeping-header-row th + th{border-left:0.2mm solid #7e7e7e;}'
+            . '.bookkeeping-body-row td{font-size:6.4pt;line-height:1.24;}'
+            . '.bookkeeping-empty-row td{text-align:center;color:#595959;font-size:6.4pt;}'
+            . '.bookkeeping-align-right{text-align:right;}'
+            . '.bookkeeping-align-center{text-align:center;}'
+            . '.bookkeeping-text-cell{white-space:normal;overflow-wrap:anywhere;word-break:break-word;}'
+            . '.bookkeeping-code-cell{white-space:normal;overflow-wrap:anywhere;word-break:break-all;}'
+            . '.bookkeeping-money-cell{white-space:normal;}'
+            . '.bookkeeping-cell-line{display:block;margin:0;padding:0;line-height:1.22;}'
+            . '.bookkeeping-money-line{white-space:nowrap;}'
+            . '.bookkeeping-money-line-secondary{font-size:5.8pt;color:#595959;}';
+    }
+
+    private function renderBookkeepingTable(
+        array $section,
+        string $periodText,
+        array $rows,
+        string $emptyText,
+        string $datePrefix,
+    ): string {
+        $columns = array_values(array_filter($section['columns'] ?? [], 'is_array'));
+        $colspan = max(1, count($columns));
+        $dateLine = $periodText === ''
+            ? ''
+            : '<tr class="bookkeeping-date-row"><td colspan="' . $colspan . '">'
+                . $this->formatter->escapeHtml($datePrefix)
+                . $this->formatter->escapeHtml($periodText)
+                . '</td></tr>';
+
+        $html = '<div class="bookkeeping-section"><table class="bookkeeping-table">'
+            . $this->bookkeepingColgroupHtml($columns)
+            . '<thead>'
+            . '<tr class="bookkeeping-section-row"><td colspan="' . $colspan . '">'
+            . $this->templateCellText((string) ($section['title'] ?? ''), false)
+            . '</td></tr>'
+            . $dateLine
+            . '<tr class="bookkeeping-header-row">';
+
+        foreach ($columns as $column) {
+            $html .= '<th class="' . $this->bookkeepingColumnClass($column) . '"'
+                . $this->bookkeepingCellWidthStyle($column)
+                . '>'
+                . $this->templateCellText((string) ($column['label'] ?? ''), false)
+                . '</th>';
+        }
+
+        $html .= '</tr></thead><tbody>';
+        if ($rows === []) {
+            $html .= '<tr class="bookkeeping-empty-row"><td colspan="' . $colspan . '">'
+                . $this->formatter->escapeHtml($emptyText)
+                . '</td></tr>';
+        }
+
+        foreach ($rows as $row) {
+            $html .= '<tr class="bookkeeping-body-row">';
+            foreach ($columns as $index => $column) {
+                $html .= '<td class="' . $this->bookkeepingColumnClass($column) . '"'
+                    . $this->bookkeepingCellWidthStyle($column)
+                    . '>'
+                    . $this->bookkeepingCellText($row[$index] ?? '', $column)
+                    . '</td>';
+            }
+            $html .= '</tr>';
+        }
+
+        return $html . '</tbody></table></div>';
     }
 
     private function bookkeepingSection(array $context): array
@@ -140,13 +217,14 @@ final readonly class BudgetBookkeepingPdfRenderer
             ),
             'columns' => [
                 ['key' => 'type', 'label' => $this->columnLabel('type', 'Type', $context), 'align' => 'left', 'widthPercent' => 10, 'dataType' => 'text'],
-                ['key' => 'date', 'label' => $this->columnLabel('date', 'Date', $context), 'align' => 'left', 'widthPercent' => 10, 'dataType' => 'date'],
-                ['key' => 'order', 'label' => $this->columnLabel('order', 'Order No.', $context), 'align' => 'left', 'widthPercent' => 10, 'dataType' => 'text'],
-                ['key' => 'details', 'label' => $this->columnLabel('details', 'Details', $context), 'align' => 'left', 'widthPercent' => 22, 'dataType' => 'text'],
-                ['key' => 'accounts', 'label' => $this->columnLabel('accounts', 'Funds / Accounts', $context), 'align' => 'left', 'widthPercent' => 16, 'dataType' => 'text'],
-                ['key' => 'amount', 'label' => $this->columnLabel('amount', 'Amount', $context), 'align' => 'right', 'widthPercent' => 14, 'dataType' => 'money'],
-                ['key' => 'destination', 'label' => $this->columnLabel('destination', 'Destination', $context), 'align' => 'right', 'widthPercent' => 10, 'dataType' => 'money'],
-                ['key' => 'remark', 'label' => $this->columnLabel('remark', 'Remark', $context), 'align' => 'left', 'widthPercent' => 8, 'dataType' => 'text'],
+                ['key' => 'date', 'label' => $this->columnLabel('date', 'Date', $context), 'align' => 'left', 'widthPercent' => 8, 'dataType' => 'date'],
+                ['key' => 'order', 'label' => $this->columnLabel('order', 'Order No.', $context), 'align' => 'left', 'widthPercent' => 14, 'dataType' => 'code'],
+                ['key' => 'details', 'label' => $this->columnLabel('details', 'Details', $context), 'align' => 'left', 'widthPercent' => 18, 'dataType' => 'text'],
+                ['key' => 'category', 'label' => $this->columnLabel('category', 'Category', $context), 'align' => 'left', 'widthPercent' => 12, 'dataType' => 'text'],
+                ['key' => 'accounts', 'label' => $this->columnLabel('accounts', 'Funds / Accounts', $context), 'align' => 'left', 'widthPercent' => 13, 'dataType' => 'text'],
+                ['key' => 'amount', 'label' => $this->columnLabel('amount', 'Amount', $context), 'align' => 'right', 'widthPercent' => 11, 'dataType' => 'money'],
+                ['key' => 'destination', 'label' => $this->columnLabel('destination', 'Destination', $context), 'align' => 'right', 'widthPercent' => 9, 'dataType' => 'money'],
+                ['key' => 'remark', 'label' => $this->columnLabel('remark', 'Remark', $context), 'align' => 'left', 'widthPercent' => 5, 'dataType' => 'text'],
             ],
         ];
     }
@@ -160,7 +238,8 @@ final readonly class BudgetBookkeepingPdfRenderer
                 $this->transactionTypeText((string) ($record['transactionType'] ?? ''), $context),
                 (string) ($record['recordDate'] ?? ''),
                 (string) ($record['orderReference'] ?? ''),
-                $this->detailsText($record),
+                (string) ($record['details'] ?? ''),
+                (string) ($record['categoryLabel'] ?? ''),
                 $this->accountsText($record),
                 $this->amountText($record, $baseCurrency),
                 $this->destinationAmountText($record),
@@ -168,14 +247,6 @@ final readonly class BudgetBookkeepingPdfRenderer
             ],
             array_filter($records, 'is_array'),
         );
-    }
-
-    private function detailsText(array $record): string
-    {
-        $details = trim((string) ($record['details'] ?? ''));
-        $category = trim((string) ($record['categoryLabel'] ?? ''));
-
-        return $category === '' ? $details : $details . "\n" . $category;
     }
 
     private function accountsText(array $record): string
@@ -211,6 +282,99 @@ final readonly class BudgetBookkeepingPdfRenderer
         return $this->formatter->templateMoney($currency, (float) $record['destinationAmountOriginal']);
     }
 
+    private function bookkeepingColgroupHtml(array $columns): string
+    {
+        $html = '<colgroup>';
+        foreach ($columns as $column) {
+            $html .= '<col' . $this->bookkeepingCellWidthStyle($column) . '>';
+        }
+
+        return $html . '</colgroup>';
+    }
+
+    private function bookkeepingCellWidthStyle(array $column): string
+    {
+        $width = max(1, min(100, (float) ($column['widthPercent'] ?? 25)));
+
+        return ' style="width:' . $width . '%"';
+    }
+
+    private function bookkeepingColumnClass(array $column): string
+    {
+        $classes = match ((string) ($column['align'] ?? 'left')) {
+            'right' => ['bookkeeping-align-right'],
+            'center' => ['bookkeeping-align-center'],
+            default => [],
+        };
+        $classes[] = match ((string) ($column['dataType'] ?? 'text')) {
+            'money' => 'bookkeeping-money-cell',
+            'code' => 'bookkeeping-code-cell',
+            default => 'bookkeeping-text-cell',
+        };
+
+        return implode(' ', $classes);
+    }
+
+    private function bookkeepingCellText(mixed $cell, array $column): string
+    {
+        $value = (string) $cell;
+        if (($column['dataType'] ?? null) === 'money') {
+            return $this->templateMoneyCellText($value);
+        }
+        if (($column['dataType'] ?? null) === 'code') {
+            return $this->templateCellText($this->wrapLongReference($value));
+        }
+
+        return $this->templateCellText($value);
+    }
+
+    private function templateCellText(string $value, bool $trimLines = true): string
+    {
+        $lines = preg_split('/\R/u', $value);
+        if ($lines === false || count($lines) <= 1) {
+            return $this->formatter->escapeHtml($trimLines ? trim($value) : $value);
+        }
+
+        return implode('', array_map(
+            fn (string $line): string => '<div class="bookkeeping-cell-line">'
+                . $this->formatter->escapeHtml($trimLines ? trim($line) : $line)
+                . '</div>',
+            $lines,
+        ));
+    }
+
+    private function templateMoneyCellText(string $value): string
+    {
+        $lines = preg_split('/\R/u', $value);
+        if ($lines === false) {
+            return $this->formatter->escapeHtml($value);
+        }
+
+        return implode('', array_map(
+            fn (string $line, int $index): string => '<div class="bookkeeping-cell-line bookkeeping-money-line'
+                . ($index > 0 ? ' bookkeeping-money-line-secondary' : '')
+                . '">' . $this->formatter->escapeHtml(trim($line)) . '</div>',
+            $lines,
+            array_keys($lines),
+        ));
+    }
+
+    private function wrapLongReference(string $value): string
+    {
+        $lines = preg_split('/\R/u', trim($value));
+        if ($lines === false) {
+            return $value;
+        }
+
+        return implode("\n", array_map(static function (string $line): string {
+            if (strlen($line) <= 18 || preg_match('/\s/u', $line) === 1) {
+                return $line;
+            }
+
+            return implode("\n", str_split($line, 18));
+        }, $lines));
+    }
+
     private function transactionTypeText(string $type, array $context): string
     {
         $english = [
@@ -222,6 +386,10 @@ final readonly class BudgetBookkeepingPdfRenderer
             'transfer' => 'Bank transfer',
         ][$type] ?? $type;
         $chinese = $context['labels']['transactionTypes'][$type] ?? $english;
+
+        if ($context['mode'] === 'bilingual') {
+            return $english . "\n" . $chinese;
+        }
 
         return $this->tableText($english, $chinese, $context);
     }

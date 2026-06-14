@@ -1311,11 +1311,22 @@
   min-width: 0;
 }
 
+.bookkeeping-order-cell,
+.bookkeeping-category-cell,
+.bookkeeping-account-cell {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .bookkeeping-detail-cell strong,
 .bookkeeping-money-cell strong {
   color: #1f1f1f;
   font-size: 13px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .bookkeeping-detail-cell span,

@@ -88,7 +88,7 @@ export function BudgetBookkeepingPage({
     {
       key: 'type',
       title: t('transactionType'),
-      width: 150,
+      width: 140,
       render: (_value, row) => (
         <Tag color={transactionTypeColor(row.transactionType)}>
           {transactionTypeLabel(row.transactionType, t)}
@@ -99,15 +99,17 @@ export function BudgetBookkeepingPage({
       key: 'date',
       title: t('date'),
       dataIndex: 'recordDate',
-      width: 120,
+      width: 118,
       render: (value: BookkeepingRecord['recordDate']) => value ?? '-',
     },
     {
       key: 'order',
       title: t('orderReference'),
       dataIndex: 'orderReference',
-      width: 150,
-      render: (value: BookkeepingRecord['orderReference']) => value ?? '-',
+      width: 210,
+      render: (value: BookkeepingRecord['orderReference']) => (
+        <span className="bookkeeping-order-cell">{value ?? '-'}</span>
+      ),
     },
     {
       key: 'details',
@@ -117,8 +119,24 @@ export function BudgetBookkeepingPage({
       render: (_value, row) => (
         <div className="bookkeeping-detail-cell">
           <strong>{row.details}</strong>
-          <span>{accountRouteText(row) ?? row.categoryLabel ?? '-'}</span>
         </div>
+      ),
+    },
+    {
+      key: 'category',
+      title: t('category'),
+      dataIndex: 'categoryLabel',
+      width: 170,
+      render: (value: BookkeepingRecord['categoryLabel']) => (
+        <span className="bookkeeping-category-cell">{value ?? '-'}</span>
+      ),
+    },
+    {
+      key: 'accounts',
+      title: t('fundsAccounts'),
+      width: 180,
+      render: (_value, row) => (
+        <span className="bookkeeping-account-cell">{accountRouteText(row) ?? '-'}</span>
       ),
     },
     {
@@ -311,7 +329,7 @@ export function BudgetBookkeepingPage({
           locale={{ emptyText: <Empty image={<Landmark size={34} />} description={t('bookkeepingRecordsEmpty')} /> }}
           pagination={{ pageSize: 12, hideOnSinglePage: true }}
           rowKey="id"
-          scroll={{ x: 1180 }}
+          scroll={{ x: 1560 }}
           size="small"
         />
       </section>
