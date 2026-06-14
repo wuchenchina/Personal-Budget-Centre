@@ -347,16 +347,9 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
       : field === 'variance'
       ? roundMoney(originalAmountFromBase(effective.estimatedAmountBase + value, item.budget.rateToBase) / amountMultiplier)
       : item.budget.amountOriginal;
-    const finalBudgetBase = roundMoney(finalBudgetOriginal * item.budget.rateToBase);
 
     if (field === 'estimated_actuals') {
       setEntryError(translateCurrent('estimatedActualsFromTransactionsOnly'));
-
-      return;
-    }
-
-    if (finalBudgetOriginal < 0 || finalBudgetBase < 0) {
-      setEntryError(translateCurrent('amountMin'));
 
       return;
     }

@@ -557,6 +557,7 @@ export function BudgetItemModal({
           </div>
           <div className="currency-field-grid">
             <MoneyLegCard
+              allowNegative
               amountName="budgetAmount"
               currencyName="budgetCurrency"
               rateName="budgetRate"
@@ -751,6 +752,7 @@ function individualAmountRowsEqual(
 }
 
 function MoneyLegCard({
+  allowNegative = false,
   amount,
   amountName,
   baseCurrency,
@@ -763,6 +765,7 @@ function MoneyLegCard({
   title,
   wrapperRef,
 }: {
+  allowNegative?: boolean;
   amount?: number;
   amountName: keyof BudgetItemFormValues;
   baseCurrency: CurrencyCode;
@@ -798,7 +801,11 @@ function MoneyLegCard({
         <Form.Item
           label={t('amount')}
           name={amountName}
-          rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+          rules={
+            allowNegative
+              ? [{ type: 'number' }]
+              : [{ type: 'number', min: 0, message: t('amountMin') }]
+          }
         >
           <InputNumber
             addonBefore={currency}
