@@ -31,33 +31,46 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
   useEffect(() => {
     let isMounted = true;
     if (selectedBudgetId === null) {
-      setRecords([]);
-      setError(null);
+      queueMicrotask(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setRecords([]);
+        setError(null);
+        setLoading(false);
+      });
 
       return () => {
         isMounted = false;
       };
     }
 
-    setLoading(true);
-    void listBookkeepingRecords(selectedBudgetId)
-      .then((nextRecords) => {
-        if (isMounted) {
-          setRecords(nextRecords);
-          setError(null);
-        }
-      })
-      .catch((loadError: unknown) => {
-        if (isMounted) {
-          setRecords([]);
-          setError(loadError instanceof Error ? loadError.message : translateCurrent('loading'));
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setLoading(false);
-        }
-      });
+    queueMicrotask(() => {
+      if (!isMounted) {
+        return;
+      }
+
+      setLoading(true);
+      void listBookkeepingRecords(selectedBudgetId)
+        .then((nextRecords) => {
+          if (isMounted) {
+            setRecords(nextRecords);
+            setError(null);
+          }
+        })
+        .catch((loadError: unknown) => {
+          if (isMounted) {
+            setRecords([]);
+            setError(loadError instanceof Error ? loadError.message : translateCurrent('loading'));
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setLoading(false);
+          }
+        });
+    });
 
     return () => {
       isMounted = false;
