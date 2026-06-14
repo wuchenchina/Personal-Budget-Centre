@@ -11,7 +11,6 @@ import type {
   BudgetParticipantMode,
   CurrencyCode,
   Transaction,
-  TransactionType,
 } from '../../types/budget';
 import type { TransactionFormValues } from '../../types/forms';
 
@@ -61,9 +60,6 @@ export function TransactionModal({
   const rate = Form.useWatch('rate', form);
   const referenceCurrency = Form.useWatch('referenceCurrency', form);
   const referenceAmount = Form.useWatch('referenceAmount', form);
-  const transactionType = Form.useWatch('transactionType', form) ?? 'expense';
-  const destinationCurrency = Form.useWatch('destinationCurrency', form);
-  const destinationAmount = Form.useWatch('destinationAmount', form);
   const pricingUnitPrice = Form.useWatch(['pricingConfig', 'unitPrice'], form);
   const pricingQuantity = Form.useWatch(['pricingConfig', 'quantity'], form);
   const basePreview =
@@ -73,10 +69,6 @@ export function TransactionModal({
   const referencePreview =
     typeof referenceAmount === 'number' && Number.isFinite(referenceAmount) && referenceCurrency
       ? `${referenceCurrency} ${referenceAmount.toFixed(2)}`
-      : null;
-  const destinationPreview =
-    typeof destinationAmount === 'number' && Number.isFinite(destinationAmount) && destinationCurrency
-      ? `${destinationCurrency} ${destinationAmount.toFixed(2)}`
       : null;
   const impliedReferenceRate =
     typeof amount === 'number'
@@ -114,10 +106,6 @@ export function TransactionModal({
     && pricingQuantity >= 0
       ? roundMoney(pricingUnitPrice * pricingQuantity)
       : null;
-  const showDestinationFields =
-    transactionType === 'transfer'
-    || transactionType === 'fx_exchange'
-    || transactionType === 'cross_border_remittance';
 
   useEffect(() => {
     if (!open || !showPaymentPanel || paymentMode !== 'multiple') {
@@ -232,107 +220,6 @@ export function TransactionModal({
             onChange={onCategoryChange}
           />
         </Form.Item>
-
-        <div className="transaction-bookkeeping-panel">
-          <div className="transaction-bookkeeping-header">
-            <strong>{t('bookkeepingDetails')}</strong>
-            <span>{t('bookkeepingDetailsHelp')}</span>
-          </div>
-          <div className="modal-form-grid">
-            <Form.Item
-              label={t('transactionType')}
-              name="transactionType"
-              rules={[{ required: true, message: t('selectTransactionType') }]}
-            >
-              <Select options={transactionTypeOptions(t)} />
-            </Form.Item>
-            <Form.Item
-              label={t('orderReference')}
-              name="orderReference"
-              rules={[{ max: 120, message: t('orderReferenceMax') }]}
-            >
-              <Input autoComplete="off" />
-            </Form.Item>
-          </div>
-          <div className="modal-form-grid">
-            <Form.Item
-              label={t(transactionType === 'sof' ? 'sourceOfFunds' : 'sourceAccount')}
-              name="sourceAccountName"
-              rules={[{ max: 160, message: t('accountNameMax') }]}
-            >
-              <Input autoComplete="off" placeholder={t('sourceAccountPlaceholder')} />
-            </Form.Item>
-            {showDestinationFields ? (
-              <Form.Item
-                label={t('destinationAccount')}
-                name="destinationAccountName"
-                rules={[{ max: 160, message: t('accountNameMax') }]}
-              >
-                <Input autoComplete="off" placeholder={t('destinationAccountPlaceholder')} />
-              </Form.Item>
-            ) : null}
-          </div>
-          {showDestinationFields ? (
-            <>
-              <div className="currency-reference-grid">
-                <Form.Item
-                  label={t('destinationCurrency')}
-                  name="destinationCurrency"
-                  rules={[
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        return typeof getFieldValue('destinationAmount') === 'number' && !value
-                          ? Promise.reject(new Error(t('selectDestinationCurrency')))
-                          : Promise.resolve();
-                      },
-                    }),
-                  ]}
-                >
-                  <Select allowClear options={currencyOptions} />
-                </Form.Item>
-                <Form.Item
-                  label={t('destinationAmount')}
-                  name="destinationAmount"
-                  rules={[
-                    { type: 'number', min: 0, message: t('destinationAmountMin') },
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        if (typeof value !== 'number' || !Number.isFinite(value)) {
-                          return Promise.resolve();
-                        }
-
-                        return getFieldValue('destinationCurrency')
-                          ? Promise.resolve()
-                          : Promise.reject(new Error(t('selectDestinationCurrency')));
-                      },
-                    }),
-                  ]}
-                >
-                  <InputNumber
-                    addonBefore={destinationCurrency ?? t('currency')}
-                    className="form-full-width"
-                    precision={2}
-                    step={100}
-                  />
-                </Form.Item>
-              </div>
-              <div className="currency-reference-grid">
-                <Form.Item
-                  label={t('destinationRate')}
-                  name="destinationRate"
-                  extra={t('destinationRateHelp')}
-                  rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
-                >
-                  <InputNumber className="form-full-width" precision={6} step={0.01} />
-                </Form.Item>
-                <div className="currency-field-preview transaction-destination-preview">
-                  <span>{t('destinationPreview')}</span>
-                  <strong>{destinationPreview ?? '--'}</strong>
-                </div>
-              </div>
-            </>
-          ) : null}
-        </div>
 
         {showPaymentPanel ? (
           <div className="group-split-panel transaction-payment-panel">
@@ -579,24 +466,6 @@ export function TransactionModal({
       </Form>
     </Modal>
   );
-}
-
-function transactionTypeOptions(
-  t: (key: 'transactionTypeExpense'
-    | 'transactionTypeIncome'
-    | 'transactionTypeSof'
-    | 'transactionTypeTransfer'
-    | 'transactionTypeFxExchange'
-    | 'transactionTypeCrossBorderRemittance') => string,
-): Array<{ label: string; value: TransactionType }> {
-  return [
-    { label: t('transactionTypeExpense'), value: 'expense' },
-    { label: t('transactionTypeIncome'), value: 'income' },
-    { label: t('transactionTypeSof'), value: 'sof' },
-    { label: t('transactionTypeTransfer'), value: 'transfer' },
-    { label: t('transactionTypeFxExchange'), value: 'fx_exchange' },
-    { label: t('transactionTypeCrossBorderRemittance'), value: 'cross_border_remittance' },
-  ];
 }
 
 type TransactionPaymentFormRows = NonNullable<TransactionFormValues['payments']>;

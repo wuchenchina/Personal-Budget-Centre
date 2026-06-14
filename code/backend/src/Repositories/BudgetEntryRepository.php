@@ -193,29 +193,6 @@ final readonly class BudgetEntryRepository
         } else {
             unset($transaction['paid_by_participant_id']);
         }
-        if ($this->hasTransactionBookkeepingColumns()) {
-            array_splice($columns, 4, 0, [
-                'transaction_type',
-                'order_reference',
-                'source_account_name',
-                'destination_account_name',
-            ]);
-            array_splice($columns, -2, 0, [
-                'destination_currency_id',
-                'destination_amount_original',
-                'destination_rate',
-            ]);
-        } else {
-            unset(
-                $transaction['transaction_type'],
-                $transaction['order_reference'],
-                $transaction['source_account_name'],
-                $transaction['destination_account_name'],
-                $transaction['destination_currency_id'],
-                $transaction['destination_amount_original'],
-                $transaction['destination_rate'],
-            );
-        }
         if ($this->hasTransactionReferenceColumns()) {
             array_splice($columns, -2, 0, ['reference_currency_id', 'reference_amount_original']);
         } else {
@@ -264,29 +241,6 @@ final readonly class BudgetEntryRepository
             array_splice($columns, 1, 0, ['paid_by_participant_id']);
         } else {
             unset($transaction['paid_by_participant_id']);
-        }
-        if ($this->hasTransactionBookkeepingColumns()) {
-            array_splice($columns, 3, 0, [
-                'transaction_type',
-                'order_reference',
-                'source_account_name',
-                'destination_account_name',
-            ]);
-            array_splice($columns, -2, 0, [
-                'destination_currency_id',
-                'destination_amount_original',
-                'destination_rate',
-            ]);
-        } else {
-            unset(
-                $transaction['transaction_type'],
-                $transaction['order_reference'],
-                $transaction['source_account_name'],
-                $transaction['destination_account_name'],
-                $transaction['destination_currency_id'],
-                $transaction['destination_amount_original'],
-                $transaction['destination_rate'],
-            );
         }
         if ($this->hasTransactionReferenceColumns()) {
             array_splice($columns, -2, 0, ['reference_currency_id', 'reference_amount_original']);
@@ -504,30 +458,6 @@ final readonly class BudgetEntryRepository
         $statement->execute();
 
         return (int) $statement->fetchColumn() === 1;
-    }
-
-    private function hasTransactionBookkeepingColumns(): bool
-    {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            SELECT COUNT(*)
-            FROM information_schema.columns
-            WHERE table_schema = DATABASE()
-              AND table_name = 'budget_transactions'
-              AND column_name IN (
-                'transaction_type',
-                'order_reference',
-                'source_account_name',
-                'destination_account_name',
-                'destination_currency_id',
-                'destination_amount_original',
-                'destination_rate'
-              )
-            SQL
-        );
-        $statement->execute();
-
-        return (int) $statement->fetchColumn() === 7;
     }
 
     private function hasTransactionPaidByColumn(): bool

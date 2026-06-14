@@ -4,6 +4,7 @@ import { AdminPanel } from './components/admin/AdminPanel';
 import { AuthLoadingScreen } from './components/auth/AuthLoadingScreen';
 import { EmailVerificationScreen } from './components/auth/EmailVerificationScreen';
 import { AuthScreen } from './components/auth/AuthScreen';
+import { BookkeepingRecordModal } from './components/budget/BookkeepingRecordModal';
 import { BudgetBookkeepingPage } from './components/budget/BudgetBookkeepingPage';
 import { BudgetCreateModal } from './components/budget/BudgetCreateModal';
 import { BudgetDocumentPreview } from './components/budget/BudgetDocumentPreview';
@@ -26,6 +27,7 @@ import { WorkspacePage } from './components/workspace/WorkspacePage';
 import { appTheme } from './config/appConfig';
 import { useAuthController } from './hooks/useAuthController';
 import { useAdminController } from './hooks/useAdminController';
+import { useBookkeepingController } from './hooks/useBookkeepingController';
 import { useBudgetController } from './hooks/useBudgetController';
 import { useBudgetEntryController } from './hooks/useBudgetEntryController';
 import { useOperationsController } from './hooks/useOperationsController';
@@ -164,6 +166,10 @@ function App() {
     baseCurrency,
     selectedBudget: budget.selectedBudget,
     replaceBudgetDetail: budget.replaceBudgetDetail,
+  });
+  const bookkeeping = useBookkeepingController({
+    baseCurrency,
+    selectedBudget: budget.selectedBudget,
   });
   const workspaceRole = workspace.workspaceRole;
   const canManageWorkspaceMembers = workspaceRole === 'owner' || workspaceRole === 'admin';
@@ -354,15 +360,16 @@ function App() {
       selectedBudget={budget.selectedBudget}
       baseCurrency={baseCurrency}
       canWriteBudgets={canWriteBudgets}
-      loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
-      error={budget.budgetError ?? budgetEntry.entryError}
-      isTransactionSaving={budgetEntry.isTransactionSaving}
-      deletingTransactionId={budgetEntry.deletingTransactionId}
+      loading={budget.isBudgetLoading || budget.isBudgetDetailLoading || bookkeeping.loading}
+      error={budget.budgetError ?? bookkeeping.error}
+      records={bookkeeping.records}
+      saving={bookkeeping.saving}
+      deletingRecordId={bookkeeping.deletingRecordId}
       onBackToProjects={() => navigateToPath('/budgets')}
       onOpenEditor={openBudgetProjectInNewTab}
-      onNewTransaction={budgetEntry.openTransactionCreateModal}
-      onEditTransaction={budgetEntry.openTransactionEditModal}
-      onDeleteTransaction={(transactionId) => void budgetEntry.handleTransactionDelete(transactionId)}
+      onNewRecord={bookkeeping.openCreateModal}
+      onEditRecord={bookkeeping.openEditModal}
+      onDeleteRecord={(recordId) => void bookkeeping.deleteRecord(recordId)}
     />
   );
   const modals = (
@@ -434,6 +441,17 @@ function App() {
         onValuesChange={budgetEntry.clearEntryError}
         onCancel={budgetEntry.closeTransactionModal}
         onOk={budgetEntry.handleTransactionSave}
+      />
+      <BookkeepingRecordModal
+        form={bookkeeping.form}
+        editingRecord={bookkeeping.editingRecord}
+        open={bookkeeping.modalOpen}
+        error={bookkeeping.error}
+        baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
+        confirmLoading={bookkeeping.saving}
+        onValuesChange={() => undefined}
+        onCancel={bookkeeping.closeModal}
+        onOk={bookkeeping.saveRecord}
       />
       <WorkspaceCreateModal
         form={workspace.workspaceForm}

@@ -3,7 +3,7 @@ import { Alert, Button, Empty, Input, Popconfirm, Space, Table, Tabs, Tag, Toolt
 import type { TableProps } from 'antd';
 import { ArrowLeft, Landmark, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useI18n } from '../../i18n';
-import type { BudgetDetail, CurrencyCode, Transaction, TransactionType } from '../../types/budget';
+import type { BookkeepingRecord, BudgetDetail, CurrencyCode, TransactionType } from '../../types/budget';
 import { formatMoney } from '../../utils/currency';
 
 interface BudgetBookkeepingPageProps {
@@ -12,13 +12,14 @@ interface BudgetBookkeepingPageProps {
   canWriteBudgets: boolean;
   loading: boolean;
   error: string | null;
-  isTransactionSaving: boolean;
-  deletingTransactionId: number | null;
+  records: BookkeepingRecord[];
+  saving: boolean;
+  deletingRecordId: number | null;
   onBackToProjects: () => void;
   onOpenEditor: (budgetId: number) => void;
-  onNewTransaction: () => void;
-  onEditTransaction: (transaction: Transaction) => void;
-  onDeleteTransaction: (transactionId: number) => void;
+  onNewRecord: () => void;
+  onEditRecord: (record: BookkeepingRecord) => void;
+  onDeleteRecord: (recordId: number) => void;
 }
 
 type LedgerFilter = 'all' | 'orders' | 'sof' | 'transfers';
@@ -29,41 +30,42 @@ export function BudgetBookkeepingPage({
   canWriteBudgets,
   loading,
   error,
-  isTransactionSaving,
-  deletingTransactionId,
+  records,
+  saving,
+  deletingRecordId,
   onBackToProjects,
   onOpenEditor,
-  onNewTransaction,
-  onEditTransaction,
-  onDeleteTransaction,
+  onNewRecord,
+  onEditRecord,
+  onDeleteRecord,
 }: BudgetBookkeepingPageProps) {
   const { t } = useI18n();
   const [activeFilter, setActiveFilter] = useState<LedgerFilter>('all');
   const [searchText, setSearchText] = useState('');
   const currency = selectedBudget?.baseCurrency ?? baseCurrency;
-  const transactions = selectedBudget?.transactions ?? [];
   const normalizedSearch = searchText.trim().toLowerCase();
-  const filteredTransactions = useMemo(
-    () => transactions.filter((transaction) => {
+  const filteredRecords = useMemo(
+    () => records.filter((record) => {
       const matchesFilter =
         activeFilter === 'all'
-        || (activeFilter === 'orders' && isOrderTransaction(transaction.transactionType))
-        || (activeFilter === 'sof' && transaction.transactionType === 'sof')
-        || (activeFilter === 'transfers' && isTransferTransaction(transaction.transactionType));
+        || (activeFilter === 'orders' && isOrderTransaction(record.transactionType))
+        || (activeFilter === 'sof' && record.transactionType === 'sof')
+        || (activeFilter === 'transfers' && isTransferTransaction(record.transactionType));
       const matchesSearch =
         normalizedSearch.length === 0
-        || transaction.details.toLowerCase().includes(normalizedSearch)
-        || (transaction.orderReference ?? '').toLowerCase().includes(normalizedSearch)
-        || (transaction.sourceAccountName ?? '').toLowerCase().includes(normalizedSearch)
-        || (transaction.destinationAccountName ?? '').toLowerCase().includes(normalizedSearch)
-        || (transaction.remark ?? '').toLowerCase().includes(normalizedSearch);
+        || record.details.toLowerCase().includes(normalizedSearch)
+        || (record.orderReference ?? '').toLowerCase().includes(normalizedSearch)
+        || (record.categoryLabel ?? '').toLowerCase().includes(normalizedSearch)
+        || (record.sourceAccountName ?? '').toLowerCase().includes(normalizedSearch)
+        || (record.destinationAccountName ?? '').toLowerCase().includes(normalizedSearch)
+        || (record.remark ?? '').toLowerCase().includes(normalizedSearch);
 
       return matchesFilter && matchesSearch;
     }),
-    [activeFilter, normalizedSearch, transactions],
+    [activeFilter, normalizedSearch, records],
   );
-  const totals = useMemo(() => ledgerTotals(transactions, currency), [currency, transactions]);
-  const columns = useMemo<TableProps<Transaction>['columns']>(() => [
+  const totals = useMemo(() => ledgerTotals(records, currency), [currency, records]);
+  const columns = useMemo<TableProps<BookkeepingRecord>['columns']>(() => [
     {
       key: 'type',
       title: t('transactionType'),
@@ -77,16 +79,16 @@ export function BudgetBookkeepingPage({
     {
       key: 'date',
       title: t('date'),
-      dataIndex: 'transactionDate',
+      dataIndex: 'recordDate',
       width: 120,
-      render: (value: Transaction['transactionDate']) => value ?? '-',
+      render: (value: BookkeepingRecord['recordDate']) => value ?? '-',
     },
     {
       key: 'order',
       title: t('orderReference'),
       dataIndex: 'orderReference',
       width: 150,
-      render: (value: Transaction['orderReference']) => value ?? '-',
+      render: (value: BookkeepingRecord['orderReference']) => value ?? '-',
     },
     {
       key: 'details',
@@ -96,7 +98,7 @@ export function BudgetBookkeepingPage({
       render: (_value, row) => (
         <div className="bookkeeping-detail-cell">
           <strong>{row.details}</strong>
-          <span>{accountRouteText(row) ?? row.category ?? '-'}</span>
+          <span>{accountRouteText(row) ?? row.categoryLabel ?? '-'}</span>
         </div>
       ),
     },
@@ -133,7 +135,7 @@ export function BudgetBookkeepingPage({
       title: t('note'),
       dataIndex: 'remark',
       minWidth: 180,
-      render: (value: Transaction['remark']) => value ?? '-',
+      render: (value: BookkeepingRecord['remark']) => value ?? '-',
     },
     {
       key: 'actions',
@@ -148,21 +150,21 @@ export function BudgetBookkeepingPage({
                 icon={<Pencil size={14} />}
                 size="small"
                 type="text"
-                onClick={() => onEditTransaction(row)}
+                onClick={() => onEditRecord(row)}
               />
             </Tooltip>
             <Popconfirm
-              title={t('deleteTransactionTitle')}
+              title={t('deleteBookkeepingRecordTitle')}
               okText={t('delete')}
               cancelText={t('cancel')}
               okButtonProps={{ danger: true }}
-              onConfirm={() => onDeleteTransaction(row.id)}
+              onConfirm={() => onDeleteRecord(row.id)}
             >
               <Tooltip title={t('delete')}>
                 <Button
                   danger
                   icon={<Trash2 size={14} />}
-                  loading={deletingTransactionId === row.id}
+                  loading={deletingRecordId === row.id}
                   size="small"
                   type="text"
                 />
@@ -175,9 +177,9 @@ export function BudgetBookkeepingPage({
   ], [
     canWriteBudgets,
     currency,
-    deletingTransactionId,
-    onDeleteTransaction,
-    onEditTransaction,
+    deletingRecordId,
+    onDeleteRecord,
+    onEditRecord,
     t,
   ]);
 
@@ -199,7 +201,7 @@ export function BudgetBookkeepingPage({
             </Button>
           ) : null}
           {canWriteBudgets ? (
-            <Button type="primary" icon={<Plus size={16} />} onClick={onNewTransaction}>
+            <Button type="primary" icon={<Plus size={16} />} onClick={onNewRecord}>
               {t('addBookkeepingRecord')}
             </Button>
           ) : null}
@@ -209,7 +211,7 @@ export function BudgetBookkeepingPage({
       {error ? <Alert type="error" showIcon message={error} /> : null}
 
       <section className="project-overview-grid bookkeeping-overview-grid">
-        <BookkeepingTile label={t('ledgerRecords')} value={transactions.length.toLocaleString('en-US')} />
+        <BookkeepingTile label={t('ledgerRecords')} value={records.length.toLocaleString('en-US')} />
         <BookkeepingTile label={t('sofRecords')} value={totals.sofCount.toLocaleString('en-US')} />
         <BookkeepingTile label={t('transferRecords')} value={totals.transferCount.toLocaleString('en-US')} />
         <BookkeepingTile
@@ -239,12 +241,12 @@ export function BudgetBookkeepingPage({
             onChange={(event) => setSearchText(event.target.value)}
           />
         </div>
-        <Table<Transaction>
+        <Table<BookkeepingRecord>
           bordered
           columns={columns}
-          dataSource={filteredTransactions}
-          loading={loading || isTransactionSaving}
-          locale={{ emptyText: <Empty image={<Landmark size={34} />} description={t('transactionsEmpty')} /> }}
+          dataSource={filteredRecords}
+          loading={loading || saving}
+          locale={{ emptyText: <Empty image={<Landmark size={34} />} description={t('bookkeepingRecordsEmpty')} /> }}
           pagination={{ pageSize: 12, hideOnSinglePage: true }}
           rowKey="id"
           scroll={{ x: 1180 }}
@@ -264,14 +266,14 @@ function BookkeepingTile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ledgerTotals(transactions: Transaction[], currency: CurrencyCode) {
-  return transactions.reduce(
-    (totals, transaction) => ({
-      baseAmount: totals.baseAmount + (transaction.currency === currency
-        ? transaction.amountOriginal
-        : transaction.amountBase),
-      sofCount: totals.sofCount + (transaction.transactionType === 'sof' ? 1 : 0),
-      transferCount: totals.transferCount + (isTransferTransaction(transaction.transactionType) ? 1 : 0),
+function ledgerTotals(records: BookkeepingRecord[], currency: CurrencyCode) {
+  return records.reduce(
+    (totals, record) => ({
+      baseAmount: totals.baseAmount + (record.currency === currency
+        ? record.amountOriginal
+        : record.amountBase),
+      sofCount: totals.sofCount + (record.transactionType === 'sof' ? 1 : 0),
+      transferCount: totals.transferCount + (isTransferTransaction(record.transactionType) ? 1 : 0),
     }),
     { baseAmount: 0, sofCount: 0, transferCount: 0 },
   );
@@ -285,9 +287,9 @@ function isTransferTransaction(type: TransactionType): boolean {
   return type === 'transfer' || type === 'fx_exchange' || type === 'cross_border_remittance';
 }
 
-function accountRouteText(transaction: Transaction): string | null {
-  const source = transaction.sourceAccountName;
-  const destination = transaction.destinationAccountName;
+function accountRouteText(record: BookkeepingRecord): string | null {
+  const source = record.sourceAccountName;
+  const destination = record.destinationAccountName;
   if (source && destination) {
     return `${source} -> ${destination}`;
   }

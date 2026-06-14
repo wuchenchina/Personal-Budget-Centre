@@ -5,7 +5,6 @@ import type {
   BudgetItemPricingConfig,
   BudgetItemSplit,
   CurrencyCode,
-  TransactionType,
 } from '../types/budget';
 
 interface BudgetResponse {
@@ -38,10 +37,6 @@ export interface UpdateBudgetItemPayload extends SaveBudgetItemPayload {
 
 export interface SaveTransactionPayload {
   categoryId?: number;
-  transactionType?: TransactionType;
-  orderReference?: string | null;
-  sourceAccountName?: string | null;
-  destinationAccountName?: string | null;
   paymentMode?: 'single' | 'multiple';
   paidByParticipantId?: number | null;
   payments?: Array<{
@@ -57,9 +52,6 @@ export interface SaveTransactionPayload {
   referenceAmount?: number | null;
   pricingConfig?: BudgetItemPricingConfig;
   remark?: string | null;
-  destinationCurrency?: CurrencyCode;
-  destinationAmount?: number | null;
-  destinationRate?: number;
   sortOrder?: number;
 }
 

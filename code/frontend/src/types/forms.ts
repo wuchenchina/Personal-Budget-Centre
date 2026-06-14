@@ -100,10 +100,6 @@ export interface BudgetItemFormValues {
 
 export interface TransactionFormValues {
   categoryId?: number;
-  transactionType?: TransactionType;
-  orderReference?: string;
-  sourceAccountName?: string;
-  destinationAccountName?: string;
   paymentMode?: 'single' | 'multiple';
   paidByParticipantId?: number | null;
   payments?: Array<{
@@ -118,6 +114,21 @@ export interface TransactionFormValues {
   pricingConfig?: BudgetItemPricingConfig;
   referenceCurrency?: CurrencyCode;
   referenceAmount?: number;
+  remark?: string;
+  sortOrder?: number;
+}
+
+export interface BookkeepingRecordFormValues {
+  transactionType?: TransactionType;
+  recordDate?: Dayjs;
+  orderReference?: string;
+  details: string;
+  categoryLabel?: string;
+  sourceAccountName?: string;
+  destinationAccountName?: string;
+  currency: CurrencyCode;
+  amount: number;
+  rate?: number;
   destinationCurrency?: CurrencyCode;
   destinationAmount?: number;
   destinationRate?: number;

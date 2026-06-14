@@ -20,6 +20,7 @@ use BudgetCentre\Repositories\MissingSeedDataException;
 use BudgetCentre\Services\BudgetCategoryService;
 use BudgetCentre\Services\BudgetEntryService;
 use BudgetCentre\Services\BudgetExportService;
+use BudgetCentre\Services\BookkeepingService;
 use BudgetCentre\Services\BudgetReconciliationService;
 use BudgetCentre\Services\BudgetService;
 use BudgetCentre\Services\BudgetShareService;
@@ -94,6 +95,10 @@ final class App
             ['POST', '/api/budget-transactions'] => $this->budgetTransactionCreate($request),
             ['PATCH', '/api/budget-transactions'] => $this->budgetTransactionUpdate($request),
             ['DELETE', '/api/budget-transactions'] => $this->budgetTransactionDelete($request),
+            ['GET', '/api/bookkeeping-records'] => $this->bookkeepingRecordList($request),
+            ['POST', '/api/bookkeeping-records'] => $this->bookkeepingRecordCreate($request),
+            ['PATCH', '/api/bookkeeping-records'] => $this->bookkeepingRecordUpdate($request),
+            ['DELETE', '/api/bookkeeping-records'] => $this->bookkeepingRecordDelete($request),
             ['GET', '/api/budget-shares'] => $this->budgetShareList($request),
             ['POST', '/api/budget-shares'] => $this->budgetShareCreate($request),
             ['PATCH', '/api/budget-shares'] => $this->budgetShareUpdate($request),
@@ -467,6 +472,42 @@ final class App
         );
     }
 
+    private function bookkeepingRecordList(Request $request): JsonResponse
+    {
+        return $this->bookkeepingResponse(
+            fn (BookkeepingService $bookkeeping): JsonResponse => JsonResponse::ok([
+                'records' => $bookkeeping->records($request),
+            ]),
+        );
+    }
+
+    private function bookkeepingRecordCreate(Request $request): JsonResponse
+    {
+        return $this->bookkeepingResponse(
+            fn (BookkeepingService $bookkeeping): JsonResponse => JsonResponse::ok([
+                'records' => $bookkeeping->create($request->json(), $request),
+            ], 201),
+        );
+    }
+
+    private function bookkeepingRecordUpdate(Request $request): JsonResponse
+    {
+        return $this->bookkeepingResponse(
+            fn (BookkeepingService $bookkeeping): JsonResponse => JsonResponse::ok([
+                'records' => $bookkeeping->update($request->json(), $request),
+            ]),
+        );
+    }
+
+    private function bookkeepingRecordDelete(Request $request): JsonResponse
+    {
+        return $this->bookkeepingResponse(
+            fn (BookkeepingService $bookkeeping): JsonResponse => JsonResponse::ok([
+                'records' => $bookkeeping->delete($request->json(), $request),
+            ]),
+        );
+    }
+
     private function budgetShareUpdate(Request $request): JsonResponse
     {
         return $this->budgetShareResponse(
@@ -791,6 +832,15 @@ final class App
         return $this->serviceResponse(
             fn (PDO $pdo, SessionAuthenticator $authenticator): BudgetEntryService =>
                 new BudgetEntryService($pdo, $authenticator),
+            $callback,
+        );
+    }
+
+    private function bookkeepingResponse(callable $callback): JsonResponse
+    {
+        return $this->serviceResponse(
+            fn (PDO $pdo, SessionAuthenticator $authenticator): BookkeepingService =>
+                new BookkeepingService($pdo, $authenticator),
             $callback,
         );
     }

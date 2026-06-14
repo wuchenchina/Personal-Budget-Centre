@@ -242,10 +242,6 @@ export interface Transaction {
   paidByParticipantId: number | null;
   payments: TransactionPayment[];
   category: string | null;
-  transactionType: TransactionType;
-  orderReference: string | null;
-  sourceAccountName: string | null;
-  destinationAccountName: string | null;
   transactionDate: string | null;
   details: string;
   currency: CurrencyCode;
@@ -255,11 +251,31 @@ export interface Transaction {
   pricingConfig: BudgetItemPricingConfig;
   referenceCurrency: CurrencyCode | null;
   referenceAmountOriginal: number | null;
+  remark: string | null;
+  sortOrder: number;
+}
+
+export interface BookkeepingRecord {
+  id: number;
+  budgetId: number;
+  transactionType: TransactionType;
+  recordDate: string | null;
+  orderReference: string | null;
+  details: string;
+  categoryLabel: string | null;
+  sourceAccountName: string | null;
+  destinationAccountName: string | null;
+  currency: CurrencyCode;
+  amountOriginal: number;
+  rateToBase: number;
+  amountBase: number;
   destinationCurrency: CurrencyCode | null;
   destinationAmountOriginal: number | null;
   destinationRate: number | null;
   remark: string | null;
   sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TransactionPayment {
