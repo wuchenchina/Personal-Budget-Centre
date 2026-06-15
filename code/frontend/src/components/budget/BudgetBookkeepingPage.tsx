@@ -332,7 +332,11 @@ export function BudgetBookkeepingPage({
           dataSource={filteredRecords}
           loading={loading || saving}
           locale={{ emptyText: <Empty image={<Landmark size={34} />} description={t('bookkeepingRecordsEmpty')} /> }}
-          pagination={{ pageSize: 12, hideOnSinglePage: true }}
+          pagination={{
+            defaultPageSize: 12,
+            pageSizeOptions: [12, 20, 50, 100],
+            showSizeChanger: true,
+          }}
           rowKey="id"
           scroll={{ x: 1314 }}
           size="small"
