@@ -6,3 +6,4 @@ code/backend/storage/
 .DS_Store
 skills-lock.json
 .agents
+AGENTS.md
