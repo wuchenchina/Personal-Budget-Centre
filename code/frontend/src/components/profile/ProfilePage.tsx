@@ -8,7 +8,7 @@ import {
   updatePassword,
   updateProfile,
 } from '../../api/auth';
-import { casdoorSdk, setCasdoorIntent } from '../../config/casdoor';
+import { startCasdoorSignin } from '../../config/casdoor';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { useI18n } from '../../i18n';
 import type { AuthSession, SsoBinding } from '../../types/auth';
@@ -157,8 +157,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   };
 
   const handleSsoBind = () => {
-    setCasdoorIntent('bind');
-    void casdoorSdk.signin_redirect();
+    startCasdoorSignin('bind');
   };
 
   const handleSsoUnlink = () => {

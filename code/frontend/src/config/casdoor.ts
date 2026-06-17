@@ -19,6 +19,11 @@ export function setCasdoorIntent(intent: CasdoorIntent) {
   window.sessionStorage.setItem(casdoorIntentKey, intent);
 }
 
+export function startCasdoorSignin(intent: CasdoorIntent = 'login') {
+  setCasdoorIntent(intent);
+  window.location.assign(casdoorSdk.getSigninUrl());
+}
+
 export function consumeCasdoorIntent(): CasdoorIntent {
   const intent = window.sessionStorage.getItem(casdoorIntentKey);
   window.sessionStorage.removeItem(casdoorIntentKey);

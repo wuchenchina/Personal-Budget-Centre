@@ -3,7 +3,7 @@ import { Alert, Button, Divider, Progress, Select, Tabs } from 'antd';
 import type { FormInstance } from 'antd';
 import { KeyRound, LockKeyhole, UserRound, WalletCards } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
-import { casdoorSdk } from '../../config/casdoor';
+import { startCasdoorSignin } from '../../config/casdoor';
 import type { AppLanguage } from '../../i18n';
 import { languageOptions, useI18n } from '../../i18n';
 import type { AuthFormValues, AuthMode } from '../../types/forms';
@@ -47,7 +47,7 @@ export function AuthScreen({
     ok: t('passwordStrengthOk'),
   };
   const handleCasdoorLogin = () => {
-    void casdoorSdk.signin_redirect();
+    startCasdoorSignin('login');
   };
 
   return (
