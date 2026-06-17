@@ -21,6 +21,8 @@ use Throwable;
 
 final readonly class AuthService
 {
+    private const CASDOOR_PKCE_COOKIE = 'budgetcentre_casdoor_pkce';
+
     public function __construct(
         private PDO $pdo,
         private SessionManager $sessionManager,
@@ -360,19 +362,47 @@ final readonly class AuthService
         ];
     }
 
+    public function casdoorAuthorize(Request $request): string
+    {
+        $mode = Input::string($request->query['mode'] ?? null) === 'bind' ? 'bind' : 'login';
+        if ($mode === 'bind') {
+            $this->authenticator->authenticatedSession($request);
+        }
+
+        $state = $this->urlSafeRandom(32);
+        $codeVerifier = $this->urlSafeRandom(64);
+        $this->issueCasdoorPkceCookie($state, $codeVerifier, $mode);
+
+        $serverUrl = $this->casdoorServerUrl();
+        $clientId = Env::string('CASDOOR_CLIENT_ID', '3e4912a22fdbce3dd6ca') ?? '3e4912a22fdbce3dd6ca';
+        $query = http_build_query([
+            'client_id' => $clientId,
+            'response_type' => 'code',
+            'redirect_uri' => $this->casdoorRedirectUri(),
+            'scope' => Env::string('CASDOOR_SCOPE', 'profile') ?? 'profile',
+            'state' => $state,
+            'code_challenge' => $this->codeChallenge($codeVerifier),
+            'code_challenge_method' => 'S256',
+        ]);
+
+        return "{$serverUrl}/login/oauth/authorize?{$query}";
+    }
+
     public function casdoorCallback(array $input, Request $request): array
     {
         $code = Input::string($input['code'] ?? null);
         $accessToken = Input::string($input['accessToken'] ?? $input['access_token'] ?? null);
         $idToken = Input::string($input['idToken'] ?? $input['id_token'] ?? null);
-        $mode = Input::string($input['mode'] ?? null) ?? 'login';
+        $state = Input::string($input['state'] ?? null);
+        $pkce = $this->consumeCasdoorPkceCookie($request, $state);
+        $mode = $pkce['mode'] ?? (Input::string($input['mode'] ?? null) ?? 'login');
 
         if ($code === null && $accessToken === null) {
             throw new AuthException('VALIDATION_ERROR', 'Casdoor authorization data is required.', 422);
         }
 
         $userinfo = $accessToken === null
-            ? $this->casdoorUserinfoFromCode($code)
+            ? $this->casdoorUserinfoFromCode($code, $pkce['codeVerifier'] ?? null)
             : $this->casdoorUserinfoFromToken($accessToken, $idToken);
         $subject = Input::string($userinfo['sub'] ?? null);
         if ($subject === null) {
@@ -468,18 +498,19 @@ final readonly class AuthService
         return $normalized;
     }
 
-    private function casdoorUserinfoFromCode(string $code): array
+    private function casdoorUserinfoFromCode(string $code, ?string $codeVerifier = null): array
     {
         $serverUrl = $this->casdoorServerUrl();
         $clientId = Env::string('CASDOOR_CLIENT_ID', '3e4912a22fdbce3dd6ca') ?? '3e4912a22fdbce3dd6ca';
-        $appUrl = rtrim(Env::string('APP_URL', 'http://localhost:5173') ?? 'http://localhost:5173', '/');
-        $redirectUri = Env::string('CASDOOR_REDIRECT_URI', "{$appUrl}/api/callback") ?? "{$appUrl}/api/callback";
         $tokenPayload = [
             'grant_type' => 'authorization_code',
             'client_id' => $clientId,
             'code' => $code,
-            'redirect_uri' => $redirectUri,
+            'redirect_uri' => $this->casdoorRedirectUri(),
         ];
+        if ($codeVerifier !== null) {
+            $tokenPayload['code_verifier'] = $codeVerifier;
+        }
         $clientSecret = Env::string('CASDOOR_CLIENT_SECRET');
         if ($clientSecret !== null) {
             $tokenPayload['client_secret'] = $clientSecret;
@@ -520,6 +551,78 @@ final readonly class AuthService
             Env::string('CASDOOR_SERVER_URL', 'https://sso.axchen.top') ?? 'https://sso.axchen.top',
             '/',
         );
+    }
+
+    private function casdoorRedirectUri(): string
+    {
+        $appUrl = rtrim(Env::string('APP_URL', 'http://localhost:5173') ?? 'http://localhost:5173', '/');
+
+        return Env::string('CASDOOR_REDIRECT_URI', "{$appUrl}/api/callback") ?? "{$appUrl}/api/callback";
+    }
+
+    private function issueCasdoorPkceCookie(string $state, string $codeVerifier, string $mode): void
+    {
+        setcookie(self::CASDOOR_PKCE_COOKIE, json_encode([
+            'state' => $state,
+            'codeVerifier' => $codeVerifier,
+            'mode' => $mode,
+        ], JSON_THROW_ON_ERROR), [
+            'expires' => time() + 600,
+            'path' => '/',
+            'secure' => $this->isSecureCasdoorCookie(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+
+    private function consumeCasdoorPkceCookie(Request $request, ?string $state): array
+    {
+        $raw = $request->cookies[self::CASDOOR_PKCE_COOKIE] ?? null;
+        setcookie(self::CASDOOR_PKCE_COOKIE, '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => $this->isSecureCasdoorCookie(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+
+        if (!is_string($raw) || $raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $expectedState = Input::string($decoded['state'] ?? null);
+        if ($expectedState === null || $state === null || !hash_equals($expectedState, $state)) {
+            throw new AuthException('CASDOOR_STATE_INVALID', 'Casdoor callback state is invalid.', 401);
+        }
+
+        return [
+            'codeVerifier' => Input::string($decoded['codeVerifier'] ?? null),
+            'mode' => Input::string($decoded['mode'] ?? null),
+        ];
+    }
+
+    private function urlSafeRandom(int $bytes): string
+    {
+        return rtrim(strtr(base64_encode(random_bytes($bytes)), '+/', '-_'), '=');
+    }
+
+    private function codeChallenge(string $codeVerifier): string
+    {
+        return rtrim(strtr(base64_encode(hash('sha256', $codeVerifier, true)), '+/', '-_'), '=');
+    }
+
+    private function isSecureCasdoorCookie(): bool
+    {
+        $apiUrl = Env::string('API_URL', '');
+        $appUrl = Env::string('APP_URL', '');
+
+        return str_starts_with((string) $apiUrl, 'https://')
+            || str_starts_with((string) $appUrl, 'https://');
     }
 
     private function casdoorPostForm(

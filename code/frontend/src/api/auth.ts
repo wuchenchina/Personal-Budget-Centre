@@ -40,6 +40,7 @@ export interface SsoBindingResult {
 export type CasdoorCallbackMode = 'login' | 'bind';
 export interface CasdoorCallbackPayload {
   code?: string;
+  state?: string;
   accessToken?: string;
   idToken?: string;
 }

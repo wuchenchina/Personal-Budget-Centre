@@ -1,5 +1,3 @@
-import SDK from 'casdoor-js-sdk';
-
 export const casdoorConfig = {
   serverUrl: 'https://sso.axchen.top',
   clientId: '3e4912a22fdbce3dd6ca',
@@ -8,8 +6,6 @@ export const casdoorConfig = {
   redirectPath: '/api/callback',
   signinPath: '/api/Callback',
 };
-
-export const casdoorSdk = new SDK(casdoorConfig);
 
 const casdoorIntentKey = 'budgetCentre.casdoorIntent';
 
@@ -21,7 +17,7 @@ export function setCasdoorIntent(intent: CasdoorIntent) {
 
 export function startCasdoorSignin(intent: CasdoorIntent = 'login') {
   setCasdoorIntent(intent);
-  window.location.assign(casdoorSdk.getSigninUrl());
+  window.location.assign(`/api/auth/casdoor/authorize?mode=${encodeURIComponent(intent)}`);
 }
 
 export function consumeCasdoorIntent(): CasdoorIntent {

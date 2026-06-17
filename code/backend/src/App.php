@@ -73,6 +73,7 @@ final class App
             ['DELETE', '/api/auth/sso-binding'] => $this->authSsoUnlink($request),
             ['GET', '/api/auth/email/verify'] => $this->authEmailVerify($request),
             ['POST', '/api/auth/email/resend'] => $this->authEmailResend($request),
+            ['GET', '/api/auth/casdoor/authorize'] => $this->authCasdoorAuthorize($request),
             ['GET', '/api/callback'] => $this->authCasdoorBrowserCallback($request),
             ['POST', '/api/Callback'] => $this->authCasdoorCallback($request),
             ['GET', '/api/workspaces'] => $this->workspaceList($request),
@@ -252,6 +253,20 @@ final class App
                 $auth->casdoorCallback($request->json(), $request),
             ),
         );
+    }
+
+    private function authCasdoorAuthorize(Request $request): JsonResponse|RedirectResponse
+    {
+        try {
+            $pdo = ConnectionFactory::make();
+            $sessionManager = new SessionManager();
+            $authenticator = new SessionAuthenticator($pdo, $sessionManager);
+            $auth = new AuthService($pdo, $sessionManager, $authenticator);
+
+            return new RedirectResponse($auth->casdoorAuthorize($request));
+        } catch (InvalidJsonRequestException | AuthException | MissingSeedDataException | DatabaseConfigurationException | PDOException | RuntimeException $exception) {
+            return $this->apiExceptionResponse($exception);
+        }
     }
 
     private function authCasdoorBrowserCallback(Request $request): RedirectResponse

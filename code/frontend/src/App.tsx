@@ -128,6 +128,7 @@ function CasdoorCallbackScreen({
 
     const query = new URLSearchParams(window.location.search);
     const code = query.get('code');
+    const state = query.get('state') ?? undefined;
 
     if (code === null || code.trim() === '') {
       void message.error(t('authFailed'));
@@ -140,8 +141,8 @@ function CasdoorCallbackScreen({
 
     const callbackRequest =
       mode === 'bind'
-        ? casdoorCallback({ code }, 'bind')
-        : casdoorCallback({ code }, 'login');
+        ? casdoorCallback({ code, state }, 'bind')
+        : casdoorCallback({ code, state }, 'login');
 
     callbackRequest
       .then((result) => {
