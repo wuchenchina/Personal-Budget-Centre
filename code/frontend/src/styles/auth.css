@@ -1,14 +1,10 @@
 .auth-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  overflow: auto;
-  padding: 32px 0;
-  background-color: #f6f8fb;
-  background-image: url("https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/V-_oS6r-i7wAAAAAAAAAAAAAFl94AQBr");
-  background-position: center top;
-  background-repeat: no-repeat;
-  background-size: cover;
+  min-height: 100dvh;
+  overflow: hidden;
+  padding: 32px 16px;
+  background: #ffffff;
 }
 
 .auth-loading-panel {
@@ -18,14 +14,6 @@
   background: #fff;
   border: 1px solid #f0f0f0;
   border-radius: 8px;
-}
-
-.auth-language-switcher {
-  position: fixed;
-  top: 18px;
-  right: 20px;
-  z-index: 5;
-  width: 132px;
 }
 
 .verification-panel {
@@ -43,42 +31,6 @@
   place-items: center;
   gap: 14px;
   color: #595959;
-}
-
-.auth-pro-form {
-  flex: 1;
-}
-
-.auth-shell .ant-pro-form-login-container {
-  justify-content: center;
-  min-height: calc(100vh - 64px);
-  padding-bottom: 72px;
-}
-
-.auth-shell .ant-pro-form-login-desc {
-  margin-bottom: 28px;
-}
-
-.auth-shell .ant-pro-form-login-main {
-  width: 368px;
-}
-
-.auth-shell .ant-form-item {
-  margin-bottom: 18px;
-}
-
-.auth-shell .ant-pro-form-login-main .ant-pro-form-login-other {
-  margin-top: 0;
-}
-
-.auth-pro-logo {
-  display: grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  color: #fff;
-  background: #1677ff;
-  border-radius: 8px;
 }
 
 .auth-brand {
@@ -109,54 +61,4 @@
   margin: 4px 0 0;
   color: #8c8c8c;
   font-size: 13px;
-}
-
-.auth-error {
-  margin-bottom: 16px;
-}
-
-.auth-mode-tabs {
-  margin-bottom: 18px;
-}
-
-.auth-mode-tabs .ant-tabs-nav {
-  margin-bottom: 0;
-}
-
-.auth-login-methods {
-  margin-bottom: 18px;
-}
-
-.auth-passkey-button {
-  height: 42px;
-  margin-bottom: 14px;
-  background: #fff;
-}
-
-.auth-login-divider {
-  margin: 0;
-  color: #8c8c8c;
-  font-size: 12px;
-}
-
-.password-strength {
-  margin: -12px 0 14px;
-  font-size: 12px;
-}
-
-.password-strength span {
-  display: inline-block;
-  margin-bottom: 4px;
-}
-
-.password-strength-poor {
-  color: #cf1322;
-}
-
-.password-strength-pass {
-  color: #ad6800;
-}
-
-.password-strength-ok {
-  color: #237804;
 }

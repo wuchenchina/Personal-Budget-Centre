@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Alert, Avatar, Button, Form, Input, Modal, Space, Tabs, Tag, Typography } from 'antd';
+import { Alert, Avatar, Button, Divider, Form, Input, Modal, Space, Tabs, Tag, Typography, message } from 'antd';
 import { KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react';
-import { resendEmailVerification, updatePassword, updateProfile } from '../../api/auth';
+import {
+  getSsoBinding,
+  resendEmailVerification,
+  unlinkSsoBinding,
+  updatePassword,
+  updateProfile,
+} from '../../api/auth';
+import { casdoorSdk, setCasdoorIntent } from '../../config/casdoor';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { useI18n } from '../../i18n';
-import type { AuthSession } from '../../types/auth';
+import type { AuthSession, SsoBinding } from '../../types/auth';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
+import styles from './ProfilePage.module.css';
 
 const { Text, Title } = Typography;
 
@@ -29,12 +37,40 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   const [isEmailVerificationSending, setIsEmailVerificationSending] = useState(false);
   const [isEmailChangeOpen, setIsEmailChangeOpen] = useState(false);
+  const [ssoBinding, setSsoBinding] = useState<SsoBinding | null>(null);
+  const [isSsoLoading, setIsSsoLoading] = useState(true);
+  const [isSsoUnlinking, setIsSsoUnlinking] = useState(false);
 
   useEffect(() => {
     profileForm.setFieldsValue({
       displayName: session.user.displayName,
     });
   }, [profileForm, session.user.displayName]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getSsoBinding()
+      .then((result) => {
+        if (isMounted) {
+          setSsoBinding(result.binding);
+        }
+      })
+      .catch((error: unknown) => {
+        if (isMounted) {
+          void message.error(error instanceof Error ? error.message : t('authFailed'));
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsSsoLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [t]);
 
   const handleProfileSave = async (values: ProfileFormValues) => {
     setIsProfileSaving(true);
@@ -120,25 +156,53 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     }
   };
 
+  const handleSsoBind = () => {
+    setCasdoorIntent('bind');
+    void casdoorSdk.signin_redirect();
+  };
+
+  const handleSsoUnlink = () => {
+    Modal.confirm({
+      title: '解绑SSO账号',
+      content: '确认解绑当前Casdoor SSO账号？',
+      okText: '解绑',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        setIsSsoUnlinking(true);
+
+        try {
+          const result = await unlinkSsoBinding();
+          setSsoBinding(result.binding);
+          void message.success('SSO账号已解绑');
+        } catch (error: unknown) {
+          void message.error(error instanceof Error ? error.message : t('authFailed'));
+        } finally {
+          setIsSsoUnlinking(false);
+        }
+      },
+    });
+  };
+
   return (
-    <div className="profile-page">
-      <section className="profile-hero">
-        <div className="profile-identity">
-          <Avatar className="profile-avatar" size={64}>
+    <div className={styles.page}>
+      <section className={styles.hero}>
+        <div className={styles.identity}>
+          <Avatar className={styles.avatar} size={64}>
             {getProfileInitial(session.user.displayName, session.user.email)}
           </Avatar>
-          <div className="profile-identity-copy">
-            <Text className="profile-eyebrow">{t('profile')}</Text>
-            <Title className="profile-title" level={2}>
+          <div className={styles.identityCopy}>
+            <Text className={styles.eyebrow}>{t('profile')}</Text>
+            <Title className={styles.title} level={2}>
               {session.user.displayName}
             </Title>
-            <span className="profile-email-line">
+            <span className={styles.emailLine}>
               <Mail size={15} />
               <Text type="secondary">{session.user.email}</Text>
             </span>
           </div>
         </div>
-        <Space className="profile-status-row" wrap>
+        <Space className={styles.statusRow} wrap>
           {session.user.emailVerifiedAt === null ? (
             <Tag color="warning">{t('emailPending')}</Tag>
           ) : (
@@ -149,28 +213,28 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
       </section>
 
       <Tabs
-        className="profile-tabs"
+        className={styles.tabs}
         size="large"
         items={[
           {
             key: 'details',
             label: (
-              <span className="profile-tab-label">
+              <span className={styles.tabLabel}>
                 <UserRound size={15} />
                 {t('profile')}
               </span>
             ),
             children: (
-              <div className="profile-details-grid">
+              <div className={styles.detailsGrid}>
                 {profileError ? (
-                  <Alert className="side-alert" type="error" showIcon message={profileError} />
+                  <Alert className={styles.sideAlert} type="error" showIcon message={profileError} />
                 ) : null}
                 {profileNotice ? (
-                  <Alert className="side-alert" type="success" showIcon message={profileNotice} />
+                  <Alert className={styles.sideAlert} type="success" showIcon message={profileNotice} />
                 ) : null}
                 {session.user.emailVerifiedAt === null ? (
                   <Alert
-                    className="side-alert"
+                    className={styles.sideAlert}
                     type="warning"
                     showIcon
                     message={t('emailPending')}
@@ -186,9 +250,9 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                     }
                   />
                 ) : null}
-                <section className="profile-panel profile-account-panel">
-                  <div className="profile-panel-header">
-                    <span className="profile-panel-icon">
+                <section className={styles.panel}>
+                  <div className={styles.panelHeader}>
+                    <span className={styles.panelIcon}>
                       <UserRound size={16} />
                     </span>
                     <div>
@@ -198,7 +262,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                   </div>
                   <Form<ProfileFormValues>
                     form={profileForm}
-                    className="profile-form"
+                    className={styles.form}
                     layout="vertical"
                     name="budget-centre-profile"
                     requiredMark={false}
@@ -220,9 +284,9 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                   </Form>
                 </section>
 
-                <section className="profile-panel profile-email-card">
-                  <div className="profile-panel-header">
-                    <span className="profile-panel-icon">
+                <section className={styles.panel}>
+                  <div className={styles.panelHeader}>
+                    <span className={styles.panelIcon}>
                       <Mail size={16} />
                     </span>
                     <div>
@@ -234,12 +298,12 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                       </Text>
                     </div>
                   </div>
-                  <div className="profile-readonly-value">
+                  <div className={styles.readonlyValue}>
                     <strong>{session.user.email}</strong>
                     <small>{t('emailChangeNote')}</small>
                   </div>
                   <Button
-                    className="profile-email-action"
+                    className={styles.fullWidthAction}
                     icon={<Mail size={15} />}
                     onClick={() => {
                       emailChangeForm.resetFields();
@@ -249,22 +313,60 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                     {t('emailChange')}
                   </Button>
                 </section>
+                <section className={`${styles.panel} ${styles.ssoPanel}`}>
+                  <Divider className={styles.ssoDivider} />
+                  <div className={styles.ssoHeader}>
+                    <div>
+                      <Text strong>SSO账号绑定</Text>
+                      <Text type="secondary">
+                        {ssoBinding === null ? '尚未绑定Casdoor账号' : '已连接Casdoor SSO'}
+                      </Text>
+                    </div>
+                    {ssoBinding === null ? (
+                      <Button
+                        className={styles.outlineAction}
+                        loading={isSsoLoading}
+                        onClick={handleSsoBind}
+                      >
+                        绑定
+                      </Button>
+                    ) : (
+                      <Space wrap>
+                        <Tag color="green">已绑定</Tag>
+                        <Button
+                          danger
+                          className={styles.dangerOutlineAction}
+                          loading={isSsoUnlinking}
+                          onClick={handleSsoUnlink}
+                        >
+                          解绑
+                        </Button>
+                      </Space>
+                    )}
+                  </div>
+                  {ssoBinding === null ? null : (
+                    <div className={styles.readonlyValue}>
+                      <strong>{ssoBinding.username ?? ssoBinding.email ?? ssoBinding.subject}</strong>
+                      <small>{ssoBinding.email ?? 'Casdoor账号已绑定'}</small>
+                    </div>
+                  )}
+                </section>
               </div>
             ),
           },
           {
             key: 'security',
             label: (
-              <span className="profile-tab-label">
+              <span className={styles.tabLabel}>
                 <ShieldCheck size={15} />
                 {t('security')}
               </span>
             ),
             children: (
-              <div className="profile-security-grid">
-                <section className="profile-panel">
-                  <div className="profile-panel-header">
-                    <span className="profile-panel-icon">
+              <div className={styles.securityGrid}>
+                <section className={styles.panel}>
+                  <div className={styles.panelHeader}>
+                    <span className={styles.panelIcon}>
                       <ShieldCheck size={16} />
                     </span>
                     <div>
@@ -273,14 +375,14 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                     </div>
                   </div>
                   {passwordError ? (
-                    <Alert className="side-alert" type="error" showIcon message={passwordError} />
+                    <Alert className={styles.sideAlert} type="error" showIcon message={passwordError} />
                   ) : null}
                   {passwordNotice ? (
-                    <Alert className="side-alert" type="success" showIcon message={passwordNotice} />
+                    <Alert className={styles.sideAlert} type="success" showIcon message={passwordNotice} />
                   ) : null}
                   <Form<PasswordFormValues>
                     form={passwordForm}
-                    className="profile-form"
+                    className={styles.form}
                     layout="vertical"
                     name="budget-centre-password"
                     requiredMark={false}
@@ -328,9 +430,9 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                   </Form>
                 </section>
 
-                <section className="profile-panel profile-passkey-section">
-                  <div className="profile-panel-header">
-                    <span className="profile-panel-icon">
+                <section className={`${styles.panel} ${styles.passkeySection}`}>
+                  <div className={styles.panelHeader}>
+                    <span className={styles.panelIcon}>
                       <KeyRound size={16} />
                     </span>
                     <div>
@@ -340,7 +442,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                   </div>
                   {operations.operationsError ? (
                     <Alert
-                      className="side-alert"
+                      className={styles.sideAlert}
                       type="error"
                       showIcon
                       message={operations.operationsError}
@@ -363,7 +465,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
         onOk={() => void handleEmailChange()}
       >
         <Alert
-          className="modal-error"
+          className={styles.modalAlert}
           type="warning"
           showIcon
           message={t('emailChangeImpact')}

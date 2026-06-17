@@ -1,0 +1,271 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  overflow: hidden;
+  padding: 32px 16px;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.loadingShell {
+  display: flex;
+  min-height: 100dvh;
+  overflow: hidden;
+  padding: 32px 16px;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.languageSwitcher {
+  position: fixed;
+  top: 18px;
+  right: 20px;
+  z-index: 5;
+  width: 132px;
+}
+
+.proForm {
+  flex: 1;
+}
+
+.proForm :global(.ant-pro-form-login-container) {
+  justify-content: center;
+  min-height: calc(100dvh - 64px);
+  padding: 0;
+}
+
+.proForm :global(.ant-pro-form-login-main) {
+  width: min(100%, 392px);
+  padding: 40px 42px 38px;
+  background: #ffffff;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  animation: cardFadeIn 280ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.proForm :global(.ant-pro-form-login-title) {
+  margin-top: 14px;
+  color: #1f2937;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.proForm :global(.ant-pro-form-login-desc) {
+  margin: 8px 0 30px;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.proForm :global(.ant-form-item) {
+  margin-bottom: 18px;
+}
+
+.proForm :global(.ant-form-item-explain-error) {
+  color: #b42318;
+}
+
+.proForm :global(.ant-pro-form-login-main .ant-pro-form-login-other) {
+  margin-top: 0;
+}
+
+.proForm :global(.ant-input-affix-wrapper),
+.proForm :global(.ant-select-selector) {
+  min-height: 44px;
+  padding-right: 0;
+  padding-left: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 0;
+  box-shadow: none;
+  transition:
+    border-color 160ms cubic-bezier(0.2, 0, 0, 1),
+    border-width 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.proForm :global(.ant-input-affix-wrapper:hover),
+.proForm :global(.ant-select-selector:hover) {
+  border-bottom-color: #cbd5e1;
+}
+
+.proForm :global(.ant-input-affix-wrapper-focused),
+.proForm :global(.ant-select-focused .ant-select-selector) {
+  border-bottom-color: #1677ff;
+  border-bottom-width: 2px;
+  box-shadow: none;
+}
+
+.proForm :global(.ant-input),
+.proForm :global(.ant-input-password input),
+.proForm :global(.ant-select-selection-item),
+.proForm :global(.ant-select-selection-placeholder) {
+  color: #1f2937;
+  background: transparent;
+  font-size: 15px;
+}
+
+.proForm :global(.ant-input::placeholder),
+.proForm :global(.ant-select-selection-placeholder) {
+  color: #6b7280;
+}
+
+.proForm :global(.ant-input-prefix) {
+  margin-right: 10px;
+  color: #4b5563;
+}
+
+.proForm :global(.ant-btn-primary) {
+  min-height: 44px;
+  border-radius: 6px;
+  font-weight: 700;
+  box-shadow: none;
+  transition:
+    transform 180ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 180ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.proForm :global(.ant-btn-primary:hover),
+.proForm :global(.ant-btn-primary:focus-visible) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(22, 119, 255, 0.18);
+}
+
+.proForm :global(.ant-tabs-nav) {
+  margin-bottom: 0;
+}
+
+.proForm :global(.ant-tabs-tab) {
+  color: #4b5563;
+}
+
+.proForm :global(.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn) {
+  color: #1677ff;
+  font-weight: 600;
+}
+
+.logo {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  color: #ffffff;
+  background: #1677ff;
+  border-radius: 8px;
+}
+
+.modeTabs {
+  margin-bottom: 18px;
+}
+
+.authAlert {
+  margin-bottom: 16px;
+  border-radius: 6px;
+}
+
+.loginMethods {
+  margin-bottom: 18px;
+}
+
+.passkeyButton,
+.ssoButton {
+  min-height: 44px;
+  color: #1f2937;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-weight: 600;
+  box-shadow: none;
+  transition:
+    transform 180ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 180ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 180ms cubic-bezier(0.2, 0, 0, 1),
+    color 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.passkeyButton {
+  margin-bottom: 14px;
+}
+
+.passkeyButton:hover,
+.passkeyButton:focus-visible,
+.ssoButton:hover,
+.ssoButton:focus-visible {
+  color: #1f2937;
+  border-color: #d1d5db;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
+.loginDivider,
+.ssoDivider {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.ssoSection {
+  margin-top: 18px;
+  margin-bottom: 2px;
+}
+
+.ssoDivider {
+  margin-bottom: 16px;
+}
+
+.passwordStrength {
+  margin: -12px 0 14px;
+  font-size: 12px;
+}
+
+.passwordStrength span {
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.passwordStrengthpoor {
+  color: #b42318;
+}
+
+.passwordStrengthpass {
+  color: #8a4b00;
+}
+
+.passwordStrengthok {
+  color: #146c2e;
+}
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 520px) {
+  .shell {
+    padding: 72px 16px 24px;
+  }
+
+  .languageSwitcher {
+    position: absolute;
+    top: 18px;
+    right: 16px;
+  }
+
+  .proForm :global(.ant-pro-form-login-main) {
+    padding: 32px 24px 30px;
+  }
+}

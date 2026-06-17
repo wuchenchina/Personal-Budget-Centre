@@ -3,11 +3,13 @@ import { Alert, Button, Divider, Progress, Select, Tabs } from 'antd';
 import type { FormInstance } from 'antd';
 import { KeyRound, LockKeyhole, UserRound, WalletCards } from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
+import { casdoorSdk } from '../../config/casdoor';
 import type { AppLanguage } from '../../i18n';
 import { languageOptions, useI18n } from '../../i18n';
 import type { AuthFormValues, AuthMode } from '../../types/forms';
 import { isCurrencyCode } from '../../utils/budgetTemplate';
 import { passwordProgressStatus, passwordStrengthFor } from '../../utils/password';
+import styles from './AuthScreen.module.css';
 
 interface AuthScreenProps {
   form: FormInstance<AuthFormValues>;
@@ -44,21 +46,24 @@ export function AuthScreen({
     pass: t('passwordStrengthPass'),
     ok: t('passwordStrengthOk'),
   };
+  const handleCasdoorLogin = () => {
+    void casdoorSdk.signin_redirect();
+  };
 
   return (
-    <main className="auth-shell">
+    <main className={styles.shell}>
       <Select<AppLanguage>
         aria-label="Language"
-        className="auth-language-switcher"
+        className={styles.languageSwitcher}
         options={languageOptions}
         value={language}
         onChange={onLanguageChange}
       />
       <LoginForm<AuthFormValues>
-        className="auth-pro-form"
+        className={styles.proForm}
         form={form}
         logo={
-          <div className="auth-pro-logo">
+          <div className={styles.logo}>
             <WalletCards size={24} />
           </div>
         }
@@ -77,6 +82,33 @@ export function AuthScreen({
             loading: isSubmitting,
             size: 'large',
           },
+          render: (_, dom) => {
+            const submitButton = dom[dom.length - 1] ?? null;
+
+            if (mode !== 'login') {
+              return submitButton;
+            }
+
+            return (
+              <>
+                {submitButton}
+                <div className={styles.ssoSection}>
+                  <Divider className={styles.ssoDivider} plain>
+                    或
+                  </Divider>
+                  <Button
+                    block
+                    className={styles.ssoButton}
+                    disabled={isSubmitting}
+                    size="large"
+                    onClick={handleCasdoorLogin}
+                  >
+                    Casdoor SSO登录
+                  </Button>
+                </div>
+              </>
+            );
+          },
         }}
         onFinish={async (values) => {
           await onFinish(values);
@@ -85,7 +117,7 @@ export function AuthScreen({
         }}
       >
         <Tabs
-          className="auth-mode-tabs"
+          className={styles.modeTabs}
           activeKey={mode}
           centered
           items={[
@@ -95,14 +127,16 @@ export function AuthScreen({
           onChange={(key) => onModeChange(key as AuthMode)}
         />
 
-        {error ? <Alert className="auth-error" type="error" showIcon message={error} /> : null}
-        {notice ? <Alert className="auth-error" type="success" showIcon message={notice} /> : null}
+        {error ? <Alert className={styles.authAlert} type="error" showIcon message={error} /> : null}
+        {notice ? (
+          <Alert className={styles.authAlert} type="success" showIcon message={notice} />
+        ) : null}
 
         {mode === 'login' ? (
-          <div className="auth-login-methods">
+          <div className={styles.loginMethods}>
             <Button
               block
-              className="auth-passkey-button"
+              className={styles.passkeyButton}
               icon={<KeyRound size={16} />}
               loading={isSubmitting}
               size="large"
@@ -110,7 +144,7 @@ export function AuthScreen({
             >
               {t('loginWithPasskey')}
             </Button>
-            <Divider className="auth-login-divider" plain>
+            <Divider className={styles.loginDivider} plain>
               {t('loginWithPassword')}
             </Divider>
           </div>
@@ -184,7 +218,7 @@ export function AuthScreen({
 
         {mode === 'register' ? (
           <>
-            <div className={`password-strength password-strength-${passwordStrength}`}>
+            <div className={`${styles.passwordStrength} ${styles[`passwordStrength${passwordStrength}`]}`}>
               <span>{passwordStrengthLabels[passwordStrength]}</span>
               <Progress
                 percent={passwordProgressPercent}

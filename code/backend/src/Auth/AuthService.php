@@ -8,6 +8,7 @@ use BudgetCentre\Repositories\EmailVerificationRepository;
 use BudgetCentre\Http\Request;
 use BudgetCentre\Repositories\CurrencyRepository;
 use BudgetCentre\Repositories\SessionRepository;
+use BudgetCentre\Repositories\UserSsoBindingRepository;
 use BudgetCentre\Repositories\UserRepository;
 use BudgetCentre\Repositories\WorkspaceRepository;
 use BudgetCentre\Services\SmtpMailer;
@@ -339,6 +340,129 @@ final readonly class AuthService
         ];
     }
 
+    public function ssoBinding(Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $binding = (new UserSsoBindingRepository($this->pdo))->findByUserId((int) $session['user_id']);
+
+        return [
+            'binding' => $binding === null ? null : $this->publicSsoBinding($binding),
+        ];
+    }
+
+    public function unlinkSso(Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        (new UserSsoBindingRepository($this->pdo))->deleteByUserId((int) $session['user_id']);
+
+        return [
+            'binding' => null,
+        ];
+    }
+
+    public function casdoorCallback(array $input, Request $request): array
+    {
+        $code = Input::string($input['code'] ?? null);
+        $mode = Input::string($input['mode'] ?? null) ?? 'login';
+
+        if ($code === null) {
+            throw new AuthException('VALIDATION_ERROR', 'Casdoor authorization code is required.', 422);
+        }
+
+        $userinfo = $this->casdoorUserinfo($code);
+        $subject = Input::string($userinfo['sub'] ?? null);
+        if ($subject === null) {
+            throw new AuthException('CASDOOR_USERINFO_INVALID', 'Casdoor user info is missing subject.', 502);
+        }
+
+        return match ($mode) {
+            'bind' => $this->bindCasdoorAccount($subject, $userinfo, $request),
+            default => $this->loginWithCasdoorAccount($subject, $request),
+        };
+    }
+
+    private function bindCasdoorAccount(string $subject, array $userinfo, Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $userId = (int) $session['user_id'];
+        $bindings = new UserSsoBindingRepository($this->pdo);
+        $existing = $bindings->findByProviderSubject($subject);
+
+        if ($existing !== null && (int) $existing['user_id'] !== $userId) {
+            throw new AuthException(
+                'SSO_ACCOUNT_ALREADY_BOUND',
+                'This Casdoor account is already linked to another user.',
+                409,
+            );
+        }
+
+        $binding = $bindings->upsert(
+            $userId,
+            $subject,
+            Input::string($userinfo['preferred_username'] ?? $userinfo['name'] ?? null),
+            Input::normalizedEmail($userinfo['email'] ?? null),
+            $userinfo,
+        );
+
+        return [
+            'binding' => $this->publicSsoBinding($binding),
+        ];
+    }
+
+    private function loginWithCasdoorAccount(string $subject, Request $request): array
+    {
+        $binding = (new UserSsoBindingRepository($this->pdo))->findByProviderSubject($subject);
+        if ($binding === null) {
+            throw new AuthException('SSO_ACCOUNT_NOT_BOUND', 'This Casdoor account is not linked.', 401);
+        }
+
+        $user = (new UserRepository($this->pdo))->findById((int) $binding['user_id']);
+        if ($user === null || $user['status'] !== 'active') {
+            throw new AuthException('INVALID_CREDENTIALS', 'Invalid SSO account.', 401);
+        }
+
+        $workspace = (new WorkspaceRepository($this->pdo))->firstForUser((int) $user['id']);
+        $session = $this->createSession(
+            (int) $user['id'],
+            $request,
+            $workspace === null ? null : (int) $workspace['id'],
+        );
+        $this->sessionManager->issueCookie($session['token']);
+
+        return [
+            'user' => $this->publicUser($user),
+            'workspace' => $workspace,
+            'csrfToken' => $this->sessionManager->csrfToken($session['token']),
+        ];
+    }
+
+    private function casdoorUserinfo(string $code): array
+    {
+        $url = 'https://sso.axchen.top/api/Callback';
+        $payload = json_encode(['code' => $code], JSON_THROW_ON_ERROR);
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'timeout' => 12,
+                'header' => "Content-Type: application/json\r\nAccept: application/json\r\n",
+                'content' => $payload,
+                'ignore_errors' => true,
+            ],
+        ]);
+        $response = @file_get_contents($url, false, $context);
+
+        if (!is_string($response) || trim($response) === '') {
+            throw new AuthException('CASDOOR_CALLBACK_FAILED', 'Casdoor callback endpoint is unavailable.', 502);
+        }
+
+        $decoded = json_decode($response, true);
+        if (!is_array($decoded)) {
+            throw new AuthException('CASDOOR_CALLBACK_INVALID', 'Casdoor callback returned invalid JSON.', 502);
+        }
+
+        return $decoded;
+    }
+
     private function createSession(int $userId, Request $request, ?int $currentWorkspaceId = null): array
     {
         $token = $this->sessionManager->newToken();
@@ -366,6 +490,18 @@ final readonly class AuthService
             'status' => $user['status'] ?? null,
             'isAdmin' => isset($user['is_admin']) && (bool) $user['is_admin'],
             'emailVerifiedAt' => $user['email_verified_at'] ?? null,
+        ];
+    }
+
+    private function publicSsoBinding(array $binding): array
+    {
+        return [
+            'provider' => $binding['provider'] ?? 'casdoor',
+            'subject' => $binding['provider_subject'] ?? null,
+            'username' => $binding['provider_username'] ?? null,
+            'email' => $binding['provider_email'] ?? null,
+            'linkedAt' => $binding['linked_at'] ?? null,
+            'updatedAt' => $binding['updated_at'] ?? null,
         ];
     }
 

@@ -1,5 +1,11 @@
-import { apiGet, apiPatch, apiPost, clearCsrfToken } from './http';
-import type { AuthSession, LoginPayload, RegisterPayload, RegisterResult } from '../types/auth';
+import { apiDelete, apiGet, apiPatch, apiPost, clearCsrfToken } from './http';
+import type {
+  AuthSession,
+  LoginPayload,
+  RegisterPayload,
+  RegisterResult,
+  SsoBinding,
+} from '../types/auth';
 
 interface CurrentSessionResult {
   session: AuthSession | null;
@@ -27,12 +33,27 @@ export interface UpdatePasswordPayload {
   password: string;
 }
 
+export interface SsoBindingResult {
+  binding: SsoBinding | null;
+}
+
+export type CasdoorCallbackMode = 'login' | 'bind';
+
 export function getCurrentSession(): Promise<AuthSession | null> {
   return apiGet<CurrentSessionResult>('/api/auth/me').then((result) => result.session);
 }
 
 export function login(payload: LoginPayload): Promise<AuthSession> {
   return apiPost<AuthSession>('/api/auth/login', payload);
+}
+
+export function casdoorCallback(code: string, mode: 'login'): Promise<AuthSession>;
+export function casdoorCallback(code: string, mode: 'bind'): Promise<SsoBindingResult>;
+export function casdoorCallback(
+  code: string,
+  mode: CasdoorCallbackMode = 'login',
+): Promise<AuthSession | SsoBindingResult> {
+  return apiPost<AuthSession | SsoBindingResult>('/api/Callback', { code, mode });
 }
 
 export function register(payload: RegisterPayload): Promise<RegisterResult> {
@@ -55,6 +76,14 @@ export function updateProfile(payload: UpdateProfilePayload): Promise<UpdateProf
 
 export function updatePassword(payload: UpdatePasswordPayload): Promise<{ changed: true }> {
   return apiPatch<{ changed: true }>('/api/auth/password', payload);
+}
+
+export function getSsoBinding(): Promise<SsoBindingResult> {
+  return apiGet<SsoBindingResult>('/api/auth/sso-binding');
+}
+
+export function unlinkSsoBinding(): Promise<SsoBindingResult> {
+  return apiDelete<SsoBindingResult>('/api/auth/sso-binding');
 }
 
 export function logout(): Promise<Record<string, never>> {

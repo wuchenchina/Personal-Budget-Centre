@@ -13,6 +13,7 @@ final readonly class CsrfGuard
         '/api/auth/register',
         '/api/auth/email/resend',
         '/api/auth/passkey/login/verify',
+        '/api/Callback',
     ];
 
     public function __construct(private SessionManager $sessionManager)

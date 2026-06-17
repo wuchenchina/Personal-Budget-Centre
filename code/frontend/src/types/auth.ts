@@ -40,6 +40,15 @@ export interface AuthSession {
   csrfToken: string;
 }
 
+export interface SsoBinding {
+  provider: 'casdoor';
+  subject: string;
+  username: string | null;
+  email: string | null;
+  linkedAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface PasskeyCredential {
   id: number;
   userId: number;

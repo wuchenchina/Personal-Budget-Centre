@@ -59,7 +59,7 @@ export const appTheme: ThemeConfig = {
     borderRadius: 8,
     colorPrimary: '#1677ff',
     colorInfo: '#1677ff',
-    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   },
   components: {
     Table: {

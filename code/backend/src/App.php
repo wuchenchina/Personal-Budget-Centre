@@ -68,8 +68,11 @@ final class App
             ['GET', '/api/auth/me'] => $this->authMe($request),
             ['PATCH', '/api/auth/profile'] => $this->authProfileUpdate($request),
             ['PATCH', '/api/auth/password'] => $this->authPasswordUpdate($request),
+            ['GET', '/api/auth/sso-binding'] => $this->authSsoBinding($request),
+            ['DELETE', '/api/auth/sso-binding'] => $this->authSsoUnlink($request),
             ['GET', '/api/auth/email/verify'] => $this->authEmailVerify($request),
             ['POST', '/api/auth/email/resend'] => $this->authEmailResend($request),
+            ['POST', '/api/Callback'] => $this->authCasdoorCallback($request),
             ['GET', '/api/workspaces'] => $this->workspaceList($request),
             ['POST', '/api/workspaces'] => $this->workspaceCreate($request),
             ['PATCH', '/api/workspaces'] => $this->workspaceUpdate($request),
@@ -218,6 +221,33 @@ final class App
         return $this->authResponse(
             fn (AuthService $auth): JsonResponse => JsonResponse::ok(
                 $auth->updatePassword($request->json(), $request),
+            ),
+        );
+    }
+
+    private function authSsoBinding(Request $request): JsonResponse
+    {
+        return $this->authResponse(
+            fn (AuthService $auth): JsonResponse => JsonResponse::ok(
+                $auth->ssoBinding($request),
+            ),
+        );
+    }
+
+    private function authSsoUnlink(Request $request): JsonResponse
+    {
+        return $this->authResponse(
+            fn (AuthService $auth): JsonResponse => JsonResponse::ok(
+                $auth->unlinkSso($request),
+            ),
+        );
+    }
+
+    private function authCasdoorCallback(Request $request): JsonResponse
+    {
+        return $this->authResponse(
+            fn (AuthService $auth): JsonResponse => JsonResponse::ok(
+                $auth->casdoorCallback($request->json(), $request),
             ),
         );
     }

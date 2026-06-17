@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, ConfigProvider, Modal } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, ConfigProvider, Modal, message } from 'antd';
+import { casdoorCallback } from './api/auth';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { AuthLoadingScreen } from './components/auth/AuthLoadingScreen';
 import { EmailVerificationScreen } from './components/auth/EmailVerificationScreen';
@@ -25,6 +26,7 @@ import { WorkspaceEditModal } from './components/workspace/WorkspaceEditModal';
 import { WorkspaceMemberModal } from './components/workspace/WorkspaceMemberModal';
 import { WorkspacePage } from './components/workspace/WorkspacePage';
 import { appTheme } from './config/appConfig';
+import { consumeCasdoorIntent } from './config/casdoor';
 import { useAuthController } from './hooks/useAuthController';
 import { useAdminController } from './hooks/useAdminController';
 import { useBookkeepingController } from './hooks/useBookkeepingController';
@@ -34,8 +36,9 @@ import { useOperationsController } from './hooks/useOperationsController';
 import { useTemplateController } from './hooks/useTemplateController';
 import { useWorkspaceController } from './hooks/useWorkspaceController';
 import type { AppLanguage, I18nKey, I18nValues } from './i18n';
-import { I18nContext, antdLocales, normalizeLanguage, translate } from './i18n';
+import { I18nContext, antdLocales, normalizeLanguage, translate, useI18n } from './i18n';
 import './App.css';
+import type { AuthSession } from './types/auth';
 
 interface AppRoute {
   activeKey: string;
@@ -99,6 +102,80 @@ function initialLanguage(): AppLanguage {
   return normalizeLanguage(
     window.localStorage.getItem('budgetCentre.language') ?? window.navigator.language,
   );
+}
+
+interface CasdoorCallbackScreenProps {
+  onAuthenticated: (session: AuthSession) => void;
+  onNavigateHome: () => void;
+  onNavigateProfile: () => void;
+}
+
+function CasdoorCallbackScreen({
+  onAuthenticated,
+  onNavigateHome,
+  onNavigateProfile,
+}: CasdoorCallbackScreenProps) {
+  const { t } = useI18n();
+  const hasHandledCallback = useRef(false);
+
+  useEffect(() => {
+    if (hasHandledCallback.current) {
+      return;
+    }
+
+    hasHandledCallback.current = true;
+    const mode = consumeCasdoorIntent();
+
+    const query = new URLSearchParams(window.location.search);
+    const code = query.get('code');
+
+    if (code === null || code.trim() === '') {
+      void message.error(t('authFailed'));
+      queueMicrotask(mode === 'bind' ? onNavigateProfile : onNavigateHome);
+
+      return;
+    }
+
+    let isMounted = true;
+
+    const callbackRequest =
+      mode === 'bind' ? casdoorCallback(code, 'bind') : casdoorCallback(code, 'login');
+
+    callbackRequest
+      .then((result) => {
+        if (!isMounted) {
+          return;
+        }
+
+        if (mode === 'bind') {
+          void message.success('SSO账号绑定成功');
+          onNavigateProfile();
+          return;
+        }
+
+        onAuthenticated(result as AuthSession);
+        onNavigateHome();
+      })
+      .catch((error: unknown) => {
+        if (!isMounted) {
+          return;
+        }
+
+        void message.error(error instanceof Error ? error.message : t('authFailed'));
+        if (mode === 'bind') {
+          onNavigateProfile();
+          return;
+        }
+
+        onNavigateHome();
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [onAuthenticated, onNavigateHome, onNavigateProfile, t]);
+
+  return <AuthLoadingScreen />;
 }
 
 function App() {
@@ -246,6 +323,7 @@ function App() {
   }, [budget.selectedBudget?.items]);
   const admin = useAdminController(auth.session?.user.isAdmin === true && activeKey === 'admin');
   const isEmailVerificationRoute = window.location.pathname === '/email/verify';
+  const isCasdoorCallbackRoute = window.location.pathname === '/api/callback';
   const isStandaloneBudgetEditor = route.budgetId !== null;
 
   if (isEmailVerificationRoute) {
@@ -263,6 +341,20 @@ function App() {
       <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
         <I18nContext.Provider value={i18nValue}>
           <AuthLoadingScreen />
+        </I18nContext.Provider>
+      </ConfigProvider>
+    );
+  }
+
+  if (isCasdoorCallbackRoute) {
+    return (
+      <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
+        <I18nContext.Provider value={i18nValue}>
+          <CasdoorCallbackScreen
+            onAuthenticated={auth.setSession}
+            onNavigateHome={() => navigateToPath('/', true)}
+            onNavigateProfile={() => navigateToPath('/profile', true)}
+          />
         </I18nContext.Provider>
       </ConfigProvider>
     );
