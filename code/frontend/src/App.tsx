@@ -117,8 +117,25 @@ function CasdoorCallbackScreen({
 }: CasdoorCallbackScreenProps) {
   const { t } = useI18n();
   const hasHandledCallback = useRef(false);
+  const callbackHandlersRef = useRef({
+    onAuthenticated,
+    onNavigateHome,
+    onNavigateProfile,
+    t,
+  });
 
   useEffect(() => {
+    callbackHandlersRef.current = {
+      onAuthenticated,
+      onNavigateHome,
+      onNavigateProfile,
+      t,
+    };
+  });
+
+  useEffect(() => {
+    const handlers = () => callbackHandlersRef.current;
+
     if (hasHandledCallback.current) {
       return;
     }
@@ -131,8 +148,8 @@ function CasdoorCallbackScreen({
     const state = query.get('state') ?? undefined;
 
     if (code === null || code.trim() === '') {
-      void message.error(t('authFailed'));
-      queueMicrotask(mode === 'bind' ? onNavigateProfile : onNavigateHome);
+      void message.error(handlers().t('authFailed'));
+      queueMicrotask(mode === 'bind' ? handlers().onNavigateProfile : handlers().onNavigateHome);
 
       return;
     }
@@ -152,31 +169,31 @@ function CasdoorCallbackScreen({
 
         if (mode === 'bind') {
           void message.success('SSO账号绑定成功');
-          onNavigateProfile();
+          handlers().onNavigateProfile();
           return;
         }
 
-        onAuthenticated(result as AuthSession);
-        onNavigateHome();
+        handlers().onAuthenticated(result as AuthSession);
+        handlers().onNavigateHome();
       })
       .catch((error: unknown) => {
         if (!isMounted) {
           return;
         }
 
-        void message.error(error instanceof Error ? error.message : t('authFailed'));
+        void message.error(error instanceof Error ? error.message : handlers().t('authFailed'));
         if (mode === 'bind') {
-          onNavigateProfile();
+          handlers().onNavigateProfile();
           return;
         }
 
-        onNavigateHome();
+        handlers().onNavigateHome();
       });
 
     return () => {
       isMounted = false;
     };
-  }, [onAuthenticated, onNavigateHome, onNavigateProfile, t]);
+  }, []);
 
   return <AuthLoadingScreen />;
 }
@@ -215,7 +232,11 @@ function App() {
   }, [language]);
 
   const navigateToPath = (path: string, replace = false) => {
-    if (window.location.pathname === path && window.location.hash === '') {
+    if (
+      window.location.pathname === path
+      && window.location.search === ''
+      && window.location.hash === ''
+    ) {
       setRoute(routeFromPath(path));
 
       return;
