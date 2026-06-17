@@ -4,3 +4,5 @@ code/backend/vendor/
 code/backend/storage/
 .playwright-mcp
 .DS_Store
+skills-lock.json
+.agents
