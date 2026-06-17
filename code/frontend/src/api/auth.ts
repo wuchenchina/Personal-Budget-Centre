@@ -38,6 +38,11 @@ export interface SsoBindingResult {
 }
 
 export type CasdoorCallbackMode = 'login' | 'bind';
+export interface CasdoorCallbackPayload {
+  code?: string;
+  accessToken?: string;
+  idToken?: string;
+}
 
 export function getCurrentSession(): Promise<AuthSession | null> {
   return apiGet<CurrentSessionResult>('/api/auth/me').then((result) => result.session);
@@ -47,13 +52,13 @@ export function login(payload: LoginPayload): Promise<AuthSession> {
   return apiPost<AuthSession>('/api/auth/login', payload);
 }
 
-export function casdoorCallback(code: string, mode: 'login'): Promise<AuthSession>;
-export function casdoorCallback(code: string, mode: 'bind'): Promise<SsoBindingResult>;
+export function casdoorCallback(payload: CasdoorCallbackPayload, mode: 'login'): Promise<AuthSession>;
+export function casdoorCallback(payload: CasdoorCallbackPayload, mode: 'bind'): Promise<SsoBindingResult>;
 export function casdoorCallback(
-  code: string,
+  payload: CasdoorCallbackPayload,
   mode: CasdoorCallbackMode = 'login',
 ): Promise<AuthSession | SsoBindingResult> {
-  return apiPost<AuthSession | SsoBindingResult>('/api/Callback', { code, mode });
+  return apiPost<AuthSession | SsoBindingResult>('/api/Callback', { ...payload, mode });
 }
 
 export function register(payload: RegisterPayload): Promise<RegisterResult> {

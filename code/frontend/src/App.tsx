@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ConfigProvider, Modal, message } from 'antd';
 import { casdoorCallback } from './api/auth';
+import type { SsoBindingResult } from './api/auth';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { AuthLoadingScreen } from './components/auth/AuthLoadingScreen';
 import { EmailVerificationScreen } from './components/auth/EmailVerificationScreen';
@@ -26,7 +27,7 @@ import { WorkspaceEditModal } from './components/workspace/WorkspaceEditModal';
 import { WorkspaceMemberModal } from './components/workspace/WorkspaceMemberModal';
 import { WorkspacePage } from './components/workspace/WorkspacePage';
 import { appTheme } from './config/appConfig';
-import { consumeCasdoorIntent } from './config/casdoor';
+import { casdoorSdk, consumeCasdoorIntent } from './config/casdoor';
 import { useAuthController } from './hooks/useAuthController';
 import { useAdminController } from './hooks/useAdminController';
 import { useBookkeepingController } from './hooks/useBookkeepingController';
@@ -138,8 +139,30 @@ function CasdoorCallbackScreen({
 
     let isMounted = true;
 
-    const callbackRequest =
-      mode === 'bind' ? casdoorCallback(code, 'bind') : casdoorCallback(code, 'login');
+    const callbackRequest: Promise<AuthSession | SsoBindingResult> = (async () => {
+      const tokenResponse = await casdoorSdk.exchangeForAccessToken();
+      const tokenRecord = tokenResponse as unknown as Record<string, unknown>;
+      const accessToken =
+        typeof tokenRecord.access_token === 'string'
+          ? tokenRecord.access_token
+          : typeof tokenRecord.accessToken === 'string'
+            ? tokenRecord.accessToken
+            : undefined;
+      const idToken =
+        typeof tokenRecord.id_token === 'string'
+          ? tokenRecord.id_token
+          : typeof tokenRecord.idToken === 'string'
+            ? tokenRecord.idToken
+            : undefined;
+
+      if (accessToken === undefined) {
+        throw new Error(t('authFailed'));
+      }
+
+      return mode === 'bind'
+        ? casdoorCallback({ accessToken, idToken }, 'bind')
+        : casdoorCallback({ accessToken, idToken }, 'login');
+    })();
 
     callbackRequest
       .then((result) => {

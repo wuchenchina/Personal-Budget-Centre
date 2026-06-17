@@ -363,13 +363,17 @@ final readonly class AuthService
     public function casdoorCallback(array $input, Request $request): array
     {
         $code = Input::string($input['code'] ?? null);
+        $accessToken = Input::string($input['accessToken'] ?? $input['access_token'] ?? null);
+        $idToken = Input::string($input['idToken'] ?? $input['id_token'] ?? null);
         $mode = Input::string($input['mode'] ?? null) ?? 'login';
 
-        if ($code === null) {
-            throw new AuthException('VALIDATION_ERROR', 'Casdoor authorization code is required.', 422);
+        if ($code === null && $accessToken === null) {
+            throw new AuthException('VALIDATION_ERROR', 'Casdoor authorization data is required.', 422);
         }
 
-        $userinfo = $this->casdoorUserinfo($code);
+        $userinfo = $accessToken === null
+            ? $this->casdoorUserinfoFromCode($code)
+            : $this->casdoorUserinfoFromToken($accessToken, $idToken);
         $subject = Input::string($userinfo['sub'] ?? null);
         if ($subject === null) {
             throw new AuthException('CASDOOR_USERINFO_INVALID', 'Casdoor user info is missing subject.', 502);
@@ -436,29 +440,143 @@ final readonly class AuthService
         ];
     }
 
-    private function casdoorUserinfo(string $code): array
+    private function casdoorUserinfoFromToken(string $accessToken, ?string $idToken = null): array
     {
-        $url = 'https://sso.axchen.top/api/Callback?code=' . rawurlencode($code);
+        $serverUrl = $this->casdoorServerUrl();
+        $userinfo = $this->casdoorGetJson(
+            "{$serverUrl}/api/userinfo",
+            ['Authorization: Bearer ' . $accessToken],
+            'CASDOOR_USERINFO_FAILED',
+            'Casdoor userinfo endpoint is unavailable.',
+        );
+
+        if (isset($userinfo['status']) && $userinfo['status'] !== 'ok') {
+            throw new AuthException(
+                'CASDOOR_USERINFO_REJECTED',
+                Input::string($userinfo['msg'] ?? null) ?? 'Casdoor userinfo request was rejected.',
+                502,
+                ['responseKeys' => array_keys($userinfo)],
+            );
+        }
+
+        $claims = $this->jwtPayload($idToken);
+        $normalized = $this->normalizeCasdoorUserinfo($userinfo);
+        if ($claims !== null) {
+            $normalized += $claims;
+        }
+
+        return $normalized;
+    }
+
+    private function casdoorUserinfoFromCode(string $code): array
+    {
+        $serverUrl = $this->casdoorServerUrl();
+        $clientId = Env::string('CASDOOR_CLIENT_ID', '3e4912a22fdbce3dd6ca') ?? '3e4912a22fdbce3dd6ca';
+        $appUrl = rtrim(Env::string('APP_URL', 'http://localhost:5173') ?? 'http://localhost:5173', '/');
+        $redirectUri = Env::string('CASDOOR_REDIRECT_URI', "{$appUrl}/api/callback") ?? "{$appUrl}/api/callback";
+        $tokenPayload = [
+            'grant_type' => 'authorization_code',
+            'client_id' => $clientId,
+            'code' => $code,
+            'redirect_uri' => $redirectUri,
+        ];
+        $clientSecret = Env::string('CASDOOR_CLIENT_SECRET');
+        if ($clientSecret !== null) {
+            $tokenPayload['client_secret'] = $clientSecret;
+        }
+
+        $tokenResponse = $this->casdoorPostForm(
+            "{$serverUrl}/api/login/oauth/access_token",
+            $tokenPayload,
+            'CASDOOR_TOKEN_FAILED',
+            'Casdoor token endpoint is unavailable.',
+        );
+        if (isset($tokenResponse['error'])) {
+            throw new AuthException(
+                'CASDOOR_TOKEN_REJECTED',
+                Input::string($tokenResponse['error_description'] ?? $tokenResponse['error'] ?? null)
+                    ?? 'Casdoor token exchange was rejected.',
+                502,
+                ['responseKeys' => array_keys($tokenResponse)],
+            );
+        }
+
+        $accessToken = Input::string($tokenResponse['access_token'] ?? null);
+        if ($accessToken === null) {
+            throw new AuthException(
+                'CASDOOR_TOKEN_INVALID',
+                'Casdoor token response is missing access token.',
+                502,
+                ['responseKeys' => array_keys($tokenResponse)],
+            );
+        }
+
+        return $this->casdoorUserinfoFromToken($accessToken, Input::string($tokenResponse['id_token'] ?? null));
+    }
+
+    private function casdoorServerUrl(): string
+    {
+        return rtrim(
+            Env::string('CASDOOR_SERVER_URL', 'https://sso.axchen.top') ?? 'https://sso.axchen.top',
+            '/',
+        );
+    }
+
+    private function casdoorPostForm(
+        string $url,
+        array $payload,
+        string $failureCode,
+        string $failureMessage,
+    ): array {
         $context = stream_context_create([
             'http' => [
                 'method' => 'POST',
                 'timeout' => 12,
-                'header' => "Content-Type: application/json\r\nAccept: application/json\r\n",
+                'header' => "Content-Type: application/x-www-form-urlencoded\r\nAccept: application/json\r\n",
+                'content' => http_build_query($payload),
                 'ignore_errors' => true,
             ],
         ]);
+
+        return $this->casdoorJsonRequest($url, $context, $failureCode, $failureMessage);
+    }
+
+    private function casdoorGetJson(
+        string $url,
+        array $headers,
+        string $failureCode,
+        string $failureMessage,
+    ): array {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'timeout' => 12,
+                'header' => implode("\r\n", [...$headers, 'Accept: application/json']) . "\r\n",
+                'ignore_errors' => true,
+            ],
+        ]);
+
+        return $this->casdoorJsonRequest($url, $context, $failureCode, $failureMessage);
+    }
+
+    private function casdoorJsonRequest(
+        string $url,
+        mixed $context,
+        string $failureCode,
+        string $failureMessage,
+    ): array {
         $response = @file_get_contents($url, false, $context);
 
         if (!is_string($response) || trim($response) === '') {
-            throw new AuthException('CASDOOR_CALLBACK_FAILED', 'Casdoor callback endpoint is unavailable.', 502);
+            throw new AuthException($failureCode, $failureMessage, 502);
         }
 
         $decoded = json_decode($response, true);
         if (!is_array($decoded)) {
-            throw new AuthException('CASDOOR_CALLBACK_INVALID', 'Casdoor callback returned invalid JSON.', 502);
+            throw new AuthException('CASDOOR_RESPONSE_INVALID', 'Casdoor returned invalid JSON.', 502);
         }
 
-        return $this->normalizeCasdoorUserinfo($decoded);
+        return $decoded;
     }
 
     private function normalizeCasdoorUserinfo(array $decoded): array
