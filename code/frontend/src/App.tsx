@@ -341,16 +341,6 @@ function App() {
     );
   }
 
-  if (auth.isSessionLoading) {
-    return (
-      <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
-        <I18nContext.Provider value={i18nValue}>
-          <AuthLoadingScreen />
-        </I18nContext.Provider>
-      </ConfigProvider>
-    );
-  }
-
   if (isCasdoorCallbackRoute) {
     return (
       <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
@@ -360,6 +350,16 @@ function App() {
             onNavigateHome={() => navigateToPath('/', true)}
             onNavigateProfile={() => navigateToPath('/profile', true)}
           />
+        </I18nContext.Provider>
+      </ConfigProvider>
+    );
+  }
+
+  if (auth.isSessionLoading) {
+    return (
+      <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
+        <I18nContext.Provider value={i18nValue}>
+          <AuthLoadingScreen />
         </I18nContext.Provider>
       </ConfigProvider>
     );
