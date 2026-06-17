@@ -1,64 +1,95 @@
 .page {
-  display: grid;
-  gap: 18px;
   min-width: 0;
   overflow: hidden;
   color: #1f2937;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
 }
 
-.hero,
-.panel {
-  background: #ffffff;
-  border: 0;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-}
-
-.hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.workbench {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 18px;
   min-width: 0;
-  padding: 24px;
+  padding: 14px;
+  background: #f7f9fc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 18px 44px rgba(15, 23, 42, 0.07);
 }
 
-.identity {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.identityRail {
+  display: grid;
+  align-content: start;
+  gap: 14px;
   min-width: 0;
+}
+
+.identityCard,
+.contentPanel,
+.panel {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.035),
+    0 10px 26px rgba(15, 23, 42, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.identityCard {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 28px 22px 22px;
+  text-align: center;
 }
 
 .avatar {
-  flex: 0 0 auto;
-  color: #1f2937;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  font-size: 24px;
+  color: #172033;
+  background: #f4f7fb;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 10px 20px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  font-size: 27px;
   font-weight: 700;
 }
 
 .identityCopy {
   display: grid;
+  justify-items: center;
   min-width: 0;
-  gap: 5px;
+  max-width: 100%;
+  gap: 6px;
 }
 
 .eyebrow {
   color: #1677ff;
   font-size: 12px;
   font-weight: 700;
+  letter-spacing: 0;
 }
 
 .title {
+  max-width: 100%;
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  color: #1f2937;
-  font-size: 26px;
-  font-weight: 600;
-  line-height: 1.2;
+  color: #172033;
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1.18;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -66,21 +97,28 @@
 .emailLine {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  max-width: 100%;
   min-width: 0;
-  color: #4b5563;
+  color: #475569;
 }
 
 .emailLine :global(.ant-typography) {
   min-width: 0;
   overflow: hidden;
-  color: #4b5563;
+  color: #475569;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .statusRow {
-  justify-content: flex-end;
+  justify-content: center;
+}
+
+.contentPanel {
+  min-width: 0;
+  padding: 8px 18px 18px;
 }
 
 .tabs {
@@ -88,16 +126,28 @@
 }
 
 .tabs :global(.ant-tabs-nav) {
-  margin-bottom: 14px;
+  margin-bottom: 18px;
+}
+
+.tabs :global(.ant-tabs-nav::before) {
+  border-bottom-color: rgba(15, 23, 42, 0.08);
 }
 
 .tabs :global(.ant-tabs-tab) {
-  color: #4b5563;
+  color: #475569;
+  transition:
+    color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tabs :global(.ant-tabs-tab:hover) {
+  color: #172033;
+  transform: translateY(-1px);
 }
 
 .tabs :global(.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn) {
   color: #1677ff;
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .tabLabel {
@@ -109,10 +159,9 @@
 .detailsGrid,
 .securityGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.75fr);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.72fr);
   gap: 16px;
   min-width: 0;
-  overflow: hidden;
 }
 
 .detailsGrid > .sideAlert,
@@ -126,7 +175,7 @@
   align-content: start;
   gap: 16px;
   min-width: 0;
-  padding: 22px;
+  padding: 20px;
 }
 
 .panelHeader {
@@ -152,13 +201,16 @@
 .panelIcon {
   display: grid;
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   place-items: center;
   color: #1677ff;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  background: #f6f9ff;
+  border: 1px solid rgba(22, 119, 255, 0.16);
+  border-radius: 9px;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .form :global(.ant-form-item:last-of-type) {
@@ -166,45 +218,55 @@
 }
 
 .form :global(.ant-form-item-label > label) {
-  color: #374151;
-  font-weight: 600;
+  color: #334155;
+  font-weight: 650;
 }
 
 .form :global(.ant-input-affix-wrapper),
 .form :global(.ant-input),
-.form :global(.ant-input-password) {
-  background: transparent;
+.form :global(.ant-input-password),
+.form :global(.ant-select-selector) {
+  background: #ffffff;
 }
 
 .form :global(.ant-input-affix-wrapper),
-.form :global(.ant-input) {
+.form :global(.ant-input),
+.form :global(.ant-select-selector) {
   min-height: 42px;
-  padding-right: 0;
-  padding-left: 0;
-  border: 0;
-  border-bottom: 1px solid #e5e7eb;
-  border-radius: 0;
-  box-shadow: none;
+  border-color: rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.025),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transition:
-    border-color 160ms cubic-bezier(0.2, 0, 0, 1),
-    border-width 160ms cubic-bezier(0.2, 0, 0, 1);
+    border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .form :global(.ant-input-affix-wrapper:hover),
-.form :global(.ant-input:hover) {
-  border-bottom-color: #cbd5e1;
+.form :global(.ant-input:hover),
+.form :global(.ant-select-selector:hover) {
+  border-color: rgba(22, 119, 255, 0.3);
 }
 
 .form :global(.ant-input-affix-wrapper-focused),
-.form :global(.ant-input:focus) {
-  border-bottom-color: #1677ff;
-  border-bottom-width: 2px;
-  box-shadow: none;
+.form :global(.ant-input:focus),
+.form :global(.ant-select-focused .ant-select-selector) {
+  border-color: #1677ff;
+  box-shadow:
+    0 0 0 3px rgba(22, 119, 255, 0.1),
+    0 8px 18px rgba(15, 23, 42, 0.06);
 }
 
 .form :global(.ant-input-prefix) {
   margin-right: 10px;
-  color: #4b5563;
+  color: #64748b;
+}
+
+.form :global(.ant-input::placeholder),
+.form :global(.ant-input-password input::placeholder) {
+  color: #64748b;
 }
 
 .form :global(.ant-btn-primary),
@@ -212,12 +274,21 @@
 .dangerOutlineAction,
 .fullWidthAction {
   min-height: 40px;
-  border-radius: 6px;
-  font-weight: 600;
+  border-radius: 8px;
+  font-weight: 650;
+  white-space: nowrap;
   transition:
-    transform 180ms cubic-bezier(0.2, 0, 0, 1),
-    box-shadow 180ms cubic-bezier(0.2, 0, 0, 1),
-    border-color 180ms cubic-bezier(0.2, 0, 0, 1);
+    color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.form :global(.ant-btn-primary) {
+  box-shadow:
+    0 1px 2px rgba(22, 119, 255, 0.2),
+    0 10px 20px rgba(22, 119, 255, 0.18);
 }
 
 .form :global(.ant-btn-primary:hover),
@@ -228,77 +299,98 @@
 .fullWidthAction:hover,
 .fullWidthAction:focus-visible {
   transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 12px 24px rgba(15, 23, 42, 0.12);
 }
 
 .readonlyValue {
   display: grid;
   gap: 7px;
   min-width: 0;
-  padding: 12px 0;
-  border-top: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 13px 14px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
 }
 
 .readonlyValue strong {
   min-width: 0;
   overflow: hidden;
-  color: #1f2937;
+  color: #172033;
   font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .readonlyValue small {
-  color: #4b5563;
+  color: #475569;
   line-height: 1.5;
 }
 
 .fullWidthAction {
   width: 100%;
+  color: #172033;
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 7px 16px rgba(15, 23, 42, 0.055);
 }
 
 .ssoPanel {
-  grid-column: 1 / -1;
+  gap: 14px;
 }
 
 .ssoDivider {
   margin: 0;
-  border-color: #e5e7eb;
+  border-color: rgba(15, 23, 42, 0.08);
 }
 
-.ssoHeader {
+.ssoActions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  min-width: 0;
-}
-
-.ssoHeader > div {
-  display: grid;
-  gap: 4px;
+  gap: 10px;
   min-width: 0;
 }
 
 .outlineAction,
 .dangerOutlineAction {
   background: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 7px 16px rgba(15, 23, 42, 0.055);
 }
 
 .outlineAction {
-  color: #1f2937;
-  border-color: #e5e7eb;
+  color: #172033;
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+.outlineAction:hover,
+.outlineAction:focus-visible {
+  color: #1677ff;
+  border-color: rgba(22, 119, 255, 0.36);
 }
 
 .dangerOutlineAction {
   color: #b42318;
-  border-color: #f2b8b5;
+  border-color: rgba(180, 35, 24, 0.28);
+}
+
+.dangerOutlineAction:hover,
+.dangerOutlineAction:focus-visible {
+  color: #b42318;
+  border-color: rgba(180, 35, 24, 0.42);
 }
 
 .passkeySection :global(.side-section) {
   margin: 0;
   padding: 0;
+  background: transparent;
   border: 0;
 }
 
@@ -307,22 +399,33 @@
 }
 
 .passkeySection :global(.operation-list-item) {
-  background: #ffffff;
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
 }
 
 .modalAlert {
   margin-bottom: 16px;
 }
 
-@media (max-width: 860px) {
-  .hero,
-  .ssoHeader {
-    align-items: flex-start;
-    flex-direction: column;
+@media (max-width: 1180px) {
+  .workbench {
+    grid-template-columns: minmax(260px, 0.36fr) minmax(0, 1fr);
   }
 
   .detailsGrid,
   .securityGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 860px) {
+  .workbench {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px;
+  }
+
+  .identityRail {
     grid-template-columns: minmax(0, 1fr);
   }
 }

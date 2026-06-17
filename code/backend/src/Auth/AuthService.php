@@ -438,14 +438,12 @@ final readonly class AuthService
 
     private function casdoorUserinfo(string $code): array
     {
-        $url = 'https://sso.axchen.top/api/Callback';
-        $payload = json_encode(['code' => $code], JSON_THROW_ON_ERROR);
+        $url = 'https://sso.axchen.top/api/Callback?code=' . rawurlencode($code);
         $context = stream_context_create([
             'http' => [
                 'method' => 'POST',
                 'timeout' => 12,
                 'header' => "Content-Type: application/json\r\nAccept: application/json\r\n",
-                'content' => $payload,
                 'ignore_errors' => true,
             ],
         ]);
@@ -460,7 +458,66 @@ final readonly class AuthService
             throw new AuthException('CASDOOR_CALLBACK_INVALID', 'Casdoor callback returned invalid JSON.', 502);
         }
 
-        return $decoded;
+        return $this->normalizeCasdoorUserinfo($decoded);
+    }
+
+    private function normalizeCasdoorUserinfo(array $decoded): array
+    {
+        if (isset($decoded['status']) && $decoded['status'] !== 'ok') {
+            throw new AuthException(
+                'CASDOOR_CALLBACK_REJECTED',
+                Input::string($decoded['msg'] ?? null) ?? 'Casdoor callback was rejected.',
+                502,
+                ['responseKeys' => array_keys($decoded)],
+            );
+        }
+
+        foreach ([$decoded, $decoded['data'] ?? null, $decoded['user'] ?? null, $decoded['userinfo'] ?? null] as $candidate) {
+            if (is_array($candidate) && Input::string($candidate['sub'] ?? null) !== null) {
+                return $candidate;
+            }
+        }
+
+        foreach (['id_token', 'access_token', 'token'] as $tokenKey) {
+            $claims = $this->jwtPayload($decoded[$tokenKey] ?? null);
+            if ($claims !== null && Input::string($claims['sub'] ?? null) !== null) {
+                return $claims + $decoded;
+            }
+        }
+
+        throw new AuthException(
+            'CASDOOR_USERINFO_INVALID',
+            'Casdoor user info is missing subject.',
+            502,
+            ['responseKeys' => array_keys($decoded)],
+        );
+    }
+
+    private function jwtPayload(mixed $token): ?array
+    {
+        if (!is_string($token)) {
+            return null;
+        }
+
+        $segments = explode('.', $token);
+        if (count($segments) < 2) {
+            return null;
+        }
+
+        $payload = strtr($segments[1], '-_', '+/');
+        $padding = strlen($payload) % 4;
+        if ($padding > 0) {
+            $payload .= str_repeat('=', 4 - $padding);
+        }
+
+        $json = base64_decode($payload, true);
+        if (!is_string($json)) {
+            return null;
+        }
+
+        $decoded = json_decode($json, true);
+
+        return is_array($decoded) ? $decoded : null;
     }
 
     private function createSession(int $userId, Request $request, ?int $currentWorkspaceId = null): array

@@ -186,275 +186,279 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
 
   return (
     <div className={styles.page}>
-      <section className={styles.hero}>
-        <div className={styles.identity}>
-          <Avatar className={styles.avatar} size={64}>
-            {getProfileInitial(session.user.displayName, session.user.email)}
-          </Avatar>
-          <div className={styles.identityCopy}>
-            <Text className={styles.eyebrow}>{t('profile')}</Text>
-            <Title className={styles.title} level={2}>
-              {session.user.displayName}
-            </Title>
-            <span className={styles.emailLine}>
-              <Mail size={15} />
-              <Text type="secondary">{session.user.email}</Text>
-            </span>
-          </div>
-        </div>
-        <Space className={styles.statusRow} wrap>
-          {session.user.emailVerifiedAt === null ? (
-            <Tag color="warning">{t('emailPending')}</Tag>
-          ) : (
-            <Tag color="green">{t('emailVerified')}</Tag>
-          )}
-          {session.user.isAdmin ? <Tag color="purple">{t('administrator')}</Tag> : null}
-        </Space>
-      </section>
-
-      <Tabs
-        className={styles.tabs}
-        size="large"
-        items={[
-          {
-            key: 'details',
-            label: (
-              <span className={styles.tabLabel}>
-                <UserRound size={15} />
-                {t('profile')}
+      <div className={styles.workbench}>
+        <aside className={styles.identityRail}>
+          <section className={styles.identityCard}>
+            <Avatar className={styles.avatar} size={72}>
+              {getProfileInitial(session.user.displayName, session.user.email)}
+            </Avatar>
+            <div className={styles.identityCopy}>
+              <Text className={styles.eyebrow}>{t('profile')}</Text>
+              <Title className={styles.title} level={2}>
+                {session.user.displayName}
+              </Title>
+              <span className={styles.emailLine}>
+                <Mail size={15} />
+                <Text type="secondary">{session.user.email}</Text>
               </span>
-            ),
-            children: (
-              <div className={styles.detailsGrid}>
-                {profileError ? (
-                  <Alert className={styles.sideAlert} type="error" showIcon message={profileError} />
-                ) : null}
-                {profileNotice ? (
-                  <Alert className={styles.sideAlert} type="success" showIcon message={profileNotice} />
-                ) : null}
-                {session.user.emailVerifiedAt === null ? (
-                  <Alert
-                    className={styles.sideAlert}
-                    type="warning"
-                    showIcon
-                    message={t('emailPending')}
-                    description={t('emailVerificationPendingMessage')}
-                    action={
-                      <Button
-                        size="small"
-                        loading={isEmailVerificationSending}
-                        onClick={handleResendEmailVerification}
-                      >
-                        {t('emailResend')}
-                      </Button>
-                    }
-                  />
-                ) : null}
-                <section className={styles.panel}>
-                  <div className={styles.panelHeader}>
-                    <span className={styles.panelIcon}>
-                      <UserRound size={16} />
-                    </span>
-                    <div>
-                      <Text strong>{t('accountDetails')}</Text>
-                      <Text type="secondary">{t('nickname')}</Text>
-                    </div>
-                  </div>
-                  <Form<ProfileFormValues>
-                    form={profileForm}
-                    className={styles.form}
-                    layout="vertical"
-                    name="budget-centre-profile"
-                    requiredMark={false}
-                    onFinish={handleProfileSave}
-                  >
-                    <Form.Item
-                      label={t('nickname')}
-                      name="displayName"
-                      rules={[
-                        { required: true, message: t('displayNameRequired') },
-                        { max: 120, message: t('displayNameMax') },
-                      ]}
-                    >
-                      <Input autoComplete="name" prefix={<UserRound size={15} />} />
-                    </Form.Item>
-                    <Button type="primary" htmlType="submit" loading={isProfileSaving}>
-                      {t('saveProfile')}
-                    </Button>
-                  </Form>
-                </section>
+            </div>
+            <Space className={styles.statusRow} wrap>
+              {session.user.emailVerifiedAt === null ? (
+                <Tag color="warning">{t('emailPending')}</Tag>
+              ) : (
+                <Tag color="green">{t('emailVerified')}</Tag>
+              )}
+              {session.user.isAdmin ? <Tag color="purple">{t('administrator')}</Tag> : null}
+            </Space>
+          </section>
 
-                <section className={styles.panel}>
-                  <div className={styles.panelHeader}>
-                    <span className={styles.panelIcon}>
-                      <Mail size={16} />
-                    </span>
-                    <div>
-                      <Text strong>{t('email')}</Text>
-                      <Text type="secondary">
-                        {session.user.emailVerifiedAt === null
-                          ? t('emailPending')
-                          : t('emailVerified')}
-                      </Text>
-                    </div>
-                  </div>
-                  <div className={styles.readonlyValue}>
-                    <strong>{session.user.email}</strong>
-                    <small>{t('emailChangeNote')}</small>
-                  </div>
+          <section className={`${styles.panel} ${styles.ssoPanel}`}>
+            <div className={styles.panelHeader}>
+              <span className={styles.panelIcon}>
+                <ShieldCheck size={16} />
+              </span>
+              <div>
+                <Text strong>SSO账号绑定</Text>
+                <Text type="secondary">
+                  {ssoBinding === null ? '尚未绑定Casdoor账号' : '已连接Casdoor SSO'}
+                </Text>
+              </div>
+            </div>
+            <Divider className={styles.ssoDivider} />
+            {ssoBinding === null ? (
+              <Button className={styles.outlineAction} loading={isSsoLoading} onClick={handleSsoBind}>
+                绑定
+              </Button>
+            ) : (
+              <>
+                <div className={styles.readonlyValue}>
+                  <strong>{ssoBinding.username ?? ssoBinding.email ?? ssoBinding.subject}</strong>
+                  <small>{ssoBinding.email ?? 'Casdoor账号已绑定'}</small>
+                </div>
+                <div className={styles.ssoActions}>
+                  <Tag color="green">已绑定</Tag>
                   <Button
-                    className={styles.fullWidthAction}
-                    icon={<Mail size={15} />}
-                    onClick={() => {
-                      emailChangeForm.resetFields();
-                      setIsEmailChangeOpen(true);
-                    }}
+                    danger
+                    className={styles.dangerOutlineAction}
+                    loading={isSsoUnlinking}
+                    onClick={handleSsoUnlink}
                   >
-                    {t('emailChange')}
+                    解绑
                   </Button>
-                </section>
-                <section className={`${styles.panel} ${styles.ssoPanel}`}>
-                  <Divider className={styles.ssoDivider} />
-                  <div className={styles.ssoHeader}>
-                    <div>
-                      <Text strong>SSO账号绑定</Text>
-                      <Text type="secondary">
-                        {ssoBinding === null ? '尚未绑定Casdoor账号' : '已连接Casdoor SSO'}
-                      </Text>
-                    </div>
-                    {ssoBinding === null ? (
-                      <Button
-                        className={styles.outlineAction}
-                        loading={isSsoLoading}
-                        onClick={handleSsoBind}
+                </div>
+              </>
+            )}
+          </section>
+        </aside>
+
+        <main className={styles.contentPanel}>
+          <Tabs
+            className={styles.tabs}
+            size="large"
+            items={[
+              {
+                key: 'details',
+                label: (
+                  <span className={styles.tabLabel}>
+                    <UserRound size={15} />
+                    {t('profile')}
+                  </span>
+                ),
+                children: (
+                  <div className={styles.detailsGrid}>
+                    {profileError ? (
+                      <Alert className={styles.sideAlert} type="error" showIcon message={profileError} />
+                    ) : null}
+                    {profileNotice ? (
+                      <Alert className={styles.sideAlert} type="success" showIcon message={profileNotice} />
+                    ) : null}
+                    {session.user.emailVerifiedAt === null ? (
+                      <Alert
+                        className={styles.sideAlert}
+                        type="warning"
+                        showIcon
+                        message={t('emailPending')}
+                        description={t('emailVerificationPendingMessage')}
+                        action={
+                          <Button
+                            size="small"
+                            loading={isEmailVerificationSending}
+                            onClick={handleResendEmailVerification}
+                          >
+                            {t('emailResend')}
+                          </Button>
+                        }
+                      />
+                    ) : null}
+                    <section className={styles.panel}>
+                      <div className={styles.panelHeader}>
+                        <span className={styles.panelIcon}>
+                          <UserRound size={16} />
+                        </span>
+                        <div>
+                          <Text strong>{t('accountDetails')}</Text>
+                          <Text type="secondary">{t('nickname')}</Text>
+                        </div>
+                      </div>
+                      <Form<ProfileFormValues>
+                        form={profileForm}
+                        className={styles.form}
+                        layout="vertical"
+                        name="budget-centre-profile"
+                        requiredMark={false}
+                        onFinish={handleProfileSave}
                       >
-                        绑定
-                      </Button>
-                    ) : (
-                      <Space wrap>
-                        <Tag color="green">已绑定</Tag>
-                        <Button
-                          danger
-                          className={styles.dangerOutlineAction}
-                          loading={isSsoUnlinking}
-                          onClick={handleSsoUnlink}
+                        <Form.Item
+                          label={t('nickname')}
+                          name="displayName"
+                          rules={[
+                            { required: true, message: t('displayNameRequired') },
+                            { max: 120, message: t('displayNameMax') },
+                          ]}
                         >
-                          解绑
+                          <Input autoComplete="name" prefix={<UserRound size={15} />} />
+                        </Form.Item>
+                        <Button type="primary" htmlType="submit" loading={isProfileSaving}>
+                          {t('saveProfile')}
                         </Button>
-                      </Space>
-                    )}
-                  </div>
-                  {ssoBinding === null ? null : (
-                    <div className={styles.readonlyValue}>
-                      <strong>{ssoBinding.username ?? ssoBinding.email ?? ssoBinding.subject}</strong>
-                      <small>{ssoBinding.email ?? 'Casdoor账号已绑定'}</small>
-                    </div>
-                  )}
-                </section>
-              </div>
-            ),
-          },
-          {
-            key: 'security',
-            label: (
-              <span className={styles.tabLabel}>
-                <ShieldCheck size={15} />
-                {t('security')}
-              </span>
-            ),
-            children: (
-              <div className={styles.securityGrid}>
-                <section className={styles.panel}>
-                  <div className={styles.panelHeader}>
-                    <span className={styles.panelIcon}>
-                      <ShieldCheck size={16} />
-                    </span>
-                    <div>
-                      <Text strong>{t('passwordHeading')}</Text>
-                      <Text type="secondary">{t('newPassword')}</Text>
-                    </div>
-                  </div>
-                  {passwordError ? (
-                    <Alert className={styles.sideAlert} type="error" showIcon message={passwordError} />
-                  ) : null}
-                  {passwordNotice ? (
-                    <Alert className={styles.sideAlert} type="success" showIcon message={passwordNotice} />
-                  ) : null}
-                  <Form<PasswordFormValues>
-                    form={passwordForm}
-                    className={styles.form}
-                    layout="vertical"
-                    name="budget-centre-password"
-                    requiredMark={false}
-                    onFinish={handlePasswordSave}
-                  >
-                    <Form.Item
-                      label={t('currentPassword')}
-                      name="currentPassword"
-                      rules={[{ required: true, message: t('passwordRequired') }]}
-                    >
-                      <Input.Password autoComplete="current-password" />
-                    </Form.Item>
-                    <Form.Item
-                      label={t('newPassword')}
-                      name="password"
-                      rules={[
-                        { required: true, message: t('passwordRequired') },
-                        { min: 10, message: t('passwordMin') },
-                      ]}
-                    >
-                      <Input.Password autoComplete="new-password" />
-                    </Form.Item>
-                    <Form.Item
-                      dependencies={['password']}
-                      label={t('newPasswordConfirm')}
-                      name="confirmPassword"
-                      rules={[
-                        { required: true, message: t('newPasswordConfirm') },
-                        ({ getFieldValue }) => ({
-                          validator(_, value: string | undefined) {
-                            if (!value || getFieldValue('password') === value) {
-                              return Promise.resolve();
-                            }
+                      </Form>
+                    </section>
 
-                            return Promise.reject(new Error(t('passwordMismatch')));
-                          },
-                        }),
-                      ]}
-                    >
-                      <Input.Password autoComplete="new-password" />
-                    </Form.Item>
-                    <Button type="primary" htmlType="submit" loading={isPasswordSaving}>
-                      {t('updatePassword')}
-                    </Button>
-                  </Form>
-                </section>
-
-                <section className={`${styles.panel} ${styles.passkeySection}`}>
-                  <div className={styles.panelHeader}>
-                    <span className={styles.panelIcon}>
-                      <KeyRound size={16} />
-                    </span>
-                    <div>
-                      <Text strong>{t('passkey')}</Text>
-                      <Text type="secondary">{t('deviceName')}</Text>
-                    </div>
+                    <section className={styles.panel}>
+                      <div className={styles.panelHeader}>
+                        <span className={styles.panelIcon}>
+                          <Mail size={16} />
+                        </span>
+                        <div>
+                          <Text strong>{t('email')}</Text>
+                          <Text type="secondary">
+                            {session.user.emailVerifiedAt === null
+                              ? t('emailPending')
+                              : t('emailVerified')}
+                          </Text>
+                        </div>
+                      </div>
+                      <div className={styles.readonlyValue}>
+                        <strong>{session.user.email}</strong>
+                        <small>{t('emailChangeNote')}</small>
+                      </div>
+                      <Button
+                        className={styles.fullWidthAction}
+                        icon={<Mail size={15} />}
+                        onClick={() => {
+                          emailChangeForm.resetFields();
+                          setIsEmailChangeOpen(true);
+                        }}
+                      >
+                        {t('emailChange')}
+                      </Button>
+                    </section>
                   </div>
-                  {operations.operationsError ? (
-                    <Alert
-                      className={styles.sideAlert}
-                      type="error"
-                      showIcon
-                      message={operations.operationsError}
-                    />
-                  ) : null}
-                  <PasskeySideSection operations={operations} compactTitle />
-                </section>
-              </div>
-            ),
-          },
-        ]}
-      />
+                ),
+              },
+              {
+                key: 'security',
+                label: (
+                  <span className={styles.tabLabel}>
+                    <ShieldCheck size={15} />
+                    {t('security')}
+                  </span>
+                ),
+                children: (
+                  <div className={styles.securityGrid}>
+                    <section className={styles.panel}>
+                      <div className={styles.panelHeader}>
+                        <span className={styles.panelIcon}>
+                          <ShieldCheck size={16} />
+                        </span>
+                        <div>
+                          <Text strong>{t('passwordHeading')}</Text>
+                          <Text type="secondary">{t('newPassword')}</Text>
+                        </div>
+                      </div>
+                      {passwordError ? (
+                        <Alert className={styles.sideAlert} type="error" showIcon message={passwordError} />
+                      ) : null}
+                      {passwordNotice ? (
+                        <Alert className={styles.sideAlert} type="success" showIcon message={passwordNotice} />
+                      ) : null}
+                      <Form<PasswordFormValues>
+                        form={passwordForm}
+                        className={styles.form}
+                        layout="vertical"
+                        name="budget-centre-password"
+                        requiredMark={false}
+                        onFinish={handlePasswordSave}
+                      >
+                        <Form.Item
+                          label={t('currentPassword')}
+                          name="currentPassword"
+                          rules={[{ required: true, message: t('passwordRequired') }]}
+                        >
+                          <Input.Password autoComplete="current-password" />
+                        </Form.Item>
+                        <Form.Item
+                          label={t('newPassword')}
+                          name="password"
+                          rules={[
+                            { required: true, message: t('passwordRequired') },
+                            { min: 10, message: t('passwordMin') },
+                          ]}
+                        >
+                          <Input.Password autoComplete="new-password" />
+                        </Form.Item>
+                        <Form.Item
+                          dependencies={['password']}
+                          label={t('newPasswordConfirm')}
+                          name="confirmPassword"
+                          rules={[
+                            { required: true, message: t('newPasswordConfirm') },
+                            ({ getFieldValue }) => ({
+                              validator(_, value: string | undefined) {
+                                if (!value || getFieldValue('password') === value) {
+                                  return Promise.resolve();
+                                }
+
+                                return Promise.reject(new Error(t('passwordMismatch')));
+                              },
+                            }),
+                          ]}
+                        >
+                          <Input.Password autoComplete="new-password" />
+                        </Form.Item>
+                        <Button type="primary" htmlType="submit" loading={isPasswordSaving}>
+                          {t('updatePassword')}
+                        </Button>
+                      </Form>
+                    </section>
+
+                    <section className={`${styles.panel} ${styles.passkeySection}`}>
+                      <div className={styles.panelHeader}>
+                        <span className={styles.panelIcon}>
+                          <KeyRound size={16} />
+                        </span>
+                        <div>
+                          <Text strong>{t('passkey')}</Text>
+                          <Text type="secondary">{t('deviceName')}</Text>
+                        </div>
+                      </div>
+                      {operations.operationsError ? (
+                        <Alert
+                          className={styles.sideAlert}
+                          type="error"
+                          showIcon
+                          message={operations.operationsError}
+                        />
+                      ) : null}
+                      <PasskeySideSection operations={operations} compactTitle />
+                    </section>
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </main>
+      </div>
       <Modal
         destroyOnClose
         confirmLoading={isProfileSaving}
