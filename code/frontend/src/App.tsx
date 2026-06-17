@@ -346,7 +346,9 @@ function App() {
   }, [budget.selectedBudget?.items]);
   const admin = useAdminController(auth.session?.user.isAdmin === true && activeKey === 'admin');
   const isEmailVerificationRoute = window.location.pathname === '/email/verify';
-  const isCasdoorCallbackRoute = window.location.pathname === '/api/callback';
+  const isCasdoorCallbackRoute =
+    window.location.pathname === '/api/callback'
+    || window.location.search.includes('casdoor_callback=1');
   const isStandaloneBudgetEditor = route.budgetId !== null;
 
   if (isEmailVerificationRoute) {

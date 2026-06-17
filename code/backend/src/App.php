@@ -14,6 +14,7 @@ use BudgetCentre\Database\DatabaseConfigurationException;
 use BudgetCentre\Http\FileResponse;
 use BudgetCentre\Http\InvalidJsonRequestException;
 use BudgetCentre\Http\JsonResponse;
+use BudgetCentre\Http\RedirectResponse;
 use BudgetCentre\Http\Request;
 use BudgetCentre\Repositories\BudgetTemplateRepository;
 use BudgetCentre\Repositories\MissingSeedDataException;
@@ -42,7 +43,7 @@ final class App
 {
     private ?Request $currentRequest = null;
 
-    public function handle(Request $request): JsonResponse|FileResponse
+    public function handle(Request $request): JsonResponse|FileResponse|RedirectResponse
     {
         $this->currentRequest = $request;
         $this->applyCorsHeaders();
@@ -72,6 +73,7 @@ final class App
             ['DELETE', '/api/auth/sso-binding'] => $this->authSsoUnlink($request),
             ['GET', '/api/auth/email/verify'] => $this->authEmailVerify($request),
             ['POST', '/api/auth/email/resend'] => $this->authEmailResend($request),
+            ['GET', '/api/callback'] => $this->authCasdoorBrowserCallback($request),
             ['POST', '/api/Callback'] => $this->authCasdoorCallback($request),
             ['GET', '/api/workspaces'] => $this->workspaceList($request),
             ['POST', '/api/workspaces'] => $this->workspaceCreate($request),
@@ -250,6 +252,14 @@ final class App
                 $auth->casdoorCallback($request->json(), $request),
             ),
         );
+    }
+
+    private function authCasdoorBrowserCallback(Request $request): RedirectResponse
+    {
+        $query = $request->query;
+        $query['casdoor_callback'] = '1';
+
+        return new RedirectResponse('/?' . http_build_query($query));
     }
 
     private function workspaceList(Request $request): JsonResponse
