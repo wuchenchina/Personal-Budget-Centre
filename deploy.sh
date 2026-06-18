@@ -274,6 +274,25 @@ build_frontend() {
   VITE_API_BASE_URL="${VITE_API_BASE_URL}" yarn build
 }
 
+upload_frontend() {
+  rsync -az --delete --info=stats2 --human-readable \
+    -e "${RSYNC_SSH}" \
+    --filter='P /backend/***' \
+    --filter='P /database/***' \
+    --filter='P /font/***' \
+    --filter='P /.user.ini' \
+    --filter='P /.well-known/***' \
+    "${FRONTEND_DIR}/dist/" \
+    "${REMOTE}:${REMOTE_PATH}/"
+}
+
+upload_fonts() {
+  rsync -azc --delete --info=stats2 --human-readable \
+    -e "${RSYNC_SSH}" \
+    "${FONT_DIR}/" \
+    "${REMOTE}:${REMOTE_PATH}/font/"
+}
+
 validate_backend() {
   cd "${BACKEND_DIR}"
   composer validate --strict
@@ -374,10 +393,7 @@ fi
 
 run_step "Prepare remote directories" remote_exec_tracked "mkdir -p '${REMOTE_PATH}/backend' '${REMOTE_PATH}/database' '${REMOTE_PATH}/font' '${REMOTE_PATH}/backend/storage/exports'"
 
-run_step "Upload frontend" rsync -az --info=stats2 --human-readable \
-  -e "${RSYNC_SSH}" \
-  "${FRONTEND_DIR}/dist/" \
-  "${REMOTE}:${REMOTE_PATH}/"
+run_step "Upload frontend" upload_frontend
 
 run_step "Upload backend" rsync -az --delete --info=stats2 --human-readable \
   -e "${RSYNC_SSH}" \
@@ -392,10 +408,7 @@ run_step "Upload database SQL" rsync -az --delete --info=stats2 --human-readable
   "${DATABASE_DIR}/" \
   "${REMOTE}:${REMOTE_PATH}/database/"
 
-run_step "Upload fonts" rsync -az --delete --info=stats2 --human-readable \
-  -e "${RSYNC_SSH}" \
-  "${FONT_DIR}/" \
-  "${REMOTE}:${REMOTE_PATH}/font/"
+run_step "Upload fonts" upload_fonts
 
 run_step "Write backend environment" write_remote_env
 run_step "Install backend dependencies" remote_composer_install
