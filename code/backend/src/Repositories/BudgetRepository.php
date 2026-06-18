@@ -1385,163 +1385,195 @@ final readonly class BudgetRepository
 
     private function hasTransactionReferenceColumns(): bool
     {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            SELECT COUNT(*)
-            FROM information_schema.columns
-            WHERE table_schema = DATABASE()
-              AND table_name = 'budget_transactions'
-              AND column_name IN ('reference_currency_id', 'reference_amount_original')
-            SQL
-        );
-        $statement->execute();
+        return $this->cachedSchemaCapability(__FUNCTION__, function (): bool {
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'budget_transactions'
+                  AND column_name IN ('reference_currency_id', 'reference_amount_original')
+                SQL
+            );
+            $statement->execute();
 
-        return (int) $statement->fetchColumn() === 2;
+            return (int) $statement->fetchColumn() === 2;
+        });
     }
 
     private function hasTransactionPaidByColumn(): bool
     {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            SELECT COUNT(*)
-            FROM information_schema.columns
-            WHERE table_schema = DATABASE()
-              AND table_name = 'budget_transactions'
-              AND column_name = 'paid_by_participant_id'
-            SQL
-        );
-        $statement->execute();
+        return $this->cachedSchemaCapability(__FUNCTION__, function (): bool {
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'budget_transactions'
+                  AND column_name = 'paid_by_participant_id'
+                SQL
+            );
+            $statement->execute();
 
-        return (int) $statement->fetchColumn() === 1;
+            return (int) $statement->fetchColumn() === 1;
+        });
     }
 
     private function hasTransactionPaymentsTable(): bool
     {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            SELECT COUNT(*)
-            FROM information_schema.tables
-            WHERE table_schema = DATABASE()
-              AND table_name = 'budget_transaction_payments'
-            SQL
-        );
-        $statement->execute();
+        return $this->cachedSchemaCapability(__FUNCTION__, function (): bool {
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'budget_transaction_payments'
+                SQL
+            );
+            $statement->execute();
 
-        return (int) $statement->fetchColumn() === 1;
+            return (int) $statement->fetchColumn() === 1;
+        });
     }
 
     private function hasBudgetInstallmentPlanTable(): bool
     {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            SELECT COUNT(*)
-            FROM information_schema.tables
-            WHERE table_schema = DATABASE()
-              AND table_name = 'budget_installment_plans'
-            SQL
-        );
-        $statement->execute();
+        return $this->cachedSchemaCapability(__FUNCTION__, function (): bool {
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'budget_installment_plans'
+                SQL
+            );
+            $statement->execute();
 
-        return (int) $statement->fetchColumn() === 1;
+            return (int) $statement->fetchColumn() === 1;
+        });
     }
 
     private function hasBudgetInstallmentPlanColumn(string $column): bool
     {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            SELECT COUNT(*)
-            FROM information_schema.columns
-            WHERE table_schema = DATABASE()
-              AND table_name = 'budget_installment_plans'
-              AND column_name = :column
-            SQL
-        );
-        $statement->execute(['column' => $column]);
+        return $this->cachedSchemaCapability(__FUNCTION__ . ':' . $column, function () use ($column): bool {
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'budget_installment_plans'
+                  AND column_name = :column
+                SQL
+            );
+            $statement->execute(['column' => $column]);
 
-        return (int) $statement->fetchColumn() === 1;
+            return (int) $statement->fetchColumn() === 1;
+        });
     }
 
     private function hasBudgetParticipantModeColumn(): bool
     {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            SELECT COUNT(*)
-            FROM information_schema.columns
-            WHERE table_schema = DATABASE()
-              AND table_name = 'budgets'
-              AND column_name = 'participant_mode'
-            SQL
-        );
-        $statement->execute();
+        return $this->cachedSchemaCapability(__FUNCTION__, function (): bool {
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'budgets'
+                  AND column_name = 'participant_mode'
+                SQL
+            );
+            $statement->execute();
 
-        return (int) $statement->fetchColumn() === 1;
+            return (int) $statement->fetchColumn() === 1;
+        });
     }
 
     private function hasBudgetPricingEnabledColumn(): bool
     {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            SELECT COUNT(*)
-            FROM information_schema.columns
-            WHERE table_schema = DATABASE()
-              AND table_name = 'budgets'
-              AND column_name = 'pricing_enabled'
-            SQL
-        );
-        $statement->execute();
+        return $this->cachedSchemaCapability(__FUNCTION__, function (): bool {
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'budgets'
+                  AND column_name = 'pricing_enabled'
+                SQL
+            );
+            $statement->execute();
 
-        return (int) $statement->fetchColumn() === 1;
+            return (int) $statement->fetchColumn() === 1;
+        });
     }
 
     private function hasBudgetItemPricingConfigColumn(): bool
     {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            SELECT COUNT(*)
-            FROM information_schema.columns
-            WHERE table_schema = DATABASE()
-              AND table_name = 'budget_items'
-              AND column_name = 'pricing_config'
-            SQL
-        );
-        $statement->execute();
+        return $this->cachedSchemaCapability(__FUNCTION__, function (): bool {
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'budget_items'
+                  AND column_name = 'pricing_config'
+                SQL
+            );
+            $statement->execute();
 
-        return (int) $statement->fetchColumn() === 1;
+            return (int) $statement->fetchColumn() === 1;
+        });
     }
 
     private function hasTransactionPricingConfigColumn(): bool
     {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            SELECT COUNT(*)
-            FROM information_schema.columns
-            WHERE table_schema = DATABASE()
-              AND table_name = 'budget_transactions'
-              AND column_name = 'pricing_config'
-            SQL
-        );
-        $statement->execute();
+        return $this->cachedSchemaCapability(__FUNCTION__, function (): bool {
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'budget_transactions'
+                  AND column_name = 'pricing_config'
+                SQL
+            );
+            $statement->execute();
 
-        return (int) $statement->fetchColumn() === 1;
+            return (int) $statement->fetchColumn() === 1;
+        });
     }
 
     private function hasGroupBudgetTables(): bool
     {
-        $statement = $this->pdo->prepare(
-            <<<'SQL'
-            SELECT COUNT(*)
-            FROM information_schema.tables
-            WHERE table_schema = DATABASE()
-              AND table_name IN (
-                'budget_participants',
-                'budget_item_splits',
-                'budget_item_split_participants'
-              )
-            SQL
-        );
-        $statement->execute();
+        return $this->cachedSchemaCapability(__FUNCTION__, function (): bool {
+            $statement = $this->pdo->prepare(
+                <<<'SQL'
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                  AND table_name IN (
+                    'budget_participants',
+                    'budget_item_splits',
+                    'budget_item_split_participants'
+                  )
+                SQL
+            );
+            $statement->execute();
 
-        return (int) $statement->fetchColumn() === 3;
+            return (int) $statement->fetchColumn() === 3;
+        });
+    }
+
+    private function cachedSchemaCapability(string $key, callable $resolver): bool
+    {
+        /** @var array<string, bool> $cache */
+        static $cache = [];
+
+        if (!array_key_exists($key, $cache)) {
+            $cache[$key] = (bool) $resolver();
+        }
+
+        return $cache[$key];
     }
 
     private function budgetTotalsJoinSql(): string

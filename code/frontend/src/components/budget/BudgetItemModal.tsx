@@ -1,9 +1,8 @@
 import { Alert, Button, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
-import type { ChangeEvent, RefObject } from 'react';
+import type { ChangeEvent } from 'react';
 import { useEffect, useRef } from 'react';
 import { RefreshCcw } from 'lucide-react';
-import { currencyOptions } from '../../config/currencies';
 import { useI18n } from '../../i18n';
 import type {
   BudgetItem,
@@ -18,8 +17,16 @@ import {
   effectiveBudgetItemAmounts,
   formatBudgetMoney,
   transactionCurrencyTotalsForItem,
-  type TransactionCurrencyTotal,
 } from '../../utils/budgetTemplate';
+import {
+  MoneyLegCard,
+  previewBaseAmount,
+  roundMoney,
+  SettlementPreviewCard,
+  TransactionActualsCard,
+} from './BudgetItemAmountCards';
+import { BudgetItemPricingSection } from './BudgetItemPricingSection';
+import { BudgetItemSplitSection } from './BudgetItemSplitSection';
 
 interface BudgetItemModalProps {
   form: FormInstance<BudgetItemFormValues>;
@@ -347,196 +354,29 @@ export function BudgetItemModal({
           </Form.Item>
         </div>
 
-        {pricingEnabled ? (
-          <div className="pricing-config-panel installment-config-panel">
-            <Form.Item name={['pricingConfig', 'enabled']} valuePropName="checked">
-              <Checkbox>{t('enableUnitPricing')}</Checkbox>
-            </Form.Item>
-            {pricingConfigEnabled ? (
-              <>
-                <div className="installment-config-copy">
-                  <strong>{t('unitPricingTitle')}</strong>
-                  <span>{t('unitPricingHelp')}</span>
-                </div>
-                <div className="modal-form-grid">
-                  <Form.Item
-                    label={t('unitPrice')}
-                    name={['pricingConfig', 'unitPrice']}
-                    rules={[
-                      { required: true, message: t('unitPriceRequired') },
-                      { type: 'number', min: 0, message: t('unitPriceMin') },
-                    ]}
-                  >
-                    <InputNumber
-                      addonBefore={budgetCurrency ?? t('currency')}
-                      className="form-full-width"
-                      min={0}
-                      precision={2}
-                      step={100}
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    label={t('quantity')}
-                    name={['pricingConfig', 'quantity']}
-                    rules={[
-                      { required: true, message: t('quantityRequired') },
-                      { type: 'number', min: 0, message: t('quantityMin') },
-                    ]}
-                  >
-                    <InputNumber
-                      className="form-full-width"
-                      min={0}
-                      precision={2}
-                      step={1}
-                    />
-                  </Form.Item>
-                </div>
-                <div className="installment-config-summary">
-                  <span>{t('totalPrice')}</span>
-                  <strong>
-                    {pricingTotal === null
-                      ? `${budgetCurrency ?? t('currency')} --`
-                      : `${budgetCurrency ?? t('currency')} ${pricingTotal.toFixed(2)}`}
-                  </strong>
-                  <span>{t('budgetAmount')}</span>
-                  <strong>
-                    {pricingTotal === null
-                      ? '--'
-                      : t('unitPricingSyncTarget')}
-                  </strong>
-                </div>
-              </>
-            ) : null}
-          </div>
-        ) : null}
+        <BudgetItemPricingSection
+          budgetCurrency={budgetCurrency}
+          enabled={pricingEnabled}
+          pricingTotal={pricingTotal}
+        />
 
-        {participantMode === 'group' && participants.length > 0 ? (
-          <div className="group-split-panel">
-            <div className="group-split-header">
-              <div>
-                <strong>{t('splitSettings')}</strong>
-                <span>{t('splitSettingsHelp')}</span>
-              </div>
-            </div>
-            <div className="modal-form-grid">
-              <Form.Item
-                label={t('paidBy')}
-                name={['split', 'paidByParticipantId']}
-                rules={[{ required: selectedSplitType === 'personal', message: t('selectPaidBy') }]}
-                extra={
-                  selectedSplitType === 'individual'
-                    ? t('individualPaidByHelp')
-                    : selectedSplitType === 'per_person'
-                      ? t('perPersonPaidByHelp')
-                      : undefined
-                }
-              >
-                <Select
-                  allowClear
-                  disabled={selectedSplitType === 'individual' || selectedSplitType === 'per_person'}
-                  optionFilterProp="label"
-                  options={participantOptions}
-                  placeholder={t('selectPaidBy')}
-                  onChange={(participantId) => {
-                    if (selectedSplitType === 'personal' && typeof participantId === 'number') {
-                      form.setFieldValue(['split', 'participantIds'], [participantId]);
-                    }
-                  }}
-                />
-              </Form.Item>
-              <Form.Item
-                label={t('splitType')}
-                name={['split', 'splitType']}
-                rules={[{ required: true, message: t('selectSplitType') }]}
-              >
-                <Select
-                  options={[
-                    { label: t('splitEqual'), value: 'equal' },
-                    { label: t('splitPersonal'), value: 'personal' },
-                    { label: t('splitIndividual'), value: 'individual' },
-                    { label: t('splitPerPerson'), value: 'per_person' },
-                    { label: t('splitExcluded'), value: 'excluded' },
-                  ] satisfies Array<{ label: string; value: BudgetItemSplitType }>}
-                  onChange={handleSplitTypeChange}
-                />
-              </Form.Item>
-            </div>
-            {selectedSplitType === 'excluded'
-              || selectedSplitType === 'personal'
-              || selectedSplitType === 'individual' ? null : (
-              <Form.Item
-                label={t('splitParticipants')}
-                name={['split', 'participantIds']}
-                rules={[{ required: true, message: t('selectSplitParticipants') }]}
-                extra={selectedSplitType === 'per_person' ? t('perPersonAmountHelp') : undefined}
-              >
-                <Select
-                  mode="multiple"
-                  optionFilterProp="label"
-                  options={participantOptions}
-                  placeholder={t('selectSplitParticipants')}
-                />
-              </Form.Item>
-            )}
-            {selectedSplitType === 'individual' ? (
-              <Form.List name={['split', 'individualAmounts']}>
-                {(_, __, { errors }) => (
-                  <div className="individual-split-list">
-                    <div className="individual-split-list-head">
-                      <div>
-                        <strong>{t('individualAmounts')}</strong>
-                        <span>{t('individualAmountsHelp', { currency: baseCurrency })}</span>
-                      </div>
-                      <strong>{formatBudgetMoney(baseCurrency, individualTotalBase)}</strong>
-                    </div>
-                    {participants.map((participant, index) => (
-                      <div className="individual-split-row" key={participant.id}>
-                        <span>{participant.name}</span>
-                        <Form.Item name={[index, 'participantId']} hidden>
-                          <InputNumber />
-                        </Form.Item>
-                        <Form.Item
-                          name={[index, 'amountBase']}
-                          rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
-                        >
-                          <InputNumber
-                            addonBefore={baseCurrency}
-                            className="form-full-width"
-                            min={0}
-                            precision={2}
-                            step={100}
-                          />
-                        </Form.Item>
-                      </div>
-                    ))}
-                    <Form.ErrorList errors={errors} />
-                  </div>
-                )}
-              </Form.List>
-            ) : null}
-            {selectedSplitType === 'per_person' ? (
-              <div className="per-person-split-preview">
-                <div>
-                  <span>{t('perPersonTotalPreview')}</span>
-                  <small>
-                    {t('perPersonPreviewEquation', {
-                      amount: perPersonAmountPreview,
-                      count: countedPerPersonParticipantCount,
-                    })}
-                  </small>
-                </div>
-                <strong>
-                  {perPersonTotalBasePreview === null
-                    ? `${baseCurrency} --`
-                    : formatBudgetMoney(baseCurrency, perPersonTotalBasePreview)}
-                </strong>
-              </div>
-            ) : null}
-            <Form.Item label={t('splitNote')} name={['split', 'note']}>
-              <Input maxLength={500} />
-            </Form.Item>
-          </div>
-        ) : null}
+        <BudgetItemSplitSection
+          baseCurrency={baseCurrency}
+          countedPerPersonParticipantCount={countedPerPersonParticipantCount}
+          individualTotalBase={individualTotalBase}
+          participantMode={participantMode}
+          participantOptions={participantOptions}
+          participants={participants}
+          perPersonAmountPreview={perPersonAmountPreview}
+          perPersonTotalBasePreview={perPersonTotalBasePreview}
+          selectedSplitType={selectedSplitType}
+          onPaidByChange={(participantId) => {
+            if (selectedSplitType === 'personal' && typeof participantId === 'number') {
+              form.setFieldValue(['split', 'participantIds'], [participantId]);
+            }
+          }}
+          onSplitTypeChange={handleSplitTypeChange}
+        />
 
         <div className="currency-config-panel currency-config-panel-wide">
           <div className="currency-config-header">
@@ -749,181 +589,4 @@ function individualAmountRowsEqual(
     return currentRow?.participantId === nextRow.participantId
       && (currentRow.amountBase ?? null) === (nextRow.amountBase ?? null);
   });
-}
-
-function MoneyLegCard({
-  allowNegative = false,
-  amount,
-  amountName,
-  baseCurrency,
-  currency,
-  currencyName,
-  help,
-  focused,
-  rate,
-  rateName,
-  title,
-  wrapperRef,
-}: {
-  allowNegative?: boolean;
-  amount?: number;
-  amountName: keyof BudgetItemFormValues;
-  baseCurrency: CurrencyCode;
-  currency: CurrencyCode;
-  currencyName: keyof BudgetItemFormValues;
-  focused: boolean;
-  help: string;
-  rate?: number;
-  rateName: keyof BudgetItemFormValues;
-  title: string;
-  wrapperRef?: RefObject<HTMLDivElement | null>;
-}) {
-  const { t } = useI18n();
-  const preview = previewBaseAmount(amount, rate);
-
-  return (
-    <div
-      className={`currency-field-card${focused ? ' budget-modal-focus-target' : ''}`}
-      ref={wrapperRef}
-    >
-      <div className="currency-field-card-head">
-        <strong>{title}</strong>
-        <span>{help}</span>
-      </div>
-      <div className="currency-field-inner-grid">
-        <Form.Item
-          label={t('currency')}
-          name={currencyName}
-          rules={[{ required: true, message: t('selectCurrency') }]}
-        >
-          <Select options={currencyOptions} />
-        </Form.Item>
-        <Form.Item
-          label={t('amount')}
-          name={amountName}
-          rules={
-            allowNegative
-              ? [{ type: 'number' }]
-              : [{ type: 'number', min: 0, message: t('amountMin') }]
-          }
-        >
-          <InputNumber
-            addonBefore={currency}
-            className="form-full-width"
-            precision={2}
-            step={100}
-          />
-        </Form.Item>
-      </div>
-      <Form.Item
-        label={t('rateToBaseCurrency', { currency: baseCurrency })}
-        name={rateName}
-        extra={t('manualRateOptional')}
-        rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
-      >
-        <InputNumber className="form-full-width" precision={6} step={0.01} />
-      </Form.Item>
-      <div className="currency-field-preview">
-        <span>{t('baseCurrencyPreview')}</span>
-        <strong>
-          {preview === null ? `${baseCurrency} --` : `${baseCurrency} ${preview.toFixed(2)}`}
-        </strong>
-      </div>
-    </div>
-  );
-}
-
-function TransactionActualsCard({
-  baseCurrency,
-  totalBase,
-  totals,
-}: {
-  baseCurrency: CurrencyCode;
-  totalBase: number;
-  totals: TransactionCurrencyTotal[];
-}) {
-  const { t } = useI18n();
-
-  return (
-    <div className="currency-field-card currency-field-card-muted">
-      <div className="currency-field-card-head">
-        <strong>{t('estimatedActuals')}</strong>
-        <span>{t('transactionDrivenEstimatedActuals')}</span>
-      </div>
-      <div className="currency-readonly-amount">
-        <span>{t('baseCurrencyPreview')}</span>
-        <strong>{formatBudgetMoney(baseCurrency, totalBase)}</strong>
-      </div>
-      <div className="currency-readonly-breakdown">
-        <span>{t('transactionCurrencyBreakdown')}</span>
-        {totals.length === 0 ? (
-          <strong>{t('noTransactionActuals')}</strong>
-        ) : (
-          <div>
-            {totals.map((total) => (
-              <small key={total.currency}>{formatBudgetMoney(total.currency, total.amountOriginal)}</small>
-            ))}
-          </div>
-        )}
-      </div>
-      <p className="currency-readonly-help">{t('transactionDrivenEstimatedActualsHelp')}</p>
-    </div>
-  );
-}
-
-function SettlementPreviewCard({
-  baseCurrency,
-  budgetBase,
-  estimatedBase,
-  focused,
-  varianceBase,
-  wrapperRef,
-}: {
-  baseCurrency: CurrencyCode;
-  budgetBase: number | null;
-  estimatedBase: number;
-  focused: boolean;
-  varianceBase: number | null;
-  wrapperRef?: RefObject<HTMLDivElement | null>;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <div
-      className={`currency-field-card currency-field-card-muted${focused ? ' budget-modal-focus-target' : ''}`}
-      ref={wrapperRef}
-    >
-      <div className="currency-field-card-head">
-        <strong>{t('variance')}</strong>
-        <span>{baseCurrency}</span>
-      </div>
-      <div className="currency-readonly-ledger">
-        <span>{t('budget')}</span>
-        <strong>{budgetBase === null ? `${baseCurrency} --` : formatBudgetMoney(baseCurrency, budgetBase)}</strong>
-        <span>{t('estimatedActuals')}</span>
-        <strong>{formatBudgetMoney(baseCurrency, estimatedBase)}</strong>
-      </div>
-      <div className="currency-field-preview">
-        <span>{t('settlementPreview')}</span>
-        <strong>
-          {varianceBase === null ? `${baseCurrency} --` : formatBudgetMoney(baseCurrency, varianceBase)}
-        </strong>
-      </div>
-      <p className="currency-readonly-help">{t('varianceAutoHelp')}</p>
-    </div>
-  );
-}
-
-function previewBaseAmount(amount: number | null | undefined, rate: number | null | undefined) {
-  if (typeof amount !== 'number' || !Number.isFinite(amount)) {
-    return null;
-  }
-
-  const normalizedRate = typeof rate === 'number' && Number.isFinite(rate) && rate > 0 ? rate : 1;
-
-  return roundMoney(amount * normalizedRate);
-}
-
-function roundMoney(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
 }

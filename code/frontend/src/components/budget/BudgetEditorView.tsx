@@ -1,0 +1,97 @@
+import { lazy, Suspense } from 'react';
+import { BudgetMetrics } from './BudgetMetrics';
+import { GroupBudgetSummaryPanel } from './GroupBudgetSummaryPanel';
+import type { BudgetController } from '../../hooks/useBudgetController';
+import type { BudgetEntryController } from '../../hooks/useBudgetEntryController';
+import type { OperationsController } from '../../hooks/useOperationsController';
+import type { TemplateController } from '../../hooks/useTemplateController';
+import type { CurrencyCode } from '../../types/budget';
+import { useI18n } from '../../i18n';
+
+const BudgetDocumentPreview = lazy(() =>
+  import('./BudgetDocumentPreview').then((module) => ({ default: module.BudgetDocumentPreview })),
+);
+
+interface BudgetEditorViewProps {
+  baseCurrency: CurrencyCode;
+  budget: BudgetController;
+  canManageWorkspaceMembers: boolean;
+  canWriteBudgets: boolean;
+  entry: BudgetEntryController;
+  entryCategoryOptions: Array<{ label: string; value: number }>;
+  operations: OperationsController;
+  onOpenShare: () => void;
+  template: TemplateController;
+  transactionCategoryOptions: Array<{ label: string; value: number }>;
+}
+
+export function BudgetEditorView({
+  baseCurrency,
+  budget,
+  canManageWorkspaceMembers,
+  canWriteBudgets,
+  entry,
+  entryCategoryOptions,
+  operations,
+  onOpenShare,
+  template,
+  transactionCategoryOptions,
+}: BudgetEditorViewProps) {
+  const { t } = useI18n();
+  const openSelectedBudgetSettings = () => {
+    if (budget.selectedBudget !== null) {
+      budget.openBudgetEditModal(budget.selectedBudget);
+    }
+  };
+  const openSelectedBudgetSignatureSettings = () => {
+    if (budget.selectedBudget !== null) {
+      budget.openBudgetSignatureModal(budget.selectedBudget);
+    }
+  };
+  const openSelectedBudgetInstallmentSettings = () => {
+    if (budget.selectedBudget !== null) {
+      budget.openBudgetInstallmentModal(budget.selectedBudget);
+    }
+  };
+
+  return (
+    <div className="budget-editor-shell">
+      <BudgetMetrics
+        selectedBudget={budget.selectedBudget}
+        baseCurrency={baseCurrency}
+        loading={budget.isBudgetDetailLoading}
+      />
+      <GroupBudgetSummaryPanel
+        selectedBudget={budget.selectedBudget}
+        baseCurrency={baseCurrency}
+      />
+      <Suspense fallback={<div className="empty-line">{t('loadingBudget')}</div>}>
+        <BudgetDocumentPreview
+          selectedBudget={budget.selectedBudget}
+          template={template.template}
+          templateError={template.templateError}
+          budgetError={budget.budgetError}
+          baseCurrency={baseCurrency}
+          canWriteBudgets={canWriteBudgets}
+          entry={entry}
+          operations={operations}
+          isBudgetLoading={budget.isBudgetLoading}
+          isBudgetDetailLoading={budget.isBudgetDetailLoading}
+          isBudgetSaving={budget.isBudgetSaving}
+          isTemplateLoading={template.isTemplateLoading}
+          onEditBudget={budget.selectedBudget === null ? undefined : openSelectedBudgetSettings}
+          onEditInstallments={
+            budget.selectedBudget === null ? undefined : openSelectedBudgetInstallmentSettings
+          }
+          onEditSignature={
+            budget.selectedBudget === null ? undefined : openSelectedBudgetSignatureSettings
+          }
+          onInlineHeaderSave={budget.handleBudgetHeaderSave}
+          onOpenShare={canManageWorkspaceMembers ? onOpenShare : undefined}
+          categoryOptions={entryCategoryOptions}
+          transactionCategoryOptions={transactionCategoryOptions}
+        />
+      </Suspense>
+    </div>
+  );
+}
