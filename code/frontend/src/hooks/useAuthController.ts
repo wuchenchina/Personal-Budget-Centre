@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Form } from 'antd';
 import { getCurrentSession, login, logout, register } from '../api/auth';
-import { getPasskeyLoginOptions, verifyPasskeyLogin } from '../api/passkeys';
 import type { AuthSession } from '../types/auth';
 import type { AuthFormValues, AuthMode } from '../types/forms';
 import { translateCurrent } from '../i18n';
-import { toCurrencyCode } from '../utils/budgetTemplate';
-import { getPasskeyCredential } from '../utils/webauthn';
+import { toCurrencyCode } from '../utils/currencyCode';
 
 interface UseAuthControllerOptions {
+  initialSession?: AuthSession | null;
+  loadSession?: boolean;
   onLogout?: () => void;
 }
 
@@ -17,12 +17,16 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [authError, setAuthError] = useState<string | null>(null);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
-  const [session, setSession] = useState<AuthSession | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(options.initialSession ?? null);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
-  const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const [isSessionLoading, setIsSessionLoading] = useState(options.loadSession !== false);
   const watchedPassword = Form.useWatch('password', authForm);
 
   useEffect(() => {
+    if (options.loadSession === false) {
+      return;
+    }
+
     let isMounted = true;
 
     getCurrentSession()
@@ -45,7 +49,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [options.loadSession]);
 
   const handleAuthFinish = async (values: AuthFormValues) => {
     setIsAuthSubmitting(true);
@@ -101,9 +105,11 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
 
     try {
       const email = authForm.getFieldValue('identifier') ?? authForm.getFieldValue('email');
+      const { getPasskeyLoginOptions, verifyPasskeyLogin } = await import('../api/passkeys');
       const passkeyOptions = await getPasskeyLoginOptions(
         typeof email === 'string' ? email : undefined,
       );
+      const { getPasskeyCredential } = await import('../utils/webauthn');
       const credential = await getPasskeyCredential(passkeyOptions);
       const nextSession = await verifyPasskeyLogin(credential);
 

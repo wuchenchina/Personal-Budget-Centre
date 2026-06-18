@@ -24,7 +24,8 @@ import {
   UserCog,
   UserPlus,
 } from 'lucide-react';
-import { currencyOptions, userStatusColors } from '../../config/appConfig';
+import { userStatusColors } from '../../config/appConfig';
+import { currencyOptions } from '../../config/currencies';
 import type { AdminController } from '../../hooks/useAdminController';
 import { userStatusLabelsByLanguage, useI18n } from '../../i18n';
 import type { AdminLogEntry, AdminUser, AdminUserCreatePayload } from '../../types/admin';

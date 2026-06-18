@@ -1,6 +1,6 @@
 import { Form, Input, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
-import { currencyOptions } from '../../config/appConfig';
+import { currencyOptions } from '../../config/currencies';
 import { useI18n, workspaceTypeLabelsByLanguage } from '../../i18n';
 import type { CurrencyCode } from '../../types/budget';
 import type { WorkspaceFormValues } from '../../types/forms';

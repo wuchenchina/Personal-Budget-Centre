@@ -1,7 +1,6 @@
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
 import { createElement } from 'react';
-import { supportedCurrencyCodes } from '../config/appConfig';
 import type {
   BudgetDetail,
   BudgetItem,
@@ -9,6 +8,8 @@ import type {
   TemplateColumn,
   Transaction,
 } from '../types/budget';
+
+export { isCurrencyCode, toCurrencyCode } from './currencyCode';
 
 export function formatBudgetMoney(currency: CurrencyCode, amount: number): string {
   return `${currency} ${amount.toFixed(2)}`;
@@ -293,16 +294,6 @@ export function createTransactionColumns(
     },
     width: `${column.widthPercent}%`,
   }));
-}
-
-export function isCurrencyCode(value: string): value is CurrencyCode {
-  return supportedCurrencyCodes.includes(value as CurrencyCode);
-}
-
-export function toCurrencyCode(value: string | undefined): CurrencyCode {
-  const normalized = (value ?? 'CNY').trim().toUpperCase();
-
-  return isCurrencyCode(normalized) ? normalized : 'CNY';
 }
 
 export function renderBudgetTemplateText(templateText: string, budget: BudgetDetail): string {

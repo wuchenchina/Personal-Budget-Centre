@@ -18,7 +18,7 @@ import type {
   WorkspaceFormValues,
 } from '../types/forms';
 import type { WorkspaceRole } from '../types/budget';
-import { toCurrencyCode } from '../utils/budgetTemplate';
+import { toCurrencyCode } from '../utils/currencyCode';
 import { translateCurrent } from '../i18n';
 
 export function useWorkspaceController(

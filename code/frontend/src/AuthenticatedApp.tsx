@@ -1,0 +1,609 @@
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { Alert, Modal } from 'antd';
+import { AdminPanel } from './components/admin/AdminPanel';
+import { BookkeepingRecordModal } from './components/budget/BookkeepingRecordModal';
+import { BudgetBookkeepingPage } from './components/budget/BudgetBookkeepingPage';
+import { BudgetCreateModal } from './components/budget/BudgetCreateModal';
+import { BudgetDocumentPreview } from './components/budget/BudgetDocumentPreview';
+import { BudgetInstallmentModal } from './components/budget/BudgetInstallmentModal';
+import { BudgetItemModal } from './components/budget/BudgetItemModal';
+import { BudgetMetrics } from './components/budget/BudgetMetrics';
+import { BudgetProjectDashboard } from './components/budget/BudgetProjectDashboard';
+import { BudgetProjectList } from './components/budget/BudgetProjectList';
+import { BudgetSignatureModal } from './components/budget/BudgetSignatureModal';
+import { GroupBudgetSummaryPanel } from './components/budget/GroupBudgetSummaryPanel';
+import { TransactionModal } from './components/budget/TransactionModal';
+import { AppShell } from './components/layout/AppShell';
+import { ProfilePage } from './components/profile/ProfilePage';
+import { GovernancePanel } from './components/workspace/GovernancePanel';
+import { ShareSideSection } from './components/workspace/ShareSideSection';
+import { WorkspaceCreateModal } from './components/workspace/WorkspaceCreateModal';
+import { WorkspaceEditModal } from './components/workspace/WorkspaceEditModal';
+import { WorkspaceMemberModal } from './components/workspace/WorkspaceMemberModal';
+import { WorkspacePage } from './components/workspace/WorkspacePage';
+import { useAdminController } from './hooks/useAdminController';
+import { useBookkeepingController } from './hooks/useBookkeepingController';
+import { useBudgetController } from './hooks/useBudgetController';
+import { useBudgetEntryController } from './hooks/useBudgetEntryController';
+import { useOperationsController } from './hooks/useOperationsController';
+import { useTemplateController } from './hooks/useTemplateController';
+import { useWorkspaceController } from './hooks/useWorkspaceController';
+import { type AppLanguage, useI18n } from './i18n';
+import type { AuthSession } from './types/auth';
+
+interface AppRoute {
+  activeKey: string;
+  budgetId: number | null;
+}
+
+const navigationPaths: Record<string, string> = {
+  dashboard: '/',
+  workspace: '/workspaces',
+  budgets: '/budgets',
+  categories: '/categories',
+  rates: '/rates',
+  profile: '/profile',
+  admin: '/admin',
+};
+
+function budgetProjectIdFromPath(pathname: string): number | null {
+  const match = pathname.match(/^\/budgets\/(\d+)(?:\/bookkeeping)?\/?$/);
+  if (match === null) {
+    return null;
+  }
+
+  const budgetId = Number(match[1]);
+
+  return Number.isInteger(budgetId) && budgetId > 0 ? budgetId : null;
+}
+
+function routeFromPath(pathname: string): AppRoute {
+  const budgetId = budgetProjectIdFromPath(pathname);
+  if (budgetId !== null) {
+    return {
+      activeKey: pathname.replace(/\/+$/, '').endsWith('/bookkeeping')
+        ? 'budget-bookkeeping'
+        : 'budget-editor',
+      budgetId,
+    };
+  }
+
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  const matchedEntry = Object.entries(navigationPaths).find(([, path]) => path === normalizedPath);
+
+  return {
+    activeKey: matchedEntry?.[0] ?? 'dashboard',
+    budgetId: null,
+  };
+}
+
+function initialRouteFromLocation(): AppRoute {
+  const legacyBudgetId = window.location.hash.match(/^#\/budgets\/(\d+)$/)?.[1];
+  if (legacyBudgetId !== undefined) {
+    const nextPath = `/budgets/${legacyBudgetId}`;
+    window.history.replaceState(null, '', nextPath);
+
+    return { activeKey: 'budget-editor', budgetId: Number(legacyBudgetId) };
+  }
+
+  return routeFromPath(window.location.pathname);
+}
+
+interface AuthenticatedAppProps {
+  session: AuthSession;
+  setSession: Dispatch<SetStateAction<AuthSession | null>>;
+  isAuthSubmitting: boolean;
+  language: AppLanguage;
+  onLanguageChange: (language: AppLanguage) => void;
+  onLogout: () => void;
+}
+
+function AuthenticatedApp({
+  session,
+  setSession,
+  isAuthSubmitting,
+  language,
+  onLanguageChange,
+  onLogout,
+}: AuthenticatedAppProps) {
+  const [route, setRoute] = useState(initialRouteFromLocation);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const { t } = useI18n();
+  const activeKey = route.activeKey;
+  const initialBudgetProjectId = route.budgetId;
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setRoute(routeFromPath(window.location.pathname));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const navigateToPath = (path: string, replace = false) => {
+    if (
+      window.location.pathname === path
+      && window.location.search === ''
+      && window.location.hash === ''
+    ) {
+      setRoute(routeFromPath(path));
+
+      return;
+    }
+
+    if (replace) {
+      window.history.replaceState(null, '', path);
+    } else {
+      window.history.pushState(null, '', path);
+    }
+    setRoute(routeFromPath(path));
+  };
+  const handleLogout = () => {
+    onLogout();
+    navigateToPath('/', true);
+  };
+  const workspace = useWorkspaceController(session, setSession);
+  const template = useTemplateController(session);
+  const baseCurrency = session.workspace?.defaultCurrency ?? 'CNY';
+  const budget = useBudgetController({
+    activeWorkspaceId: workspace.activeWorkspaceId,
+    baseCurrency,
+    initialBudgetId: initialBudgetProjectId,
+    session,
+    onCreated: () => navigateToPath('/budgets'),
+    onWorkspaceSelected: workspace.handleWorkspaceSwitch,
+  });
+  const budgetEntry = useBudgetEntryController({
+    baseCurrency,
+    selectedBudget: budget.selectedBudget,
+    replaceBudgetDetail: budget.replaceBudgetDetail,
+  });
+  const bookkeeping = useBookkeepingController({
+    baseCurrency,
+    selectedBudget: budget.selectedBudget,
+  });
+  const workspaceRole = workspace.workspaceRole;
+  const canManageWorkspaceMembers = workspaceRole === 'owner' || workspaceRole === 'admin';
+  const canWriteBudgets =
+    workspaceRole === 'owner' || workspaceRole === 'admin' || workspaceRole === 'editor';
+  const operations = useOperationsController({
+    activeWorkspaceId: workspace.activeWorkspaceId,
+    canManageBudgetShares: canManageWorkspaceMembers,
+    loadPasskeys: activeKey === 'profile',
+    selectedBudget: budget.selectedBudget,
+    session,
+  });
+  const entryCategoryOptions = useMemo(() => {
+    const optionMap = new Map<number, { label: string; value: number }>();
+
+    operations.categoryOptions.forEach((option) => {
+      optionMap.set(option.value, option);
+    });
+
+    budget.selectedBudget?.items.forEach((item) => {
+      if (item.categoryId !== null && item.category !== null) {
+        optionMap.set(item.categoryId, {
+          label: item.category,
+          value: item.categoryId,
+        });
+      }
+    });
+
+    return Array.from(optionMap.values()).sort((left, right) =>
+      left.label.localeCompare(right.label),
+    );
+  }, [budget.selectedBudget?.items, operations.categoryOptions]);
+  const budgetItemPresetCategoryOptions = useMemo(() => {
+    const editingItemId = budgetEntry.editingBudgetItem?.id ?? null;
+    const usedCategoryIds = new Set(
+      budget.selectedBudget?.items
+        .filter((item) => item.id !== editingItemId)
+        .map((item) => item.categoryId)
+        .filter((categoryId): categoryId is number => categoryId !== null) ?? [],
+    );
+
+    return operations.categoryOptions.filter((option) => !usedCategoryIds.has(option.value));
+  }, [budget.selectedBudget?.items, budgetEntry.editingBudgetItem?.id, operations.categoryOptions]);
+  const transactionCategoryOptions = useMemo(() => {
+    const optionMap = new Map<number, { label: string; value: number }>();
+
+    budget.selectedBudget?.items.forEach((item) => {
+      if (item.categoryId !== null) {
+        optionMap.set(item.categoryId, {
+          label: item.category ?? item.label,
+          value: item.categoryId,
+        });
+      }
+    });
+
+    return Array.from(optionMap.values()).sort((left, right) =>
+      left.label.localeCompare(right.label),
+    );
+  }, [budget.selectedBudget?.items]);
+  const bookkeepingCategoryOptions = useMemo(() => {
+    const seenLabels = new Set<string>();
+    const options: Array<{ label: string; value: string }> = [];
+
+    budget.selectedBudget?.items.forEach((item) => {
+      const label = (item.category ?? item.label).trim();
+      if (label === '' || seenLabels.has(label)) {
+        return;
+      }
+
+      seenLabels.add(label);
+      options.push({ label, value: label });
+    });
+
+    return options;
+  }, [budget.selectedBudget?.items]);
+  const admin = useAdminController(session.user.isAdmin === true && activeKey === 'admin');
+  const isStandaloneBudgetEditor = route.budgetId !== null;
+  const currentUserId = session.user.id;
+  const handleNavigate = (key: string) => {
+    navigateToPath(navigationPaths[key] ?? '/');
+  };
+  const handleProfileOpen = () => navigateToPath('/profile');
+  const openBudgetProjectInNewTab = (budgetId: number) => {
+    const url = `${window.location.origin}/budgets/${budgetId}`;
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+  const openBudgetBookkeepingInNewTab = (budgetId: number) => {
+    const url = `${window.location.origin}/budgets/${budgetId}/bookkeeping`;
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+  const openSelectedBudgetSettings = () => {
+    if (budget.selectedBudget !== null) {
+      budget.openBudgetEditModal(budget.selectedBudget);
+    }
+  };
+  const openSelectedBudgetSignatureSettings = () => {
+    if (budget.selectedBudget !== null) {
+      budget.openBudgetSignatureModal(budget.selectedBudget);
+    }
+  };
+  const openSelectedBudgetInstallmentSettings = () => {
+    if (budget.selectedBudget !== null) {
+      budget.openBudgetInstallmentModal(budget.selectedBudget);
+    }
+  };
+  const budgetMetrics = (
+    <BudgetMetrics
+      selectedBudget={budget.selectedBudget}
+      baseCurrency={baseCurrency}
+      loading={budget.isBudgetDetailLoading}
+    />
+  );
+  const budgetPreview = (
+    <BudgetDocumentPreview
+      selectedBudget={budget.selectedBudget}
+      template={template.template}
+      templateError={template.templateError}
+      budgetError={budget.budgetError}
+      baseCurrency={baseCurrency}
+      canWriteBudgets={canWriteBudgets}
+      entry={budgetEntry}
+      operations={operations}
+      isBudgetLoading={budget.isBudgetLoading}
+      isBudgetDetailLoading={budget.isBudgetDetailLoading}
+      isBudgetSaving={budget.isBudgetSaving}
+      isTemplateLoading={template.isTemplateLoading}
+      onEditBudget={budget.selectedBudget === null ? undefined : openSelectedBudgetSettings}
+      onEditInstallments={budget.selectedBudget === null ? undefined : openSelectedBudgetInstallmentSettings}
+      onEditSignature={budget.selectedBudget === null ? undefined : openSelectedBudgetSignatureSettings}
+      onInlineHeaderSave={budget.handleBudgetHeaderSave}
+      onOpenShare={canManageWorkspaceMembers ? () => setIsShareModalOpen(true) : undefined}
+      categoryOptions={entryCategoryOptions}
+      transactionCategoryOptions={transactionCategoryOptions}
+    />
+  );
+  const governancePanel = (
+    <GovernancePanel
+      activeKey={activeKey}
+      budget={budget}
+      workspace={workspace}
+      operations={operations}
+      currentUserId={currentUserId}
+      canManageWorkspaceMembers={canManageWorkspaceMembers}
+    />
+  );
+  const budgetEditorContent = (
+    <div className="budget-editor-shell">
+      {budgetMetrics}
+      <GroupBudgetSummaryPanel
+        selectedBudget={budget.selectedBudget}
+        baseCurrency={baseCurrency}
+      />
+      {budgetPreview}
+    </div>
+  );
+  const budgetBookkeepingContent = (
+    <BudgetBookkeepingPage
+      selectedBudget={budget.selectedBudget}
+      baseCurrency={baseCurrency}
+      canWriteBudgets={canWriteBudgets}
+      loading={budget.isBudgetLoading || budget.isBudgetDetailLoading || bookkeeping.loading}
+      error={budget.budgetError ?? bookkeeping.error ?? operations.operationsError}
+      records={bookkeeping.records}
+      saving={bookkeeping.saving}
+      deletingRecordId={bookkeeping.deletingRecordId}
+      exportingPdf={operations.creatingExportFormat === 'pdf'}
+      onBackToProjects={() => navigateToPath('/budgets')}
+      onOpenEditor={openBudgetProjectInNewTab}
+      onExportPdf={(exportOptions) => operations.createExport('pdf', {
+        exportScope: 'bookkeeping',
+        ...exportOptions,
+      })}
+      onNewRecord={bookkeeping.openCreateModal}
+      onEditRecord={bookkeeping.openEditModal}
+      onDeleteRecord={(recordId) => void bookkeeping.deleteRecord(recordId)}
+    />
+  );
+  const modals = (
+    <>
+      <BudgetCreateModal
+        form={budget.budgetForm}
+        open={budget.isBudgetModalOpen}
+        isEditing={budget.editingBudgetId !== null}
+        error={budget.budgetError}
+        workspaceOptions={workspace.workspaceOptions}
+        confirmLoading={budget.isBudgetSaving}
+        onCancel={() => budget.setIsBudgetModalOpen(false)}
+        onOk={budget.handleBudgetSave}
+      />
+      <BudgetSignatureModal
+        form={budget.budgetForm}
+        open={budget.isSignatureModalOpen}
+        error={budget.budgetError}
+        workspaceMembers={workspace.workspaceMembers}
+        confirmLoading={budget.isBudgetSaving}
+        onCancel={() => budget.setIsSignatureModalOpen(false)}
+        onOk={budget.handleBudgetSignatureSave}
+      />
+      <BudgetInstallmentModal
+        form={budget.budgetForm}
+        selectedBudget={budget.selectedBudget}
+        open={budget.isInstallmentModalOpen}
+        error={budget.budgetError}
+        canWriteBudgets={canWriteBudgets}
+        confirmLoading={budget.isBudgetSaving}
+        isEntrySaving={budgetEntry.isBudgetItemSaving}
+        onCancel={() => budget.setIsInstallmentModalOpen(false)}
+        onClearHistory={budgetEntry.handleInstallmentHistoryClear}
+        onOk={budget.handleBudgetInstallmentSave}
+        onResetAmounts={budgetEntry.handleInstallmentAmountsReset}
+      />
+      <BudgetItemModal
+        form={budgetEntry.budgetItemForm}
+        editingItem={budgetEntry.editingBudgetItem}
+        open={budgetEntry.isBudgetItemModalOpen}
+        error={budgetEntry.entryError}
+        categoryOptions={budgetItemPresetCategoryOptions}
+        baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
+        focus={budgetEntry.budgetItemModalFocus}
+        pricingEnabled={budget.selectedBudget?.pricingEnabled ?? false}
+        participantMode={budget.selectedBudget?.participantMode ?? 'solo'}
+        participants={budget.selectedBudget?.participants ?? []}
+        transactions={budget.selectedBudget?.transactions ?? []}
+        confirmLoading={budgetEntry.isBudgetItemSaving}
+        onRefreshRates={budgetEntry.handleBudgetItemRateRefresh}
+        onCancel={budgetEntry.closeBudgetItemModal}
+        onOk={budgetEntry.handleBudgetItemSave}
+      />
+      <TransactionModal
+        form={budgetEntry.transactionForm}
+        editingTransaction={budgetEntry.editingTransaction}
+        open={budgetEntry.isTransactionModalOpen}
+        error={budgetEntry.entryError}
+        categoryOptions={transactionCategoryOptions}
+        baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
+        pricingEnabled={budget.selectedBudget?.pricingEnabled ?? false}
+        participantMode={budget.selectedBudget?.participantMode ?? 'solo'}
+        participants={budget.selectedBudget?.participants ?? []}
+        items={budget.selectedBudget?.items ?? []}
+        confirmLoading={budgetEntry.isTransactionSaving}
+        onCategoryChange={budgetEntry.handleTransactionCategoryChange}
+        onRefreshRates={budgetEntry.handleTransactionRateRefresh}
+        onReferenceConvert={budgetEntry.handleTransactionReferenceConvert}
+        onValuesChange={budgetEntry.clearEntryError}
+        onCancel={budgetEntry.closeTransactionModal}
+        onOk={budgetEntry.handleTransactionSave}
+      />
+      <BookkeepingRecordModal
+        form={bookkeeping.form}
+        editingRecord={bookkeeping.editingRecord}
+        open={bookkeeping.modalOpen}
+        error={bookkeeping.error}
+        categoryOptions={bookkeepingCategoryOptions}
+        baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
+        confirmLoading={bookkeeping.saving}
+        onValuesChange={() => undefined}
+        onCancel={bookkeeping.closeModal}
+        onOk={bookkeeping.saveRecord}
+      />
+      <WorkspaceCreateModal
+        form={workspace.workspaceForm}
+        open={workspace.isWorkspaceModalOpen}
+        baseCurrency={baseCurrency}
+        confirmLoading={workspace.isWorkspaceCreating}
+        onCancel={() => {
+          workspace.setIsWorkspaceModalOpen(false);
+          workspace.workspaceForm.resetFields();
+        }}
+        onOk={workspace.handleWorkspaceCreate}
+      />
+      <WorkspaceMemberModal
+        form={workspace.workspaceMemberForm}
+        open={workspace.isWorkspaceMemberModalOpen}
+        error={workspace.workspaceMemberError}
+        confirmLoading={workspace.isWorkspaceMemberSaving}
+        onCancel={() => {
+          workspace.setIsWorkspaceMemberModalOpen(false);
+          workspace.workspaceMemberForm.resetFields();
+        }}
+        onOk={workspace.handleWorkspaceMemberAdd}
+      />
+      <WorkspaceEditModal
+        form={workspace.workspaceEditForm}
+        workspace={workspace.activeWorkspace}
+        open={workspace.isWorkspaceEditModalOpen}
+        error={workspace.workspaceError}
+        confirmLoading={workspace.isWorkspaceUpdating}
+        onCancel={() => {
+          workspace.setIsWorkspaceEditModalOpen(false);
+          workspace.workspaceEditForm.resetFields();
+        }}
+        onOk={workspace.handleWorkspaceUpdate}
+      />
+      <Modal
+        destroyOnClose
+        footer={null}
+        open={isShareModalOpen}
+        title={t('shareBudget')}
+        width={760}
+        onCancel={() => setIsShareModalOpen(false)}
+      >
+        {operations.operationsError ? (
+          <Alert
+            className="modal-error"
+            type="error"
+            showIcon
+            message={operations.operationsError}
+          />
+        ) : null}
+        <ShareSideSection
+          operations={operations}
+          selectedBudget={budget.selectedBudget}
+          canManageBudgetShares={canManageWorkspaceMembers}
+        />
+      </Modal>
+    </>
+  );
+
+  const renderMainContent = () => {
+    if (activeKey === 'dashboard') {
+      return (
+        <BudgetProjectDashboard
+          budgets={budget.budgets}
+          selectedBudget={budget.selectedBudget}
+          baseCurrency={baseCurrency}
+          canWriteBudgets={canWriteBudgets}
+          loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
+          onNavigate={handleNavigate}
+          onNewProject={budget.openBudgetModal}
+          onOpenBookkeeping={openBudgetBookkeepingInNewTab}
+          onOpenProject={openBudgetProjectInNewTab}
+        />
+      );
+    }
+
+    if (activeKey === 'workspace') {
+      return (
+        <WorkspacePage
+          workspace={workspace}
+          currentUserId={currentUserId}
+          canManageWorkspaceMembers={canManageWorkspaceMembers}
+        />
+      );
+    }
+
+    if (activeKey === 'budgets') {
+      return (
+        <BudgetProjectList
+          budgets={budget.budgets}
+          selectedBudgetId={budget.selectedBudget?.id ?? null}
+          canWriteBudgets={canWriteBudgets}
+          loading={budget.isBudgetLoading}
+          onDeleteProject={(budgetId) => void budget.handleBudgetDelete(budgetId)}
+          onEditProjectInfo={budget.openBudgetEditModal}
+          onNewProject={budget.openBudgetModal}
+          onOpenBookkeeping={openBudgetBookkeepingInNewTab}
+          onOpenProject={openBudgetProjectInNewTab}
+          onSelectProject={(budgetId) => void budget.handleBudgetSelect(budgetId)}
+          onStatusChange={(budgetSummary, status) =>
+            void budget.handleBudgetStatusChange(budgetSummary, status)
+          }
+        />
+      );
+    }
+
+    if (activeKey === 'budget-editor') {
+      return budgetEditorContent;
+    }
+
+    if (activeKey === 'budget-bookkeeping') {
+      return budgetBookkeepingContent;
+    }
+
+    if (['categories', 'rates'].includes(activeKey)) {
+      return <div className="workspace-grid workspace-grid-panel-only">{governancePanel}</div>;
+    }
+
+    if (activeKey === 'profile') {
+      return (
+        <ProfilePage
+          session={session}
+          operations={operations}
+          onSessionUpdate={setSession}
+        />
+      );
+    }
+
+    if (activeKey === 'admin' && session.user.isAdmin) {
+      return <AdminPanel controller={admin} currentUserId={currentUserId} />;
+    }
+
+    return (
+      <BudgetProjectDashboard
+        budgets={budget.budgets}
+        selectedBudget={budget.selectedBudget}
+        baseCurrency={baseCurrency}
+        canWriteBudgets={canWriteBudgets}
+        loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
+        onNavigate={handleNavigate}
+        onNewProject={budget.openBudgetModal}
+        onOpenBookkeeping={openBudgetBookkeepingInNewTab}
+        onOpenProject={openBudgetProjectInNewTab}
+      />
+    );
+  };
+
+  if (isStandaloneBudgetEditor) {
+    return (
+      <>
+        <main className="standalone-budget-editor">
+          {activeKey === 'budget-bookkeeping' ? budgetBookkeepingContent : budgetEditorContent}
+        </main>
+        {modals}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <AppShell
+        activeKey={activeKey}
+        session={session}
+        workspaceRole={workspaceRole}
+        isAdmin={session.user.isAdmin}
+        isAuthSubmitting={isAuthSubmitting}
+        language={language}
+        onNavigate={handleNavigate}
+        onLanguageChange={onLanguageChange}
+        onProfile={handleProfileOpen}
+        onLogout={handleLogout}
+      >
+        {renderMainContent()}
+      </AppShell>
+
+      {modals}
+    </>
+  );
+}
+
+export default AuthenticatedApp;

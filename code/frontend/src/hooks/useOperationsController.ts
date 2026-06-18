@@ -16,13 +16,6 @@ import {
 } from '../api/budgetShares';
 import { createBudgetExport, exportDownloadUrl } from '../api/exports';
 import { refreshBochkRates } from '../api/exchangeRates';
-import {
-  deletePasskeyCredential,
-  getPasskeyRegistrationOptions,
-  listPasskeyCredentials,
-  updatePasskeyCredential,
-  verifyPasskeyRegistration,
-} from '../api/passkeys';
 import { listCurrencies } from '../api/referenceData';
 import type { AuthSession, PasskeyCredential } from '../types/auth';
 import type {
@@ -37,13 +30,13 @@ import type {
   CurrencyCode,
 } from '../types/budget';
 import { translateCurrent } from '../i18n';
-import { createPasskeyCredential } from '../utils/webauthn';
 
 interface UseOperationsControllerOptions {
   activeWorkspaceId: number | null;
   selectedBudget: BudgetDetail | null;
   session: AuthSession | null;
   canManageBudgetShares: boolean;
+  loadPasskeys?: boolean;
 }
 
 function triggerExportDownload(url: string): void {
@@ -71,7 +64,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   const [refreshingExchangeRateSource, setRefreshingExchangeRateSource] = useState<'bochk' | null>(null);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
   const [isPasskeyRegistering, setIsPasskeyRegistering] = useState(false);
-  const { activeWorkspaceId, canManageBudgetShares, selectedBudget, session } = options;
+  const { activeWorkspaceId, canManageBudgetShares, loadPasskeys = false, selectedBudget, session } = options;
 
   useEffect(() => {
     let isMounted = true;
@@ -100,7 +93,6 @@ export function useOperationsController(options: UseOperationsControllerOptions)
       }
 
       setIsReferenceLoading(true);
-      setIsPasskeyLoading(true);
 
       listCurrencies()
         .then((nextCurrencies) => {
@@ -119,7 +111,16 @@ export function useOperationsController(options: UseOperationsControllerOptions)
           }
         });
 
-      listPasskeyCredentials()
+      if (!loadPasskeys) {
+        setPasskeys([]);
+        setIsPasskeyLoading(false);
+
+        return;
+      }
+
+      setIsPasskeyLoading(true);
+      void import('../api/passkeys')
+        .then(({ listPasskeyCredentials }) => listPasskeyCredentials())
         .then((nextPasskeys) => {
           if (isMounted) {
             setPasskeys(nextPasskeys);
@@ -140,7 +141,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     return () => {
       isMounted = false;
     };
-  }, [session]);
+  }, [loadPasskeys, session]);
 
   useEffect(() => {
     let isMounted = true;
@@ -460,7 +461,9 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     setOperationsError(null);
 
     try {
+      const { getPasskeyRegistrationOptions, verifyPasskeyRegistration } = await import('../api/passkeys');
       const options = await getPasskeyRegistrationOptions();
+      const { createPasskeyCredential } = await import('../utils/webauthn');
       const credential = await createPasskeyCredential(options);
       setPasskeys(await verifyPasskeyRegistration(credential, deviceName));
     } catch (error: unknown) {
@@ -475,6 +478,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     setOperationsError(null);
 
     try {
+      const { updatePasskeyCredential } = await import('../api/passkeys');
       setPasskeys(await updatePasskeyCredential(id, deviceName));
     } catch (error: unknown) {
       setOperationsError(error instanceof Error ? error.message : translateCurrent('authFailed'));
@@ -488,6 +492,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     setOperationsError(null);
 
     try {
+      const { deletePasskeyCredential } = await import('../api/passkeys');
       setPasskeys(await deletePasskeyCredential(id));
     } catch (error: unknown) {
       setOperationsError(error instanceof Error ? error.message : translateCurrent('authFailed'));

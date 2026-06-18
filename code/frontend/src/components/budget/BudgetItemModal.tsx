@@ -3,7 +3,7 @@ import type { FormInstance } from 'antd';
 import type { ChangeEvent, RefObject } from 'react';
 import { useEffect, useRef } from 'react';
 import { RefreshCcw } from 'lucide-react';
-import { currencyOptions } from '../../config/appConfig';
+import { currencyOptions } from '../../config/currencies';
 import { useI18n } from '../../i18n';
 import type {
   BudgetItem,

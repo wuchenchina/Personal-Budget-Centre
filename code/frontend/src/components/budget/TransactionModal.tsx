@@ -2,7 +2,7 @@ import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Select } fr
 import type { FormInstance } from 'antd';
 import { Calculator, RefreshCcw } from 'lucide-react';
 import { useEffect } from 'react';
-import { currencyOptions } from '../../config/appConfig';
+import { currencyOptions } from '../../config/currencies';
 import { useI18n } from '../../i18n';
 import type {
   BudgetItem,

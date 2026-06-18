@@ -1,31 +1,10 @@
 import type { ThemeConfig } from 'antd';
-import type { CurrencyCode, WorkspaceRole } from '../types/budget';
+import type { WorkspaceRole } from '../types/budget';
 import type { UserStatus } from '../types/auth';
 
-export const iconSize = 16;
+export { currencyOptions, supportedCurrencyCodes } from './currencies';
 
-export const supportedCurrencyCodes: CurrencyCode[] = [
-  'CNY',
-  'CNH',
-  'HKD',
-  'USD',
-  'EUR',
-  'GBP',
-  'JPY',
-  'TWD',
-  'MOP',
-  'AUD',
-  'NZD',
-  'CAD',
-  'CHF',
-  'DKK',
-  'NOK',
-  'SEK',
-  'SGD',
-  'THB',
-  'BND',
-  'ZAR',
-];
+export const iconSize = 16;
 
 export const roleColors: Record<WorkspaceRole, string> = {
   owner: 'gold',
@@ -40,11 +19,6 @@ export const userStatusColors: Record<UserStatus, string> = {
   pending: 'orange',
   disabled: 'default',
 };
-
-export const currencyOptions = supportedCurrencyCodes.map((code) => ({
-  label: code,
-  value: code,
-}));
 
 export const defaultBudgetTotals = {
   totalBudgetBase: 0,

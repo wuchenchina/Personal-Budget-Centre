@@ -1,6 +1,6 @@
 import { Alert, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
-import { currencyOptions } from '../../config/appConfig';
+import { currencyOptions } from '../../config/currencies';
 import { useI18n } from '../../i18n';
 import type { BookkeepingRecord, CurrencyCode, TransactionType } from '../../types/budget';
 import type { BookkeepingRecordFormValues } from '../../types/forms';

@@ -31,7 +31,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { currencyOptions } from '../../config/appConfig';
+import { currencyOptions } from '../../config/currencies';
 import type { BudgetEntryController } from '../../hooks/useBudgetEntryController';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import {

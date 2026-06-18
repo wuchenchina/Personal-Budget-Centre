@@ -9,12 +9,12 @@ import {
   UserRound,
   WalletCards,
 } from 'lucide-react';
-import { currencyOptions } from '../../config/appConfig';
+import { currencyOptions } from '../../config/currencies';
 import { startCasdoorSignin } from '../../config/casdoor';
 import type { AppLanguage } from '../../i18n';
 import { languageOptions, useI18n } from '../../i18n';
 import type { AuthFormValues, AuthMode } from '../../types/forms';
-import { isCurrencyCode } from '../../utils/budgetTemplate';
+import { isCurrencyCode } from '../../utils/currencyCode';
 import { passwordProgressStatus, passwordStrengthFor } from '../../utils/password';
 import styles from './AuthScreen.module.css';
 

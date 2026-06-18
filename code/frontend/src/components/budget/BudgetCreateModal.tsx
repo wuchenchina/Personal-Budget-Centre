@@ -1,7 +1,7 @@
 import { Alert, Button, Checkbox, DatePicker, Form, Input, Modal, Radio, Select, Space } from 'antd';
 import type { FormInstance } from 'antd';
 import { Plus, Trash2 } from 'lucide-react';
-import { currencyOptions } from '../../config/appConfig';
+import { currencyOptions } from '../../config/currencies';
 import {
   useI18n,
   visibilityLabelsByLanguage,
