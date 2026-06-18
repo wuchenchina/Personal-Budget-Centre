@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Empty, Input, Popconfirm, Segmented, Space, Table, Tabs, Tag, Tooltip } from 'antd';
+import { Alert, Button, Empty, FloatButton, Input, Popconfirm, Segmented, Space, Table, Tabs, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
 import { ArrowLeft, Download, FileText, Landmark, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useI18n } from '../../i18n';
@@ -368,6 +368,14 @@ export function BudgetBookkeepingPage({
           )}
         />
       </section>
+      {canWriteBudgets ? (
+        <FloatButton
+          icon={<Plus size={20} />}
+          tooltip={t('addBookkeepingRecord')}
+          type="primary"
+          onClick={onNewRecord}
+        />
+      ) : null}
     </div>
   );
 }
