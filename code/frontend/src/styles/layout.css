@@ -1,6 +1,6 @@
 .app-shell {
-  min-height: 100vh;
-  background: #f5f5f5;
+  min-height: 100dvh;
+  background: var(--bc-page);
 }
 
 .app-shell > .ant-layout {
@@ -8,8 +8,8 @@
 }
 
 .app-sidebar {
-  background: #fff;
-  border-right: 1px solid #f0f0f0;
+  background: #fbfdfd;
+  border-right: 1px solid var(--bc-border);
 }
 
 .brand-lockup {
@@ -18,7 +18,7 @@
   gap: 12px;
   height: 64px;
   padding: 0 16px;
-  color: #1f1f1f;
+  color: var(--bc-text);
 }
 
 .brand-mark {
@@ -27,7 +27,7 @@
   height: 38px;
   place-items: center;
   color: #fff;
-  background: #1677ff;
+  background: var(--bc-accent);
   border-radius: 8px;
 }
 
@@ -39,29 +39,29 @@
 
 .brand-caption {
   margin-top: 3px;
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 12px;
 }
 
 .app-menu {
   background: transparent;
   border-inline-end: 0 !important;
-  color: #595959;
+  color: var(--bc-text-muted);
 }
 
 .app-menu .ant-menu-item {
-  color: #595959;
+  color: var(--bc-text-muted);
   border-radius: 6px;
 }
 
 .app-menu .ant-menu-item:hover {
-  color: #1677ff;
-  background: #e6f4ff;
+  color: var(--bc-accent-strong);
+  background: var(--bc-accent-soft);
 }
 
 .app-menu .ant-menu-item-selected {
-  color: #1677ff;
-  background: #e6f4ff;
+  color: var(--bc-accent-strong);
+  background: var(--bc-accent-soft);
 }
 
 .app-header {
@@ -72,8 +72,8 @@
   height: auto;
   min-height: 64px;
   padding: 8px 18px;
-  background: #ffffff;
-  border-bottom: 1px solid #f0f0f0;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid var(--bc-border);
   line-height: normal;
 }
 
@@ -91,7 +91,7 @@
 }
 
 .header-context-kicker {
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 12px;
   line-height: 1.2;
 }
@@ -106,7 +106,7 @@
 .header-context-row strong {
   min-width: 0;
   overflow: hidden;
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -165,10 +165,10 @@
   width: 100%;
   max-width: 100vw;
   min-width: 0;
-  min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
   padding: 18px;
-  background: #f5f5f5;
+  background: var(--bc-page);
 }
 
 .form-full-width {
@@ -185,7 +185,7 @@
 
 .budget-info-modal .ant-modal-body,
 .large-form-modal .ant-modal-body {
-  max-height: calc(100vh - 128px);
+  max-height: calc(100dvh - 128px);
   overflow-y: auto;
   padding-bottom: 12px;
 }
@@ -356,7 +356,7 @@
 
 .modal-title-context {
   margin-left: 8px;
-  color: #1677ff;
+  color: var(--bc-accent);
   font-size: 12px;
   font-weight: 500;
 }
@@ -426,13 +426,13 @@
 }
 
 .budget-modal-focus-target {
-  border-color: #1677ff !important;
-  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+  border-color: var(--bc-accent) !important;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.14);
 }
 
 .entry-basic-grid.budget-modal-focus-target {
   padding: 10px;
-  border: 1px solid #1677ff;
+  border: 1px solid var(--bc-accent);
   border-radius: 8px;
 }
 
@@ -637,8 +637,8 @@
 }
 
 .signature-row-drag-handle:hover {
-  color: #1677ff;
-  background: #e6f4ff;
+  color: var(--bc-accent);
+  background: var(--bc-accent-soft);
 }
 
 .signature-config-row-body {

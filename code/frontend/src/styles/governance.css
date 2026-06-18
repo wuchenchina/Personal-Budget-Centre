@@ -74,8 +74,8 @@
 }
 
 .workspace-list-item-active {
-  background: #e6f4ff;
-  border-color: #91caff;
+  background: var(--bc-accent-soft);
+  border-color: var(--bc-accent-border);
 }
 
 .workspace-list-item span {

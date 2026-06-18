@@ -1,7 +1,14 @@
-import { LoginForm, ProFormSelect, ProFormText } from '@ant-design/pro-components';
-import { Alert, Button, Divider, Progress, Select, Tabs } from 'antd';
+import { Alert, Button, Divider, Form, Input, Progress, Select, Tabs } from 'antd';
 import type { FormInstance } from 'antd';
-import { KeyRound, LockKeyhole, UserRound, WalletCards } from 'lucide-react';
+import {
+  BadgeCheck,
+  FileLock2,
+  KeyRound,
+  LockKeyhole,
+  ShieldCheck,
+  UserRound,
+  WalletCards,
+} from 'lucide-react';
 import { currencyOptions } from '../../config/appConfig';
 import { startCasdoorSignin } from '../../config/casdoor';
 import type { AppLanguage } from '../../i18n';
@@ -46,230 +53,270 @@ export function AuthScreen({
     pass: t('passwordStrengthPass'),
     ok: t('passwordStrengthOk'),
   };
-  const handleCasdoorLogin = () => {
+  const handleSsoLogin = () => {
     startCasdoorSignin('login');
   };
+  const submitText = mode === 'login' ? t('login') : t('createAccount');
 
   return (
     <main className={styles.shell}>
-      <Select<AppLanguage>
-        aria-label="Language"
-        className={styles.languageSwitcher}
-        options={languageOptions}
-        value={language}
-        onChange={onLanguageChange}
-      />
-      <LoginForm<AuthFormValues>
-        className={styles.proForm}
-        form={form}
-        logo={
-          <div className={styles.logo}>
-            <WalletCards size={24} />
+      <div className={styles.frame}>
+        <section className={styles.storyPanel} aria-label={t('authProductPanel')}>
+          <div className={styles.storyHeader}>
+            <div className={styles.brandMark}>
+              <WalletCards size={22} />
+            </div>
+            <div>
+              <span>BudgetCentre</span>
+              <strong>{t('loginSubtitle')}</strong>
+            </div>
           </div>
-        }
-        title="BudgetCentre"
-        subTitle={t('loginSubtitle')}
-        contentStyle={{
-          minWidth: 280,
-          maxWidth: '75vw',
-        }}
-        initialValues={{ defaultCurrency: 'CNY' }}
-        submitter={{
-          searchConfig: {
-            submitText: mode === 'login' ? t('login') : t('createAccount'),
-          },
-          submitButtonProps: {
-            loading: isSubmitting,
-            size: 'large',
-          },
-          render: (_, dom) => {
-            const submitButton = dom[dom.length - 1] ?? null;
 
-            if (mode !== 'login') {
-              return submitButton;
-            }
-
-            return (
-              <>
-                {submitButton}
-                <div className={styles.ssoSection}>
-                  <Divider className={styles.ssoDivider} plain>
-                    或
-                  </Divider>
-                  <Button
-                    block
-                    className={styles.ssoButton}
-                    disabled={isSubmitting}
-                    size="large"
-                    onClick={handleCasdoorLogin}
-                  >
-                    Casdoor SSO登录
-                  </Button>
-                </div>
-              </>
-            );
-          },
-        }}
-        onFinish={async (values) => {
-          await onFinish(values);
-
-          return true;
-        }}
-      >
-        <Tabs
-          className={styles.modeTabs}
-          activeKey={mode}
-          centered
-          items={[
-            { key: 'login', label: t('loginTab') },
-            { key: 'register', label: t('createAccount') },
-          ]}
-          onChange={(key) => onModeChange(key as AuthMode)}
-        />
-
-        {error ? <Alert className={styles.authAlert} type="error" showIcon message={error} /> : null}
-        {notice ? (
-          <Alert className={styles.authAlert} type="success" showIcon message={notice} />
-        ) : null}
-
-        {mode === 'login' ? (
-          <div className={styles.loginMethods}>
-            <Button
-              block
-              className={styles.passkeyButton}
-              icon={<KeyRound size={16} />}
-              loading={isSubmitting}
-              size="large"
-              onClick={() => void onPasskeyLogin()}
-            >
-              {t('loginWithPasskey')}
-            </Button>
-            <Divider className={styles.loginDivider} plain>
-              {t('loginWithPassword')}
-            </Divider>
+          <div className={styles.storyCopy}>
+            <h1>{t('authHeroTitle')}</h1>
+            <p>{t('authHeroDescription')}</p>
           </div>
-        ) : null}
 
-        {mode === 'register' ? (
-          <>
-            <ProFormText
-              name="username"
-              fieldProps={{
-                autoComplete: 'username',
-                prefix: <UserRound size={16} />,
-                size: 'large',
-              }}
-              placeholder={t('username')}
-              rules={[
-                { required: true, message: t('usernameRequired') },
-                {
-                  pattern: /^[a-zA-Z0-9_][a-zA-Z0-9_.-]{2,31}$/,
-                  message: t('usernamePattern'),
-                },
-              ]}
-            />
-            <ProFormText
-              name="displayName"
-              fieldProps={{
-                autoComplete: 'name',
-                prefix: <UserRound size={16} />,
-                size: 'large',
-              }}
-              placeholder={t('displayName')}
-              rules={[{ required: true, message: t('displayNameRequired') }]}
-            />
-          </>
-        ) : null}
+          <div className={styles.assuranceList}>
+            <div>
+              <FileLock2 size={16} />
+              <span>{t('authAssuranceTemplate')}</span>
+            </div>
+            <div>
+              <ShieldCheck size={16} />
+              <span>{t('authAssuranceAccess')}</span>
+            </div>
+            <div>
+              <BadgeCheck size={16} />
+              <span>{t('authAssurancePasskey')}</span>
+            </div>
+          </div>
+        </section>
 
-        <ProFormText
-          name={mode === 'login' ? 'identifier' : 'email'}
-          fieldProps={{
-            autoComplete: mode === 'login' ? 'username' : 'email',
-            prefix: <UserRound size={16} />,
-            size: 'large',
-          }}
-          placeholder={mode === 'login' ? t('usernameOrEmail') : t('email')}
-          rules={[
-            {
-              required: true,
-              message: mode === 'login' ? t('usernameOrEmailRequired') : t('emailRequired'),
-            },
-            ...(mode === 'register'
-              ? [{ type: 'email' as const, message: t('emailFormatInvalid') }]
-              : []),
-          ]}
-        />
+        <section className={styles.formPanel} aria-label={t('authFormPanel')}>
+          <Select<AppLanguage>
+            aria-label="Language"
+            className={styles.languageSwitcher}
+            options={languageOptions}
+            value={language}
+            onChange={onLanguageChange}
+          />
 
-        <ProFormText.Password
-          name="password"
-          fieldProps={{
-            autoComplete: mode === 'login' ? 'current-password' : 'new-password',
-            prefix: <LockKeyhole size={16} />,
-            size: 'large',
-          }}
-          placeholder={mode === 'login' ? t('password') : t('passwordMin')}
-          rules={[
-            { required: true, message: t('passwordRequired') },
-            ...(mode === 'register'
-              ? [{ min: 10, message: t('passwordMin') }]
-              : []),
-          ]}
-        />
-
-        {mode === 'register' ? (
-          <>
-            <div className={`${styles.passwordStrength} ${styles[`passwordStrength${passwordStrength}`]}`}>
-              <span>{passwordStrengthLabels[passwordStrength]}</span>
-              <Progress
-                percent={passwordProgressPercent}
-                showInfo={false}
-                size="small"
-                status={passwordProgressStatus[passwordStrength]}
-              />
+          <div className={styles.formCard}>
+            <div className={styles.formIntro}>
+              <div className={styles.logo}>
+                <WalletCards size={22} />
+              </div>
+              <div>
+                <span>BudgetCentre</span>
+                <h2>{mode === 'login' ? t('loginTab') : t('createAccount')}</h2>
+              </div>
             </div>
 
-            <ProFormText.Password
-              name="confirmPassword"
-              fieldProps={{
-                autoComplete: 'new-password',
-                prefix: <LockKeyhole size={16} />,
-                size: 'large',
-              }}
-              placeholder={t('confirmPassword')}
-              rules={[
-                { required: true, message: t('confirmPassword') },
-                ({ getFieldValue }) => ({
-                  validator(_, value: unknown) {
-                    return value === getFieldValue('password')
-                      ? Promise.resolve()
-                      : Promise.reject(new Error(t('passwordMismatch')));
-                  },
-                }),
+            <Tabs
+              className={styles.modeTabs}
+              activeKey={mode}
+              items={[
+                { key: 'login', label: t('loginTab') },
+                { key: 'register', label: t('createAccount') },
               ]}
+              onChange={(key) => onModeChange(key as AuthMode)}
             />
 
-            <ProFormSelect
-              name="defaultCurrency"
-              fieldProps={{
-                size: 'large',
+            {error ? (
+              <Alert className={styles.authAlert} type="error" showIcon message={error} />
+            ) : null}
+            {notice ? (
+              <Alert className={styles.authAlert} type="success" showIcon message={notice} />
+            ) : null}
+
+            {mode === 'login' ? (
+              <Button
+                block
+                className={styles.passkeyButton}
+                icon={<KeyRound size={16} />}
+                loading={isSubmitting}
+                size="large"
+                onClick={() => void onPasskeyLogin()}
+              >
+                {t('loginWithPasskey')}
+              </Button>
+            ) : null}
+
+            {mode === 'login' ? (
+              <Divider className={styles.loginDivider} plain>
+                {t('loginWithPassword')}
+              </Divider>
+            ) : null}
+
+            <Form<AuthFormValues>
+              className={styles.authForm}
+              form={form}
+              initialValues={{ defaultCurrency: 'CNY' }}
+              layout="vertical"
+              requiredMark={false}
+              scrollToFirstError={{ focus: true }}
+              onFinish={(values) => {
+                void onFinish(values);
               }}
-              options={currencyOptions}
-              placeholder={t('defaultCurrency')}
-              rules={[
-                { required: true, message: t('selectDefaultCurrency') },
-                {
-                  validator: (_, value: unknown) =>
-                    typeof value === 'string' && isCurrencyCode(value)
-                      ? Promise.resolve()
-                      : Promise.reject(
-                          new Error(t('supportedCurrencyOnly')),
-                        ),
-                },
-              ]}
-            />
-          </>
-        ) : null}
-      </LoginForm>
+            >
+              {mode === 'register' ? (
+                <>
+                  <Form.Item
+                    label={t('username')}
+                    name="username"
+                    rules={[
+                      { required: true, message: t('usernameRequired') },
+                      {
+                        pattern: /^[a-zA-Z0-9_][a-zA-Z0-9_.-]{2,31}$/,
+                        message: t('usernamePattern'),
+                      },
+                    ]}
+                  >
+                    <Input
+                      autoComplete="username"
+                      prefix={<UserRound size={16} />}
+                      size="large"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label={t('displayName')}
+                    name="displayName"
+                    rules={[{ required: true, message: t('displayNameRequired') }]}
+                  >
+                    <Input
+                      autoComplete="name"
+                      prefix={<UserRound size={16} />}
+                      size="large"
+                    />
+                  </Form.Item>
+                </>
+              ) : null}
+
+              <Form.Item
+                label={mode === 'login' ? t('usernameOrEmail') : t('email')}
+                name={mode === 'login' ? 'identifier' : 'email'}
+                rules={[
+                  {
+                    required: true,
+                    message: mode === 'login' ? t('usernameOrEmailRequired') : t('emailRequired'),
+                  },
+                  ...(mode === 'register'
+                    ? [{ type: 'email' as const, message: t('emailFormatInvalid') }]
+                    : []),
+                ]}
+              >
+                <Input
+                  autoComplete={mode === 'login' ? 'username' : 'email'}
+                  prefix={<UserRound size={16} />}
+                  size="large"
+                />
+              </Form.Item>
+
+              <Form.Item
+                label={t('password')}
+                name="password"
+                rules={[
+                  { required: true, message: t('passwordRequired') },
+                  ...(mode === 'register'
+                    ? [{ min: 10, message: t('passwordMin') }]
+                    : []),
+                ]}
+              >
+                <Input.Password
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  prefix={<LockKeyhole size={16} />}
+                  size="large"
+                />
+              </Form.Item>
+
+              {mode === 'register' ? (
+                <>
+                  <div
+                    className={`${styles.passwordStrength} ${
+                      styles[`passwordStrength${passwordStrength}`]
+                    }`}
+                  >
+                    <span>{passwordStrengthLabels[passwordStrength]}</span>
+                    <Progress
+                      percent={passwordProgressPercent}
+                      showInfo={false}
+                      size="small"
+                      status={passwordProgressStatus[passwordStrength]}
+                    />
+                  </div>
+
+                  <Form.Item
+                    dependencies={['password']}
+                    label={t('confirmPassword')}
+                    name="confirmPassword"
+                    rules={[
+                      { required: true, message: t('confirmPassword') },
+                      ({ getFieldValue }) => ({
+                        validator(_, value: unknown) {
+                          return value === getFieldValue('password')
+                            ? Promise.resolve()
+                            : Promise.reject(new Error(t('passwordMismatch')));
+                        },
+                      }),
+                    ]}
+                  >
+                    <Input.Password
+                      autoComplete="new-password"
+                      prefix={<LockKeyhole size={16} />}
+                      size="large"
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    label={t('defaultCurrency')}
+                    name="defaultCurrency"
+                    rules={[
+                      { required: true, message: t('selectDefaultCurrency') },
+                      {
+                        validator: (_, value: unknown) =>
+                          typeof value === 'string' && isCurrencyCode(value)
+                            ? Promise.resolve()
+                            : Promise.reject(new Error(t('supportedCurrencyOnly'))),
+                      },
+                    ]}
+                  >
+                    <Select options={currencyOptions} size="large" />
+                  </Form.Item>
+                </>
+              ) : null}
+
+              <Button
+                block
+                className={styles.submitButton}
+                htmlType="submit"
+                loading={isSubmitting}
+                size="large"
+                type="primary"
+              >
+                {submitText}
+              </Button>
+            </Form>
+
+            {mode === 'login' ? (
+              <div className={styles.ssoSection}>
+                <Divider className={styles.ssoDivider} plain>
+                  {t('authDividerOr')}
+                </Divider>
+                <Button
+                  block
+                  className={styles.ssoButton}
+                  disabled={isSubmitting}
+                  size="large"
+                  onClick={handleSsoLogin}
+                >
+                  {t('loginWithAxchenSso')}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

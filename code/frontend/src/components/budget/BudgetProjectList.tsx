@@ -24,7 +24,7 @@ interface BudgetProjectListProps {
 
 const statusColors: Record<BudgetStatus, string> = {
   draft: 'default',
-  active: 'blue',
+  active: 'green',
   closed: 'green',
   archived: 'default',
 };
@@ -77,7 +77,7 @@ export function BudgetProjectList({
     <div className="project-library">
       <section className="project-page-header">
         <div>
-          <Tag color="blue">{t('projectLibrary')}</Tag>
+          <Tag color="cyan">{t('projectLibrary')}</Tag>
           <h1>{t('projectLibraryTitle')}</h1>
           <p>{t('projectLibraryDesc')}</p>
         </div>

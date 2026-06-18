@@ -4,7 +4,7 @@
   min-height: 100dvh;
   overflow: hidden;
   padding: 32px 16px;
-  background: #ffffff;
+  background: var(--bc-page);
 }
 
 .auth-loading-panel {
@@ -12,8 +12,9 @@
   margin: auto;
   padding: 24px;
   background: #fff;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
+  border: 1px solid var(--bc-border);
+  border-radius: 12px;
+  box-shadow: var(--bc-shadow-soft);
 }
 
 .verification-panel {
@@ -21,8 +22,9 @@
   margin: auto;
   padding: 18px;
   background: #fff;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
+  border: 1px solid var(--bc-border);
+  border-radius: 12px;
+  box-shadow: var(--bc-shadow-soft);
 }
 
 .verification-loading {
@@ -30,7 +32,7 @@
   min-height: 220px;
   place-items: center;
   gap: 14px;
-  color: #595959;
+  color: var(--bc-text-muted);
 }
 
 .auth-brand {
@@ -46,19 +48,19 @@
   height: 40px;
   place-items: center;
   color: #fff;
-  background: #1677ff;
+  background: var(--bc-accent);
   border-radius: 8px;
 }
 
 .auth-brand h1 {
   margin: 0;
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 20px;
   line-height: 1.2;
 }
 
 .auth-brand p {
   margin: 4px 0 0;
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 13px;
 }

@@ -168,7 +168,7 @@ function CasdoorCallbackScreen({
         }
 
         if (mode === 'bind') {
-          void message.success('SSO账号绑定成功');
+          void message.success(handlers().t('axchenSsoBindingSuccess'));
           handlers().onNavigateProfile();
           return;
         }

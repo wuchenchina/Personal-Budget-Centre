@@ -1,4 +1,4 @@
-import { Button, Empty, Space, Tag } from 'antd';
+import { Button, Empty, Skeleton, Space, Tag } from 'antd';
 import { ArrowRight, BriefcaseBusiness, CalendarRange, Plus, ReceiptText } from 'lucide-react';
 import { budgetStatusLabelsByLanguage, useI18n } from '../../i18n';
 import type { BudgetDetail, BudgetStatus, BudgetSummary, CurrencyCode } from '../../types/budget';
@@ -19,7 +19,7 @@ interface BudgetProjectDashboardProps {
 
 const statusColors: Record<BudgetStatus, string> = {
   draft: 'default',
-  active: 'blue',
+  active: 'green',
   closed: 'green',
   archived: 'default',
 };
@@ -61,7 +61,7 @@ export function BudgetProjectDashboard({
     <div className="project-dashboard">
       <section className="project-hero">
         <div>
-          <Tag color="blue">{t('budgetProjectsKicker')}</Tag>
+          <Tag color="cyan">{t('budgetProjectsKicker')}</Tag>
           <h1>{t('budgetProjectsTitle')}</h1>
           <p>{t('budgetProjectsDesc')}</p>
         </div>
@@ -105,9 +105,18 @@ export function BudgetProjectDashboard({
             ) : null}
           </div>
           {loading ? (
-            <div className="empty-line">{t('loadingBudgetProjects')}</div>
+            <ProjectPanelSkeleton />
           ) : activeProject === null ? (
-            <Empty description={t('noBudgetSelected')} />
+            <Empty
+              description={t('noBudgetSelected')}
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            >
+              {canWriteBudgets ? (
+                <Button type="primary" icon={<Plus size={15} />} onClick={onNewProject}>
+                  {t('createBudgetProject')}
+                </Button>
+              ) : null}
+            </Empty>
           ) : (
             <>
               {activeProjectPeriod ? (
@@ -243,6 +252,20 @@ function MetricMini({ label, value }: { label: string; value: string }) {
     <div className="metric-mini">
       <span>{label}</span>
       <strong>{value}</strong>
+    </div>
+  );
+}
+
+function ProjectPanelSkeleton() {
+  return (
+    <div className="project-panel-skeleton" aria-label="Loading budget project">
+      <Skeleton active paragraph={{ rows: 1 }} title={{ width: '54%' }} />
+      <div className="project-money-row">
+        <Skeleton.Input active block size="small" />
+        <Skeleton.Input active block size="small" />
+        <Skeleton.Input active block size="small" />
+      </div>
+      <Skeleton.Button active size="small" />
     </div>
   );
 }

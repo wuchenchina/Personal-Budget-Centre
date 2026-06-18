@@ -162,18 +162,18 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
 
   const handleSsoUnlink = () => {
     Modal.confirm({
-      title: '解绑SSO账号',
-      content: '确认解绑当前Casdoor SSO账号？',
-      okText: '解绑',
+      title: t('axchenSsoUnlinkTitle'),
+      content: t('axchenSsoUnlinkConfirm'),
+      okText: t('axchenSsoUnlink'),
       okButtonProps: { danger: true },
-      cancelText: '取消',
+      cancelText: t('cancel'),
       onOk: async () => {
         setIsSsoUnlinking(true);
 
         try {
           const result = await unlinkSsoBinding();
           setSsoBinding(result.binding);
-          void message.success('SSO账号已解绑');
+          void message.success(t('axchenSsoUnlinked'));
         } catch (error: unknown) {
           void message.error(error instanceof Error ? error.message : t('authFailed'));
         } finally {
@@ -217,32 +217,32 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                 <ShieldCheck size={16} />
               </span>
               <div>
-                <Text strong>SSO账号绑定</Text>
+                <Text strong>{t('axchenSso')}</Text>
                 <Text type="secondary">
-                  {ssoBinding === null ? '尚未绑定Casdoor账号' : '已连接Casdoor SSO'}
+                  {ssoBinding === null ? t('axchenSsoNotLinked') : t('axchenSsoLinked')}
                 </Text>
               </div>
             </div>
             <Divider className={styles.ssoDivider} />
             {ssoBinding === null ? (
               <Button className={styles.outlineAction} loading={isSsoLoading} onClick={handleSsoBind}>
-                绑定
+                {t('axchenSsoBind')}
               </Button>
             ) : (
               <>
                 <div className={styles.readonlyValue}>
                   <strong>{ssoBinding.username ?? ssoBinding.email ?? ssoBinding.subject}</strong>
-                  <small>{ssoBinding.email ?? 'Casdoor账号已绑定'}</small>
+                  <small>{ssoBinding.email ?? t('axchenSsoBoundFallback')}</small>
                 </div>
                 <div className={styles.ssoActions}>
-                  <Tag color="green">已绑定</Tag>
+                  <Tag color="green">{t('axchenSsoBound')}</Tag>
                   <Button
                     danger
                     className={styles.dangerOutlineAction}
                     loading={isSsoUnlinking}
                     onClick={handleSsoUnlink}
                   >
-                    解绑
+                    {t('axchenSsoUnlink')}
                   </Button>
                 </div>
               </>

@@ -1,193 +1,271 @@
-.shell {
-  display: flex;
-  flex-direction: column;
+.shell,
+.loadingShell {
   min-height: 100dvh;
   overflow: hidden;
-  padding: 32px 16px;
-  background: #ffffff;
-  color: #1f2937;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #172033;
+  background: #f3f6f7;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+}
+
+.shell {
+  display: grid;
+  place-items: center;
+  padding: 28px;
 }
 
 .loadingShell {
   display: flex;
-  min-height: 100dvh;
-  overflow: hidden;
   padding: 32px 16px;
+}
+
+.loadingCard {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 420px);
+  margin: auto;
+  padding: 28px;
   background: #ffffff;
-  color: #1f2937;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  border: 1px solid rgba(20, 52, 61, 0.12);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(20, 52, 61, 0.04),
+    0 18px 44px rgba(20, 52, 61, 0.1);
+}
+
+.loadingBars {
+  display: grid;
+  gap: 8px;
+}
+
+.loadingBars span {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  background: #e5edf0;
+  border-radius: 999px;
+}
+
+.loadingBars span:nth-child(1) {
+  width: 86%;
+}
+
+.loadingBars span:nth-child(2) {
+  width: 64%;
+}
+
+.loadingBars span:nth-child(3) {
+  width: 74%;
+}
+
+.frame {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 0.72fr);
+  width: min(100%, 1180px);
+  min-height: min(680px, calc(100dvh - 56px));
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid rgba(20, 52, 61, 0.12);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(20, 52, 61, 0.04),
+    0 18px 44px rgba(20, 52, 61, 0.1);
+}
+
+.storyPanel,
+.formPanel {
+  min-width: 0;
+}
+
+.storyPanel {
+  display: grid;
+  align-content: space-between;
+  gap: 34px;
+  padding: 42px;
+  color: #f6fbfb;
+  background: #12343d;
+}
+
+.storyHeader,
+.formIntro {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brandMark,
+.logo {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+}
+
+.brandMark {
+  width: 44px;
+  height: 44px;
+  color: #dff4f1;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.storyHeader span,
+.formIntro span {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.storyHeader strong {
+  display: block;
+  margin-top: 4px;
+  color: rgba(246, 251, 251, 0.72);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.storyCopy {
+  display: grid;
+  gap: 14px;
+  max-width: 560px;
+}
+
+.storyCopy h1 {
+  max-width: 15ch;
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 720;
+  line-height: 1.02;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.storyCopy p {
+  max-width: 46ch;
+  margin: 0;
+  color: rgba(246, 251, 251, 0.76);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.assuranceList {
+  display: grid;
+  gap: 12px;
+  padding-top: 26px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.assuranceList div {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  color: rgba(246, 251, 251, 0.82);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.assuranceList svg {
+  color: #9ad8d0;
+}
+
+.formPanel {
+  display: grid;
+  align-content: center;
+  gap: 20px;
+  padding: 34px;
+  background: #f8fafb;
 }
 
 .languageSwitcher {
-  position: fixed;
-  top: 18px;
-  right: 20px;
-  z-index: 5;
-  width: 132px;
+  justify-self: end;
+  width: 144px;
 }
 
-.proForm {
-  flex: 1;
-}
-
-.proForm :global(.ant-pro-form-login-container) {
-  justify-content: center;
-  min-height: calc(100dvh - 64px);
-  padding: 0;
-}
-
-.proForm :global(.ant-pro-form-login-main) {
-  width: min(100%, 392px);
-  padding: 40px 42px 38px;
+.formCard {
+  width: min(100%, 430px);
+  justify-self: center;
+  padding: 30px;
   background: #ffffff;
-  border: 0;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  animation: cardFadeIn 280ms cubic-bezier(0.2, 0, 0, 1);
-}
-
-.proForm :global(.ant-pro-form-login-title) {
-  margin-top: 14px;
-  color: #1f2937;
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: 0;
-}
-
-.proForm :global(.ant-pro-form-login-desc) {
-  margin: 8px 0 30px;
-  color: #4b5563;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.proForm :global(.ant-form-item) {
-  margin-bottom: 18px;
-}
-
-.proForm :global(.ant-form-item-explain-error) {
-  color: #b42318;
-}
-
-.proForm :global(.ant-pro-form-login-main .ant-pro-form-login-other) {
-  margin-top: 0;
-}
-
-.proForm :global(.ant-input-affix-wrapper),
-.proForm :global(.ant-select-selector) {
-  min-height: 44px;
-  padding-right: 0;
-  padding-left: 0;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid #e5e7eb;
-  border-radius: 0;
-  box-shadow: none;
-  transition:
-    border-color 160ms cubic-bezier(0.2, 0, 0, 1),
-    border-width 160ms cubic-bezier(0.2, 0, 0, 1);
-}
-
-.proForm :global(.ant-input-affix-wrapper:hover),
-.proForm :global(.ant-select-selector:hover) {
-  border-bottom-color: #cbd5e1;
-}
-
-.proForm :global(.ant-input-affix-wrapper-focused),
-.proForm :global(.ant-select-focused .ant-select-selector) {
-  border-bottom-color: #1677ff;
-  border-bottom-width: 2px;
-  box-shadow: none;
-}
-
-.proForm :global(.ant-input),
-.proForm :global(.ant-input-password input),
-.proForm :global(.ant-select-selection-item),
-.proForm :global(.ant-select-selection-placeholder) {
-  color: #1f2937;
-  background: transparent;
-  font-size: 15px;
-}
-
-.proForm :global(.ant-input::placeholder),
-.proForm :global(.ant-select-selection-placeholder) {
-  color: #6b7280;
-}
-
-.proForm :global(.ant-input-prefix) {
-  margin-right: 10px;
-  color: #4b5563;
-}
-
-.proForm :global(.ant-btn-primary) {
-  min-height: 44px;
-  border-radius: 6px;
-  font-weight: 700;
-  box-shadow: none;
-  transition:
-    transform 180ms cubic-bezier(0.2, 0, 0, 1),
-    box-shadow 180ms cubic-bezier(0.2, 0, 0, 1),
-    background-color 180ms cubic-bezier(0.2, 0, 0, 1);
-}
-
-.proForm :global(.ant-btn-primary:hover),
-.proForm :global(.ant-btn-primary:focus-visible) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(22, 119, 255, 0.18);
-}
-
-.proForm :global(.ant-tabs-nav) {
-  margin-bottom: 0;
-}
-
-.proForm :global(.ant-tabs-tab) {
-  color: #4b5563;
-}
-
-.proForm :global(.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn) {
-  color: #1677ff;
-  font-weight: 600;
+  border: 1px solid rgba(20, 52, 61, 0.1);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(20, 52, 61, 0.04),
+    0 18px 48px rgba(20, 52, 61, 0.09);
+  animation: cardEnter 240ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .logo {
-  display: grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
+  width: 42px;
+  height: 42px;
   color: #ffffff;
-  background: #1677ff;
-  border-radius: 8px;
+  background: #0f766e;
+  box-shadow: 0 10px 22px rgba(15, 118, 110, 0.18);
+}
+
+.formIntro {
+  margin-bottom: 18px;
+}
+
+.formIntro span {
+  color: #5f6f75;
+}
+
+.formIntro h2 {
+  margin: 2px 0 0;
+  color: #172033;
+  font-size: 24px;
+  font-weight: 720;
+  line-height: 1.18;
+  letter-spacing: 0;
 }
 
 .modeTabs {
   margin-bottom: 18px;
 }
 
-.authAlert {
-  margin-bottom: 16px;
-  border-radius: 6px;
+.modeTabs :global(.ant-tabs-nav) {
+  margin-bottom: 0;
 }
 
-.loginMethods {
-  margin-bottom: 18px;
+.modeTabs :global(.ant-tabs-tab) {
+  padding-block: 8px;
+}
+
+.authAlert {
+  margin-bottom: 14px;
+  border-radius: 10px;
+}
+
+.passkeyButton,
+.ssoButton,
+.submitButton {
+  min-height: 44px;
+  border-radius: 10px;
+  font-weight: 700;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 160ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 160ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .passkeyButton,
 .ssoButton {
-  min-height: 44px;
-  color: #1f2937;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  font-weight: 600;
+  color: #172033;
+  background: #f8fbfb;
+  border: 1px solid rgba(20, 52, 61, 0.13);
   box-shadow: none;
-  transition:
-    transform 180ms cubic-bezier(0.2, 0, 0, 1),
-    box-shadow 180ms cubic-bezier(0.2, 0, 0, 1),
-    border-color 180ms cubic-bezier(0.2, 0, 0, 1),
-    color 180ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .passkeyButton {
@@ -198,36 +276,111 @@
 .passkeyButton:focus-visible,
 .ssoButton:hover,
 .ssoButton:focus-visible {
-  color: #1f2937;
-  border-color: #d1d5db;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  color: #10242e;
+  border-color: rgba(15, 118, 110, 0.42);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(20, 52, 61, 0.09);
+}
+
+.passkeyButton:active,
+.ssoButton:active,
+.submitButton:active {
+  transform: translateY(1px);
 }
 
 .loginDivider,
 .ssoDivider {
   margin: 0;
-  color: #6b7280;
+  color: #66777d;
   font-size: 12px;
+}
+
+.loginDivider {
+  margin-bottom: 14px;
+}
+
+.authForm {
+  display: grid;
+  gap: 0;
+}
+
+.authForm :global(.ant-form-item) {
+  margin-bottom: 15px;
+}
+
+.authForm :global(.ant-form-item-label) {
+  padding-bottom: 6px;
+}
+
+.authForm :global(.ant-form-item-label > label) {
+  height: auto;
+  color: #35464d;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.authForm :global(.ant-input-affix-wrapper),
+.authForm :global(.ant-input),
+.authForm :global(.ant-select-selector) {
+  border-radius: 10px;
+}
+
+.authForm :global(.ant-input-affix-wrapper),
+.authForm :global(.ant-select-selector) {
+  min-height: 42px;
+  border-color: rgba(20, 52, 61, 0.16);
+  box-shadow: none;
+}
+
+.authForm :global(.ant-input-affix-wrapper:hover),
+.authForm :global(.ant-select-selector:hover) {
+  border-color: rgba(15, 118, 110, 0.42);
+}
+
+.authForm :global(.ant-input-affix-wrapper-focused),
+.authForm :global(.ant-select-focused .ant-select-selector) {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13);
+}
+
+.authForm :global(.ant-input),
+.authForm :global(.ant-input-password input),
+.authForm :global(.ant-select-selection-item) {
+  color: #172033;
+  font-size: 14px;
+}
+
+.authForm :global(.ant-input-prefix) {
+  margin-right: 10px;
+  color: #64767c;
+}
+
+.authForm :global(.ant-form-item-explain-error) {
+  color: #b42318;
+  font-size: 12px;
+}
+
+.submitButton {
+  margin-top: 3px;
+  box-shadow: 0 12px 24px rgba(15, 118, 110, 0.18);
 }
 
 .ssoSection {
   margin-top: 18px;
-  margin-bottom: 2px;
 }
 
 .ssoDivider {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .passwordStrength {
-  margin: -12px 0 14px;
+  margin: -8px 0 13px;
   font-size: 12px;
 }
 
 .passwordStrength span {
   display: inline-block;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
 .passwordStrengthpoor {
@@ -242,7 +395,7 @@
   color: #146c2e;
 }
 
-@keyframes cardFadeIn {
+@keyframes cardEnter {
   from {
     opacity: 0;
     transform: translateY(8px);
@@ -254,18 +407,65 @@
   }
 }
 
-@media (max-width: 520px) {
+@media (prefers-reduced-motion: reduce) {
+  .formCard {
+    animation: none;
+  }
+
+  .passkeyButton,
+  .ssoButton,
+  .submitButton {
+    transition: none;
+  }
+}
+
+@media (max-width: 940px) {
   .shell {
-    padding: 72px 16px 24px;
+    padding: 18px;
+  }
+
+  .frame {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+  }
+
+  .storyPanel {
+    gap: 26px;
+    padding: 28px;
+  }
+
+  .storyCopy h1 {
+    max-width: 100%;
+    font-size: clamp(30px, 7vw, 40px);
+  }
+
+  .formPanel {
+    padding: 24px;
   }
 
   .languageSwitcher {
-    position: absolute;
-    top: 18px;
-    right: 16px;
+    width: 100%;
   }
 
-  .proForm :global(.ant-pro-form-login-main) {
-    padding: 32px 24px 30px;
+  .formCard {
+    width: 100%;
+    padding: 24px;
+  }
+}
+
+@media (max-width: 560px) {
+  .shell {
+    padding: 10px;
+  }
+
+  .frame,
+  .storyPanel,
+  .formCard {
+    border-radius: 14px;
+  }
+
+  .storyPanel,
+  .formPanel {
+    padding: 18px;
   }
 }

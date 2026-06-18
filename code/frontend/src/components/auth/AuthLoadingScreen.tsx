@@ -7,15 +7,20 @@ export function AuthLoadingScreen() {
 
   return (
     <main className={styles.loadingShell}>
-      <div className="auth-loading-panel">
-        <div className="auth-brand">
-          <div className="auth-mark">
-            <WalletCards size={20} />
+      <div className={styles.loadingCard}>
+        <div className={styles.formIntro}>
+          <div className={styles.logo}>
+            <WalletCards size={22} />
           </div>
           <div>
-            <h1>BudgetCentre</h1>
-            <p>{t('sessionLoading')}</p>
+            <span>BudgetCentre</span>
+            <h2>{t('sessionLoading')}</h2>
           </div>
+        </div>
+        <div className={styles.loadingBars} aria-hidden="true">
+          <span />
+          <span />
+          <span />
         </div>
       </div>
     </main>

@@ -10,15 +10,15 @@
   justify-content: space-between;
   gap: 16px;
   padding: 18px;
-  background: #fff;
-  border: 1px solid #f0f0f0;
+  background: var(--bc-surface);
+  border: 1px solid var(--bc-border);
   border-radius: 8px;
 }
 
 .admin-page-kicker {
   display: block;
   margin-bottom: 4px;
-  color: #1677ff;
+  color: var(--bc-accent);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.2;
@@ -26,7 +26,7 @@
 
 .admin-page-header h1 {
   margin: 0;
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 22px;
   line-height: 1.25;
 }
@@ -38,8 +38,8 @@
 .admin-panel {
   min-width: 0;
   padding: 18px;
-  background: #fff;
-  border: 1px solid #f0f0f0;
+  background: var(--bc-surface);
+  border: 1px solid var(--bc-border);
   border-radius: 8px;
 }
 
@@ -53,7 +53,7 @@
 
 .admin-toolbar h2 {
   margin: 0;
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 18px;
   line-height: 1.3;
 }
