@@ -1,9 +1,9 @@
 .shell,
 .loadingShell {
+  position: relative;
   min-height: 100dvh;
-  overflow: hidden;
   color: #172033;
-  background: #f3f6f7;
+  background: #f6f8f8;
   font-family:
     -apple-system,
     BlinkMacSystemFont,
@@ -17,225 +17,62 @@
 .shell {
   display: grid;
   place-items: center;
-  padding: 28px;
+  padding: 32px 20px;
 }
 
 .loadingShell {
   display: flex;
-  padding: 32px 16px;
-}
-
-.loadingCard {
-  display: grid;
-  gap: 18px;
-  width: min(100%, 420px);
-  margin: auto;
-  padding: 28px;
-  background: #ffffff;
-  border: 1px solid rgba(20, 52, 61, 0.12);
-  border-radius: 14px;
-  box-shadow:
-    0 1px 2px rgba(20, 52, 61, 0.04),
-    0 18px 44px rgba(20, 52, 61, 0.1);
-}
-
-.loadingBars {
-  display: grid;
-  gap: 8px;
-}
-
-.loadingBars span {
-  display: block;
-  height: 8px;
-  overflow: hidden;
-  background: #e5edf0;
-  border-radius: 999px;
-}
-
-.loadingBars span:nth-child(1) {
-  width: 86%;
-}
-
-.loadingBars span:nth-child(2) {
-  width: 64%;
-}
-
-.loadingBars span:nth-child(3) {
-  width: 74%;
-}
-
-.frame {
-  display: grid;
-  grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 0.72fr);
-  width: min(100%, 1180px);
-  min-height: min(680px, calc(100dvh - 56px));
-  overflow: hidden;
-  background: #ffffff;
-  border: 1px solid rgba(20, 52, 61, 0.12);
-  border-radius: 14px;
-  box-shadow:
-    0 1px 2px rgba(20, 52, 61, 0.04),
-    0 18px 44px rgba(20, 52, 61, 0.1);
-}
-
-.storyPanel,
-.formPanel {
-  min-width: 0;
-}
-
-.storyPanel {
-  display: grid;
-  align-content: space-between;
-  gap: 34px;
-  padding: 42px;
-  color: #f6fbfb;
-  background: #12343d;
-}
-
-.storyHeader,
-.formIntro {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.brandMark,
-.logo {
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 12px;
-}
-
-.brandMark {
-  width: 44px;
-  height: 44px;
-  color: #dff4f1;
-  background: rgba(255, 255, 255, 0.09);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.storyHeader span,
-.formIntro span {
-  display: block;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.storyHeader strong {
-  display: block;
-  margin-top: 4px;
-  color: rgba(246, 251, 251, 0.72);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.25;
-}
-
-.storyCopy {
-  display: grid;
-  gap: 14px;
-  max-width: 560px;
-}
-
-.storyCopy h1 {
-  max-width: 15ch;
-  margin: 0;
-  color: #ffffff;
-  font-size: clamp(32px, 4vw, 48px);
-  font-weight: 720;
-  line-height: 1.02;
-  letter-spacing: 0;
-  text-wrap: balance;
-}
-
-.storyCopy p {
-  max-width: 46ch;
-  margin: 0;
-  color: rgba(246, 251, 251, 0.76);
-  font-size: 15px;
-  line-height: 1.65;
-}
-
-.assuranceList {
-  display: grid;
-  gap: 12px;
-  padding-top: 26px;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.assuranceList div {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  align-items: center;
-  gap: 9px;
-  color: rgba(246, 251, 251, 0.82);
-  font-size: 13px;
-  line-height: 1.35;
-}
-
-.assuranceList svg {
-  color: #9ad8d0;
-}
-
-.formPanel {
-  display: grid;
-  align-content: center;
-  gap: 20px;
-  padding: 34px;
-  background: #f8fafb;
+  padding: 32px 20px;
 }
 
 .languageSwitcher {
-  justify-self: end;
-  width: 144px;
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 132px;
 }
 
-.formCard {
-  width: min(100%, 430px);
-  justify-self: center;
-  padding: 30px;
-  background: #ffffff;
-  border: 1px solid rgba(20, 52, 61, 0.1);
-  border-radius: 14px;
-  box-shadow:
-    0 1px 2px rgba(20, 52, 61, 0.04),
-    0 18px 48px rgba(20, 52, 61, 0.09);
-  animation: cardEnter 240ms cubic-bezier(0.2, 0, 0, 1);
+.panel {
+  width: min(100%, 380px);
+  animation: panelEnter 240ms cubic-bezier(0.2, 0, 0, 1);
 }
 
-.logo {
-  width: 42px;
-  height: 42px;
-  color: #ffffff;
-  background: #0f766e;
-  box-shadow: 0 10px 22px rgba(15, 118, 110, 0.18);
+.brand {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin-bottom: 28px;
+  text-align: center;
 }
 
-.formIntro {
-  margin-bottom: 18px;
+.brandLogo {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 6px;
+  object-fit: contain;
 }
 
-.formIntro span {
-  color: #5f6f75;
-}
-
-.formIntro h2 {
-  margin: 2px 0 0;
+.brandName {
   color: #172033;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 720;
-  line-height: 1.18;
-  letter-spacing: 0;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.brandSubtitle {
+  margin: 0;
+  color: #66777d;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .modeTabs {
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 
 .modeTabs :global(.ant-tabs-nav) {
-  margin-bottom: 0;
+  margin-bottom: 18px;
 }
 
 .modeTabs :global(.ant-tabs-tab) {
@@ -243,60 +80,8 @@
 }
 
 .authAlert {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   border-radius: 10px;
-}
-
-.passkeyButton,
-.ssoButton,
-.submitButton {
-  min-height: 44px;
-  border-radius: 10px;
-  font-weight: 700;
-  transition:
-    transform 160ms cubic-bezier(0.2, 0, 0, 1),
-    box-shadow 160ms cubic-bezier(0.2, 0, 0, 1),
-    border-color 160ms cubic-bezier(0.2, 0, 0, 1),
-    background-color 160ms cubic-bezier(0.2, 0, 0, 1);
-}
-
-.passkeyButton,
-.ssoButton {
-  color: #172033;
-  background: #f8fbfb;
-  border: 1px solid rgba(20, 52, 61, 0.13);
-  box-shadow: none;
-}
-
-.passkeyButton {
-  margin-bottom: 14px;
-}
-
-.passkeyButton:hover,
-.passkeyButton:focus-visible,
-.ssoButton:hover,
-.ssoButton:focus-visible {
-  color: #10242e;
-  border-color: rgba(15, 118, 110, 0.42);
-  transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(20, 52, 61, 0.09);
-}
-
-.passkeyButton:active,
-.ssoButton:active,
-.submitButton:active {
-  transform: translateY(1px);
-}
-
-.loginDivider,
-.ssoDivider {
-  margin: 0;
-  color: #66777d;
-  font-size: 12px;
-}
-
-.loginDivider {
-  margin-bottom: 14px;
 }
 
 .authForm {
@@ -305,7 +90,7 @@
 }
 
 .authForm :global(.ant-form-item) {
-  margin-bottom: 15px;
+  margin-bottom: 16px;
 }
 
 .authForm :global(.ant-form-item-label) {
@@ -327,7 +112,7 @@
 
 .authForm :global(.ant-input-affix-wrapper),
 .authForm :global(.ant-select-selector) {
-  min-height: 42px;
+  min-height: 44px;
   border-color: rgba(20, 52, 61, 0.16);
   box-shadow: none;
 }
@@ -360,21 +145,58 @@
   font-size: 12px;
 }
 
+.submitButton,
+.altButton {
+  min-height: 44px;
+  border-radius: 10px;
+  font-weight: 700;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 160ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 160ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
 .submitButton {
-  margin-top: 3px;
+  margin-top: 4px;
   box-shadow: 0 12px 24px rgba(15, 118, 110, 0.18);
 }
 
-.ssoSection {
+.submitButton:active,
+.altButton:active {
+  transform: translateY(1px);
+}
+
+.altActions {
   margin-top: 18px;
 }
 
-.ssoDivider {
-  margin-bottom: 14px;
+.altDivider {
+  margin: 0 0 14px;
+  color: #66777d;
+  font-size: 12px;
+}
+
+.altButton {
+  margin-bottom: 12px;
+  color: #172033;
+  background: #ffffff;
+  border: 1px solid rgba(20, 52, 61, 0.13);
+}
+
+.altButton:last-child {
+  margin-bottom: 0;
+}
+
+.altButton:hover,
+.altButton:focus-visible {
+  color: #10242e;
+  border-color: rgba(15, 118, 110, 0.42);
+  transform: translateY(-1px);
 }
 
 .passwordStrength {
-  margin: -8px 0 13px;
+  margin: -8px 0 14px;
   font-size: 12px;
 }
 
@@ -395,7 +217,47 @@
   color: #146c2e;
 }
 
-@keyframes cardEnter {
+/* Loading screen */
+.loadingCard {
+  display: grid;
+  gap: 22px;
+  width: min(100%, 380px);
+  margin: auto;
+}
+
+.loadingBrand {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.loadingBars {
+  display: grid;
+  gap: 8px;
+}
+
+.loadingBars span {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  background: #e5edf0;
+  border-radius: 999px;
+}
+
+.loadingBars span:nth-child(1) {
+  width: 86%;
+}
+
+.loadingBars span:nth-child(2) {
+  width: 64%;
+}
+
+.loadingBars span:nth-child(3) {
+  width: 74%;
+}
+
+@keyframes panelEnter {
   from {
     opacity: 0;
     transform: translateY(8px);
@@ -408,64 +270,23 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .formCard {
+  .panel {
     animation: none;
   }
 
-  .passkeyButton,
-  .ssoButton,
-  .submitButton {
+  .submitButton,
+  .altButton {
     transition: none;
   }
 }
 
-@media (max-width: 940px) {
-  .shell {
-    padding: 18px;
-  }
-
-  .frame {
-    grid-template-columns: minmax(0, 1fr);
-    min-height: auto;
-  }
-
-  .storyPanel {
-    gap: 26px;
-    padding: 28px;
-  }
-
-  .storyCopy h1 {
-    max-width: 100%;
-    font-size: clamp(30px, 7vw, 40px);
-  }
-
-  .formPanel {
-    padding: 24px;
-  }
-
-  .languageSwitcher {
-    width: 100%;
-  }
-
-  .formCard {
-    width: 100%;
-    padding: 24px;
-  }
-}
-
 @media (max-width: 560px) {
+  .languageSwitcher {
+    top: 16px;
+    right: 16px;
+  }
+
   .shell {
-    padding: 10px;
-  }
-
-  .frame,
-  .storyPanel,
-  .formCard {
-    border-radius: 14px;
-  }
-
-  .storyPanel,
-  .formPanel {
-    padding: 18px;
+    padding: 72px 16px 24px;
   }
 }

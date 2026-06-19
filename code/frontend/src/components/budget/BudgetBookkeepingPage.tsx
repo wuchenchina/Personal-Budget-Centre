@@ -65,22 +65,24 @@ export function BudgetBookkeepingPage({
   const currency = selectedBudget?.baseCurrency ?? baseCurrency;
   const normalizedSearch = searchText.trim().toLowerCase();
   const filteredRecords = useMemo(
-    () => records.filter((record) => {
-      const matchesFilter =
-        activeFilter === 'all'
-        || (activeFilter === 'orders' && isOrderTransaction(record.transactionType))
-        || (activeFilter === 'transfers' && isTransferTransaction(record.transactionType));
-      const matchesSearch =
-        normalizedSearch.length === 0
-        || record.details.toLowerCase().includes(normalizedSearch)
-        || (record.orderReference ?? '').toLowerCase().includes(normalizedSearch)
-        || (record.categoryLabel ?? '').toLowerCase().includes(normalizedSearch)
-        || (record.sourceAccountName ?? '').toLowerCase().includes(normalizedSearch)
-        || (record.destinationAccountName ?? '').toLowerCase().includes(normalizedSearch)
-        || (record.remark ?? '').toLowerCase().includes(normalizedSearch);
+    () => records
+      .filter((record) => {
+        const matchesFilter =
+          activeFilter === 'all'
+          || (activeFilter === 'orders' && isOrderTransaction(record.transactionType))
+          || (activeFilter === 'transfers' && isTransferTransaction(record.transactionType));
+        const matchesSearch =
+          normalizedSearch.length === 0
+          || record.details.toLowerCase().includes(normalizedSearch)
+          || (record.orderReference ?? '').toLowerCase().includes(normalizedSearch)
+          || (record.categoryLabel ?? '').toLowerCase().includes(normalizedSearch)
+          || (record.sourceAccountName ?? '').toLowerCase().includes(normalizedSearch)
+          || (record.destinationAccountName ?? '').toLowerCase().includes(normalizedSearch)
+          || (record.remark ?? '').toLowerCase().includes(normalizedSearch);
 
-      return matchesFilter && matchesSearch;
-    }),
+        return matchesFilter && matchesSearch;
+      })
+      .sort(compareByRecordDate),
     [activeFilter, normalizedSearch, records],
   );
   const totals = useMemo(() => ledgerTotals(records, currency), [currency, records]);
@@ -417,6 +419,28 @@ function orderTransactionTotals(
 
     return { ...totals, expense: totals.expense + amount };
   }, { income: 0, expense: 0 });
+}
+
+function compareByRecordDate(left: BookkeepingRecord, right: BookkeepingRecord): number {
+  // 優先依記帳日期排序;沒有日期的記錄沉到最後。
+  // 同日期時退回手動 sortOrder,再以 id 確保排序穩定。
+  if (left.recordDate !== right.recordDate) {
+    if (left.recordDate === null) {
+      return 1;
+    }
+
+    if (right.recordDate === null) {
+      return -1;
+    }
+
+    return left.recordDate.localeCompare(right.recordDate);
+  }
+
+  if (left.sortOrder !== right.sortOrder) {
+    return left.sortOrder - right.sortOrder;
+  }
+
+  return left.id - right.id;
 }
 
 function isOrderTransaction(type: TransactionType): boolean {

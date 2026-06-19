@@ -66,9 +66,7 @@ export function AppShell({
     <Layout className="app-shell">
       <Sider className="app-sidebar" width={232}>
         <div className="brand-lockup">
-          <div className="brand-mark">
-            <WalletCards size={20} />
-          </div>
+          <img className="brand-mark" src="/favicon.webp" alt="BudgetCentre" width={38} height={38} />
           <div>
             <div className="brand-title">BudgetCentre</div>
             <div className="brand-caption">Personal Finance</div>

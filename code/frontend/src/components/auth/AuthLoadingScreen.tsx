@@ -1,4 +1,3 @@
-import { WalletCards } from 'lucide-react';
 import { useI18n } from '../../i18n';
 import styles from './AuthScreen.module.css';
 
@@ -8,14 +7,16 @@ export function AuthLoadingScreen() {
   return (
     <main className={styles.loadingShell}>
       <div className={styles.loadingCard}>
-        <div className={styles.formIntro}>
-          <div className={styles.logo}>
-            <WalletCards size={22} />
-          </div>
-          <div>
-            <span>BudgetCentre</span>
-            <h2>{t('sessionLoading')}</h2>
-          </div>
+        <div className={styles.loadingBrand}>
+          <img
+            className={styles.brandLogo}
+            src="/favicon.webp"
+            alt="BudgetCentre"
+            width={48}
+            height={48}
+          />
+          <span className={styles.brandName}>BudgetCentre</span>
+          <p className={styles.brandSubtitle}>{t('sessionLoading')}</p>
         </div>
         <div className={styles.loadingBars} aria-hidden="true">
           <span />
