@@ -44,6 +44,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
   const [budgetForm] = Form.useForm<BudgetFormValues>();
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
   const [selectedBudget, setSelectedBudget] = useState<BudgetDetail | null>(null);
+  const [currentBudgetId, setCurrentBudgetId] = useState<number | null>(null);
   const [budgetError, setBudgetError] = useState<string | null>(null);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isInstallmentModalOpen, setIsInstallmentModalOpen] = useState(false);
@@ -68,6 +69,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
 
         setBudgets([]);
         setSelectedBudget(null);
+        setCurrentBudgetId(null);
         setBudgetError(null);
         setIsBudgetLoading(false);
         setIsBudgetDetailLoading(false);
@@ -104,6 +106,8 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
           storedBudgetId !== null && nextBudgets.some((budget) => budget.id === storedBudgetId)
             ? storedBudgetId
             : null;
+        setCurrentBudgetId(availableStoredBudgetId);
+
         const budgetIdToOpen = scopedRequestedBudgetId ?? availableStoredBudgetId;
         if (budgetIdToOpen === null) {
           clearSelectedBudgetIdForWorkspace(workspaceId);
@@ -117,7 +121,6 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
             setSelectedBudget(budgetDetail);
             requestedBudgetId.current = budgetDetail.id;
             requestedBudgetWorkspaceId.current = workspaceId;
-            rememberSelectedBudgetId(workspaceId, budgetDetail.id);
             setBudgets((currentBudgets) => {
               const hasBudget = currentBudgets.some((budget) => budget.id === budgetDetail.id);
 
@@ -208,7 +211,6 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
 
       requestedBudgetId.current = savedBudget.id;
       requestedBudgetWorkspaceId.current = workspaceId;
-      rememberSelectedBudgetId(workspaceId, savedBudget.id);
       if (editingBudgetId === null && workspaceId !== activeWorkspaceId) {
         await options.onWorkspaceSelected?.(workspaceId);
       }
@@ -250,7 +252,6 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
 
       requestedBudgetId.current = savedBudget.id;
       requestedBudgetWorkspaceId.current = savedBudget.workspaceId;
-      rememberSelectedBudgetId(savedBudget.workspaceId, savedBudget.id);
       setSelectedBudget(savedBudget);
       setBudgets((currentBudgets) =>
         currentBudgets.map((budget) =>
@@ -292,7 +293,6 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
 
       requestedBudgetId.current = savedBudget.id;
       requestedBudgetWorkspaceId.current = savedBudget.workspaceId;
-      rememberSelectedBudgetId(savedBudget.workspaceId, savedBudget.id);
       setSelectedBudget(savedBudget);
       setBudgets((currentBudgets) =>
         currentBudgets.map((budget) =>
@@ -338,7 +338,6 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       }));
       requestedBudgetId.current = savedBudget.id;
       requestedBudgetWorkspaceId.current = savedBudget.workspaceId;
-      rememberSelectedBudgetId(savedBudget.workspaceId, savedBudget.id);
       setSelectedBudget(savedBudget);
       setBudgets((currentBudgets) =>
         currentBudgets.map((budget) =>
@@ -372,7 +371,6 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       const savedBudget = await updateBudget(statusUpdatePayload(sourceBudget, nextStatus));
       requestedBudgetId.current = savedBudget.id;
       requestedBudgetWorkspaceId.current = savedBudget.workspaceId;
-      rememberSelectedBudgetId(savedBudget.workspaceId, savedBudget.id);
       if (selectedBudget?.id === savedBudget.id) {
         setSelectedBudget(savedBudget);
       }
@@ -401,16 +399,14 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
 
       if (selectedBudget?.id === budgetId) {
         setSelectedBudget(null);
-        const nextBudget = remainingBudgets[0];
-        requestedBudgetId.current = nextBudget?.id ?? null;
+        requestedBudgetId.current = null;
         requestedBudgetWorkspaceId.current = activeWorkspaceId;
-        if (nextBudget !== undefined) {
-          await handleBudgetSelect(nextBudget.id);
-        } else if (activeWorkspaceId !== null) {
-          clearSelectedBudgetIdForWorkspace(activeWorkspaceId);
-        }
       } else if (requestedBudgetId.current === budgetId) {
         requestedBudgetId.current = null;
+      }
+
+      if (currentBudgetId === budgetId) {
+        setCurrentBudgetId(null);
         if (activeWorkspaceId !== null) {
           clearSelectedBudgetIdForWorkspace(activeWorkspaceId);
         }
@@ -428,6 +424,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     if (selectedBudget?.id === budgetId) {
       if (activeWorkspaceId !== null) {
         rememberSelectedBudgetId(activeWorkspaceId, budgetId);
+        setCurrentBudgetId(budgetId);
       }
 
       return;
@@ -441,6 +438,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
       setSelectedBudget(budgetDetail);
       requestedBudgetWorkspaceId.current = budgetDetail.workspaceId;
       rememberSelectedBudgetId(budgetDetail.workspaceId, budgetDetail.id);
+      setCurrentBudgetId(budgetDetail.id);
     } catch (error: unknown) {
       setBudgetError(error instanceof Error ? error.message : translateCurrent('loadingBudget'));
     } finally {
@@ -452,7 +450,6 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     setSelectedBudget(budgetDetail);
     requestedBudgetId.current = budgetDetail.id;
     requestedBudgetWorkspaceId.current = budgetDetail.workspaceId;
-    rememberSelectedBudgetId(budgetDetail.workspaceId, budgetDetail.id);
     setBudgets((currentBudgets) => {
       const hasBudget = currentBudgets.some((budget) => budget.id === budgetDetail.id);
 
@@ -470,6 +467,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
     budgetForm,
     budgets,
     selectedBudget,
+    currentBudgetId,
     budgetError,
     isBudgetModalOpen,
     setIsBudgetModalOpen,

@@ -305,7 +305,7 @@ function AuthenticatedApp({
       return (
         <BudgetProjectList
           budgets={budget.budgets}
-          selectedBudgetId={budget.selectedBudget?.id ?? null}
+          selectedBudgetId={budget.currentBudgetId}
           canWriteBudgets={canWriteBudgets}
           loading={budget.isBudgetLoading}
           onDeleteProject={(budgetId) => void budget.handleBudgetDelete(budgetId)}
