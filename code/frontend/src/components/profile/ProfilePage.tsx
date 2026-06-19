@@ -188,7 +188,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
       <div className={styles.workbench}>
         <aside className={styles.identityRail}>
           <section className={styles.identityCard}>
-            <Avatar className={styles.avatar} size={72}>
+            <Avatar className={styles.avatar} size={72} src={session.user.avatarUrl ?? undefined}>
               {getProfileInitial(session.user.displayName, session.user.email)}
             </Avatar>
             <div className={styles.identityCopy}>

@@ -64,6 +64,7 @@ final readonly class SessionRepository
               u.email,
               u.username,
               u.display_name,
+              u.avatar_url,
               u.timezone,
               u.locale,
               u.status,

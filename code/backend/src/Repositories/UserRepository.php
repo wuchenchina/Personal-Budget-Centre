@@ -22,6 +22,7 @@ final readonly class UserRepository
               username,
               password_hash,
               display_name,
+              avatar_url,
               timezone,
               locale,
               status,
@@ -48,6 +49,7 @@ final readonly class UserRepository
               username,
               password_hash,
               display_name,
+              avatar_url,
               timezone,
               locale,
               status,
@@ -80,6 +82,7 @@ final readonly class UserRepository
               email,
               username,
               display_name,
+              avatar_url,
               timezone,
               locale,
               status,
@@ -106,6 +109,7 @@ final readonly class UserRepository
               username,
               password_hash,
               display_name,
+              avatar_url,
               timezone,
               locale,
               status,
@@ -217,6 +221,22 @@ final readonly class UserRepository
         );
         $statement->execute([
             'password_hash' => $passwordHash,
+            'id' => $userId,
+        ]);
+    }
+
+    public function updateAvatarUrl(int $userId, ?string $avatarUrl): void
+    {
+        $statement = $this->pdo->prepare(
+            <<<'SQL'
+            UPDATE users
+            SET avatar_url = :avatar_url,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id
+            SQL
+        );
+        $statement->execute([
+            'avatar_url' => $avatarUrl,
             'id' => $userId,
         ]);
     }

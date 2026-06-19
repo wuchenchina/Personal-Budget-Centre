@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button, Layout, Menu, Select, Space, Tag } from 'antd';
+import { Avatar, Button, Layout, Menu, Select, Space, Tag } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   Building2,
@@ -111,7 +111,13 @@ export function AppShell({
             />
             <Button
               className="user-name-button"
-              icon={<UserRound size={15} />}
+              icon={
+                session.user.avatarUrl ? (
+                  <Avatar size={20} src={session.user.avatarUrl} />
+                ) : (
+                  <UserRound size={15} />
+                )
+              }
               type="text"
               onClick={onProfile}
             >

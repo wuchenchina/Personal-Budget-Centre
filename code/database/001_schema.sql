@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(80) NULL,
   password_hash VARCHAR(255) NULL,
   display_name VARCHAR(120) NOT NULL,
+  avatar_url VARCHAR(512) NULL,
   default_currency_id BIGINT UNSIGNED NULL,
   timezone VARCHAR(80) NOT NULL DEFAULT 'Asia/Shanghai',
   locale VARCHAR(32) NOT NULL DEFAULT 'zh-Hant',

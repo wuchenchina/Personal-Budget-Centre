@@ -251,6 +251,7 @@ final readonly class AuthService
                 'email' => $session['email'],
                 'username' => $session['username'] ?? null,
                 'display_name' => $session['display_name'],
+                'avatar_url' => $session['avatar_url'] ?? null,
                 'timezone' => $session['timezone'],
                 'locale' => $session['locale'],
                 'status' => $session['status'],
@@ -411,7 +412,7 @@ final readonly class AuthService
 
         return match ($mode) {
             'bind' => $this->bindCasdoorAccount($subject, $userinfo, $request),
-            default => $this->loginWithCasdoorAccount($subject, $request),
+            default => $this->loginWithCasdoorAccount($subject, $userinfo, $request),
         };
     }
 
@@ -438,21 +439,33 @@ final readonly class AuthService
             $userinfo,
         );
 
+        $avatarUrl = $this->casdoorAvatarUrl($userinfo);
+        if ($avatarUrl !== null) {
+            (new UserRepository($this->pdo))->updateAvatarUrl($userId, $avatarUrl);
+        }
+
         return [
             'binding' => $this->publicSsoBinding($binding),
         ];
     }
 
-    private function loginWithCasdoorAccount(string $subject, Request $request): array
+    private function loginWithCasdoorAccount(string $subject, array $userinfo, Request $request): array
     {
         $binding = (new UserSsoBindingRepository($this->pdo))->findByProviderSubject($subject);
         if ($binding === null) {
             throw new AuthException('SSO_ACCOUNT_NOT_BOUND', 'This Casdoor account is not linked.', 401);
         }
 
-        $user = (new UserRepository($this->pdo))->findById((int) $binding['user_id']);
+        $users = new UserRepository($this->pdo);
+        $user = $users->findById((int) $binding['user_id']);
         if ($user === null || $user['status'] !== 'active') {
             throw new AuthException('INVALID_CREDENTIALS', 'Invalid SSO account.', 401);
+        }
+
+        $avatarUrl = $this->casdoorAvatarUrl($userinfo);
+        if ($avatarUrl !== null && ($user['avatar_url'] ?? null) !== $avatarUrl) {
+            $users->updateAvatarUrl((int) $user['id'], $avatarUrl);
+            $user['avatar_url'] = $avatarUrl;
         }
 
         $workspace = (new WorkspaceRepository($this->pdo))->firstForUser((int) $user['id']);
@@ -763,12 +776,25 @@ final readonly class AuthService
             'email' => $user['email'] ?? null,
             'username' => $user['username'] ?? null,
             'displayName' => $user['display_name'] ?? null,
+            'avatarUrl' => $user['avatar_url'] ?? null,
             'timezone' => $user['timezone'] ?? null,
             'locale' => $user['locale'] ?? null,
             'status' => $user['status'] ?? null,
             'isAdmin' => isset($user['is_admin']) && (bool) $user['is_admin'],
             'emailVerifiedAt' => $user['email_verified_at'] ?? null,
         ];
+    }
+
+    private function casdoorAvatarUrl(array $userinfo): ?string
+    {
+        foreach (['picture', 'avatar', 'avatarUrl', 'avatar_url'] as $key) {
+            $value = Input::string($userinfo[$key] ?? null);
+            if ($value !== null && (str_starts_with($value, 'http://') || str_starts_with($value, 'https://'))) {
+                return mb_strlen($value) > 512 ? null : $value;
+            }
+        }
+
+        return null;
     }
 
     private function publicSsoBinding(array $binding): array
