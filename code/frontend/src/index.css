@@ -19,6 +19,7 @@
   --bc-accent-border: #f2a3aa;
   --bc-warning: #a86100;
   --bc-danger: #db0011;
+  --bc-focus: #111111;
   --bc-shadow-soft: none;
 }
 
@@ -141,6 +142,34 @@ select {
 .ant-picker-focused,
 .ant-select-focused .ant-select-selector,
 .ant-btn:focus-visible {
-  outline: 2px solid var(--bc-accent) !important;
-  outline-offset: 2px;
+  border-color: var(--bc-focus) !important;
+  outline: 1px solid var(--bc-focus) !important;
+  outline-offset: 0;
+}
+
+.ant-form-item-has-error .ant-input,
+.ant-form-item-has-error .ant-input:focus,
+.ant-form-item-has-error .ant-input-focused,
+.ant-form-item-has-error .ant-input-affix-wrapper,
+.ant-form-item-has-error .ant-input-affix-wrapper-focused,
+.ant-form-item-has-error .ant-input-number,
+.ant-form-item-has-error .ant-input-number-focused,
+.ant-form-item-has-error .ant-picker,
+.ant-form-item-has-error .ant-picker-focused,
+.ant-form-item-has-error .ant-select-selector {
+  border-color: var(--bc-danger) !important;
+  outline: none !important;
+}
+
+.ant-input-status-error,
+.ant-input-status-error:focus,
+.ant-input-affix-wrapper-status-error,
+.ant-input-affix-wrapper-status-error-focused,
+.ant-input-number-status-error,
+.ant-input-number-status-error-focused,
+.ant-picker-status-error,
+.ant-picker-status-error-focused,
+.ant-select-status-error .ant-select-selector {
+  border-color: var(--bc-danger) !important;
+  outline: none !important;
 }

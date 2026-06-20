@@ -52,7 +52,7 @@ export function BookkeepingRecordModal({
 
   return (
     <Modal
-      destroyOnClose
+      forceRender
       confirmLoading={confirmLoading}
       okText={editingRecord === null ? t('create') : t('save')}
       open={open}

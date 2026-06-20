@@ -8,11 +8,8 @@ import type { WorkspaceController } from '../../hooks/useWorkspaceController';
 import { useI18n } from '../../i18n';
 import type { CurrencyCode } from '../../types/budget';
 import { ShareSideSection } from '../workspace/ShareSideSection';
+import { BookkeepingRecordModal } from '../budget/BookkeepingRecordModal';
 
-const BookkeepingRecordModal = lazy(() =>
-  import('../budget/BookkeepingRecordModal')
-    .then((module) => ({ default: module.BookkeepingRecordModal })),
-);
 const BudgetCreateModal = lazy(() =>
   import('../budget/BudgetCreateModal')
     .then((module) => ({ default: module.BudgetCreateModal })),
@@ -160,20 +157,18 @@ export function AuthenticatedModals({
             onOk={budgetEntry.handleTransactionSave}
           />
         ) : null}
-        {bookkeeping.modalOpen ? (
-          <BookkeepingRecordModal
-            form={bookkeeping.form}
-            editingRecord={bookkeeping.editingRecord}
-            open={bookkeeping.modalOpen}
-            error={bookkeeping.error}
-            categoryOptions={bookkeepingCategoryOptions}
-            baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
-            confirmLoading={bookkeeping.saving}
-            onValuesChange={() => undefined}
-            onCancel={bookkeeping.closeModal}
-            onOk={bookkeeping.saveRecord}
-          />
-        ) : null}
+        <BookkeepingRecordModal
+          form={bookkeeping.form}
+          editingRecord={bookkeeping.editingRecord}
+          open={bookkeeping.modalOpen}
+          error={bookkeeping.error}
+          categoryOptions={bookkeepingCategoryOptions}
+          baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
+          confirmLoading={bookkeeping.saving}
+          onValuesChange={() => undefined}
+          onCancel={bookkeeping.closeModal}
+          onOk={bookkeeping.saveRecord}
+        />
         {workspace.isWorkspaceModalOpen ? (
           <WorkspaceCreateModal
             form={workspace.workspaceForm}

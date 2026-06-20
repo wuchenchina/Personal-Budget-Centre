@@ -1352,6 +1352,10 @@
   max-width: 100%;
 }
 
+.bookkeeping-add-float.ant-float-btn {
+  inset-block-end: 104px;
+}
+
 .bookkeeping-ledger-table .ant-table,
 .bookkeeping-ledger-table .ant-table-container,
 .bookkeeping-ledger-table .ant-table-content {

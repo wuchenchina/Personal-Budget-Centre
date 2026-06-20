@@ -372,6 +372,7 @@ export function BudgetBookkeepingPage({
       </section>
       {canWriteBudgets ? (
         <FloatButton
+          className="bookkeeping-add-float"
           icon={<Plus size={20} />}
           tooltip={t('addBookkeepingRecord')}
           type="primary"

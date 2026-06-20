@@ -1,6 +1,6 @@
 :root {
-  --bc-motion-fast: 120ms;
-  --bc-motion-base: 180ms;
+  --bc-motion-fast: 90ms;
+  --bc-motion-base: 120ms;
   --bc-motion-slow: 220ms;
   --bc-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --bc-ease-standard: cubic-bezier(0.2, 0, 0, 1);
@@ -84,8 +84,9 @@
 .ant-input-number-focused,
 .ant-picker-focused,
 .ant-select-focused .ant-select-selector {
-  outline: 2px solid var(--bc-accent) !important;
-  outline-offset: 2px;
+  border-color: var(--bc-focus) !important;
+  outline: 1px solid var(--bc-focus) !important;
+  outline-offset: 0;
   box-shadow: none !important;
 }
 
@@ -109,11 +110,21 @@
   animation-timing-function: var(--bc-ease-out) !important;
 }
 
+.ant-modal-mask,
+.ant-modal-wrap {
+  animation-duration: 100ms !important;
+  animation-timing-function: var(--bc-ease-out) !important;
+}
+
 .ant-select-selector,
 .ant-btn,
 .ant-tabs-tab,
 .ant-switch,
-.ant-select-item-option {
+.ant-select-item-option,
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-picker {
   transition:
     border-color var(--bc-motion-fast) var(--bc-ease-standard),
     color var(--bc-motion-fast) var(--bc-ease-standard),
