@@ -13,7 +13,7 @@
   padding: 24px;
   background: #fff;
   border: 1px solid var(--bc-border);
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: var(--bc-shadow-soft);
 }
 
@@ -23,7 +23,7 @@
   padding: 18px;
   background: #fff;
   border: 1px solid var(--bc-border);
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: var(--bc-shadow-soft);
 }
 
@@ -49,7 +49,7 @@
   place-items: center;
   color: #fff;
   background: var(--bc-accent);
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .auth-brand h1 {

@@ -232,7 +232,12 @@ function App() {
   }
 
   return (
-    <ConfigProvider locale={antdLocales[language]} theme={appTheme}>
+    <ConfigProvider
+      button={{ autoInsertSpace: false }}
+      locale={antdLocales[language]}
+      theme={appTheme}
+      wave={{ disabled: true }}
+    >
       <I18nContext.Provider value={i18nValue}>{content}</I18nContext.Provider>
     </ConfigProvider>
   );

@@ -4,7 +4,7 @@
   padding: 16px;
   background: #fff;
   border: 1px solid #f0f0f0;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .side-section + .side-section {
@@ -63,7 +63,7 @@
   gap: 10px;
   background: #fafafa;
   border: 1px solid #f0f0f0;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .workspace-list-item {
@@ -135,7 +135,7 @@
   padding: 8px 9px;
   background: #fafafa;
   border: 1px solid #f0f0f0;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .operation-list-item-row {
@@ -195,7 +195,7 @@
 }
 
 .category-table .ant-table {
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .category-bulk-toolbar {
@@ -208,7 +208,7 @@
   padding: 7px 10px;
   background: #fafafa;
   border: 1px solid #f0f0f0;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .category-alias-stack,

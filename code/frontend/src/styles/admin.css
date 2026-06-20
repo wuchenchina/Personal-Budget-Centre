@@ -12,7 +12,7 @@
   padding: 18px;
   background: var(--bc-surface);
   border: 1px solid var(--bc-border);
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .admin-page-kicker {
@@ -40,7 +40,7 @@
   padding: 18px;
   background: var(--bc-surface);
   border: 1px solid var(--bc-border);
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .admin-toolbar {
@@ -148,7 +148,7 @@
   overflow: auto;
   background: #fafafa;
   border: 1px solid #f0f0f0;
-  border-radius: 6px;
+  border-radius: 0;
   color: #1f1f1f;
   font-family: var(--font-mono);
   font-size: 12px;
