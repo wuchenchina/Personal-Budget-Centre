@@ -412,7 +412,7 @@ final readonly class BudgetPdfSignatureRenderer
         $boxHeight = $width <= 80.0 ? 26.0 : 29.0;
         $boxX = $width <= 80.0 ? 5.0 : $width - $boxWidth - 6.0;
         $boxY = $width <= 80.0 ? $rowTop + max(31.0, 5.0 + ($fieldCount * 5.0)) : $rowTop + 4.5;
-        $label = $this->formatter->signatureLabel($config);
+        $label = $this->formatter->signatureLabelForDisplay($config);
         $captionLines = $this->signatureLabelLines($label);
         $captionLineHeight = 2.45;
         $captionAlign = ($config['labelAlign'] ?? null) === 'right' ? 'right' : 'left';

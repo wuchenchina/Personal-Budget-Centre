@@ -6,6 +6,7 @@ namespace BudgetCentre\Services;
 
 use BudgetCentre\Services\BudgetPdf\BudgetPdfConfigFactory;
 use BudgetCentre\Services\BudgetPdf\BudgetPdfFormatter;
+use BudgetCentre\Services\BudgetPdf\BudgetPdfTheme;
 use BudgetCentre\Services\BudgetPdf\BudgetPdfThemeRegistry;
 use Mpdf\Mpdf;
 
@@ -36,7 +37,7 @@ final readonly class BudgetBookkeepingPdfRenderer
                 'fx_exchange' => '货币兑换',
                 'income' => '收入',
                 'sof' => '资金来源',
-                'transfer' => '银行划转',
+                'transfer' => '资金划转',
             ],
         ],
         'tc' => [
@@ -63,7 +64,7 @@ final readonly class BudgetBookkeepingPdfRenderer
                 'fx_exchange' => '貨幣兌換',
                 'income' => '收入',
                 'sof' => '資金來源',
-                'transfer' => '銀行劃轉',
+                'transfer' => '資金劃轉',
             ],
         ],
     ];
@@ -83,9 +84,17 @@ final readonly class BudgetBookkeepingPdfRenderer
         array $options = [],
     ): void {
         $config = $this->configFactory->config($tempDir);
-        $config['format'] = 'A4-L';
+        $config['format'] = $this->isStatementVertical($options) ? 'A4' : 'A4-L';
         $mpdf = new Mpdf($config);
-        $mpdf->WriteHTML($this->renderHtml($budget, $records, $options));
+        $html = $this->renderHtml($budget, $records, $options);
+        $mpdf->WriteHTML($html);
+        if ($mpdf->page <= 1) {
+            $mpdf = new Mpdf($config);
+            $mpdf->WriteHTML($this->renderHtml($budget, $records, [
+                ...$options,
+                'suppressPageFooter' => true,
+            ]));
+        }
         $mpdf->Output($path, 'F');
     }
 
@@ -93,6 +102,7 @@ final readonly class BudgetBookkeepingPdfRenderer
     {
         $context = $this->tableContext($options);
         $theme = $this->themeRegistry->theme($options['pdfTheme'] ?? $options['pdf_theme'] ?? null);
+        $isStatementVertical = $this->isStatementVertical($options);
         $title = trim((string) ($budget['title'] ?? ''));
         $titleHtml = $title === '' ? '' : $this->multilineBlockHtml($title, 'title-line');
         $subtitle = $this->tableText(
@@ -107,22 +117,38 @@ final readonly class BudgetBookkeepingPdfRenderer
             . '<style>'
             . $theme->bookkeepingDocumentCss()
             . $theme->bookkeepingTableCss()
+            . ($isStatementVertical ? $this->statementVerticalCss() : '')
             . '</style></head><body>'
-            . $theme->footerHtml('bookkeeping')
+            . (($options['suppressPageFooter'] ?? false) === true ? $this->emptyFooterHtml() : $theme->footerHtml('bookkeeping'))
             . $theme->headerHtml($budget, $titleHtml, $subtitleHtml, $this->formatter, 'bookkeeping', $options)
-            . $this->renderBookkeepingTable(
-                $this->bookkeepingSection($context),
-                $periodText,
-                $this->bookkeepingRows($budget, $records, $context),
-                $this->tableText(
-                    'No bookkeeping records',
-                    $context['labels']['emptyBookkeepingRecords'],
-                    $context,
-                ),
-                $this->datePrefix($context),
-                $this->bookkeepingTotalRows($budget, $records, $context),
-            )
+            . ($isStatementVertical
+                ? $this->renderStatementVerticalLedger($budget, $records, $context, $periodText)
+                : $this->renderBookkeepingTable(
+                    $this->bookkeepingSection($context),
+                    $periodText,
+                    $this->bookkeepingRows($budget, $records, $context),
+                    $this->tableText(
+                        'No bookkeeping records',
+                        $context['labels']['emptyBookkeepingRecords'],
+                        $context,
+                    ),
+                    $this->datePrefix($context),
+                    $this->bookkeepingTotalRows($budget, $records, $context),
+                ))
             . '</body></html>';
+    }
+
+    private function isStatementVertical(array $options): bool
+    {
+        $theme = BudgetPdfTheme::normalize($options['pdfTheme'] ?? $options['pdf_theme'] ?? null);
+
+        return $theme === BudgetPdfTheme::HSBC
+            && ($options['bookkeepingLayout'] ?? $options['bookkeeping_layout'] ?? null) === 'statement_vertical';
+    }
+
+    private function emptyFooterHtml(): string
+    {
+        return '<htmlpagefooter name="budgetPageFooter"></htmlpagefooter>';
     }
 
     private function renderBookkeepingTable(
@@ -178,11 +204,12 @@ final readonly class BudgetBookkeepingPdfRenderer
             $html .= '</tr>';
         }
 
-        foreach ($totalRows as $totalRow) {
+        foreach ($totalRows as $index => $totalRow) {
             $html .= $this->bookkeepingTotalRowHtml(
                 $columns,
                 (string) ($totalRow['label'] ?? ''),
                 (string) ($totalRow['amountText'] ?? ''),
+                $index === 0,
             );
         }
 
@@ -210,6 +237,107 @@ final readonly class BudgetBookkeepingPdfRenderer
                 ['key' => 'remark', 'label' => $this->columnLabel('remark', 'Remark', $context), 'align' => 'left', 'widthPercent' => 5, 'dataType' => 'text'],
             ],
         ];
+    }
+
+    private function renderStatementVerticalLedger(
+        array $budget,
+        array $records,
+        array $context,
+        string $periodText,
+    ): string {
+        $baseCurrency = (string) ($budget['baseCurrency'] ?? '');
+        $validRecords = array_values(array_filter($records, 'is_array'));
+        $dateLine = $periodText === ''
+            ? ''
+            : '<div class="bookkeeping-date-row statement-ledger-date">'
+                . $this->formatter->escapeHtml($this->datePrefix($context))
+                . $this->formatter->escapeHtml($periodText)
+                . '</div>';
+        $html = '<div class="bookkeeping-section statement-ledger">'
+            . '<table class="bookkeeping-table statement-ledger-title"><tbody><tr class="bookkeeping-section-row"><td>'
+            . $this->templateCellText($this->tableText(
+                'Bookkeeping Records',
+                $context['labels']['bookkeepingRecordsTitle'],
+                $context,
+            ), false)
+            . '</td></tr></tbody></table>'
+            . $dateLine;
+
+        if ($validRecords === []) {
+            $html .= '<div class="statement-ledger-empty">'
+                . $this->formatter->escapeHtml($this->tableText(
+                    'No bookkeeping records',
+                    $context['labels']['emptyBookkeepingRecords'],
+                    $context,
+                ))
+                . '</div>';
+        }
+
+        foreach ($validRecords as $record) {
+            $html .= $this->statementRecordHtml($record, $baseCurrency, $context);
+        }
+
+        $html .= '<table class="bookkeeping-table statement-ledger-totals"><tbody>';
+        foreach ($this->bookkeepingTotalRows($budget, $records, $context) as $index => $totalRow) {
+            $html .= '<tr class="bookkeeping-total-row' . ($index === 0 ? ' bookkeeping-total-row-first' : '') . '">'
+                . '<td class="bookkeeping-total-label">' . $this->templateCellText((string) ($totalRow['label'] ?? '')) . '</td>'
+                . '<td class="bookkeeping-align-right bookkeeping-money-cell">' . $this->templateMoneyCellText((string) ($totalRow['amountText'] ?? '')) . '</td>'
+                . '</tr>';
+        }
+
+        return $html . '</tbody></table></div>';
+    }
+
+    private function statementRecordHtml(array $record, string $baseCurrency, array $context): string
+    {
+        $type = $this->transactionTypeText((string) ($record['transactionType'] ?? ''), $context);
+        $date = trim((string) ($record['recordDate'] ?? ''));
+        $details = trim((string) ($record['details'] ?? ''));
+        $order = trim((string) ($record['orderReference'] ?? ''));
+        $category = trim((string) ($record['categoryLabel'] ?? ''));
+        $accounts = trim($this->accountsText($record));
+        $remark = trim((string) ($record['remark'] ?? ''));
+        $destinationAmount = trim($this->destinationAmountText($record));
+        $metaParts = [];
+        foreach ([
+            $order === '' ? '' : $this->columnLabel('order', 'Order No.', $context) . ': ' . $order,
+            $category === '' ? '' : $this->columnLabel('category', 'Category', $context) . ': ' . $category,
+            $accounts === '' ? '' : $this->columnLabel('accounts', 'Funds / Accounts', $context) . ': ' . str_replace("\n", ' ', $accounts),
+            $destinationAmount === '' ? '' : $this->columnLabel('destination', 'Destination', $context) . ': ' . $destinationAmount,
+            $remark === '' ? '' : $this->columnLabel('remark', 'Remark', $context) . ': ' . $remark,
+        ] as $part) {
+            if ($part !== '') {
+                $metaParts[] = $part;
+            }
+        }
+
+        return '<table class="statement-record"><tbody><tr>'
+            . '<td class="statement-record-date">' . $this->templateCellText($date) . '</td>'
+            . '<td class="statement-record-main">'
+            . '<div class="statement-record-type">' . $this->templateCellText($type) . '</div>'
+            . '<div class="statement-record-detail">' . $this->templateCellText($details === '' ? '-' : $details) . '</div>'
+            . ($metaParts === [] ? '' : '<div class="statement-record-meta">' . $this->templateCellText(implode("\n", $metaParts)) . '</div>')
+            . '</td>'
+            . '<td class="statement-record-amount">' . $this->templateMoneyCellText($this->amountText($record, $baseCurrency)) . '</td>'
+            . '</tr></tbody></table>';
+    }
+
+    private function statementVerticalCss(): string
+    {
+        return '@page{margin:16mm 16mm 17mm;footer:html_budgetPageFooter;}'
+            . '.statement-ledger{margin-top:6mm;}'
+            . '.statement-ledger-date{padding:1.4mm 0 2.4mm;text-decoration:underline;font-size:7.2pt;}'
+            . '.statement-ledger-empty{text-align:center;color:#595959;padding:6mm 0;font-size:7pt;}'
+            . '.statement-record{width:100%;border-collapse:collapse;border-top:0.2mm solid #d0d0d0;table-layout:fixed;}'
+            . '.statement-record td{padding:1.5mm 0;vertical-align:top;}'
+            . '.statement-record-date{width:24mm;color:#555;font-size:6.8pt;}'
+            . '.statement-record-main{padding-right:4mm;}'
+            . '.statement-record-type{font-size:6.5pt;color:#555;margin-bottom:0.4mm;}'
+            . '.statement-record-detail{font-size:7.3pt;color:#111;font-weight:700;line-height:1.25;}'
+            . '.statement-record-meta{font-size:6.3pt;color:#555;line-height:1.22;margin-top:0.6mm;}'
+            . '.statement-record-amount{width:36mm;text-align:right;font-size:7pt;white-space:normal;}'
+            . '.statement-ledger-totals{margin-top:2.8mm;border-top:0.35mm solid #111;}'
+            . '.statement-ledger-totals td{padding:0.8mm 0;}';
     }
 
     private function bookkeepingRows(array $budget, array $records, array $context): array
@@ -314,7 +442,7 @@ final readonly class BudgetBookkeepingPdfRenderer
         ];
     }
 
-    private function bookkeepingTotalRowHtml(array $columns, string $label, string $amountText): string
+    private function bookkeepingTotalRowHtml(array $columns, string $label, string $amountText, bool $isFirstTotal): string
     {
         $amountIndex = 0;
         foreach ($columns as $index => $column) {
@@ -324,7 +452,7 @@ final readonly class BudgetBookkeepingPdfRenderer
             }
         }
 
-        $html = '<tr class="bookkeeping-total-row">';
+        $html = '<tr class="bookkeeping-total-row' . ($isFirstTotal ? ' bookkeeping-total-row-first' : '') . '">';
         if ($amountIndex > 0) {
             $html .= '<td class="bookkeeping-total-label" colspan="' . $amountIndex . '">'
                 . $this->templateCellText($label)
@@ -449,7 +577,7 @@ final readonly class BudgetBookkeepingPdfRenderer
             'fx_exchange' => 'Currency exchange',
             'income' => 'Income',
             'sof' => 'Source of funds',
-            'transfer' => 'Bank transfer',
+            'transfer' => 'Transfer',
         ][$type] ?? $type;
         $chinese = $context['labels']['transactionTypes'][$type] ?? $english;
 

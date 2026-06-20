@@ -439,13 +439,13 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                     <section className={styles.exportPreview} aria-label={t('pdfExportPreview')}>
                       <div className={styles.previewToolbar}>
                         <span>{t('pdfExportPreview')}</span>
-                        <Tag color={previewPdfTheme === 'statement_red' ? 'red' : 'default'}>
+                        <Tag color={previewPdfTheme === 'hsbc' ? 'red' : 'default'}>
                           {t(pdfThemeLabelKey(previewPdfTheme))}
                         </Tag>
                       </div>
                       <div
                         className={`${styles.previewSheet} ${
-                          previewPdfTheme === 'statement_red' ? styles.previewStatement : styles.previewClassic
+                          previewPdfTheme === 'hsbc' ? styles.previewStatement : styles.previewClassic
                         }`}
                       >
                         <div className={styles.previewTop}>
@@ -703,12 +703,12 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
 }
 
 function pdfThemeLabelKey(theme: string) {
-  return normalizePdfTheme(theme) === 'statement_red' ? 'pdfThemeStatementRed' : 'pdfThemeClassic';
+  return normalizePdfTheme(theme) === 'hsbc' ? 'pdfThemeHsbc' : 'pdfThemeClassic';
 }
 
 function pdfThemeDescriptionKey(theme: string) {
-  return normalizePdfTheme(theme) === 'statement_red'
-    ? 'pdfThemeStatementRedDescription'
+  return normalizePdfTheme(theme) === 'hsbc'
+    ? 'pdfThemeHsbcDescription'
     : 'pdfThemeClassicDescription';
 }
 

@@ -44,7 +44,7 @@ export type PrincipalType = 'user' | 'workgroup' | 'workspace';
 
 export type WorkspaceRole = 'owner' | 'admin' | 'editor' | 'viewer' | 'auditor';
 
-export type PdfThemeKey = 'classic' | 'statement_red';
+export type PdfThemeKey = 'classic' | 'hsbc';
 
 export type BudgetShareRole = 'owner' | 'editor' | 'viewer' | 'auditor';
 
@@ -94,7 +94,7 @@ export interface BudgetShare {
 }
 
 export type BudgetSignatureParticipantType = 'workspace_member' | 'manual';
-export type BudgetSignatureLabelLanguage = 'en' | 'sc' | 'tc';
+export type BudgetSignatureLabelLanguage = 'en' | 'sc' | 'tc' | 'en_sc' | 'en_tc';
 export type BudgetSignatureLabelMode = 'confirmation_signature' | 'confirmation' | 'signature';
 export type BudgetSignatureLabelSeparator = 'none' | 'space' | 'slash' | 'line';
 export type BudgetSignatureSectionAlign = 'full' | 'right';
@@ -127,6 +127,7 @@ export interface BudgetSignatureRow {
 
 export interface BudgetSignatureConfig {
   enabled: boolean;
+  customTitleEnabled: boolean;
   title: string;
   infoLanguage: BudgetSignatureLabelLanguage;
   labelLanguage: BudgetSignatureLabelLanguage;
@@ -336,12 +337,14 @@ export interface BudgetCategory {
 export type BudgetExportFormat = 'pdf';
 export type BudgetExportTableLanguageMode = 'en' | 'zh' | 'bilingual';
 export type BudgetExportChineseLanguage = 'sc' | 'tc';
+export type BookkeepingPdfLayout = 'landscape_table' | 'statement_vertical';
 
 export interface BudgetExportOptions {
   exportScope?: 'budget' | 'bookkeeping';
   tableLanguageMode?: BudgetExportTableLanguageMode;
   tableChineseLanguage?: BudgetExportChineseLanguage;
   pdfTheme?: PdfThemeKey;
+  bookkeepingLayout?: BookkeepingPdfLayout;
   showWorkspace?: boolean;
 }
 

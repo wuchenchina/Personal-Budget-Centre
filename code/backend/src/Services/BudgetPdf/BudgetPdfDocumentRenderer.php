@@ -190,7 +190,7 @@ final readonly class BudgetPdfDocumentRenderer
             . $this->tableRenderer->css($theme)
             . $this->signatureRenderer->css($theme)
             . '</style></head><body>'
-            . $theme->footerHtml('budget')
+            . (($options['suppressPageFooter'] ?? false) === true ? $this->emptyFooterHtml() : $theme->footerHtml('budget'))
             . $theme->headerHtml($budget, $titleHtml, $subtitleHtml, $this->formatter, 'budget', $options)
             . $this->tableRenderer->render(
                 $budgetSection,
@@ -229,6 +229,11 @@ final readonly class BudgetPdfDocumentRenderer
             )
             . $this->signatureRenderer->render($budget, $theme)
             . '</body></html>';
+    }
+
+    private function emptyFooterHtml(): string
+    {
+        return '<htmlpagefooter name="budgetPageFooter"></htmlpagefooter>';
     }
 
     private function tableContext(array $options): array

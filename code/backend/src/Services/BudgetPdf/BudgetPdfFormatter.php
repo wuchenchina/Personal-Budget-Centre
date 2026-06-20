@@ -67,11 +67,12 @@ final readonly class BudgetPdfFormatter
     public function signatureLabel(array $config): string
     {
         $language = $this->signatureLanguage($config);
+        $primaryLanguage = $this->signaturePrimaryLanguage($language);
         $labels = [
             'en' => ['confirmation' => 'Confirmation', 'signature' => 'Signature'],
             'sc' => ['confirmation' => '确认', 'signature' => '签署'],
             'tc' => ['confirmation' => '確認', 'signature' => '簽署'],
-        ][$language];
+        ][$primaryLanguage];
         $mode = in_array($config['labelMode'] ?? null, ['confirmation_signature', 'confirmation', 'signature'], true)
             ? $config['labelMode']
             : 'confirmation_signature';
@@ -93,29 +94,48 @@ final readonly class BudgetPdfFormatter
 
     public function signatureSectionTitle(array $config): string
     {
-        $language = $this->signatureInfoLanguage($config);
-        $title = is_string($config['title'] ?? null) && trim($config['title']) !== ''
+        if (($config['customTitleEnabled'] ?? $config['custom_title_enabled'] ?? false) === true) {
+            return is_string($config['title'] ?? null) && trim($config['title']) !== ''
+                ? trim($config['title'])
+                : $this->defaultSignatureSectionTitle($this->signatureInfoLanguage($config));
+        }
+
+        return $this->defaultSignatureSectionTitle($this->signatureInfoLanguage($config));
+    }
+
+    public function legacySignatureSectionTitle(array $config): string
+    {
+        return is_string($config['title'] ?? null) && trim($config['title']) !== ''
             ? trim($config['title'])
             : 'Preparation & Review Record';
+    }
+
+    private function defaultSignatureSectionTitle(string $language): string
+    {
+        if ($language === 'en_sc') {
+            return 'Preparation & Review Record 制表及复核记录';
+        }
+        if ($language === 'en_tc') {
+            return 'Preparation & Review Record 製表及覆核記錄';
+        }
+
         $legacyTitles = [
             'Confirmation Signature',
             '签核确认信息',
             '簽核確認資訊',
         ];
-        if (in_array($title, $legacyTitles, true)) {
-            return [
-                'en' => 'Preparation & Review Record',
-                'sc' => '制表及复核记录',
-                'tc' => '製表及覆核記錄',
-            ][$language];
-        }
+        unset($legacyTitles);
 
-        return $title;
+        return [
+            'en' => 'Preparation & Review Record',
+            'sc' => '制表及复核记录',
+            'tc' => '製表及覆核記錄',
+        ][$language] ?? 'Preparation & Review Record';
     }
 
     public function signatureMetaLabel(array $config, string $key): string
     {
-        return [
+        $labels = [
             'en' => [
                 'participant' => 'Name',
                 'capacity' => 'Capacity',
@@ -137,20 +157,30 @@ final readonly class BudgetPdfFormatter
                 'email' => '電子郵件',
                 'dateTime' => '日期及時間',
             ],
-        ][$this->signatureInfoLanguage($config)][$key];
+        ];
+        $language = $this->signatureInfoLanguage($config);
+        if ($this->signatureIsBilingual($language)) {
+            $chineseLanguage = $this->signatureChineseLanguage($language);
+            $chinese = $labels[$chineseLanguage][$key];
+
+            return $labels['en'][$key] . ' / ' . $chinese;
+        }
+
+        return $labels[$this->signaturePrimaryLanguage($language)][$key];
     }
 
     public function signatureRoleForDisplay(array $config, string $value): string
     {
         $trimmed = trim($value);
         $language = $this->signatureInfoLanguage($config);
+        $primaryLanguage = $this->signaturePrimaryLanguage($language);
         $defaultRole = [
             'en' => 'Confirmed by',
             'sc' => '确认人',
             'tc' => '確認人',
-        ][$language];
+        ][$primaryLanguage];
         if ($trimmed === '') {
-            return $defaultRole;
+            return $this->signaturePhraseForLanguage($this->signatureRolePhrases()[6], $language);
         }
 
         $legacyRoleLabels = [
@@ -167,7 +197,7 @@ final readonly class BudgetPdfFormatter
         ];
 
         if (in_array($trimmed, $legacyRoleLabels, true) || $trimmed === $this->signatureLabel($config)) {
-            return $defaultRole;
+            return $this->signaturePhraseForLanguage($this->signatureRolePhrases()[6], $language);
         }
 
         return $this->translateSignaturePhrase($trimmed, $this->signatureRolePhrases(), $language);
@@ -188,10 +218,10 @@ final readonly class BudgetPdfFormatter
         $language = $this->signatureInfoLanguage($config);
         foreach ($this->signatureMetaLabels() as $labels) {
             if ($labels['telephone'] === $trimmed) {
-                return $this->signatureMetaLabels()[$language]['telephone'];
+                return $this->signatureCustomMetaLabel('telephone', $language);
             }
             if ($labels['mobile'] === $trimmed) {
-                return $this->signatureMetaLabels()[$language]['mobile'];
+                return $this->signatureCustomMetaLabel('mobile', $language);
             }
         }
 
@@ -203,16 +233,45 @@ final readonly class BudgetPdfFormatter
         return $this->signatureDateTime($value);
     }
 
+    public function signatureLabelForDisplay(array $config): string
+    {
+        $label = $this->signatureLabel($config);
+        $language = $this->signatureLanguage($config);
+        if (!$this->signatureIsBilingual($language)) {
+            return $label;
+        }
+
+        $chineseLanguage = $this->signatureChineseLanguage($language);
+        $mode = in_array($config['labelMode'] ?? null, ['confirmation_signature', 'confirmation', 'signature'], true)
+            ? $config['labelMode']
+            : 'confirmation_signature';
+        $labels = [
+            'sc' => ['confirmation' => '确认', 'signature' => '签署'],
+            'tc' => ['confirmation' => '確認', 'signature' => '簽署'],
+        ][$chineseLanguage];
+        $parts = $mode === 'confirmation_signature'
+            ? [$labels['confirmation'], $labels['signature']]
+            : [$labels[$mode]];
+        $chineseLabel = match ($config['labelSeparator'] ?? null) {
+            'none' => implode('', $parts),
+            'slash' => implode(' / ', $parts),
+            'line' => implode("\n", $parts),
+            default => implode(' ', $parts),
+        };
+
+        return $label . "\n" . $chineseLabel;
+    }
+
     private function signatureLanguage(array $config): string
     {
-        return in_array($config['labelLanguage'] ?? null, ['en', 'sc', 'tc'], true)
+        return in_array($config['labelLanguage'] ?? null, ['en', 'sc', 'tc', 'en_sc', 'en_tc'], true)
             ? $config['labelLanguage']
             : 'en';
     }
 
     private function signatureInfoLanguage(array $config): string
     {
-        if (in_array($config['infoLanguage'] ?? null, ['en', 'sc', 'tc'], true)) {
+        if (in_array($config['infoLanguage'] ?? null, ['en', 'sc', 'tc', 'en_sc', 'en_tc'], true)) {
             return $config['infoLanguage'];
         }
 
@@ -239,11 +298,45 @@ final readonly class BudgetPdfFormatter
     {
         foreach ($phrases as $phrase) {
             if ($phrase['en'] === $value || $phrase['sc'] === $value || $phrase['tc'] === $value) {
-                return $phrase[$language] ?? $value;
+                return $this->signaturePhraseForLanguage($phrase, $language);
             }
         }
 
         return $value;
+    }
+
+    private function signaturePhraseForLanguage(array $phrase, string $language): string
+    {
+        if ($this->signatureIsBilingual($language)) {
+            return $phrase['en'] . ' / ' . $phrase[$this->signatureChineseLanguage($language)];
+        }
+
+        return $phrase[$this->signaturePrimaryLanguage($language)] ?? $phrase['en'];
+    }
+
+    private function signatureCustomMetaLabel(string $key, string $language): string
+    {
+        $labels = $this->signatureMetaLabels();
+        if ($this->signatureIsBilingual($language)) {
+            return $labels['en'][$key] . ' / ' . $labels[$this->signatureChineseLanguage($language)][$key];
+        }
+
+        return $labels[$this->signaturePrimaryLanguage($language)][$key];
+    }
+
+    private function signaturePrimaryLanguage(string $language): string
+    {
+        return $this->signatureIsBilingual($language) ? 'en' : $language;
+    }
+
+    private function signatureChineseLanguage(string $language): string
+    {
+        return $language === 'en_sc' ? 'sc' : 'tc';
+    }
+
+    private function signatureIsBilingual(string $language): bool
+    {
+        return in_array($language, ['en_sc', 'en_tc'], true);
     }
 
     private function signatureRolePhrases(): array

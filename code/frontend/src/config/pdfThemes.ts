@@ -13,13 +13,17 @@ export const pdfThemeOptions: PdfThemeOption[] = [
     accent: '#7e7e7e',
   },
   {
-    key: 'statement_red',
+    key: 'hsbc',
     swatch: '#db0011',
     accent: '#111111',
   },
 ];
 
 export function normalizePdfTheme(theme: string | null | undefined): PdfThemeKey {
+  if (theme === 'statement_red') {
+    return 'hsbc';
+  }
+
   return pdfThemeOptions.some((option) => option.key === theme)
     ? (theme as PdfThemeKey)
     : 'classic';

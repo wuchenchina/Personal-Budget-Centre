@@ -3,12 +3,9 @@ import type { DragEvent } from 'react';
 import { Alert, AutoComplete, Button, Checkbox, Collapse, DatePicker, Form, Input, Modal, Select, Space } from 'antd';
 import type { CollapseProps, FormInstance } from 'antd';
 import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2 } from 'lucide-react';
-import {
-  type AppLanguage,
-  languageOptions,
-  useI18n,
-} from '../../i18n';
+import { useI18n } from '../../i18n';
 import type { WorkspaceMember } from '../../types/auth';
+import type { BudgetSignatureLabelLanguage } from '../../types/budget';
 import type { BudgetFormValues } from '../../types/forms';
 import {
   createSignatureCustomField,
@@ -44,6 +41,7 @@ export function BudgetSignatureModal({
   const [draggingSignatureRowKey, setDraggingSignatureRowKey] = useState<number | null>(null);
   const { language, t } = useI18n();
   const signatureEnabled = Form.useWatch(['signatureConfig', 'enabled'], form) === true;
+  const customSignatureTitleEnabled = Form.useWatch(['signatureConfig', 'customTitleEnabled'], form) === true;
   const signatureInfoLanguage = normalizeSignatureLanguage(
     Form.useWatch(['signatureConfig', 'infoLanguage'], form),
   );
@@ -58,6 +56,7 @@ export function BudgetSignatureModal({
   const customFieldLabelOptions = signatureCustomFieldLabelOptions(language);
   const signatureLabelPreview = signatureLabelForConfig({
     enabled: true,
+    customTitleEnabled: false,
     title: '',
     infoLanguage: signatureInfoLanguage,
     labelLanguage: signatureLabelLanguage,
@@ -141,25 +140,30 @@ export function BudgetSignatureModal({
               </Form.Item>
               {signatureEnabled ? (
                 <>
-                  <Form.Item
-                    label={t('signatureSectionTitle')}
-                    name={['signatureConfig', 'title']}
-                    rules={[{ max: 120, message: t('signatureConfigTextMax') }]}
-                  >
-                    <Input autoComplete="off" />
+                  <Form.Item name={['signatureConfig', 'customTitleEnabled']} valuePropName="checked">
+                    <Checkbox>{t('customSignatureTitle')}</Checkbox>
                   </Form.Item>
+                  {customSignatureTitleEnabled ? (
+                    <Form.Item
+                      label={t('signatureSectionTitle')}
+                      name={['signatureConfig', 'title']}
+                      rules={[{ max: 120, message: t('signatureConfigTextMax') }]}
+                    >
+                      <Input autoComplete="off" />
+                    </Form.Item>
+                  ) : null}
                   <div className="modal-form-grid modal-form-grid-three">
                     <Form.Item
                       label={t('signatureInfoLanguage')}
                       name={['signatureConfig', 'infoLanguage']}
                     >
-                      <Select options={languageOptions} />
+                      <Select options={signatureLanguageOptions} />
                     </Form.Item>
                     <Form.Item
                       label={t('signatureLabelLanguage')}
                       name={['signatureConfig', 'labelLanguage']}
                     >
-                      <Select options={languageOptions} />
+                      <Select options={signatureLanguageOptions} />
                     </Form.Item>
                     <Form.Item label={t('signatureLabelMode')} name={['signatureConfig', 'labelMode']}>
                       <Select
@@ -415,7 +419,6 @@ export function BudgetSignatureModal({
                             >
                               <Collapse
                                 className="signature-config-row-collapse"
-                                defaultActiveKey={['participant']}
                                 expandIcon={({ isActive }) => (
                                   isActive ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                                 )}
@@ -444,9 +447,19 @@ export function BudgetSignatureModal({
   );
 }
 
-function normalizeSignatureLanguage(value: unknown): AppLanguage {
-  return value === 'sc' || value === 'tc' || value === 'en' ? value : 'en';
+function normalizeSignatureLanguage(value: unknown): BudgetSignatureLabelLanguage {
+  return value === 'sc' || value === 'tc' || value === 'en' || value === 'en_sc' || value === 'en_tc'
+    ? value
+    : 'en';
 }
+
+const signatureLanguageOptions = [
+  { label: 'English', value: 'en' },
+  { label: '简体中文', value: 'sc' },
+  { label: '繁體中文', value: 'tc' },
+  { label: 'English / 简体中文', value: 'en_sc' },
+  { label: 'English / 繁體中文', value: 'en_tc' },
+];
 
 function signatureRowTitle(value: unknown, index: number, fallbackLabel: string): string {
   return typeof value === 'string' && value.trim().length > 0

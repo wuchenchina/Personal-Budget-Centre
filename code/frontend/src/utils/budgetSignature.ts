@@ -15,10 +15,15 @@ import type { BudgetSignatureFormRow } from '../types/forms';
 
 export const defaultSignatureTitle = 'Preparation & Review Record';
 
+type BaseSignatureLanguage = 'en' | 'sc' | 'tc';
+type SignaturePhrase = Record<BaseSignatureLanguage, string>;
+
 const signatureSectionTitleText: Record<BudgetSignatureLabelLanguage, string> = {
   en: 'Preparation & Review Record',
   sc: '制表及复核记录',
   tc: '製表及覆核記錄',
+  en_sc: 'Preparation & Review Record 制表及复核记录',
+  en_tc: 'Preparation & Review Record 製表及覆核記錄',
 };
 
 const signatureLabelText: Record<BudgetSignatureLabelLanguage, Record<'confirmation' | 'signature', string>> = {
@@ -33,6 +38,14 @@ const signatureLabelText: Record<BudgetSignatureLabelLanguage, Record<'confirmat
   tc: {
     confirmation: '確認',
     signature: '簽署',
+  },
+  en_sc: {
+    confirmation: 'Confirmation / 确认',
+    signature: 'Signature / 签署',
+  },
+  en_tc: {
+    confirmation: 'Confirmation / 確認',
+    signature: 'Signature / 簽署',
   },
 };
 
@@ -67,6 +80,24 @@ const signatureMetaLabelText: Record<
     telephone: '電話號碼',
     mobile: '流動電話號碼',
   },
+  en_sc: {
+    name: 'Name / 姓名',
+    capacity: 'Capacity / 身份',
+    position: 'Position / 职务',
+    email: 'Email / 电子邮件',
+    dateTime: 'Date & Time / 日期及时间',
+    telephone: 'Tel. No. / 电话号码',
+    mobile: 'Mobile No. / 流动电话号码',
+  },
+  en_tc: {
+    name: 'Name / 姓名',
+    capacity: 'Capacity / 身份',
+    position: 'Position / 職務',
+    email: 'Email / 電子郵件',
+    dateTime: 'Date & Time / 日期及時間',
+    telephone: 'Tel. No. / 電話號碼',
+    mobile: 'Mobile No. / 流動電話號碼',
+  },
 };
 
 const signatureRolePhrases = [
@@ -85,7 +116,7 @@ const signatureRolePhrases = [
   { en: 'Documented by', sc: '记录', tc: '記錄' },
   { en: 'Processed by', sc: '处理', tc: '處理' },
   { en: 'Finance reviewed by', sc: '财务复核', tc: '財務覆核' },
-] satisfies Array<Record<BudgetSignatureLabelLanguage, string>>;
+] satisfies SignaturePhrase[];
 
 const signaturePositionPhrases = [
   { en: 'Account Holder', sc: '账户持有人', tc: '帳戶持有人' },
@@ -101,11 +132,12 @@ const signaturePositionPhrases = [
   { en: 'Internal Auditor', sc: '内部审计', tc: '內部審計' },
   { en: 'External Auditor', sc: '外部审计', tc: '外部審計' },
   { en: 'Authorised Representative', sc: '授权代表', tc: '授權代表' },
-] satisfies Array<Record<BudgetSignatureLabelLanguage, string>>;
+] satisfies SignaturePhrase[];
 
 export function emptySignatureConfig(): BudgetSignatureConfig {
   return {
     enabled: false,
+    customTitleEnabled: false,
     title: defaultSignatureTitle,
     infoLanguage: 'en',
     labelLanguage: 'en',
@@ -178,6 +210,7 @@ export function signatureConfigToForm(
 
   return {
     enabled: normalized.enabled,
+    customTitleEnabled: normalized.customTitleEnabled,
     title: normalized.title,
     infoLanguage: normalized.infoLanguage,
     labelLanguage: normalized.labelLanguage,
@@ -208,6 +241,7 @@ export function signatureConfigFromForm(
 
   return normalizeSignatureConfig({
     enabled: config.enabled === true,
+    customTitleEnabled: config.customTitleEnabled === true,
     title: config.title,
     infoLanguage: config.infoLanguage,
     labelLanguage: config.labelLanguage,
@@ -230,10 +264,12 @@ export function normalizeSignatureConfig(
     return emptySignatureConfig();
   }
   const infoLanguage = normalizeLabelLanguage(config.infoLanguage ?? config.labelLanguage);
+  const customTitleEnabled = config.customTitleEnabled === true;
 
   return {
     enabled: config.enabled === true,
-    title: normalizeSignatureTitle(config.title, infoLanguage),
+    customTitleEnabled,
+    title: customTitleEnabled ? normalizeSignatureTitle(config.title, infoLanguage) : signatureTitleForLanguage(infoLanguage),
     infoLanguage,
     labelLanguage: normalizeLabelLanguage(config.labelLanguage),
     labelMode: normalizeLabelMode(config.labelMode),
@@ -248,18 +284,32 @@ export function normalizeSignatureConfig(
 }
 
 export function signatureLabelForConfig(config: BudgetSignatureConfig): string {
-  const labels = signatureLabelText[normalizeLabelLanguage(config.labelLanguage)];
+  const language = normalizeLabelLanguage(config.labelLanguage);
+  const labels = signatureLabelText[signaturePrimaryLanguage(language)];
   const mode = normalizeLabelMode(config.labelMode);
   const parts =
     mode === 'confirmation_signature'
       ? [labels.confirmation, labels.signature]
       : [labels[mode]];
 
+  const englishLabel = joinSignatureLabelParts(parts, normalizeLabelSeparator(config.labelSeparator));
+  if (language === 'en_sc' || language === 'en_tc') {
+    const chineseLabels = signatureLabelText[language === 'en_sc' ? 'sc' : 'tc'];
+    const chineseParts =
+      mode === 'confirmation_signature'
+        ? [chineseLabels.confirmation, chineseLabels.signature]
+        : [chineseLabels[mode]];
+
+    return `${englishLabel}\n${joinSignatureLabelParts(chineseParts, normalizeLabelSeparator(config.labelSeparator))}`;
+  }
+
+  return englishLabel;
+}
+
+function joinSignatureLabelParts(parts: string[], separator: BudgetSignatureLabelSeparator): string {
   if (parts.length === 1) {
     return parts[0];
   }
-
-  const separator = normalizeLabelSeparator(config.labelSeparator);
   if (separator === 'slash') {
     return parts.join(' / ');
   }
@@ -280,6 +330,8 @@ export function signatureRoleForDisplay(config: BudgetSignatureConfig, value: st
     en: 'Confirmed by',
     sc: '确认人',
     tc: '確認人',
+    en_sc: 'Confirmed by / 确认',
+    en_tc: 'Confirmed by / 確認',
   };
   if (trimmed === '') {
     return defaultRole[language];
@@ -326,13 +378,13 @@ export function signatureMetaLabelsForLanguage(
 export function signatureRolePhraseOptions(
   language: BudgetSignatureLabelLanguage,
 ): Array<{ value: string }> {
-  return signatureRolePhrases.map((phrase) => ({ value: phrase[normalizeLabelLanguage(language)] }));
+  return signatureRolePhrases.map((phrase) => ({ value: phraseForLanguage(phrase, normalizeLabelLanguage(language)) }));
 }
 
 export function signaturePositionPhraseOptions(
   language: BudgetSignatureLabelLanguage,
 ): Array<{ value: string }> {
-  return signaturePositionPhrases.map((phrase) => ({ value: phrase[normalizeLabelLanguage(language)] }));
+  return signaturePositionPhrases.map((phrase) => ({ value: phraseForLanguage(phrase, normalizeLabelLanguage(language)) }));
 }
 
 export function signatureCustomFieldLabelOptions(
@@ -436,12 +488,14 @@ function normalizeText(value: unknown): string | null {
 }
 
 function normalizeLabelLanguage(value: unknown): BudgetSignatureLabelLanguage {
-  return value === 'sc' || value === 'tc' || value === 'en' ? value : 'en';
+  return value === 'sc' || value === 'tc' || value === 'en' || value === 'en_sc' || value === 'en_tc'
+    ? value
+    : 'en';
 }
 
 function translateSignaturePhrase(
   value: string,
-  phrases: Array<Record<BudgetSignatureLabelLanguage, string>>,
+  phrases: SignaturePhrase[],
   language: BudgetSignatureLabelLanguage,
 ): string {
   const trimmed = value.trim();
@@ -449,7 +503,11 @@ function translateSignaturePhrase(
     item.en === trimmed || item.sc === trimmed || item.tc === trimmed,
   );
 
-  return phrase === undefined ? value : phrase[language];
+  if (phrase === undefined) {
+    return value;
+  }
+
+  return phraseForLanguage(phrase, language);
 }
 
 function signatureCustomFieldLabelForLanguage(
@@ -468,6 +526,21 @@ function signatureCustomFieldLabelForLanguage(
   }
 
   return value;
+}
+
+function phraseForLanguage(phrase: SignaturePhrase, language: BudgetSignatureLabelLanguage): string {
+  if (language === 'en_sc') {
+    return `${phrase.en} / ${phrase.sc}`;
+  }
+  if (language === 'en_tc') {
+    return `${phrase.en} / ${phrase.tc}`;
+  }
+
+  return phrase[language];
+}
+
+function signaturePrimaryLanguage(language: BudgetSignatureLabelLanguage): BaseSignatureLanguage {
+  return language === 'en_sc' || language === 'en_tc' ? 'en' : language;
 }
 
 function normalizeSignatureTitle(
@@ -519,6 +592,7 @@ function signatureCustomFieldId(): string {
 
 interface BudgetFormSignatureConfig {
   enabled: boolean;
+  customTitleEnabled: boolean;
   title: string;
   infoLanguage: BudgetSignatureLabelLanguage;
   labelLanguage: BudgetSignatureLabelLanguage;

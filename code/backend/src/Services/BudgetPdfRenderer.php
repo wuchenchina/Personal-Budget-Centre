@@ -30,7 +30,15 @@ final readonly class BudgetPdfRenderer
         array $options = [],
     ): void {
         $mpdf = new Mpdf($this->configFactory->config($tempDir));
-        $mpdf->WriteHTML($this->renderHtml($budget, $template, $options));
+        $html = $this->renderHtml($budget, $template, $options);
+        $mpdf->WriteHTML($html);
+        if ($mpdf->page <= 1) {
+            $mpdf = new Mpdf($this->configFactory->config($tempDir));
+            $mpdf->WriteHTML($this->renderHtml($budget, $template, [
+                ...$options,
+                'suppressPageFooter' => true,
+            ]));
+        }
         $mpdf->Output($path, 'F');
     }
 

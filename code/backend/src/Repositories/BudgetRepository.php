@@ -1280,18 +1280,21 @@ final readonly class BudgetRepository
         if (!is_array($decoded)) {
             return $this->emptySignatureConfig();
         }
-        $infoLanguage = in_array($decoded['infoLanguage'] ?? null, ['en', 'sc', 'tc'], true)
+        $validSignatureLanguages = ['en', 'sc', 'tc', 'en_sc', 'en_tc'];
+        $infoLanguage = in_array($decoded['infoLanguage'] ?? null, $validSignatureLanguages, true)
             ? $decoded['infoLanguage']
-            : (in_array($decoded['labelLanguage'] ?? null, ['en', 'sc', 'tc'], true) ? $decoded['labelLanguage'] : 'en');
-        $title = is_string($decoded['title'] ?? null) && trim($decoded['title']) !== ''
+            : (in_array($decoded['labelLanguage'] ?? null, $validSignatureLanguages, true) ? $decoded['labelLanguage'] : 'en');
+        $customTitleEnabled = ($decoded['customTitleEnabled'] ?? $decoded['custom_title_enabled'] ?? false) === true;
+        $title = $customTitleEnabled && is_string($decoded['title'] ?? null) && trim($decoded['title']) !== ''
             ? trim($decoded['title'])
-            : 'Preparation & Review Record';
+            : $this->signatureSectionTitle('Preparation & Review Record', $infoLanguage);
 
         return [
             'enabled' => ($decoded['enabled'] ?? false) === true,
-            'title' => $this->signatureSectionTitle($title, $infoLanguage),
+            'customTitleEnabled' => $customTitleEnabled,
+            'title' => $title,
             'infoLanguage' => $infoLanguage,
-            'labelLanguage' => in_array($decoded['labelLanguage'] ?? null, ['en', 'sc', 'tc'], true)
+            'labelLanguage' => in_array($decoded['labelLanguage'] ?? null, $validSignatureLanguages, true)
                 ? $decoded['labelLanguage']
                 : 'en',
             'labelMode' => in_array($decoded['labelMode'] ?? null, ['confirmation_signature', 'confirmation', 'signature'], true)
@@ -1369,6 +1372,8 @@ final readonly class BudgetRepository
             'en' => 'Preparation & Review Record',
             'sc' => '制表及复核记录',
             'tc' => '製表及覆核記錄',
+            'en_sc' => 'Preparation & Review Record 制表及复核记录',
+            'en_tc' => 'Preparation & Review Record 製表及覆核記錄',
         ][$language] ?? 'Preparation & Review Record';
     }
 
@@ -1376,6 +1381,7 @@ final readonly class BudgetRepository
     {
         return [
             'enabled' => false,
+            'customTitleEnabled' => false,
             'title' => 'Preparation & Review Record',
             'infoLanguage' => 'en',
             'labelLanguage' => 'en',

@@ -609,7 +609,10 @@ final readonly class BudgetService
     private function signatureConfigFromArray(array $input): array
     {
         $infoLanguage = $this->signatureLabelLanguage($input['infoLanguage'] ?? $input['info_language'] ?? $input['labelLanguage'] ?? $input['label_language'] ?? null);
-        $title = $this->signatureSectionTitle($this->limitedString($input['title'] ?? null, 120), $infoLanguage);
+        $customTitleEnabled = ($input['customTitleEnabled'] ?? $input['custom_title_enabled'] ?? false) === true;
+        $title = $customTitleEnabled
+            ? ($this->limitedString($input['title'] ?? null, 120) ?? '')
+            : $this->signatureSectionTitle(null, $infoLanguage);
         $rows = [];
         $rawRows = is_array($input['rows'] ?? null) ? array_slice($input['rows'], 0, self::SIGNATURE_ROW_LIMIT) : [];
         foreach ($rawRows as $row) {
@@ -625,6 +628,7 @@ final readonly class BudgetService
 
         return [
             'enabled' => ($input['enabled'] ?? false) === true,
+            'customTitleEnabled' => $customTitleEnabled,
             'title' => $title,
             'infoLanguage' => $infoLanguage,
             'labelLanguage' => $this->signatureLabelLanguage($input['labelLanguage'] ?? $input['label_language'] ?? null),
@@ -778,7 +782,7 @@ final readonly class BudgetService
 
     private function signatureLabelLanguage(mixed $value): string
     {
-        return in_array($value, ['en', 'sc', 'tc'], true) ? $value : 'en';
+        return in_array($value, ['en', 'sc', 'tc', 'en_sc', 'en_tc'], true) ? $value : 'en';
     }
 
     private function signatureLabelMode(mixed $value): string
@@ -814,6 +818,8 @@ final readonly class BudgetService
             'en' => 'Preparation & Review Record',
             'sc' => '制表及复核记录',
             'tc' => '製表及覆核記錄',
+            'en_sc' => 'Preparation & Review Record 制表及复核记录',
+            'en_tc' => 'Preparation & Review Record 製表及覆核記錄',
         ][$language] ?? 'Preparation & Review Record';
     }
 
@@ -821,6 +827,7 @@ final readonly class BudgetService
     {
         return [
             'enabled' => false,
+            'customTitleEnabled' => false,
             'title' => 'Preparation & Review Record',
             'infoLanguage' => 'en',
             'labelLanguage' => 'en',

@@ -162,6 +162,9 @@ final readonly class BudgetExportService
             ?? BudgetPdfTheme::DEFAULT,
         );
         $showWorkspace = $this->showWorkspacePreference($input, $session);
+        $bookkeepingLayout = Input::string(
+            $input['bookkeepingLayout'] ?? $input['bookkeeping_layout'] ?? null,
+        ) ?? 'landscape_table';
 
         return [
             'tableLanguageMode' => in_array($tableLanguageMode, ['en', 'zh', 'bilingual'], true)
@@ -171,6 +174,9 @@ final readonly class BudgetExportService
                 ? $tableChineseLanguage
                 : 'tc',
             'pdfTheme' => $pdfTheme,
+            'bookkeepingLayout' => in_array($bookkeepingLayout, ['landscape_table', 'statement_vertical'], true)
+                ? $bookkeepingLayout
+                : 'landscape_table',
             'showWorkspace' => $showWorkspace,
         ];
     }

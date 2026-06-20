@@ -6,6 +6,7 @@ import { transactionTypeColors } from '../../config/appConfig';
 import { useI18n } from '../../i18n';
 import type {
   BookkeepingRecord,
+  BookkeepingPdfLayout,
   BudgetDetail,
   BudgetExportChineseLanguage,
   BudgetExportTableLanguageMode,
@@ -27,6 +28,7 @@ interface BudgetBookkeepingPageProps {
   onBackToProjects: () => void;
   onOpenEditor: (budgetId: number) => void;
   onExportPdf: (options: {
+    bookkeepingLayout: BookkeepingPdfLayout;
     tableChineseLanguage: BudgetExportChineseLanguage;
     tableLanguageMode: BudgetExportTableLanguageMode;
   }) => void;
@@ -63,6 +65,7 @@ export function BudgetBookkeepingPage({
   const [tableChineseLanguage, setTableChineseLanguage] = useState<BudgetExportChineseLanguage>(
     language === 'sc' ? 'sc' : 'tc',
   );
+  const [bookkeepingLayout, setBookkeepingLayout] = useState<BookkeepingPdfLayout>('landscape_table');
   const currency = selectedBudget?.baseCurrency ?? baseCurrency;
   const normalizedSearch = searchText.trim().toLowerCase();
   const filteredRecords = useMemo(
@@ -266,6 +269,7 @@ export function BudgetBookkeepingPage({
             loading={exportingPdf}
             size="small"
             onClick={() => onExportPdf({
+              bookkeepingLayout,
               tableChineseLanguage,
               tableLanguageMode,
             })}
@@ -274,6 +278,16 @@ export function BudgetBookkeepingPage({
           </Button>
         </div>
         <div className="budget-table-language-controls">
+          <span className="budget-export-label">{t('bookkeepingPdfLayout')}</span>
+          <Segmented<BookkeepingPdfLayout>
+            options={[
+              { label: t('bookkeepingPdfLayoutLandscape'), value: 'landscape_table' },
+              { label: t('bookkeepingPdfLayoutVertical'), value: 'statement_vertical' },
+            ]}
+            size="small"
+            value={bookkeepingLayout}
+            onChange={setBookkeepingLayout}
+          />
           <span className="budget-export-label">{t('tableLanguage')}</span>
           <Segmented<BudgetExportTableLanguageMode>
             options={[
