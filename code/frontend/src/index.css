@@ -140,7 +140,11 @@ select {
 .ant-input-focused,
 .ant-input-number-focused,
 .ant-picker-focused,
-.ant-select-focused .ant-select-selector,
+.ant-select-focused .ant-select-selector {
+  border: 2px solid var(--bc-focus) !important;
+  outline: none !important;
+}
+
 .ant-btn:focus-visible {
   border-color: var(--bc-focus) !important;
   outline: 1px solid var(--bc-focus) !important;
@@ -157,7 +161,7 @@ select {
 .ant-form-item-has-error .ant-picker,
 .ant-form-item-has-error .ant-picker-focused,
 .ant-form-item-has-error .ant-select-selector {
-  border-color: var(--bc-danger) !important;
+  border: 2px solid var(--bc-danger) !important;
   outline: none !important;
 }
 
@@ -170,6 +174,6 @@ select {
 .ant-picker-status-error,
 .ant-picker-status-error-focused,
 .ant-select-status-error .ant-select-selector {
-  border-color: var(--bc-danger) !important;
+  border: 2px solid var(--bc-danger) !important;
   outline: none !important;
 }

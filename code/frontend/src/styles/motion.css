@@ -84,9 +84,8 @@
 .ant-input-number-focused,
 .ant-picker-focused,
 .ant-select-focused .ant-select-selector {
-  border-color: var(--bc-focus) !important;
-  outline: 1px solid var(--bc-focus) !important;
-  outline-offset: 0;
+  border: 2px solid var(--bc-focus) !important;
+  outline: none !important;
   box-shadow: none !important;
 }
 
