@@ -22,6 +22,9 @@
   --bc-danger: #db0011;
   --bc-success: #16803c;
   --bc-success-soft: #f1fbf4;
+  --bc-success-border: #7ea88e;
+  --bc-warning-border: #d4a052;
+  --bc-danger-border: #e28f98;
   --bc-warning-soft: #fff7e8;
   --bc-danger-soft: #fff1f2;
   --bc-focus: #111111;
@@ -228,6 +231,138 @@ select {
   background: var(--bc-warning-soft) !important;
   border-color: #e4bd7a !important;
   color: var(--bc-warning) !important;
+}
+
+.ant-alert {
+  align-items: flex-start;
+  padding: 16px 22px !important;
+  background: #ffffff !important;
+  border: 1px solid var(--bc-border) !important;
+  box-shadow: none !important;
+}
+
+.ant-alert-message {
+  color: var(--bc-text) !important;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.ant-alert-description {
+  color: var(--bc-text-muted) !important;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.ant-alert-with-description {
+  padding: 18px 22px !important;
+}
+
+.ant-alert .ant-alert-icon {
+  display: inline-grid !important;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  margin-inline-end: 14px !important;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.ant-alert .ant-alert-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.ant-alert-success {
+  border-color: var(--bc-border) !important;
+}
+
+.ant-alert-success .ant-alert-icon {
+  color: #ffffff !important;
+  background: var(--bc-success);
+}
+
+.ant-alert-info .ant-alert-icon {
+  color: #ffffff !important;
+  background: var(--bc-accent);
+}
+
+.ant-alert-warning {
+  border-color: var(--bc-warning-border) !important;
+}
+
+.ant-alert-warning .ant-alert-icon {
+  color: #ffffff !important;
+  background: var(--bc-warning);
+}
+
+.ant-alert-error {
+  border-color: var(--bc-danger-border) !important;
+}
+
+.ant-alert-error .ant-alert-icon {
+  color: #ffffff !important;
+  background: var(--bc-danger);
+}
+
+.ant-alert-action {
+  align-self: center;
+  margin-inline-start: 18px !important;
+}
+
+.ant-message {
+  z-index: 1400;
+}
+
+.ant-message .ant-message-notice-wrapper .ant-message-notice-content {
+  min-width: min(680px, calc(100vw - 32px));
+  padding: 16px 22px;
+  color: var(--bc-text);
+  background: #ffffff;
+  border: 1px solid var(--bc-border);
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.ant-message .ant-message-custom-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ant-message .anticon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.ant-message-success .anticon {
+  color: #ffffff !important;
+  background: var(--bc-success);
+}
+
+.ant-message-error .anticon {
+  color: #ffffff !important;
+  background: var(--bc-danger);
+}
+
+.ant-message-warning .anticon {
+  color: #ffffff !important;
+  background: var(--bc-warning);
+}
+
+.ant-message-info .anticon,
+.ant-message-loading .anticon {
+  color: #ffffff !important;
+  background: var(--bc-accent);
 }
 
 .ant-input:focus,

@@ -82,16 +82,10 @@
 }
 
 .admin-notice-alert.ant-alert {
-  position: relative;
-  color: #1b1b1b;
-  background: #ffffff;
-  border-color: var(--bc-border);
-  border-left: 4px solid var(--bc-success);
+  margin-bottom: 12px;
 }
 
-.admin-notice-alert .ant-alert-icon,
 .admin-notice-alert .ant-alert-message {
-  color: var(--bc-success);
   font-weight: 650;
 }
 
