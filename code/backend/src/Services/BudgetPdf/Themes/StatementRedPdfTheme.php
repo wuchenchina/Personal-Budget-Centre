@@ -103,7 +103,7 @@ final readonly class StatementRedPdfTheme implements BudgetPdfThemeDefinition
 
     public function footerHtml(string $scope): string
     {
-        $documentType = $scope === 'bookkeeping' ? 'Reconciliation statement' : 'Budget document';
+        $documentType = $scope === 'bookkeeping' ? 'Bookkeeping export' : 'Budget document';
 
         return '<htmlpagefooter name="budgetPageFooter"><div class="page-footer">'
             . '<table class="statement-red-footer"><tr><td>BudgetCentre PDF export<br>BudgetCentre PDF 匯出</td>'
@@ -120,9 +120,7 @@ final readonly class StatementRedPdfTheme implements BudgetPdfThemeDefinition
     ): string {
         $referenceNumber = $this->referenceNumber($budget);
         $date = date('j F Y');
-        $documentTitle = $scope === 'bookkeeping'
-            ? 'Reconciliation Statement 對帳單'
-            : $titleHtml;
+        $documentTitle = $titleHtml;
         $subtitle = trim(strip_tags(str_replace(['</div>', '<br>'], "\n", $subtitleHtml)));
         $subtitleContent = $scope === 'bookkeeping' ? $titleHtml : '';
         if ($subtitle !== '') {

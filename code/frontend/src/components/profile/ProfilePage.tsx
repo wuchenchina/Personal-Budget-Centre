@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Alert, Avatar, Button, Divider, Form, Input, Modal, Radio, Space, Tabs, Tag, Typography, message } from 'antd';
+import { Alert, Avatar, Button, Form, Input, Modal, Radio, Space, Tabs, Tag, Typography, message } from 'antd';
 import type { RadioChangeEvent } from 'antd';
-import { FileText, KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react';
+import { FileText, KeyRound, Link2, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import {
   getSsoBinding,
   resendEmailVerification,
@@ -28,7 +28,8 @@ interface ProfilePageProps {
 
 export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePageProps) {
   const { t } = useI18n();
-  const [profileForm] = Form.useForm<ProfileFormValues>();
+  const [accountForm] = Form.useForm<ProfileFormValues>();
+  const [exportForm] = Form.useForm<ProfileFormValues>();
   const [emailChangeForm] = Form.useForm<EmailChangeFormValues>();
   const [passwordForm] = Form.useForm<PasswordFormValues>();
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -42,18 +43,16 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const [ssoBinding, setSsoBinding] = useState<SsoBinding | null>(null);
   const [isSsoLoading, setIsSsoLoading] = useState(true);
   const [isSsoUnlinking, setIsSsoUnlinking] = useState(false);
-  const selectedPdfTheme = normalizePdfTheme(
-    Form.useWatch('defaultPdfTheme', profileForm) ?? session.user.defaultPdfTheme,
-  );
-  const selectedPdfThemeOption =
-    pdfThemeOptions.find((theme) => theme.key === selectedPdfTheme) ?? pdfThemeOptions[0];
 
   useEffect(() => {
-    profileForm.setFieldsValue({
+    const profileValues = {
       defaultPdfTheme: normalizePdfTheme(session.user.defaultPdfTheme),
       displayName: session.user.displayName,
-    });
-  }, [profileForm, session.user.defaultPdfTheme, session.user.displayName]);
+    };
+
+    accountForm.setFieldsValue(profileValues);
+    exportForm.setFieldsValue(profileValues);
+  }, [accountForm, exportForm, session.user.defaultPdfTheme, session.user.displayName]);
 
   useEffect(() => {
     let isMounted = true;
@@ -196,12 +195,12 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   return (
     <div className={styles.page}>
       <div className={styles.workbench}>
-        <aside className={styles.identityRail}>
-          <section className={styles.identityCard}>
+        <section className={styles.profileSummary}>
+          <div className={styles.summaryIdentity}>
             <Avatar className={styles.avatar} size={72} src={session.user.avatarUrl ?? undefined}>
               {getProfileInitial(session.user.displayName, session.user.email)}
             </Avatar>
-            <div className={styles.identityCopy}>
+            <div className={styles.summaryCopy}>
               <Text className={styles.eyebrow}>{t('profile')}</Text>
               <Title className={styles.title} level={2}>
                 {session.user.displayName}
@@ -211,54 +210,16 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                 <Text type="secondary">{session.user.email}</Text>
               </span>
             </div>
-            <Space className={styles.statusRow} wrap>
-              {session.user.emailVerifiedAt === null ? (
-                <Tag color="warning">{t('emailPending')}</Tag>
-              ) : (
-                <Tag color="green">{t('emailVerified')}</Tag>
-              )}
-              {session.user.isAdmin ? <Tag color="red">{t('administrator')}</Tag> : null}
-            </Space>
-          </section>
-
-          <section className={`${styles.panel} ${styles.ssoPanel}`}>
-            <div className={styles.panelHeader}>
-              <span className={styles.panelIcon}>
-                <ShieldCheck size={16} />
-              </span>
-              <div>
-                <Text strong>{t('axchenSso')}</Text>
-                <Text type="secondary">
-                  {ssoBinding === null ? t('axchenSsoNotLinked') : t('axchenSsoLinked')}
-                </Text>
-              </div>
-            </div>
-            <Divider className={styles.ssoDivider} />
-            {ssoBinding === null ? (
-              <Button className={styles.outlineAction} loading={isSsoLoading} onClick={handleSsoBind}>
-                {t('axchenSsoBind')}
-              </Button>
+          </div>
+          <Space className={styles.statusRow} wrap>
+            {session.user.emailVerifiedAt === null ? (
+              <Tag color="warning">{t('emailPending')}</Tag>
             ) : (
-              <>
-                <div className={styles.readonlyValue}>
-                  <strong>{ssoBinding.username ?? ssoBinding.email ?? ssoBinding.subject}</strong>
-                  <small>{ssoBinding.email ?? t('axchenSsoBoundFallback')}</small>
-                </div>
-                <div className={styles.ssoActions}>
-                  <Tag color="green">{t('axchenSsoBound')}</Tag>
-                  <Button
-                    danger
-                    className={styles.dangerOutlineAction}
-                    loading={isSsoUnlinking}
-                    onClick={handleSsoUnlink}
-                  >
-                    {t('axchenSsoUnlink')}
-                  </Button>
-                </div>
-              </>
+              <Tag color="green">{t('emailVerified')}</Tag>
             )}
-          </section>
-        </aside>
+            {session.user.isAdmin ? <Tag color="red">{t('administrator')}</Tag> : null}
+          </Space>
+        </section>
 
         <main className={styles.contentPanel}>
           <Tabs
@@ -266,15 +227,15 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
             size="large"
             items={[
               {
-                key: 'details',
+                key: 'account',
                 label: (
                   <span className={styles.tabLabel}>
                     <UserRound size={15} />
-                    {t('profile')}
+                    {t('profileTabAccount')}
                   </span>
                 ),
                 children: (
-                  <div className={styles.detailsGrid}>
+                  <div className={styles.tabContent}>
                     {profileError ? (
                       <Alert className={styles.sideAlert} type="error" showIcon message={profileError} />
                     ) : null}
@@ -299,7 +260,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         }
                       />
                     ) : null}
-                    <section className={styles.panel}>
+                    <section className={styles.settingSection}>
                       <div className={styles.panelHeader}>
                         <span className={styles.panelIcon}>
                           <UserRound size={16} />
@@ -310,7 +271,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         </div>
                       </div>
                       <Form<ProfileFormValues>
-                        form={profileForm}
+                        form={accountForm}
                         className={styles.form}
                         layout="vertical"
                         name="budget-centre-profile"
@@ -327,32 +288,8 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         >
                           <Input autoComplete="name" prefix={<UserRound size={15} />} />
                         </Form.Item>
-                        <Form.Item
-                          label={t('pdfTheme')}
-                          name="defaultPdfTheme"
-                          rules={[{ required: true, message: t('pdfThemeRequired') }]}
-                        >
-                          <Radio.Group
-                            className={styles.themeRadioGroup}
-                            options={pdfThemeOptions.map((theme) => ({
-                              label: (
-                                <span className={styles.themeOption}>
-                                  <span
-                                    className={styles.themeSwatch}
-                                    style={{ '--theme-swatch': theme.swatch, '--theme-accent': theme.accent } as CSSProperties}
-                                  />
-                                  <span>
-                                    <strong>{t(pdfThemeLabelKey(theme.key))}</strong>
-                                    <small>{t(pdfThemeDescriptionKey(theme.key))}</small>
-                                  </span>
-                                </span>
-                              ),
-                              value: theme.key,
-                            }))}
-                            onChange={(event: RadioChangeEvent) => {
-                              profileForm.setFieldValue('defaultPdfTheme', normalizePdfTheme(event.target.value));
-                            }}
-                          />
+                        <Form.Item hidden name="defaultPdfTheme">
+                          <Input />
                         </Form.Item>
                         <Button type="primary" htmlType="submit" loading={isProfileSaving}>
                           {t('saveProfile')}
@@ -360,38 +297,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                       </Form>
                     </section>
 
-                    <section className={styles.panel}>
-                      <div className={styles.panelHeader}>
-                        <span className={styles.panelIcon}>
-                          <FileText size={16} />
-                        </span>
-                        <div>
-                          <Text strong>{t('pdfTheme')}</Text>
-                          <Text type="secondary">{t(pdfThemeLabelKey(selectedPdfTheme))}</Text>
-                        </div>
-                      </div>
-                      <div className={styles.pdfThemePreview}>
-                        <div className={styles.pdfThemePreviewHeader}>
-                          <span>{t(pdfThemeLabelKey(selectedPdfTheme))}</span>
-                          <small>PDF</small>
-                        </div>
-                        <div
-                          className={styles.pdfThemePreviewBand}
-                          style={{
-                            '--theme-swatch': selectedPdfThemeOption.swatch,
-                            '--theme-accent': selectedPdfThemeOption.accent,
-                          } as CSSProperties}
-                        />
-                        <div className={styles.pdfThemePreviewRows}>
-                          <span />
-                          <span />
-                          <span />
-                        </div>
-                      </div>
-                      <Text type="secondary">{t('pdfThemeProfileHelp')}</Text>
-                    </section>
-
-                    <section className={styles.panel}>
+                    <section className={styles.settingSection}>
                       <div className={styles.panelHeader}>
                         <span className={styles.panelIcon}>
                           <Mail size={16} />
@@ -424,16 +330,100 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                 ),
               },
               {
-                key: 'security',
+                key: 'export',
+                label: (
+                  <span className={styles.tabLabel}>
+                    <FileText size={15} />
+                    {t('profileTabExport')}
+                  </span>
+                ),
+                children: (
+                  <div className={styles.tabContent}>
+                    {profileError ? (
+                      <Alert className={styles.sideAlert} type="error" showIcon message={profileError} />
+                    ) : null}
+                    {profileNotice ? (
+                      <Alert className={styles.sideAlert} type="success" showIcon message={profileNotice} />
+                    ) : null}
+                    <section className={styles.settingSection}>
+                      <div className={styles.panelHeader}>
+                        <span className={styles.panelIcon}>
+                          <FileText size={16} />
+                        </span>
+                        <div>
+                          <Text strong>{t('pdfTheme')}</Text>
+                          <Text type="secondary">{t('pdfThemeProfileHelp')}</Text>
+                        </div>
+                      </div>
+                      <Form<ProfileFormValues>
+                        form={exportForm}
+                        className={styles.form}
+                        layout="vertical"
+                        name="budget-centre-export"
+                        requiredMark={false}
+                        onFinish={handleProfileSave}
+                      >
+                        <Form.Item
+                          label={t('pdfTheme')}
+                          name="defaultPdfTheme"
+                          rules={[{ required: true, message: t('pdfThemeRequired') }]}
+                        >
+                          <Radio.Group
+                            className={styles.themeRadioGroup}
+                            options={pdfThemeOptions.map((theme) => ({
+                              label: (
+                                <span className={styles.themeOption}>
+                                  <span className={styles.themePreviewInline}>
+                                    <span
+                                      className={styles.themeSwatch}
+                                      style={
+                                        {
+                                          '--theme-swatch': theme.swatch,
+                                          '--theme-accent': theme.accent,
+                                        } as CSSProperties
+                                      }
+                                    />
+                                    <span className={styles.themeMiniRows}>
+                                      <span />
+                                      <span />
+                                      <span />
+                                    </span>
+                                  </span>
+                                  <span className={styles.themeOptionCopy}>
+                                    <strong>{t(pdfThemeLabelKey(theme.key))}</strong>
+                                    <small>{t(pdfThemeDescriptionKey(theme.key))}</small>
+                                  </span>
+                                </span>
+                              ),
+                              value: theme.key,
+                            }))}
+                            onChange={(event: RadioChangeEvent) => {
+                              exportForm.setFieldValue('defaultPdfTheme', normalizePdfTheme(event.target.value));
+                            }}
+                          />
+                        </Form.Item>
+                        <Form.Item hidden name="displayName">
+                          <Input />
+                        </Form.Item>
+                        <Button type="primary" htmlType="submit" loading={isProfileSaving}>
+                          {t('saveProfile')}
+                        </Button>
+                      </Form>
+                    </section>
+                  </div>
+                ),
+              },
+              {
+                key: 'loginSecurity',
                 label: (
                   <span className={styles.tabLabel}>
                     <ShieldCheck size={15} />
-                    {t('security')}
+                    {t('profileTabLoginSecurity')}
                   </span>
                 ),
                 children: (
                   <div className={styles.securityGrid}>
-                    <section className={styles.panel}>
+                    <section className={styles.settingSection}>
                       <div className={styles.panelHeader}>
                         <span className={styles.panelIcon}>
                           <ShieldCheck size={16} />
@@ -499,7 +489,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                       </Form>
                     </section>
 
-                    <section className={`${styles.panel} ${styles.passkeySection}`}>
+                    <section className={`${styles.settingSection} ${styles.passkeySection}`}>
                       <div className={styles.panelHeader}>
                         <span className={styles.panelIcon}>
                           <KeyRound size={16} />
@@ -518,6 +508,55 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         />
                       ) : null}
                       <PasskeySideSection operations={operations} compactTitle />
+                    </section>
+                  </div>
+                ),
+              },
+              {
+                key: 'linkedAccounts',
+                label: (
+                  <span className={styles.tabLabel}>
+                    <Link2 size={15} />
+                    {t('profileTabLinkedAccounts')}
+                  </span>
+                ),
+                children: (
+                  <div className={styles.tabContent}>
+                    <section className={styles.settingSection}>
+                      <div className={styles.panelHeader}>
+                        <span className={styles.panelIcon}>
+                          <ShieldCheck size={16} />
+                        </span>
+                        <div>
+                          <Text strong>{t('axchenSso')}</Text>
+                          <Text type="secondary">
+                            {ssoBinding === null ? t('axchenSsoNotLinked') : t('axchenSsoLinked')}
+                          </Text>
+                        </div>
+                      </div>
+                      {ssoBinding === null ? (
+                        <Button className={styles.outlineAction} loading={isSsoLoading} onClick={handleSsoBind}>
+                          {t('axchenSsoBind')}
+                        </Button>
+                      ) : (
+                        <>
+                          <div className={styles.readonlyValue}>
+                            <strong>{ssoBinding.username ?? ssoBinding.email ?? ssoBinding.subject}</strong>
+                            <small>{ssoBinding.email ?? t('axchenSsoBoundFallback')}</small>
+                          </div>
+                          <div className={styles.ssoActions}>
+                            <Tag color="green">{t('axchenSsoBound')}</Tag>
+                            <Button
+                              danger
+                              className={styles.dangerOutlineAction}
+                              loading={isSsoUnlinking}
+                              onClick={handleSsoUnlink}
+                            >
+                              {t('axchenSsoUnlink')}
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </section>
                   </div>
                 ),
