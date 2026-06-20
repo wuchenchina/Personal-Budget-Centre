@@ -1,4 +1,4 @@
-import type { CurrencyCode, WorkspaceRole } from './budget';
+import type { CurrencyCode, PdfThemeKey, WorkspaceRole } from './budget';
 
 export type UserStatus = 'active' | 'disabled' | 'pending';
 
@@ -10,6 +10,7 @@ export interface AuthUser {
   avatarUrl: string | null;
   timezone: string | null;
   locale: string | null;
+  defaultPdfTheme: PdfThemeKey;
   status: UserStatus;
   isAdmin: boolean;
   emailVerifiedAt: string | null;

@@ -13,6 +13,7 @@ use BudgetCentre\Repositories\BookkeepingRepository;
 use BudgetCentre\Repositories\BudgetExportRepository;
 use BudgetCentre\Repositories\BudgetRepository;
 use BudgetCentre\Repositories\BudgetTemplateRepository;
+use BudgetCentre\Services\BudgetPdf\BudgetPdfTheme;
 use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
 use PDO;
@@ -56,7 +57,7 @@ final readonly class BudgetExportService
             ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
 
         $repository = new BudgetExportRepository($this->pdo);
-        $pdfOptions = $this->pdfOptions($input);
+        $pdfOptions = $this->pdfOptions($input, $session);
         $exportScope = $this->exportScope($input);
         $fileName = $this->fileName($budget, $format, $exportScope);
         $path = $this->storagePath($fileName);
@@ -146,7 +147,7 @@ final readonly class BudgetExportService
         return in_array($scope, ['budget', 'bookkeeping'], true) ? $scope : 'budget';
     }
 
-    private function pdfOptions(array $input): array
+    private function pdfOptions(array $input, array $session): array
     {
         $tableLanguageMode = Input::string(
             $input['tableLanguageMode'] ?? $input['table_language_mode'] ?? null,
@@ -154,6 +155,12 @@ final readonly class BudgetExportService
         $tableChineseLanguage = Input::string(
             $input['tableChineseLanguage'] ?? $input['table_chinese_language'] ?? null,
         ) ?? 'tc';
+        $pdfTheme = BudgetPdfTheme::normalize(
+            $input['pdfTheme']
+            ?? $input['pdf_theme']
+            ?? $session['default_pdf_theme']
+            ?? BudgetPdfTheme::DEFAULT,
+        );
 
         return [
             'tableLanguageMode' => in_array($tableLanguageMode, ['en', 'zh', 'bilingual'], true)
@@ -162,6 +169,7 @@ final readonly class BudgetExportService
             'tableChineseLanguage' => in_array($tableChineseLanguage, ['sc', 'tc'], true)
                 ? $tableChineseLanguage
                 : 'tc',
+            'pdfTheme' => $pdfTheme,
         ];
     }
 

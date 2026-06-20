@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Alert, Avatar, Button, Divider, Form, Input, Modal, Space, Tabs, Tag, Typography, message } from 'antd';
-import { KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { Alert, Avatar, Button, Divider, Form, Input, Modal, Radio, Space, Tabs, Tag, Typography, message } from 'antd';
+import type { RadioChangeEvent } from 'antd';
+import { FileText, KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import {
   getSsoBinding,
   resendEmailVerification,
@@ -9,6 +10,7 @@ import {
   updateProfile,
 } from '../../api/auth';
 import { startCasdoorSignin } from '../../config/casdoor';
+import { normalizePdfTheme, pdfThemeOptions } from '../../config/pdfThemes';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { useI18n } from '../../i18n';
 import type { AuthSession, SsoBinding } from '../../types/auth';
@@ -40,12 +42,18 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const [ssoBinding, setSsoBinding] = useState<SsoBinding | null>(null);
   const [isSsoLoading, setIsSsoLoading] = useState(true);
   const [isSsoUnlinking, setIsSsoUnlinking] = useState(false);
+  const selectedPdfTheme = normalizePdfTheme(
+    Form.useWatch('defaultPdfTheme', profileForm) ?? session.user.defaultPdfTheme,
+  );
+  const selectedPdfThemeOption =
+    pdfThemeOptions.find((theme) => theme.key === selectedPdfTheme) ?? pdfThemeOptions[0];
 
   useEffect(() => {
     profileForm.setFieldsValue({
+      defaultPdfTheme: normalizePdfTheme(session.user.defaultPdfTheme),
       displayName: session.user.displayName,
     });
-  }, [profileForm, session.user.displayName]);
+  }, [profileForm, session.user.defaultPdfTheme, session.user.displayName]);
 
   useEffect(() => {
     let isMounted = true;
@@ -79,6 +87,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
 
     try {
       const result = await updateProfile({
+        defaultPdfTheme: normalizePdfTheme(values.defaultPdfTheme),
         displayName: values.displayName.trim(),
         email: session.user.email,
       });
@@ -101,6 +110,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
       const values = await emailChangeForm.validateFields();
       const nextEmail = values.email.trim();
       const result = await updateProfile({
+        defaultPdfTheme: session.user.defaultPdfTheme,
         displayName: session.user.displayName,
         email: nextEmail,
       });
@@ -317,10 +327,68 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         >
                           <Input autoComplete="name" prefix={<UserRound size={15} />} />
                         </Form.Item>
+                        <Form.Item
+                          label={t('pdfTheme')}
+                          name="defaultPdfTheme"
+                          rules={[{ required: true, message: t('pdfThemeRequired') }]}
+                        >
+                          <Radio.Group
+                            className={styles.themeRadioGroup}
+                            options={pdfThemeOptions.map((theme) => ({
+                              label: (
+                                <span className={styles.themeOption}>
+                                  <span
+                                    className={styles.themeSwatch}
+                                    style={{ '--theme-swatch': theme.swatch, '--theme-accent': theme.accent } as CSSProperties}
+                                  />
+                                  <span>
+                                    <strong>{t(pdfThemeLabelKey(theme.key))}</strong>
+                                    <small>{t(pdfThemeDescriptionKey(theme.key))}</small>
+                                  </span>
+                                </span>
+                              ),
+                              value: theme.key,
+                            }))}
+                            onChange={(event: RadioChangeEvent) => {
+                              profileForm.setFieldValue('defaultPdfTheme', normalizePdfTheme(event.target.value));
+                            }}
+                          />
+                        </Form.Item>
                         <Button type="primary" htmlType="submit" loading={isProfileSaving}>
                           {t('saveProfile')}
                         </Button>
                       </Form>
+                    </section>
+
+                    <section className={styles.panel}>
+                      <div className={styles.panelHeader}>
+                        <span className={styles.panelIcon}>
+                          <FileText size={16} />
+                        </span>
+                        <div>
+                          <Text strong>{t('pdfTheme')}</Text>
+                          <Text type="secondary">{t(pdfThemeLabelKey(selectedPdfTheme))}</Text>
+                        </div>
+                      </div>
+                      <div className={styles.pdfThemePreview}>
+                        <div className={styles.pdfThemePreviewHeader}>
+                          <span>{t(pdfThemeLabelKey(selectedPdfTheme))}</span>
+                          <small>PDF</small>
+                        </div>
+                        <div
+                          className={styles.pdfThemePreviewBand}
+                          style={{
+                            '--theme-swatch': selectedPdfThemeOption.swatch,
+                            '--theme-accent': selectedPdfThemeOption.accent,
+                          } as CSSProperties}
+                        />
+                        <div className={styles.pdfThemePreviewRows}>
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                      </div>
+                      <Text type="secondary">{t('pdfThemeProfileHelp')}</Text>
                     </section>
 
                     <section className={styles.panel}>
@@ -522,6 +590,16 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
       </Modal>
     </div>
   );
+}
+
+function pdfThemeLabelKey(theme: string) {
+  return normalizePdfTheme(theme) === 'statement_red' ? 'pdfThemeStatementRed' : 'pdfThemeClassic';
+}
+
+function pdfThemeDescriptionKey(theme: string) {
+  return normalizePdfTheme(theme) === 'statement_red'
+    ? 'pdfThemeStatementRedDescription'
+    : 'pdfThemeClassicDescription';
 }
 
 function getProfileInitial(displayName: string, email: string): string {

@@ -6,6 +6,7 @@ namespace BudgetCentre\Services;
 
 use BudgetCentre\Services\BudgetPdf\BudgetPdfConfigFactory;
 use BudgetCentre\Services\BudgetPdf\BudgetPdfFormatter;
+use BudgetCentre\Services\BudgetPdf\BudgetPdfThemeRegistry;
 use Mpdf\Mpdf;
 
 final readonly class BudgetBookkeepingPdfRenderer
@@ -70,6 +71,7 @@ final readonly class BudgetBookkeepingPdfRenderer
     public function __construct(
         private BudgetPdfConfigFactory $configFactory = new BudgetPdfConfigFactory(),
         private BudgetPdfFormatter $formatter = new BudgetPdfFormatter(),
+        private BudgetPdfThemeRegistry $themeRegistry = new BudgetPdfThemeRegistry(),
     ) {
     }
 
@@ -90,6 +92,7 @@ final readonly class BudgetBookkeepingPdfRenderer
     public function renderHtml(array $budget, array $records, array $options = []): string
     {
         $context = $this->tableContext($options);
+        $theme = $this->themeRegistry->theme($options['pdfTheme'] ?? $options['pdf_theme'] ?? null);
         $title = trim((string) ($budget['title'] ?? ''));
         $titleHtml = $title === '' ? '' : $this->multilineBlockHtml($title, 'title-line');
         $subtitle = $this->tableText(
@@ -102,12 +105,11 @@ final readonly class BudgetBookkeepingPdfRenderer
 
         return '<!doctype html><html lang="' . $this->documentLanguage($context) . '"><head><meta charset="utf-8">'
             . '<style>'
-            . $this->baseCss()
-            . $this->bookkeepingTableCss()
+            . $theme->bookkeepingDocumentCss()
+            . $theme->bookkeepingTableCss()
             . '</style></head><body>'
-            . '<htmlpagefooter name="budgetPageFooter"><div class="page-footer">Page {PAGENO} of {nbpg}</div></htmlpagefooter>'
-            . '<div class="title">' . $titleHtml . '</div>'
-            . $subtitleHtml
+            . $theme->footerHtml('bookkeeping')
+            . $theme->headerHtml($budget, $titleHtml, $subtitleHtml, $this->formatter, 'bookkeeping')
             . $this->renderBookkeepingTable(
                 $this->bookkeepingSection($context),
                 $periodText,
@@ -121,41 +123,6 @@ final readonly class BudgetBookkeepingPdfRenderer
                 $this->bookkeepingTotalRows($budget, $records, $context),
             )
             . '</body></html>';
-    }
-
-    private function baseCss(): string
-    {
-        return '@page{margin:18mm 14mm 15mm;footer:html_budgetPageFooter;}'
-            . 'body{font-family:"SF-Mono",TCSongti,monospace;color:#000;font-size:6.8pt;}'
-            . '.title{font-family:TimesNewRoman,TCSongti,serif;font-size:13pt;font-weight:400;text-align:center;margin:0 0 3mm;}'
-            . '.title-line{display:block;line-height:1.25;}'
-            . '.title sup{font-size:7pt;line-height:0;vertical-align:super;}'
-            . '.subtitle{font-family:TimesNewRoman,TCSongti,serif;font-size:13pt;font-weight:400;text-align:center;margin:0 0 6mm;}'
-            . '.subtitle-line{display:block;line-height:1.25;}'
-            . '.page-footer{font-family:"SF-Mono",TCSongti,monospace;font-size:7pt;color:#666;text-align:center;}';
-    }
-
-    private function bookkeepingTableCss(): string
-    {
-        return '.bookkeeping-section{width:100%;margin-top:5mm;}'
-            . '.bookkeeping-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0;}'
-            . '.bookkeeping-table th,.bookkeeping-table td{border:0;padding:0.12mm 1.15mm;vertical-align:top;}'
-            . '.bookkeeping-section-row td{background:#a4a4a4;border:0.2mm solid #7e7e7e;font-family:"SF-Mono",TCSongti,monospace;font-size:9pt;font-weight:400;line-height:1.12;padding-top:0.35mm;padding-bottom:0.35mm;}'
-            . '.bookkeeping-date-row td{border-top:0.2mm solid #7e7e7e;text-decoration:underline;line-height:1.2;font-family:"SF-Mono-Light",TCSongti,monospace;font-size:6.4pt;}'
-            . '.bookkeeping-header-row th{background:#d7d7d7;font-family:"SF-Mono",TCSongti,monospace;font-size:6.1pt;font-weight:400;line-height:1.14;text-align:left;}'
-            . '.bookkeeping-header-row th + th{border-left:0.2mm solid #7e7e7e;}'
-            . '.bookkeeping-body-row td{font-size:6.4pt;line-height:1.24;}'
-            . '.bookkeeping-empty-row td{text-align:center;color:#595959;font-size:6.4pt;}'
-            . '.bookkeeping-total-row td{background:#f4f4f4;border-top:0.2mm solid #7e7e7e;font-size:6.4pt;font-weight:700;line-height:1.24;}'
-            . '.bookkeeping-total-label{text-align:right;}'
-            . '.bookkeeping-align-right{text-align:right;}'
-            . '.bookkeeping-align-center{text-align:center;}'
-            . '.bookkeeping-text-cell{white-space:normal;overflow-wrap:anywhere;word-break:break-word;}'
-            . '.bookkeeping-code-cell{white-space:normal;overflow-wrap:anywhere;word-break:break-all;}'
-            . '.bookkeeping-money-cell{white-space:normal;}'
-            . '.bookkeeping-cell-line{display:block;margin:0;padding:0;line-height:1.22;}'
-            . '.bookkeeping-money-line{white-space:nowrap;}'
-            . '.bookkeeping-money-line-secondary{font-size:5.8pt;color:#595959;}';
     }
 
     private function renderBookkeepingTable(

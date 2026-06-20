@@ -25,6 +25,7 @@ final readonly class UserRepository
               avatar_url,
               timezone,
               locale,
+              default_pdf_theme,
               status,
               is_admin,
               email_verified_at
@@ -52,6 +53,7 @@ final readonly class UserRepository
               avatar_url,
               timezone,
               locale,
+              default_pdf_theme,
               status,
               is_admin,
               email_verified_at
@@ -85,6 +87,7 @@ final readonly class UserRepository
               avatar_url,
               timezone,
               locale,
+              default_pdf_theme,
               status,
               is_admin,
               email_verified_at
@@ -112,6 +115,7 @@ final readonly class UserRepository
               avatar_url,
               timezone,
               locale,
+              default_pdf_theme,
               status,
               is_admin,
               email_verified_at
@@ -189,6 +193,7 @@ final readonly class UserRepository
         int $userId,
         string $email,
         string $displayName,
+        string $defaultPdfTheme,
         bool $emailChanged,
     ): void {
         $emailVerifiedSql = $emailChanged ? 'email_verified_at = NULL,' : '';
@@ -197,6 +202,7 @@ final readonly class UserRepository
             UPDATE users
             SET email = :email,
                 display_name = :display_name,
+                default_pdf_theme = :default_pdf_theme,
                 {$emailVerifiedSql}
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = :id
@@ -205,6 +211,7 @@ final readonly class UserRepository
         $statement->execute([
             'email' => $email,
             'display_name' => $displayName,
+            'default_pdf_theme' => $defaultPdfTheme,
             'id' => $userId,
         ]);
     }

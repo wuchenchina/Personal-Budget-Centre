@@ -12,6 +12,7 @@ use BudgetCentre\Repositories\SessionRepository;
 use BudgetCentre\Repositories\UserRepository;
 use BudgetCentre\Repositories\WebAuthnRepository;
 use BudgetCentre\Repositories\WorkspaceRepository;
+use BudgetCentre\Services\BudgetPdf\BudgetPdfTheme;
 use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
 use ParagonIE\ConstantTime\Base64UrlSafe;
@@ -291,10 +292,15 @@ final readonly class PasskeyService
             'user' => [
                 'id' => (int) $user['id'],
                 'email' => $user['email'],
+                'username' => $user['username'] ?? null,
                 'displayName' => $user['display_name'],
+                'avatarUrl' => $user['avatar_url'] ?? null,
                 'timezone' => $user['timezone'],
                 'locale' => $user['locale'],
+                'defaultPdfTheme' => BudgetPdfTheme::normalize($user['default_pdf_theme'] ?? null),
                 'status' => $user['status'],
+                'isAdmin' => isset($user['is_admin']) && (bool) $user['is_admin'],
+                'emailVerifiedAt' => $user['email_verified_at'] ?? null,
             ],
             'workspace' => $workspace,
             'csrfToken' => $this->sessionManager->csrfToken($token),

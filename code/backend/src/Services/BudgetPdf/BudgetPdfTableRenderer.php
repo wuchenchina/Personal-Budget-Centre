@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace BudgetCentre\Services\BudgetPdf;
 
+use BudgetCentre\Services\BudgetPdf\Themes\BudgetPdfThemeDefinition;
+use BudgetCentre\Services\BudgetPdf\Themes\ClassicPdfTheme;
+
 final readonly class BudgetPdfTableRenderer
 {
     public function __construct(
@@ -11,27 +14,9 @@ final readonly class BudgetPdfTableRenderer
     ) {
     }
 
-    public function css(): string
+    public function css(?BudgetPdfThemeDefinition $theme = null): string
     {
-        return '.template-section{width:100%;margin-top:5mm;}'
-            . '.template-section + .template-section{margin-top:7mm;}'
-            . '.template-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:0;}'
-            . '.template-table th,.template-table td{border:0;padding:0.12mm 1.55mm;vertical-align:top;}'
-            . '.section-band td{background:#a4a4a4;border:0.2mm solid #7e7e7e;font-family:"SF-Mono",TCSongti,monospace;font-size:9pt;font-weight:400;line-height:1.12;padding-top:0.35mm;padding-bottom:0.35mm;}'
-            . '.date-line{border-top:0.2mm solid #7e7e7e;padding:0.12mm 1.55mm;text-decoration:underline;line-height:1.2;font-family:"SF-Mono-Light",TCSongti,monospace;font-size:6.8pt;}'
-            . '.column-table th{background:#d7d7d7;font-family:"SF-Mono",TCSongti,monospace;font-size:6.8pt;font-weight:400;line-height:1.18;text-align:left;}'
-            . '.column-table .header-left{border-right:0.2mm solid #7e7e7e;}'
-            . '.column-table .header-middle{border-left:0.2mm solid #7e7e7e;border-right:0.2mm solid #7e7e7e;}'
-            . '.column-table .header-last{border-left:0.2mm solid #7e7e7e;}'
-            . '.body-table td,.summary-table td{font-size:6.8pt;line-height:1.32;}'
-            . '.summary-table td{background:#d7d7d7;}'
-            . '.align-right{text-align:right;}'
-            . '.align-center{text-align:center;}'
-            . '.money-cell{white-space:normal;}'
-            . '.cell-line{display:block;margin:0;padding:0;line-height:1.24;}'
-            . '.money-line{white-space:nowrap;}'
-            . '.money-line-secondary{font-size:6pt;color:#595959;}'
-            . '.empty{text-align:center;color:#595959;}';
+        return ($theme ?? new ClassicPdfTheme())->budgetTableCss();
     }
 
     public function render(

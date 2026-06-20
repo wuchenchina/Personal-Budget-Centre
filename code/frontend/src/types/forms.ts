@@ -11,6 +11,7 @@ import type {
   BudgetStatus,
   BudgetType,
   CurrencyCode,
+  PdfThemeKey,
   TransactionType,
   Visibility,
   WorkspaceRole,
@@ -138,6 +139,7 @@ export interface BookkeepingRecordFormValues {
 
 export interface ProfileFormValues {
   displayName: string;
+  defaultPdfTheme: PdfThemeKey;
 }
 
 export interface EmailChangeFormValues {

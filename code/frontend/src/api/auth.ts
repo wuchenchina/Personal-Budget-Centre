@@ -21,6 +21,7 @@ export interface EmailVerificationResult {
 export interface UpdateProfilePayload {
   displayName: string;
   email: string;
+  defaultPdfTheme?: AuthSession['user']['defaultPdfTheme'];
 }
 
 export interface UpdateProfileResult {

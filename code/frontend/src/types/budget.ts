@@ -44,6 +44,8 @@ export type PrincipalType = 'user' | 'workgroup' | 'workspace';
 
 export type WorkspaceRole = 'owner' | 'admin' | 'editor' | 'viewer' | 'auditor';
 
+export type PdfThemeKey = 'classic' | 'statement_red';
+
 export type BudgetShareRole = 'owner' | 'editor' | 'viewer' | 'auditor';
 
 export type BudgetSharePrincipalType = PrincipalType;
@@ -339,6 +341,7 @@ export interface BudgetExportOptions {
   exportScope?: 'budget' | 'bookkeeping';
   tableLanguageMode?: BudgetExportTableLanguageMode;
   tableChineseLanguage?: BudgetExportChineseLanguage;
+  pdfTheme?: PdfThemeKey;
 }
 
 export interface BudgetExport {

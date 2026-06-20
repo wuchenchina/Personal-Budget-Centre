@@ -368,7 +368,10 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     setOperationsError(null);
 
     try {
-      const nextExport = await createBudgetExport(selectedBudget.id, format, exportOptions);
+      const nextExport = await createBudgetExport(selectedBudget.id, format, {
+        pdfTheme: session?.user.defaultPdfTheme ?? 'classic',
+        ...exportOptions,
+      });
       triggerExportDownload(exportDownloadUrl(nextExport));
     } catch (error: unknown) {
       setOperationsError(error instanceof Error ? error.message : translateCurrent('authFailed'));

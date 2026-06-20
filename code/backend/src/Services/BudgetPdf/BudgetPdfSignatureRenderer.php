@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace BudgetCentre\Services\BudgetPdf;
 
+use BudgetCentre\Services\BudgetPdf\Themes\BudgetPdfThemeDefinition;
+use BudgetCentre\Services\BudgetPdf\Themes\ClassicPdfTheme;
+
 final readonly class BudgetPdfSignatureRenderer
 {
     public function __construct(
@@ -11,10 +14,9 @@ final readonly class BudgetPdfSignatureRenderer
     ) {
     }
 
-    public function css(): string
+    public function css(?BudgetPdfThemeDefinition $theme = null): string
     {
-        return '.signature-section{width:100%;margin-top:4mm;page-break-inside:avoid;}'
-            . '.signature-svg{display:block;width:100%;height:auto;}';
+        return ($theme ?? new ClassicPdfTheme())->signatureCss();
     }
 
     public function render(array $budget): string

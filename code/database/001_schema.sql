@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
   default_currency_id BIGINT UNSIGNED NULL,
   timezone VARCHAR(80) NOT NULL DEFAULT 'Asia/Shanghai',
   locale VARCHAR(32) NOT NULL DEFAULT 'zh-Hant',
+  default_pdf_theme VARCHAR(40) NOT NULL DEFAULT 'classic',
   status ENUM('active', 'disabled', 'pending') NOT NULL DEFAULT 'active',
   is_admin TINYINT(1) NOT NULL DEFAULT 0,
   email_verified_at DATETIME NULL,

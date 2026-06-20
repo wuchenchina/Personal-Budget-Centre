@@ -11,6 +11,7 @@ use BudgetCentre\Repositories\SessionRepository;
 use BudgetCentre\Repositories\UserSsoBindingRepository;
 use BudgetCentre\Repositories\UserRepository;
 use BudgetCentre\Repositories\WorkspaceRepository;
+use BudgetCentre\Services\BudgetPdf\BudgetPdfTheme;
 use BudgetCentre\Services\SmtpMailer;
 use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
@@ -254,6 +255,7 @@ final readonly class AuthService
                 'avatar_url' => $session['avatar_url'] ?? null,
                 'timezone' => $session['timezone'],
                 'locale' => $session['locale'],
+                'default_pdf_theme' => $session['default_pdf_theme'] ?? BudgetPdfTheme::DEFAULT,
                 'status' => $session['status'],
                 'is_admin' => $session['is_admin'] ?? 0,
                 'email_verified_at' => $session['email_verified_at'] ?? null,
@@ -291,11 +293,17 @@ final readonly class AuthService
         }
 
         $emailChanged = strtolower((string) $currentUser['email']) !== $email;
+        $defaultPdfTheme = BudgetPdfTheme::normalize(
+            $input['defaultPdfTheme']
+            ?? $input['default_pdf_theme']
+            ?? $currentUser['default_pdf_theme']
+            ?? BudgetPdfTheme::DEFAULT,
+        );
         $verificationToken = null;
 
         $this->pdo->beginTransaction();
         try {
-            $users->updateProfile($userId, $email, $displayName, $emailChanged);
+            $users->updateProfile($userId, $email, $displayName, $defaultPdfTheme, $emailChanged);
             if ($emailChanged) {
                 $verificationToken = $this->createEmailVerificationToken($userId);
             }
@@ -779,6 +787,7 @@ final readonly class AuthService
             'avatarUrl' => $user['avatar_url'] ?? null,
             'timezone' => $user['timezone'] ?? null,
             'locale' => $user['locale'] ?? null,
+            'defaultPdfTheme' => BudgetPdfTheme::normalize($user['default_pdf_theme'] ?? null),
             'status' => $user['status'] ?? null,
             'isAdmin' => isset($user['is_admin']) && (bool) $user['is_admin'],
             'emailVerifiedAt' => $user['email_verified_at'] ?? null,

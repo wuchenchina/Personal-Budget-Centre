@@ -139,12 +139,14 @@ final readonly class BudgetPdfDocumentRenderer
         private BudgetPdfFormatter $formatter = new BudgetPdfFormatter(),
         private BudgetPdfTableRenderer $tableRenderer = new BudgetPdfTableRenderer(),
         private BudgetPdfSignatureRenderer $signatureRenderer = new BudgetPdfSignatureRenderer(),
+        private BudgetPdfThemeRegistry $themeRegistry = new BudgetPdfThemeRegistry(),
     ) {
     }
 
     public function render(array $budget, array $template, array $options = []): string
     {
         $tableContext = $this->tableContext($options);
+        $theme = $this->themeRegistry->theme($options['pdfTheme'] ?? $options['pdf_theme'] ?? null);
         $title = trim((string) $budget['title']);
         $subtitle = trim((string) $budget['ownerName']);
         $titleHtml = $title === ''
@@ -184,13 +186,12 @@ final readonly class BudgetPdfDocumentRenderer
 
         return '<!doctype html><html lang="' . $this->documentLanguage($tableContext) . '"><head><meta charset="utf-8">'
             . '<style>'
-            . $this->baseCss()
-            . $this->tableRenderer->css()
-            . $this->signatureRenderer->css()
+            . $theme->budgetDocumentCss()
+            . $this->tableRenderer->css($theme)
+            . $this->signatureRenderer->css($theme)
             . '</style></head><body>'
-            . '<htmlpagefooter name="budgetPageFooter"><div class="page-footer">Page {PAGENO} of {nbpg}</div></htmlpagefooter>'
-            . '<div class="title">' . $titleHtml . '</div>'
-            . $subtitleHtml
+            . $theme->footerHtml('budget')
+            . $theme->headerHtml($budget, $titleHtml, $subtitleHtml, $this->formatter, 'budget')
             . $this->tableRenderer->render(
                 $budgetSection,
                 $periodText,
@@ -228,18 +229,6 @@ final readonly class BudgetPdfDocumentRenderer
             )
             . $this->signatureRenderer->render($budget)
             . '</body></html>';
-    }
-
-    private function baseCss(): string
-    {
-        return '@page{margin:29mm 29mm 22mm;footer:html_budgetPageFooter;}'
-            . 'body{font-family:"SF-Mono",TCSongti,monospace;color:#000;font-size:7.5pt;}'
-            . '.title{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 4mm;}'
-            . '.title-line{display:block;line-height:1.25;}'
-            . '.title sup{font-size:7pt;line-height:0;vertical-align:super;}'
-            . '.subtitle{font-family:TimesNewRoman,TCSongti,serif;font-size:14pt;font-weight:400;text-align:center;margin:0 0 7mm;}'
-            . '.subtitle-line{display:block;line-height:1.25;}'
-            . '.page-footer{font-family:"SF-Mono",TCSongti,monospace;font-size:7pt;color:#666;text-align:center;}';
     }
 
     private function tableContext(array $options): array

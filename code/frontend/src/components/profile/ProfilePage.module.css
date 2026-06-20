@@ -242,6 +242,60 @@
   color: var(--bc-text-muted);
 }
 
+.themeRadioGroup {
+  display: grid;
+  gap: 10px;
+}
+
+.themeRadioGroup :global(.ant-radio-wrapper) {
+  align-items: flex-start;
+  margin-inline-end: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--bc-border-soft);
+}
+
+.themeOption {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+}
+
+.themeOption strong,
+.themeOption small {
+  display: block;
+  min-width: 0;
+}
+
+.themeOption strong {
+  color: var(--bc-text);
+  line-height: 1.25;
+}
+
+.themeOption small {
+  color: var(--bc-text-muted);
+  line-height: 1.35;
+}
+
+.themeSwatch {
+  position: relative;
+  width: 34px;
+  height: 22px;
+  margin-top: 1px;
+  background: var(--theme-swatch);
+  border: 1px solid var(--theme-accent);
+}
+
+.themeSwatch::after {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  left: 4px;
+  height: 3px;
+  background: #ffffff;
+  content: "";
+}
+
 .form :global(.ant-input::placeholder),
 .form :global(.ant-input-password input::placeholder) {
   color: var(--bc-text-muted);
@@ -294,6 +348,45 @@
 .readonlyValue small {
   color: var(--bc-text-muted);
   line-height: 1.5;
+}
+
+.pdfThemePreview {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 13px 14px;
+  background: #ffffff;
+  border: 1px solid var(--bc-border-soft);
+}
+
+.pdfThemePreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--bc-text);
+  font-weight: 650;
+}
+
+.pdfThemePreviewHeader small {
+  color: var(--bc-text-muted);
+  font-size: 11px;
+}
+
+.pdfThemePreviewBand {
+  height: 12px;
+  background: var(--theme-swatch);
+  border: 1px solid var(--theme-accent);
+}
+
+.pdfThemePreviewRows {
+  display: grid;
+  gap: 5px;
+}
+
+.pdfThemePreviewRows span {
+  height: 7px;
+  background: #d9d9d9;
 }
 
 .fullWidthAction {
