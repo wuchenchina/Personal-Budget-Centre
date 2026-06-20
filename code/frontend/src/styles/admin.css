@@ -13,6 +13,7 @@
   background: var(--bc-surface);
   border: 1px solid var(--bc-border);
   border-radius: 0;
+  box-shadow: var(--bc-shadow-raised);
 }
 
 .admin-page-kicker {
@@ -41,6 +42,7 @@
   background: var(--bc-surface);
   border: 1px solid var(--bc-border);
   border-radius: 0;
+  box-shadow: var(--bc-shadow-raised);
 }
 
 .admin-toolbar {
@@ -61,7 +63,7 @@
 .admin-toolbar-note {
   display: block;
   margin-top: 4px;
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 12px;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -84,12 +86,12 @@
   color: #1b1b1b;
   background: #ffffff;
   border-color: var(--bc-border);
-  border-left: 4px solid #16803c;
+  border-left: 4px solid var(--bc-success);
 }
 
 .admin-notice-alert .ant-alert-icon,
 .admin-notice-alert .ant-alert-message {
-  color: #16803c;
+  color: var(--bc-success);
   font-weight: 650;
 }
 
@@ -121,12 +123,12 @@
 }
 
 .admin-user-cell span {
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-weight: 600;
 }
 
 .admin-user-cell small {
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
 }
 
 .admin-log-request {
@@ -150,7 +152,7 @@
 }
 
 .admin-log-message small {
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-family: var(--font-mono);
   font-size: 11px;
 }
@@ -161,9 +163,9 @@
   padding: 12px;
   overflow: auto;
   background: #ffffff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-soft);
   border-radius: 0;
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.6;

@@ -24,7 +24,7 @@ export function EnvironmentCheckSummary({ environment }: EnvironmentCheckSummary
       key: 'ok',
       label: t('overallStatus'),
       children: (
-        <Tag color={environment.ok ? 'blue' : 'orange'}>
+        <Tag color={environment.ok ? 'green' : 'orange'}>
           {environment.ok ? t('verified') : t('environmentCheckNeedsAttention')}
         </Tag>
       ),
@@ -35,7 +35,7 @@ export function EnvironmentCheckSummary({ environment }: EnvironmentCheckSummary
       span: 2,
       children:
         missingExtensions.length === 0 ? (
-          <Tag color="blue">{t('none')}</Tag>
+          <Tag color="green">{t('none')}</Tag>
         ) : (
           <Space wrap>
             {missingExtensions.map((extension) => (
@@ -54,7 +54,7 @@ export function EnvironmentCheckSummary({ environment }: EnvironmentCheckSummary
       key: 'writable',
       label: t('writable'),
       children: (
-        <Tag color={environment.exportStorage.writable ? 'blue' : 'red'}>
+        <Tag color={environment.exportStorage.writable ? 'green' : 'red'}>
           {environment.exportStorage.writable ? t('yes') : t('no')}
         </Tag>
       ),
@@ -63,7 +63,7 @@ export function EnvironmentCheckSummary({ environment }: EnvironmentCheckSummary
       key: 'parentWritable',
       label: t('parentDirectoryWritable'),
       children: (
-        <Tag color={environment.exportStorage.parentWritable ? 'blue' : 'orange'}>
+        <Tag color={environment.exportStorage.parentWritable ? 'green' : 'orange'}>
           {environment.exportStorage.parentWritable ? t('yes') : t('no')}
         </Tag>
       ),

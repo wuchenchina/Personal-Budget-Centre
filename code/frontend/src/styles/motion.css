@@ -19,40 +19,6 @@
   content: '';
 }
 
-.project-card:active,
-.workspace-directory-item:active,
-.budget-list-main:active,
-.ant-btn:not(:disabled):active,
-.project-panel:hover,
-.project-list-card:hover,
-.overview-tile:hover,
-.metric-panel:hover,
-.governance-panel:hover,
-.admin-panel:hover,
-.workspace-directory-panel:hover,
-.workspace-summary-panel:hover,
-.profile-panel:hover,
-.workspace-list-item:hover,
-.member-list-item:hover,
-.operation-list-item:hover,
-.budget-list-item:hover,
-.currency-field-card:hover,
-.signature-config-row:hover,
-.signature-config-row-collapse:hover,
-.individual-split-list:hover,
-.per-person-split-preview:hover,
-.group-participants-editor:hover,
-.group-split-panel:hover,
-.group-budget-panel:hover,
-.workspace-stat:hover,
-.ant-btn-primary:not(:disabled):hover,
-.app-menu .ant-menu-item:hover,
-.app-menu .ant-menu-item-selected,
-.mobile-nav .ant-menu-item:hover,
-.mobile-nav .ant-menu-item-selected {
-  transform: none;
-}
-
 .project-panel:hover,
 .project-list-card:hover,
 .overview-tile:hover,
@@ -76,7 +42,7 @@
 .group-budget-panel:hover,
 .workspace-stat:hover {
   border-color: var(--bc-border);
-  box-shadow: none;
+  box-shadow: var(--bc-shadow-raised);
 }
 
 .ant-input:focus,
@@ -86,33 +52,27 @@
 .ant-select-focused .ant-select-selector {
   border: 2px solid var(--bc-focus) !important;
   outline: none !important;
-  box-shadow: none !important;
 }
 
 .ant-table-tbody > tr:hover > td {
-  background: #ffffff !important;
+  background: #fafafa !important;
 }
 
 .ant-modal-content,
 .ant-popover-inner,
 .ant-dropdown-menu,
 .ant-select-dropdown {
-  box-shadow: none;
   border: 1px solid var(--bc-border);
 }
 
-.ant-modal,
-.ant-popover,
-.ant-dropdown,
-.ant-select-dropdown {
-  animation-duration: var(--bc-motion-base) !important;
-  animation-timing-function: var(--bc-ease-out) !important;
+.ant-modal-content {
+  box-shadow: var(--bc-shadow-modal) !important;
 }
 
-.ant-modal-mask,
-.ant-modal-wrap {
-  animation-duration: 100ms !important;
-  animation-timing-function: var(--bc-ease-out) !important;
+.ant-popover-inner,
+.ant-dropdown-menu,
+.ant-select-dropdown {
+  box-shadow: var(--bc-shadow-menu) !important;
 }
 
 .ant-select-selector,
@@ -127,5 +87,5 @@
   transition:
     border-color var(--bc-motion-fast) var(--bc-ease-standard),
     color var(--bc-motion-fast) var(--bc-ease-standard),
-    background-color var(--bc-motion-fast) var(--bc-ease-standard) !important;
+    background-color var(--bc-motion-fast) var(--bc-ease-standard);
 }

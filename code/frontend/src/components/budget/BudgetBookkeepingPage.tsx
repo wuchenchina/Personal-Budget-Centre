@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Button, Empty, FloatButton, Input, Popconfirm, Segmented, Space, Table, Tabs, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
 import { ArrowLeft, Download, FileText, Landmark, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { transactionTypeColors } from '../../config/appConfig';
 import { useI18n } from '../../i18n';
 import type {
   BookkeepingRecord,
@@ -96,7 +97,7 @@ export function BudgetBookkeepingPage({
       title: t('transactionType'),
       width: 104,
       render: (_value, row) => (
-        <Tag color={transactionTypeColor(row.transactionType)}>
+        <Tag color={transactionTypeColors[row.transactionType]}>
           {transactionTypeLabel(row.transactionType, t)}
         </Tag>
       ),
@@ -230,7 +231,7 @@ export function BudgetBookkeepingPage({
     <div className="bookkeeping-page">
       <section className="project-page-header bookkeeping-header">
         <div>
-          <Tag color="blue">{t('bookkeeping')}</Tag>
+          <Tag color="red">{t('bookkeeping')}</Tag>
           <h1>{selectedBudget?.title ?? t('bookkeeping')}</h1>
           <p>{t('bookkeepingPageDesc')}</p>
         </div>
@@ -460,18 +461,6 @@ function accountRouteText(record: BookkeepingRecord): string | null {
   }
 
   return source ?? destination ?? null;
-}
-
-function transactionTypeColor(type: TransactionType): string {
-  if (type === 'sof') {
-    return 'gold';
-  }
-
-  if (isTransferTransaction(type)) {
-    return 'geekblue';
-  }
-
-  return type === 'income' ? 'green' : 'default';
 }
 
 function transactionTypeLabel(

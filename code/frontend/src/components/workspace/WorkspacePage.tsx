@@ -71,7 +71,7 @@ export function WorkspacePage({
       title: t('status'),
       dataIndex: 'status',
       width: 110,
-      render: () => <Tag color="blue">{t('active')}</Tag>,
+      render: () => <Tag color="green">{t('active')}</Tag>,
     },
     {
       title: '',
@@ -105,7 +105,7 @@ export function WorkspacePage({
       <section className="workspace-command-panel">
         <div className="workspace-command-header">
           <div>
-            <Tag color="geekblue">{t('workspace')}</Tag>
+            <Tag color="red">{t('workspace')}</Tag>
             <h1>{t('workspace')}</h1>
             <p>{t('workspacePageDesc')}</p>
           </div>

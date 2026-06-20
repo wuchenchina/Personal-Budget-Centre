@@ -110,7 +110,7 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
 
         return (
           <Space size={6} wrap>
-            <Tag color={verified ? 'blue' : 'orange'}>
+            <Tag color={verified ? 'green' : 'orange'}>
               {verified ? t('verified') : t('emailPending')}
             </Tag>
             {!verified ? (

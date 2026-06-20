@@ -1,5 +1,5 @@
 import type { ThemeConfig } from 'antd';
-import type { WorkspaceRole } from '../types/budget';
+import type { BudgetStatus, CurrencyRate, TransactionType, WorkspaceRole } from '../types/budget';
 import type { UserStatus } from '../types/auth';
 
 export { currencyOptions, supportedCurrencyCodes } from './currencies';
@@ -7,17 +7,39 @@ export { currencyOptions, supportedCurrencyCodes } from './currencies';
 export const iconSize = 16;
 
 export const roleColors: Record<WorkspaceRole, string> = {
-  owner: 'gold',
+  owner: 'red',
   admin: 'red',
-  editor: 'blue',
+  editor: 'default',
   viewer: 'default',
-  auditor: 'purple',
+  auditor: 'default',
 };
 
 export const userStatusColors: Record<UserStatus, string> = {
-  active: 'blue',
+  active: 'green',
   pending: 'orange',
   disabled: 'default',
+};
+
+export const budgetStatusColors: Record<BudgetStatus, string> = {
+  draft: 'default',
+  active: 'green',
+  closed: 'default',
+  archived: 'default',
+};
+
+export const transactionTypeColors: Record<TransactionType, string> = {
+  expense: 'default',
+  income: 'green',
+  sof: 'orange',
+  transfer: 'default',
+  fx_exchange: 'default',
+  cross_border_remittance: 'default',
+};
+
+export const currencyRateSourceColors: Record<CurrencyRate['source'], string> = {
+  manual: 'orange',
+  budget_default: 'default',
+  bochk: 'red',
 };
 
 export const defaultBudgetTotals = {
@@ -49,6 +71,8 @@ export const appTheme: ThemeConfig = {
     colorTextHeading: '#111111',
     colorTextLabel: '#333333',
     colorWarning: '#a86100',
+    boxShadow: '0 8px 20px rgba(17, 17, 17, 0.12)',
+    boxShadowSecondary: '0 6px 16px rgba(17, 17, 17, 0.08)',
     controlHeight: 34,
     controlHeightLG: 42,
     controlHeightSM: 28,
@@ -72,8 +96,14 @@ export const appTheme: ThemeConfig = {
     },
     Table: {
       cellFontSizeSM: 12,
-      headerBg: '#f0f0f0',
-      headerColor: '#333333',
+      borderColor: '#e6e6e6',
+      headerBg: '#f3f3f3',
+      headerColor: '#1b1b1b',
+      rowHoverBg: '#fafafa',
+    },
+    Tag: {
+      defaultBg: '#ffffff',
+      defaultColor: '#555555',
     },
   },
 };

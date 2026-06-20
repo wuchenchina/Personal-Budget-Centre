@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button, Empty, Input, Popconfirm, Segmented, Select, Tag } from 'antd';
 import { CalendarRange, ExternalLink, Pencil, Plus, ReceiptText, Search, Trash2 } from 'lucide-react';
+import { budgetStatusColors } from '../../config/appConfig';
 import { budgetStatusLabelsByLanguage, useI18n } from '../../i18n';
 import type { BudgetStatus, BudgetSummary } from '../../types/budget';
 import { formatBudgetPeriod } from '../../utils/budgetPeriod';
@@ -21,13 +22,6 @@ interface BudgetProjectListProps {
   onSelectProject: (budgetId: number) => void;
   onStatusChange: (budget: BudgetSummary, status: BudgetStatus) => void;
 }
-
-const statusColors: Record<BudgetStatus, string> = {
-  draft: 'default',
-  active: 'green',
-  closed: 'green',
-  archived: 'default',
-};
 
 export function BudgetProjectList({
   budgets,
@@ -77,7 +71,7 @@ export function BudgetProjectList({
     <div className="project-library">
       <section className="project-page-header">
         <div>
-          <Tag color="cyan">{t('projectLibrary')}</Tag>
+          <Tag color="red">{t('projectLibrary')}</Tag>
           <h1>{t('projectLibraryTitle')}</h1>
           <p>{t('projectLibraryDesc')}</p>
         </div>
@@ -137,7 +131,7 @@ export function BudgetProjectList({
                         onChange={(nextStatus) => onStatusChange(budget, nextStatus)}
                       />
                     ) : (
-                      <Tag color={statusColors[budget.status]}>
+                      <Tag color={budgetStatusColors[budget.status]}>
                         {budgetStatusLabelsByLanguage[language][budget.status]}
                       </Tag>
                     )}

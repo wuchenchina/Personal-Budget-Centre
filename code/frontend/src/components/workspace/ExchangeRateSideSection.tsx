@@ -3,6 +3,7 @@ import { Alert, Button, Space, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { RefreshCcw } from 'lucide-react';
 import { listExchangeRates } from '../../api/exchangeRates';
+import { currencyRateSourceColors } from '../../config/appConfig';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { currencyRateSourceLabelsByLanguage, useI18n } from '../../i18n';
 import type { CurrencyRate } from '../../types/budget';
@@ -11,12 +12,6 @@ interface ExchangeRateSideSectionProps {
   activeWorkspaceId: number | null;
   operations: OperationsController;
 }
-
-const sourceColors: Record<CurrencyRate['source'], string> = {
-  manual: 'purple',
-  budget_default: 'default',
-  bochk: 'blue',
-};
 
 export function ExchangeRateSideSection({
   activeWorkspaceId,
@@ -73,7 +68,7 @@ export function ExchangeRateSideSection({
         title: t('source'),
         width: 112,
         render: (_, rate) => (
-          <Tag color={sourceColors[rate.source]}>
+          <Tag color={currencyRateSourceColors[rate.source]}>
             {currencyRateSourceLabelsByLanguage[language][rate.source]}
           </Tag>
         ),

@@ -95,7 +95,7 @@ export function CategorySideSection({ operations }: CategorySideSectionProps) {
           <Space direction="vertical" size={2}>
             <span>{category.name}</span>
             <Space size={4} wrap>
-              <Tag color="blue">{t('preset')}</Tag>
+              <Tag>{t('preset')}</Tag>
               {category.isActive ? (
                 <Tag color="green">{t('active')}</Tag>
               ) : (

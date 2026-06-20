@@ -14,7 +14,7 @@
   background: #fff;
   border: 1px solid var(--bc-border);
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: var(--bc-shadow-raised);
 }
 
 .verification-panel {
@@ -24,7 +24,7 @@
   background: #fff;
   border: 1px solid var(--bc-border);
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: var(--bc-shadow-raised);
 }
 
 .verification-loading {

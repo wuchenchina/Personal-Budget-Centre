@@ -3,14 +3,15 @@
   align-self: start;
   padding: 16px;
   background: #fff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-soft);
   border-radius: 0;
+  box-shadow: var(--bc-shadow-raised);
 }
 
 .side-section + .side-section {
   margin-top: 18px;
   padding-top: 18px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--bc-border-soft);
 }
 
 .side-title {
@@ -18,13 +19,13 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-weight: 650;
 }
 
 .side-description {
   margin: -2px 0 12px;
-  color: #6b7280;
+  color: var(--bc-text-muted);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -41,7 +42,7 @@
 }
 
 .empty-line {
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 13px;
 }
 
@@ -62,14 +63,14 @@
   justify-content: space-between;
   gap: 10px;
   background: #ffffff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-soft);
   border-radius: 0;
 }
 
 .workspace-list-item {
   min-height: 34px;
   padding: 7px 9px;
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 13px;
 }
 
@@ -106,13 +107,13 @@
 }
 
 .member-list-main span {
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 13px;
   font-weight: 600;
 }
 
 .member-list-main small {
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 12px;
 }
 
@@ -135,7 +136,7 @@
   min-width: 0;
   padding: 8px 9px;
   background: #ffffff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-soft);
   border-radius: 0;
 }
 
@@ -159,13 +160,13 @@
 }
 
 .operation-list-main span {
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 13px;
   font-weight: 600;
 }
 
 .operation-list-main small {
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 12px;
 }
 
@@ -208,7 +209,7 @@
   margin-bottom: 10px;
   padding: 7px 10px;
   background: #ffffff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-soft);
   border-radius: 0;
 }
 
@@ -218,7 +219,7 @@
 }
 
 .muted-inline {
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 12px;
 }
 

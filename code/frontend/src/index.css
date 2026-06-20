@@ -10,6 +10,7 @@
   --bc-surface-muted: #ffffff;
   --bc-border: #d8d8d8;
   --bc-border-soft: #e6e6e6;
+  --bc-border-muted: #f0f0f0;
   --bc-text: #1b1b1b;
   --bc-text-muted: #555555;
   --bc-text-faint: #737373;
@@ -19,8 +20,15 @@
   --bc-accent-border: #f2a3aa;
   --bc-warning: #a86100;
   --bc-danger: #db0011;
+  --bc-success: #16803c;
+  --bc-success-soft: #f1fbf4;
+  --bc-warning-soft: #fff7e8;
+  --bc-danger-soft: #fff1f2;
   --bc-focus: #111111;
-  --bc-shadow-soft: none;
+  --bc-shadow-raised: 0 6px 16px rgba(17, 17, 17, 0.08);
+  --bc-shadow-menu: 0 8px 20px rgba(17, 17, 17, 0.12);
+  --bc-shadow-modal: 0 16px 36px rgba(17, 17, 17, 0.16);
+  --bc-motion-fast: 120ms ease;
 }
 
 html {
@@ -49,10 +57,38 @@ select {
   min-height: 100dvh;
 }
 
-*,
-*::before,
-*::after {
-  box-shadow: none !important;
+.bc-panel,
+.bc-section-header,
+.bc-toolbar,
+.bc-inline-panel {
+  background: var(--bc-surface);
+  border: 1px solid var(--bc-border);
+  border-radius: 0;
+}
+
+.bc-panel,
+.bc-section-header {
+  box-shadow: var(--bc-shadow-raised);
+}
+
+.bc-panel {
+  padding: 18px;
+}
+
+.bc-section-header {
+  padding: 18px;
+}
+
+.bc-toolbar {
+  min-height: 48px;
+  padding: 10px 14px;
+  border-color: var(--bc-border-soft);
+  box-shadow: var(--bc-shadow-raised);
+}
+
+.bc-inline-panel {
+  padding: 12px;
+  border-color: var(--bc-border-soft);
 }
 
 .ant-btn,
@@ -89,24 +125,15 @@ select {
   border-color: var(--bc-accent-strong) !important;
 }
 
-.ant-btn:not(:disabled):hover,
-.ant-btn:not(:disabled):active,
-.ant-menu-item:hover,
-.ant-table-tbody > tr:hover > td {
-  transform: none !important;
-}
-
 .ant-btn-default:not(:disabled):hover,
 .ant-btn-dashed:not(:disabled):hover {
   color: var(--bc-accent) !important;
-  background: #ffffff !important;
   border-color: var(--bc-accent) !important;
 }
 
 .ant-btn-text:not(:disabled):hover,
 .ant-btn-link:not(:disabled):hover {
   color: var(--bc-accent) !important;
-  background: #ffffff !important;
 }
 
 .ant-select:not(.ant-select-disabled):hover .ant-select-selector,
@@ -119,10 +146,22 @@ select {
 }
 
 .ant-select-dropdown,
-.ant-dropdown,
-.ant-popover,
+.ant-dropdown-menu,
+.ant-popover-inner,
 .ant-modal-root {
   z-index: 1200;
+}
+
+.ant-select-dropdown,
+.ant-dropdown-menu,
+.ant-popover-inner {
+  border: 1px solid var(--bc-border-soft);
+  box-shadow: var(--bc-shadow-menu) !important;
+}
+
+.ant-modal-content {
+  border: 1px solid var(--bc-border);
+  box-shadow: var(--bc-shadow-modal) !important;
 }
 
 .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
@@ -136,9 +175,66 @@ select {
   font-weight: 700;
 }
 
+.ant-table {
+  border-color: var(--bc-border-soft) !important;
+}
+
+.ant-table-thead > tr > th {
+  background: #f3f3f3 !important;
+  border-bottom-color: var(--bc-border) !important;
+  color: var(--bc-text);
+  font-weight: 650;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #fafafa !important;
+}
+
+.ant-tag {
+  background: #ffffff;
+  border-color: var(--bc-border);
+  color: var(--bc-text-muted);
+  font-weight: 650;
+}
+
+.ant-tag-blue,
+.ant-tag-purple,
+.ant-tag-gold,
+.ant-tag-cyan,
+.ant-tag-geekblue,
+.ant-tag-magenta {
+  background: #ffffff !important;
+  border-color: var(--bc-border) !important;
+  color: var(--bc-text-muted) !important;
+}
+
+.ant-tag-red,
+.ant-tag-error {
+  background: var(--bc-danger-soft) !important;
+  border-color: var(--bc-accent-border) !important;
+  color: var(--bc-danger) !important;
+}
+
+.ant-tag-green,
+.ant-tag-success {
+  background: var(--bc-success-soft) !important;
+  border-color: #9bd5ad !important;
+  color: var(--bc-success) !important;
+}
+
+.ant-tag-orange,
+.ant-tag-warning,
+.ant-tag-volcano {
+  background: var(--bc-warning-soft) !important;
+  border-color: #e4bd7a !important;
+  color: var(--bc-warning) !important;
+}
+
 .ant-input:focus,
 .ant-input-focused,
+.ant-input-affix-wrapper-focused,
 .ant-input-number-focused,
+.ant-input-number-affix-wrapper-focused,
 .ant-picker-focused,
 .ant-select-focused .ant-select-selector {
   border: 2px solid var(--bc-focus) !important;

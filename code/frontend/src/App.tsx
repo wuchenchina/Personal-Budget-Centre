@@ -237,7 +237,6 @@ function App() {
       getPopupContainer={(node) => node?.parentElement ?? document.body}
       locale={antdLocales[language]}
       theme={appTheme}
-      wave={{ disabled: true }}
     >
       <I18nContext.Provider value={i18nValue}>{content}</I18nContext.Provider>
     </ConfigProvider>

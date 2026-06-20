@@ -31,7 +31,7 @@ export function AdminLogsPanel({ controller }: AdminLogsPanelProps) {
       title: t('errorCode'),
       dataIndex: 'code',
       width: 180,
-      render: (code: string) => <Tag color="volcano">{code}</Tag>,
+      render: (code: string) => <Tag color="orange">{code}</Tag>,
     },
     {
       title: t('request'),

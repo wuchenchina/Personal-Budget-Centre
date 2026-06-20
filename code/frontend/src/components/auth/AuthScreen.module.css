@@ -2,8 +2,8 @@
 .loadingShell {
   position: relative;
   min-height: 100dvh;
-  color: #1b1b1b;
-  background: #ffffff;
+  color: var(--bc-text);
+  background: var(--bc-page);
   font-family:
     -apple-system,
     BlinkMacSystemFont,
@@ -52,7 +52,7 @@
 }
 
 .brandName {
-  color: #1b1b1b;
+  color: var(--bc-text);
   font-size: 22px;
   font-weight: 720;
   line-height: 1.2;
@@ -61,7 +61,7 @@
 
 .brandSubtitle {
   margin: 0;
-  color: #595959;
+  color: var(--bc-text-muted);
   font-size: 13px;
   line-height: 1.4;
 }
@@ -98,7 +98,7 @@
 
 .authForm :global(.ant-form-item-label > label) {
   height: auto;
-  color: #333333;
+  color: var(--bc-text);
   font-size: 13px;
   font-weight: 650;
 }
@@ -112,35 +112,35 @@
 .authForm :global(.ant-input-affix-wrapper),
 .authForm :global(.ant-select-selector) {
   min-height: 44px;
-  border-color: rgba(20, 52, 61, 0.16);
+  border-color: var(--bc-border);
   box-shadow: none;
 }
 
 .authForm :global(.ant-input-affix-wrapper:hover),
 .authForm :global(.ant-select-selector:hover) {
-  border-color: rgba(20, 52, 61, 0.16);
+  border-color: var(--bc-accent);
 }
 
 .authForm :global(.ant-input-affix-wrapper-focused),
 .authForm :global(.ant-select-focused .ant-select-selector) {
-  border-color: #db0011;
+  border-color: var(--bc-focus);
   box-shadow: none;
 }
 
 .authForm :global(.ant-input),
 .authForm :global(.ant-input-password input),
 .authForm :global(.ant-select-selection-item) {
-  color: #1b1b1b;
+  color: var(--bc-text);
   font-size: 14px;
 }
 
 .authForm :global(.ant-input-prefix) {
   margin-right: 10px;
-  color: #666666;
+  color: var(--bc-text-muted);
 }
 
 .authForm :global(.ant-form-item-explain-error) {
-  color: #db0011;
+  color: var(--bc-danger);
   font-size: 12px;
 }
 
@@ -156,26 +156,21 @@
   box-shadow: none;
 }
 
-.submitButton:active,
-.altButton:active {
-  transform: none;
-}
-
 .altActions {
   margin-top: 18px;
 }
 
 .altDivider {
   margin: 0 0 14px;
-  color: #595959;
+  color: var(--bc-text-muted);
   font-size: 12px;
 }
 
 .altButton {
   margin-bottom: 12px;
-  color: #1b1b1b;
+  color: var(--bc-text);
   background: #ffffff;
-  border: 1px solid rgba(20, 52, 61, 0.13);
+  border: 1px solid var(--bc-border);
 }
 
 .altButton:last-child {
@@ -184,9 +179,8 @@
 
 .altButton:hover,
 .altButton:focus-visible {
-  color: #1b1b1b;
-  border-color: rgba(20, 52, 61, 0.13);
-  transform: none;
+  color: var(--bc-accent);
+  border-color: var(--bc-accent);
 }
 
 .passwordStrength {
@@ -200,15 +194,15 @@
 }
 
 .passwordStrengthpoor {
-  color: #db0011;
+  color: var(--bc-danger);
 }
 
 .passwordStrengthpass {
-  color: #8a4b00;
+  color: var(--bc-warning);
 }
 
 .passwordStrengthok {
-  color: #146c2e;
+  color: var(--bc-success);
 }
 
 /* Loading screen */

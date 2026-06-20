@@ -207,7 +207,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
               ) : (
                 <Tag color="green">{t('emailVerified')}</Tag>
               )}
-              {session.user.isAdmin ? <Tag color="purple">{t('administrator')}</Tag> : null}
+              {session.user.isAdmin ? <Tag color="red">{t('administrator')}</Tag> : null}
             </Space>
           </section>
 

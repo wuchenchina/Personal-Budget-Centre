@@ -10,6 +10,7 @@
 .app-sidebar {
   background: #ffffff;
   border-right: 1px solid var(--bc-border);
+  box-shadow: 2px 0 10px rgba(17, 17, 17, 0.04);
 }
 
 .brand-lockup {
@@ -81,6 +82,7 @@
   padding: 8px 18px;
   background: #ffffff;
   border-bottom: 1px solid var(--bc-border);
+  box-shadow: 0 2px 8px rgba(17, 17, 17, 0.04);
   line-height: normal;
 }
 
@@ -262,7 +264,7 @@
 .signature-config-panel {
   margin-top: 18px;
   padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--bc-border-muted);
 }
 
 .signature-config-panel-top {
@@ -286,7 +288,7 @@
   margin: 4px 0 16px;
   padding: 12px;
   background: #ffffff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-muted);
   border-radius: 0;
 }
 
@@ -294,11 +296,11 @@
   display: grid;
   gap: 2px;
   margin-bottom: 12px;
-  color: #262626;
+  color: var(--bc-text);
 }
 
 .installment-config-copy span {
-  color: #595959;
+  color: var(--bc-text-muted);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -310,28 +312,28 @@
   align-items: center;
   margin-bottom: 12px;
   padding: 8px 10px;
-  color: #595959;
+  color: var(--bc-text-muted);
   background: #fff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-muted);
   border-radius: 0;
   font-size: 12px;
 }
 
 .installment-config-summary strong {
-  color: #262626;
+  color: var(--bc-text);
   font-size: 13px;
 }
 
 .installment-options-panel {
   padding: 12px;
   background: #ffffff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-muted);
   border-radius: 0;
 }
 
 .installment-options-panel p {
   margin: 0 0 12px;
-  color: #595959;
+  color: var(--bc-text-muted);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -353,11 +355,11 @@
 .installment-history-toolbar {
   margin-top: 0;
   padding-bottom: 10px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--bc-border-muted);
 }
 
 .installment-history-toolbar span {
-  color: #595959;
+  color: var(--bc-text-muted);
   font-size: 13px;
 }
 
@@ -365,7 +367,7 @@
   margin: 8px 0 16px;
   padding: 12px;
   background: #ffffff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-muted);
   border-radius: 0;
 }
 
@@ -389,13 +391,13 @@
 }
 
 .currency-config-title {
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-weight: 650;
 }
 
 .currency-config-subtitle {
   margin-top: 3px;
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 12px;
 }
 
@@ -428,7 +430,7 @@
   min-width: 0;
   padding: 12px;
   background: #fff;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--bc-border-soft);
   border-radius: 0;
 }
 
@@ -457,11 +459,11 @@
 }
 
 .currency-field-card-head strong {
-  color: #1f1f1f;
+  color: var(--bc-text);
 }
 
 .currency-field-card-head span {
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 12px;
 }
 
@@ -477,8 +479,8 @@
   justify-content: space-between;
   gap: 10px;
   padding-top: 6px;
-  border-top: 1px solid #f0f0f0;
-  color: #8c8c8c;
+  border-top: 1px solid var(--bc-border-muted);
+  color: var(--bc-text-faint);
   font-size: 12px;
 }
 
@@ -486,12 +488,12 @@
   display: inline-grid;
   justify-items: end;
   gap: 2px;
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 14px;
 }
 
 .currency-field-preview strong small {
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 11px;
   font-weight: 500;
 }
@@ -508,13 +510,13 @@
 .currency-readonly-ledger {
   display: grid;
   gap: 4px;
-  color: #595959;
+  color: var(--bc-text-muted);
   font-size: 12px;
 }
 
 .currency-readonly-amount strong,
 .currency-readonly-ledger strong {
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 14px;
 }
 
@@ -525,7 +527,7 @@
 .currency-readonly-breakdown {
   display: grid;
   gap: 5px;
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 12px;
 }
 
@@ -536,14 +538,14 @@
 }
 
 .currency-readonly-breakdown small {
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-family: var(--font-mono), var(--font-cjk), monospace;
   font-size: 11px;
 }
 
 .currency-readonly-breakdown strong,
 .currency-readonly-help {
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 12px;
 }
 
@@ -558,29 +560,29 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
-  color: #595959;
+  color: var(--bc-text-muted);
   font-size: 12px;
 }
 
 .currency-config-base strong {
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 14px;
 }
 
 .currency-config-preview {
   display: grid;
   gap: 3px;
-  color: #595959;
+  color: var(--bc-text-muted);
   font-size: 12px;
 }
 
 .currency-config-preview strong {
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 15px;
 }
 
 .currency-config-preview small {
-  color: #cf1322;
+  color: var(--bc-danger);
   line-height: 1.35;
 }
 
@@ -600,7 +602,7 @@
 .signature-config-row {
   padding: 12px;
   background: #ffffff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-muted);
   border-radius: 0;
 }
 
@@ -611,7 +613,7 @@
 .signature-config-row-collapse {
   overflow: hidden;
   background: #ffffff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-muted);
   border-radius: 0;
 }
 
@@ -642,7 +644,7 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   cursor: grab;
   border-radius: 0;
 }
@@ -652,7 +654,7 @@
 }
 
 .signature-row-drag-handle:hover {
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   background: #ffffff;
 }
 
@@ -669,7 +671,7 @@
 }
 
 .signature-config-row-head strong {
-  color: #1f1f1f;
+  color: var(--bc-text);
   font-size: 13px;
 }
 
@@ -695,7 +697,7 @@
 }
 
 .signature-custom-field-head strong {
-  color: #595959;
+  color: var(--bc-text-muted);
   font-size: 12px;
 }
 
@@ -704,7 +706,7 @@
   align-items: end;
   padding: 8px;
   background: #fff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--bc-border-muted);
   border-radius: 0;
 }
 
@@ -717,12 +719,12 @@
   align-items: center;
   gap: 8px;
   margin: -2px 0 12px;
-  color: #8c8c8c;
+  color: var(--bc-text-faint);
   font-size: 12px;
 }
 
 .signature-label-preview strong {
-  color: #1f1f1f;
+  color: var(--bc-text);
   white-space: pre-line;
 }
 

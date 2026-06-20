@@ -1,7 +1,8 @@
 import { Button, Empty, Skeleton, Space, Tag } from 'antd';
 import { ArrowRight, BriefcaseBusiness, CalendarRange, Plus, ReceiptText } from 'lucide-react';
+import { budgetStatusColors } from '../../config/appConfig';
 import { budgetStatusLabelsByLanguage, useI18n } from '../../i18n';
-import type { BudgetDetail, BudgetStatus, BudgetSummary, CurrencyCode } from '../../types/budget';
+import type { BudgetDetail, BudgetSummary, CurrencyCode } from '../../types/budget';
 import { formatBudgetPeriod } from '../../utils/budgetPeriod';
 import { formatMoney } from '../../utils/currency';
 
@@ -16,13 +17,6 @@ interface BudgetProjectDashboardProps {
   onOpenBookkeeping: (budgetId: number) => void;
   onOpenProject: (budgetId: number) => void;
 }
-
-const statusColors: Record<BudgetStatus, string> = {
-  draft: 'default',
-  active: 'green',
-  closed: 'green',
-  archived: 'default',
-};
 
 export function BudgetProjectDashboard({
   budgets,
@@ -99,7 +93,7 @@ export function BudgetProjectDashboard({
               <strong>{activeProject?.title ?? t('noBudgetSelected')}</strong>
             </div>
             {activeProject ? (
-              <Tag color={statusColors[activeProject.status]}>
+              <Tag color={budgetStatusColors[activeProject.status]}>
                 {budgetStatusLabelsByLanguage[language][activeProject.status]}
               </Tag>
             ) : null}
