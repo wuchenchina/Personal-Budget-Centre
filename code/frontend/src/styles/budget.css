@@ -991,6 +991,13 @@
   color: var(--bc-text-muted);
 }
 
+.project-kicker-tag.ant-tag {
+  color: #ffffff;
+  background: var(--bc-accent);
+  border-color: var(--bc-accent);
+  font-weight: 700;
+}
+
 .workspace-command-panel {
   display: grid;
   gap: 16px;
@@ -1213,8 +1220,12 @@
   line-height: 1.2;
 }
 
-.overview-tile-warning strong {
-  color: var(--bc-warning);
+.overview-tile-gain strong {
+  color: #16803c;
+}
+
+.overview-tile-loss strong {
+  color: var(--bc-danger);
 }
 
 .project-main-grid {

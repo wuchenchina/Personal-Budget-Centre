@@ -68,7 +68,7 @@ export const appTheme: ThemeConfig = {
       primaryColor: '#ffffff',
       primaryShadow: 'none',
       textHoverBg: '#ffffff',
-      textTextHoverColor: '#c40010',
+      textTextHoverColor: '#db0011',
     },
     Table: {
       cellFontSizeSM: 12,

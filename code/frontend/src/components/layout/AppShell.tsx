@@ -105,6 +105,7 @@ export function AppShell({
             <Select<AppLanguage>
               aria-label="Language"
               className="language-switcher"
+              popupClassName="language-switcher-popup"
               options={languageOptions}
               value={language}
               onChange={onLanguageChange}

@@ -270,6 +270,10 @@
   margin-top: 10px;
 }
 
+.exchange-rate-title-actions {
+  justify-content: flex-end;
+}
+
 .exchange-rate-actions,
 .currency-chip-row {
   display: flex;

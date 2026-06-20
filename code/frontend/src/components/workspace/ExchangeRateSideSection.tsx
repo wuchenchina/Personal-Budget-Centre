@@ -100,25 +100,26 @@ export function ExchangeRateSideSection({
           <RefreshCcw size={16} />
           <span>{t('rates')}</span>
         </span>
-        <Button
-          icon={<RefreshCcw size={13} />}
-          loading={isLoading}
-          size="small"
-          onClick={() => void loadRates()}
-        >
-          {t('reload')}
-        </Button>
-      </div>
-
-      <div className="exchange-rate-actions">
-        <Button
-          icon={<RefreshCcw size={13} />}
-          loading={operations.refreshingExchangeRateSource === 'bochk'}
-          size="small"
-          onClick={() => void handleRefreshBochk()}
-        >
-          BOCHK
-        </Button>
+        <Space className="exchange-rate-title-actions" size={6} wrap>
+          <Button
+            icon={<RefreshCcw size={13} />}
+            loading={operations.refreshingExchangeRateSource === 'bochk'}
+            size="small"
+            onClick={() => void handleRefreshBochk()}
+          >
+            {t('refreshProviderRates', {
+              source: currencyRateSourceLabelsByLanguage[language].bochk,
+            })}
+          </Button>
+          <Button
+            icon={<RefreshCcw size={13} />}
+            loading={isLoading}
+            size="small"
+            onClick={() => void loadRates()}
+          >
+            {t('reload')}
+          </Button>
+        </Space>
       </div>
 
       <Space className="currency-chip-row" size={4} wrap>

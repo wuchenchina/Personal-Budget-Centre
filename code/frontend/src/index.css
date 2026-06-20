@@ -52,8 +52,6 @@ select {
 *::before,
 *::after {
   box-shadow: none !important;
-  transition: none !important;
-  animation: none !important;
 }
 
 .ant-btn,
@@ -86,8 +84,8 @@ select {
 
 .ant-btn-primary:not(:disabled):hover,
 .ant-btn-primary:not(:disabled):focus-visible {
-  background: var(--bc-accent) !important;
-  border-color: var(--bc-accent) !important;
+  background: var(--bc-accent-strong) !important;
+  border-color: var(--bc-accent-strong) !important;
 }
 
 .ant-btn:not(:disabled):hover,
@@ -98,12 +96,43 @@ select {
 }
 
 .ant-btn-default:not(:disabled):hover,
-.ant-btn-dashed:not(:disabled):hover,
+.ant-btn-dashed:not(:disabled):hover {
+  color: var(--bc-accent) !important;
+  background: #ffffff !important;
+  border-color: var(--bc-accent) !important;
+}
+
 .ant-btn-text:not(:disabled):hover,
 .ant-btn-link:not(:disabled):hover {
-  color: inherit !important;
+  color: var(--bc-accent) !important;
   background: #ffffff !important;
-  border-color: var(--bc-border) !important;
+}
+
+.ant-select:not(.ant-select-disabled):hover .ant-select-selector,
+.ant-select-open .ant-select-selector {
+  border-color: var(--bc-accent) !important;
+}
+
+.ant-select-arrow {
+  pointer-events: none;
+}
+
+.ant-select-dropdown,
+.ant-dropdown,
+.ant-popover,
+.ant-modal-root {
+  z-index: 1200;
+}
+
+.ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: #ffffff !important;
+  color: var(--bc-accent);
+}
+
+.ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: #ffffff !important;
+  color: var(--bc-accent);
+  font-weight: 700;
 }
 
 .ant-input:focus,

@@ -234,6 +234,7 @@ function App() {
   return (
     <ConfigProvider
       button={{ autoInsertSpace: false }}
+      getPopupContainer={(node) => node?.parentElement ?? document.body}
       locale={antdLocales[language]}
       theme={appTheme}
       wave={{ disabled: true }}

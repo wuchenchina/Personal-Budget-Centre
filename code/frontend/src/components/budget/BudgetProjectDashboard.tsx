@@ -61,7 +61,7 @@ export function BudgetProjectDashboard({
     <div className="project-dashboard">
       <section className="project-hero">
         <div>
-          <Tag color="cyan">{t('budgetProjectsKicker')}</Tag>
+          <Tag className="project-kicker-tag">{t('budgetProjectsKicker')}</Tag>
           <h1>{t('budgetProjectsTitle')}</h1>
           <p>{t('budgetProjectsDesc')}</p>
         </div>
@@ -85,9 +85,9 @@ export function BudgetProjectDashboard({
         <OverviewTile label={t('active')} value={activeProjects.toLocaleString('en-US')} />
         <OverviewTile label={t('draft')} value={draftProjects.toLocaleString('en-US')} />
         <OverviewTile
-          label={`${dashboardCurrency} ${t('variance')}`}
+          label={t('variance')}
           value={formatMoney({ currency: dashboardCurrency, amount: projectTotals.variance })}
-          tone={projectTotals.variance < 0 ? 'warning' : 'default'}
+          tone={projectTotals.variance < 0 ? 'loss' : projectTotals.variance > 0 ? 'gain' : 'default'}
         />
       </section>
 
@@ -237,10 +237,10 @@ function OverviewTile({
 }: {
   label: string;
   value: string;
-  tone?: 'default' | 'warning';
+  tone?: 'default' | 'gain' | 'loss';
 }) {
   return (
-    <div className={tone === 'warning' ? 'overview-tile overview-tile-warning' : 'overview-tile'}>
+    <div className={`overview-tile overview-tile-${tone}`}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>

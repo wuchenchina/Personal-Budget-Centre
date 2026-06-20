@@ -55,6 +55,7 @@ export function AuthScreen({
       <Select<AppLanguage>
         aria-label="Language"
         className={styles.languageSwitcher}
+        popupClassName="language-switcher-popup"
         options={languageOptions}
         value={language}
         onChange={onLanguageChange}

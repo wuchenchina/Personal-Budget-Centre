@@ -135,6 +135,14 @@
   min-width: 132px;
 }
 
+.language-switcher-popup {
+  min-width: 132px;
+}
+
+.language-switcher-popup .ant-select-item {
+  border-radius: 0;
+}
+
 .mobile-nav {
   display: none;
 }

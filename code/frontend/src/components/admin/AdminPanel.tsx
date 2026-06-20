@@ -236,7 +236,12 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
         <Alert className="admin-alert" type="error" showIcon message={controller.error} />
       ) : null}
       {controller.notice ? (
-        <Alert className="admin-alert" type="success" showIcon message={controller.notice} />
+        <Alert
+          className="admin-alert admin-notice-alert"
+          type="success"
+          showIcon
+          message={controller.notice}
+        />
       ) : null}
       {controller.environment ? (
         <EnvironmentCheckSummary environment={controller.environment} />
