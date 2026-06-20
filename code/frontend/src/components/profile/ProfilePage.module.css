@@ -415,41 +415,9 @@
 
 .exportOptionGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.82fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   min-width: 0;
-}
-
-.segmentedField {
-  margin-bottom: 0;
-  padding: 11px 12px;
-  background: #ffffff;
-  border: 1px solid var(--bc-border-soft);
-}
-
-.segmentedField :global(.ant-form-item-label) {
-  padding-bottom: 6px;
-}
-
-.segmentedField :global(.ant-form-item-label > label) {
-  height: auto;
-  color: var(--bc-text);
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.segmentedField :global(.ant-form-item-control-input) {
-  min-height: 0;
-}
-
-.segmentedField :global(.ant-segmented) {
-  width: 100%;
-  border-radius: 0;
-}
-
-.segmentedField :global(.ant-segmented-item),
-.segmentedField :global(.ant-segmented-thumb) {
-  border-radius: 0;
 }
 
 .switchCopy {
@@ -619,26 +587,7 @@
     linear-gradient(90deg, transparent 0 52%, #d9d9d9 52% 53%, transparent 53% 100%);
 }
 
-.previewVerticalLedger .previewRows {
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  border-top: 0;
-}
-
-.previewVerticalLedger .previewRows span {
-  height: 56px;
-  border: 1px solid var(--bc-border-soft);
-  background:
-    linear-gradient(#ededed 0 12px, transparent 12px),
-    linear-gradient(90deg, #d9d9d9 0 42%, transparent 42% 52%, #eeeeee 52% 100%);
-}
-
-.previewVerticalLedger .previewRows span:nth-child(3) {
-  grid-column: 1 / -1;
-  height: 42px;
-}
-
-.previewLandscapeLedger .previewRows {
+.previewRows {
   grid-template-columns: minmax(0, 1fr);
 }
 

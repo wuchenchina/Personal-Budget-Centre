@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Alert, Avatar, Button, Form, Input, Modal, Radio, Segmented, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
+import { Alert, Avatar, Button, Form, Input, Modal, Radio, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 import { FileText, KeyRound, Link2, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import {
@@ -15,7 +15,6 @@ import type { OperationsController } from '../../hooks/useOperationsController';
 import { useI18n } from '../../i18n';
 import type { AuthSession, SsoBinding } from '../../types/auth';
 import type { PdfExportSettings } from '../../types/auth';
-import type { BookkeepingPdfLayout } from '../../types/budget';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
 import styles from './ProfilePage.module.css';
@@ -47,14 +46,10 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const [isSsoUnlinking, setIsSsoUnlinking] = useState(false);
   const watchedPdfTheme = Form.useWatch('defaultPdfTheme', exportForm);
   const watchedShowWorkspace = Form.useWatch(['pdfExportSettings', 'showWorkspace'], exportForm);
-  const watchedBookkeepingLayout = Form.useWatch(['pdfExportSettings', 'bookkeepingLayout'], exportForm);
   const previewPdfTheme = normalizePdfTheme(watchedPdfTheme ?? session.user.defaultPdfTheme);
   const previewSettings = normalizePdfExportSettings(session.user.pdfExportSettings);
   const previewShowWorkspace =
     watchedShowWorkspace ?? previewSettings.showWorkspace;
-  const previewBookkeepingLayout = normalizeBookkeepingLayout(
-    watchedBookkeepingLayout ?? previewSettings.bookkeepingLayout,
-  );
   const previewWorkspaceName = session.workspace?.name ?? t('noWorkspaceSelected');
 
   useEffect(() => {
@@ -439,21 +434,6 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                                 description={t('pdfExportShowWorkspaceDescription')}
                               />
                             </Form.Item>
-                            <Form.Item
-                              className={styles.segmentedField}
-                              label={t('bookkeepingPdfLayout')}
-                              name={['pdfExportSettings', 'bookkeepingLayout']}
-                            >
-                              <Segmented<BookkeepingPdfLayout>
-                                block
-                                options={[
-                                  { label: t('bookkeepingPdfLayoutLandscape'), value: 'landscape_table' },
-                                  { label: t('bookkeepingPdfLayoutVertical'), value: 'statement_vertical' },
-                                ]}
-                                shape="default"
-                                size="small"
-                              />
-                            </Form.Item>
                           </div>
                           <Button type="primary" htmlType="submit" loading={isProfileSaving}>
                             {t('saveProfile')}
@@ -467,16 +447,11 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                             <Tag color={previewPdfTheme === 'hsbc' ? 'red' : 'default'}>
                               {t(pdfThemeLabelKey(previewPdfTheme))}
                             </Tag>
-                            <Tag color="default">{t(bookkeepingLayoutLabelKey(previewBookkeepingLayout))}</Tag>
                           </Space>
                         </div>
                         <div
                           className={`${styles.previewSheet} ${
                             previewPdfTheme === 'hsbc' ? styles.previewStatement : styles.previewClassic
-                          } ${
-                            previewBookkeepingLayout === 'statement_vertical'
-                              ? styles.previewVerticalLedger
-                              : styles.previewLandscapeLedger
                           }`}
                         >
                           <div className={styles.previewTop}>
@@ -744,17 +719,8 @@ function pdfThemeDescriptionKey(theme: string) {
 
 function normalizePdfExportSettings(settings: Partial<PdfExportSettings> | null | undefined): PdfExportSettings {
   return {
-    bookkeepingLayout: normalizeBookkeepingLayout(settings?.bookkeepingLayout),
     showWorkspace: settings?.showWorkspace === true,
   };
-}
-
-function normalizeBookkeepingLayout(layout: string | null | undefined): BookkeepingPdfLayout {
-  return layout === 'statement_vertical' ? 'statement_vertical' : 'landscape_table';
-}
-
-function bookkeepingLayoutLabelKey(layout: BookkeepingPdfLayout) {
-  return layout === 'statement_vertical' ? 'bookkeepingPdfLayoutVertical' : 'bookkeepingPdfLayoutLandscape';
 }
 
 interface SwitchSettingProps {

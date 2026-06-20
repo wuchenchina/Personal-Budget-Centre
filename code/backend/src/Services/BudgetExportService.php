@@ -162,7 +162,6 @@ final readonly class BudgetExportService
             ?? BudgetPdfTheme::DEFAULT,
         );
         $showWorkspace = $this->showWorkspacePreference($input, $session);
-        $bookkeepingLayout = $this->bookkeepingLayoutPreference($input, $session);
 
         return [
             'tableLanguageMode' => in_array($tableLanguageMode, ['en', 'zh', 'bilingual'], true)
@@ -172,9 +171,6 @@ final readonly class BudgetExportService
                 ? $tableChineseLanguage
                 : 'tc',
             'pdfTheme' => $pdfTheme,
-            'bookkeepingLayout' => in_array($bookkeepingLayout, ['landscape_table', 'statement_vertical'], true)
-                ? $bookkeepingLayout
-                : 'landscape_table',
             'showWorkspace' => $showWorkspace,
         ];
     }
@@ -199,28 +195,6 @@ final readonly class BudgetExportService
         }
 
         return (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? false);
-    }
-
-    private function bookkeepingLayoutPreference(array $input, array $session): string
-    {
-        $bookkeepingLayout = Input::string(
-            $input['bookkeepingLayout'] ?? $input['bookkeeping_layout'] ?? null,
-        );
-        if ($bookkeepingLayout !== null) {
-            return $bookkeepingLayout;
-        }
-
-        $raw = $session['pdf_export_settings'] ?? null;
-        if (is_string($raw) && trim($raw) !== '') {
-            $decoded = json_decode($raw, true);
-            $raw = is_array($decoded) ? $decoded : [];
-        }
-        if (!is_array($raw)) {
-            return 'landscape_table';
-        }
-
-        return Input::string($raw['bookkeepingLayout'] ?? $raw['bookkeeping_layout'] ?? null)
-            ?? 'landscape_table';
     }
 
     private function templateForBudget(array $budget): array

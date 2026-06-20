@@ -822,9 +822,6 @@ final readonly class AuthService
         }
 
         return $this->encodePdfExportSettings([
-            'bookkeepingLayout' => $this->normalizeBookkeepingLayout(
-                $raw['bookkeepingLayout'] ?? $raw['bookkeeping_layout'] ?? $current['bookkeepingLayout'],
-            ),
             'showWorkspace' => (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? $current['showWorkspace']),
         ]);
     }
@@ -841,9 +838,6 @@ final readonly class AuthService
         }
 
         return [
-            'bookkeepingLayout' => $this->normalizeBookkeepingLayout(
-                $raw['bookkeepingLayout'] ?? $raw['bookkeeping_layout'] ?? null,
-            ),
             'showWorkspace' => (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? false),
         ];
     }
@@ -851,16 +845,10 @@ final readonly class AuthService
     private function encodePdfExportSettings(array $settings): string
     {
         $encoded = json_encode([
-            'bookkeepingLayout' => $this->normalizeBookkeepingLayout($settings['bookkeepingLayout'] ?? null),
             'showWorkspace' => (bool) ($settings['showWorkspace'] ?? false),
         ], JSON_THROW_ON_ERROR);
 
         return $encoded;
-    }
-
-    private function normalizeBookkeepingLayout(mixed $layout): string
-    {
-        return $layout === 'statement_vertical' ? 'statement_vertical' : 'landscape_table';
     }
 
     private function casdoorAvatarUrl(array $userinfo): ?string

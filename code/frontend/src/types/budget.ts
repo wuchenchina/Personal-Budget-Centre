@@ -337,14 +337,12 @@ export interface BudgetCategory {
 export type BudgetExportFormat = 'pdf';
 export type BudgetExportTableLanguageMode = 'en' | 'zh' | 'bilingual';
 export type BudgetExportChineseLanguage = 'sc' | 'tc';
-export type BookkeepingPdfLayout = 'landscape_table' | 'statement_vertical';
 
 export interface BudgetExportOptions {
   exportScope?: 'budget' | 'bookkeeping';
   tableLanguageMode?: BudgetExportTableLanguageMode;
   tableChineseLanguage?: BudgetExportChineseLanguage;
   pdfTheme?: PdfThemeKey;
-  bookkeepingLayout?: BookkeepingPdfLayout;
   showWorkspace?: boolean;
 }
 
