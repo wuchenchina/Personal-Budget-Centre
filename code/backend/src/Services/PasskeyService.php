@@ -320,8 +320,16 @@ final readonly class PasskeyService
         }
 
         return [
+            'bookkeepingLayout' => $this->normalizeBookkeepingLayout(
+                $raw['bookkeepingLayout'] ?? $raw['bookkeeping_layout'] ?? null,
+            ),
             'showWorkspace' => (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? false),
         ];
+    }
+
+    private function normalizeBookkeepingLayout(mixed $layout): string
+    {
+        return $layout === 'statement_vertical' ? 'statement_vertical' : 'landscape_table';
     }
 
     private function credentialFromInput(array $input): PublicKeyCredential

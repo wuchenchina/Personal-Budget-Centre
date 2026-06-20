@@ -525,7 +525,6 @@ const dictionaries = {
     pdfExportPreviewTitle: 'Budget title',
     pdfExportPreviewSubtitle: 'Export layout sample',
     pdfExportPreviewSection: 'Budget summary',
-    pdfExportPreviewWorkspaceHidden: 'Hidden',
     projectInfo: 'Project info',
     projectLibrary: 'Project Library',
     projectLibraryDesc:
@@ -1174,7 +1173,6 @@ const dictionaries = {
     pdfExportPreviewTitle: '预算标题',
     pdfExportPreviewSubtitle: '导出版式示意',
     pdfExportPreviewSection: '预算摘要',
-    pdfExportPreviewWorkspaceHidden: '已隐藏',
     projectInfo: '项目信息',
     projectLibrary: 'Project Library',
     projectLibraryDesc: '预算项目独立存在；需要协作时，再通过共享规则关联到工作区或用户。',
@@ -1816,7 +1814,6 @@ const dictionaries = {
     pdfExportPreviewTitle: '預算標題',
     pdfExportPreviewSubtitle: '匯出版式示意',
     pdfExportPreviewSection: '預算摘要',
-    pdfExportPreviewWorkspaceHidden: '已隱藏',
     projectInfo: '項目資訊',
     projectLibrary: 'Project Library',
     projectLibraryDesc: '預算項目獨立存在；需要協作時，再透過共享規則關聯到工作區或使用者。',

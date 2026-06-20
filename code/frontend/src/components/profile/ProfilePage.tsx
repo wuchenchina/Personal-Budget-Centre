@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Alert, Avatar, Button, Form, Input, Modal, Radio, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
+import { Alert, Avatar, Button, Form, Input, Modal, Radio, Segmented, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 import { FileText, KeyRound, Link2, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import {
@@ -15,6 +15,7 @@ import type { OperationsController } from '../../hooks/useOperationsController';
 import { useI18n } from '../../i18n';
 import type { AuthSession, SsoBinding } from '../../types/auth';
 import type { PdfExportSettings } from '../../types/auth';
+import type { BookkeepingPdfLayout } from '../../types/budget';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
 import styles from './ProfilePage.module.css';
@@ -46,9 +47,14 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const [isSsoUnlinking, setIsSsoUnlinking] = useState(false);
   const watchedPdfTheme = Form.useWatch('defaultPdfTheme', exportForm);
   const watchedShowWorkspace = Form.useWatch(['pdfExportSettings', 'showWorkspace'], exportForm);
+  const watchedBookkeepingLayout = Form.useWatch(['pdfExportSettings', 'bookkeepingLayout'], exportForm);
   const previewPdfTheme = normalizePdfTheme(watchedPdfTheme ?? session.user.defaultPdfTheme);
+  const previewSettings = normalizePdfExportSettings(session.user.pdfExportSettings);
   const previewShowWorkspace =
-    watchedShowWorkspace ?? normalizePdfExportSettings(session.user.pdfExportSettings).showWorkspace;
+    watchedShowWorkspace ?? previewSettings.showWorkspace;
+  const previewBookkeepingLayout = normalizeBookkeepingLayout(
+    watchedBookkeepingLayout ?? previewSettings.bookkeepingLayout,
+  );
   const previewWorkspaceName = session.workspace?.name ?? t('noWorkspaceSelected');
 
   useEffect(() => {
@@ -354,132 +360,156 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                   </span>
                 ),
                 children: (
-                  <div className={styles.tabContent}>
+                  <div className={`${styles.tabContent} ${styles.exportTabContent}`}>
                     {profileError ? (
                       <Alert className={styles.sideAlert} type="error" showIcon message={profileError} />
                     ) : null}
                     {profileNotice ? (
                       <Alert className={styles.sideAlert} type="success" showIcon message={profileNotice} />
                     ) : null}
-                    <section className={`${styles.settingSection} ${styles.exportSettings}`}>
-                      <div className={styles.panelHeader}>
-                        <span className={styles.panelIcon}>
-                          <FileText size={16} />
-                        </span>
-                        <div>
-                          <Text strong>{t('pdfTheme')}</Text>
-                          <Text type="secondary">{t('pdfThemeProfileHelp')}</Text>
-                        </div>
-                      </div>
+                    <section className={styles.exportWorkbench}>
                       <Form<ProfileFormValues>
                         form={exportForm}
-                        className={styles.form}
+                        className={`${styles.form} ${styles.exportForm}`}
                         layout="vertical"
                         name="budget-centre-export"
                         requiredMark={false}
                         onFinish={handleProfileSave}
                       >
-                        <Form.Item
-                          label={t('pdfTheme')}
-                          name="defaultPdfTheme"
-                          rules={[{ required: true, message: t('pdfThemeRequired') }]}
-                        >
-                          <Radio.Group
-                            className={styles.themeRadioGroup}
-                            options={pdfThemeOptions.map((theme) => ({
-                              label: (
-                                <span className={styles.themeOption}>
-                                  <span className={styles.themePreviewInline}>
-                                    <span
-                                      className={styles.themeSwatch}
-                                      style={
-                                        {
-                                          '--theme-swatch': theme.swatch,
-                                          '--theme-accent': theme.accent,
-                                        } as CSSProperties
-                                      }
-                                    />
-                                    <span className={styles.themeMiniRows}>
-                                      <span />
-                                      <span />
-                                      <span />
+                        <div className={styles.exportConfig}>
+                          <div className={styles.panelHeader}>
+                            <span className={styles.panelIcon}>
+                              <FileText size={16} />
+                            </span>
+                            <div>
+                              <Text strong>{t('pdfTheme')}</Text>
+                              <Text type="secondary">{t('pdfThemeProfileHelp')}</Text>
+                            </div>
+                          </div>
+                          <Form.Item
+                            label={t('pdfTheme')}
+                            name="defaultPdfTheme"
+                            rules={[{ required: true, message: t('pdfThemeRequired') }]}
+                          >
+                            <Radio.Group
+                              className={styles.themeRadioGroup}
+                              options={pdfThemeOptions.map((theme) => ({
+                                label: (
+                                  <span className={styles.themeOption}>
+                                    <span className={styles.themePreviewInline}>
+                                      <span
+                                        className={styles.themeSwatch}
+                                        style={
+                                          {
+                                            '--theme-swatch': theme.swatch,
+                                            '--theme-accent': theme.accent,
+                                          } as CSSProperties
+                                        }
+                                      />
+                                      <span className={styles.themeMiniRows}>
+                                        <span />
+                                        <span />
+                                        <span />
+                                      </span>
+                                    </span>
+                                    <span className={styles.themeOptionCopy}>
+                                      <strong>{t(pdfThemeLabelKey(theme.key))}</strong>
+                                      <small>{t(pdfThemeDescriptionKey(theme.key))}</small>
                                     </span>
                                   </span>
-                                  <span className={styles.themeOptionCopy}>
-                                    <strong>{t(pdfThemeLabelKey(theme.key))}</strong>
-                                    <small>{t(pdfThemeDescriptionKey(theme.key))}</small>
-                                  </span>
-                                </span>
-                              ),
-                              value: theme.key,
-                            }))}
-                            onChange={(event: RadioChangeEvent) => {
-                              exportForm.setFieldValue('defaultPdfTheme', normalizePdfTheme(event.target.value));
-                            }}
-                          />
-                        </Form.Item>
-                        <Form.Item hidden name="displayName">
-                          <Input />
-                        </Form.Item>
-                        <Form.Item
-                          className={styles.switchField}
-                          name={['pdfExportSettings', 'showWorkspace']}
-                          valuePropName="checked"
-                        >
-                          <SwitchSetting
-                            title={t('pdfExportShowWorkspace')}
-                            description={t('pdfExportShowWorkspaceDescription')}
-                          />
-                        </Form.Item>
-                        <Button type="primary" htmlType="submit" loading={isProfileSaving}>
-                          {t('saveProfile')}
-                        </Button>
+                                ),
+                                value: theme.key,
+                              }))}
+                              onChange={(event: RadioChangeEvent) => {
+                                exportForm.setFieldValue('defaultPdfTheme', normalizePdfTheme(event.target.value));
+                              }}
+                            />
+                          </Form.Item>
+                          <Form.Item hidden name="displayName">
+                            <Input />
+                          </Form.Item>
+                          <div className={styles.exportOptionGrid}>
+                            <Form.Item
+                              className={styles.switchField}
+                              name={['pdfExportSettings', 'showWorkspace']}
+                              valuePropName="checked"
+                            >
+                              <SwitchSetting
+                                title={t('pdfExportShowWorkspace')}
+                                description={t('pdfExportShowWorkspaceDescription')}
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              className={styles.segmentedField}
+                              label={t('bookkeepingPdfLayout')}
+                              name={['pdfExportSettings', 'bookkeepingLayout']}
+                            >
+                              <Segmented<BookkeepingPdfLayout>
+                                block
+                                options={[
+                                  { label: t('bookkeepingPdfLayoutLandscape'), value: 'landscape_table' },
+                                  { label: t('bookkeepingPdfLayoutVertical'), value: 'statement_vertical' },
+                                ]}
+                                shape="default"
+                                size="small"
+                              />
+                            </Form.Item>
+                          </div>
+                          <Button type="primary" htmlType="submit" loading={isProfileSaving}>
+                            {t('saveProfile')}
+                          </Button>
+                        </div>
                       </Form>
-                    </section>
-                    <section className={styles.exportPreview} aria-label={t('pdfExportPreview')}>
-                      <div className={styles.previewToolbar}>
-                        <span>{t('pdfExportPreview')}</span>
-                        <Tag color={previewPdfTheme === 'hsbc' ? 'red' : 'default'}>
-                          {t(pdfThemeLabelKey(previewPdfTheme))}
-                        </Tag>
-                      </div>
-                      <div
-                        className={`${styles.previewSheet} ${
-                          previewPdfTheme === 'hsbc' ? styles.previewStatement : styles.previewClassic
-                        }`}
-                      >
-                        <div className={styles.previewTop}>
-                          <div className={styles.previewTitle}>
-                            <span>{t('pdfExportPreviewTitle')}</span>
-                            <small>{t('pdfExportPreviewSubtitle')}</small>
-                          </div>
-                          <div className={styles.previewMeta}>
-                            <span>
-                              <b>Page / 頁</b>
-                              <em>1 of 1</em>
-                            </span>
-                            <span>
-                              <b>Date / 日期</b>
-                              <em>20 Jun 2026</em>
-                            </span>
-                            <span>
-                              <b>Workspace / 工作區</b>
-                              <em>
-                                {previewShowWorkspace
-                                  ? previewWorkspaceName
-                                  : t('pdfExportPreviewWorkspaceHidden')}
-                              </em>
-                            </span>
-                          </div>
+                      <section className={styles.exportPreview} aria-label={t('pdfExportPreview')}>
+                        <div className={styles.previewToolbar}>
+                          <span>{t('pdfExportPreview')}</span>
+                          <Space size={6} wrap>
+                            <Tag color={previewPdfTheme === 'hsbc' ? 'red' : 'default'}>
+                              {t(pdfThemeLabelKey(previewPdfTheme))}
+                            </Tag>
+                            <Tag color="default">{t(bookkeepingLayoutLabelKey(previewBookkeepingLayout))}</Tag>
+                          </Space>
                         </div>
-                        <div className={styles.previewBand}>{t('pdfExportPreviewSection')}</div>
-                        <div className={styles.previewRows}>
-                          <span />
-                          <span />
-                          <span />
+                        <div
+                          className={`${styles.previewSheet} ${
+                            previewPdfTheme === 'hsbc' ? styles.previewStatement : styles.previewClassic
+                          } ${
+                            previewBookkeepingLayout === 'statement_vertical'
+                              ? styles.previewVerticalLedger
+                              : styles.previewLandscapeLedger
+                          }`}
+                        >
+                          <div className={styles.previewTop}>
+                            <div className={styles.previewTitle}>
+                              <span>{t('pdfExportPreviewTitle')}</span>
+                              <small>{t('pdfExportPreviewSubtitle')}</small>
+                            </div>
+                            <div className={styles.previewMeta}>
+                              <span>
+                                <b>Page / 頁</b>
+                                <em>1</em>
+                              </span>
+                              <span>
+                                <b>Date / 日期</b>
+                                <em>20 Jun 2026</em>
+                              </span>
+                              {previewShowWorkspace ? (
+                                <span>
+                                  <b>Workspace / 工作區</b>
+                                  <em>{previewWorkspaceName}</em>
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className={styles.previewBand}>{t('pdfExportPreviewSection')}</div>
+                          <div className={styles.previewRows}>
+                            <span />
+                            <span />
+                            <span />
+                          </div>
+                          <div className={styles.previewSignature} />
                         </div>
-                        <div className={styles.previewSignature} />
-                      </div>
+                      </section>
                     </section>
                   </div>
                 ),
@@ -714,8 +744,17 @@ function pdfThemeDescriptionKey(theme: string) {
 
 function normalizePdfExportSettings(settings: Partial<PdfExportSettings> | null | undefined): PdfExportSettings {
   return {
+    bookkeepingLayout: normalizeBookkeepingLayout(settings?.bookkeepingLayout),
     showWorkspace: settings?.showWorkspace === true,
   };
+}
+
+function normalizeBookkeepingLayout(layout: string | null | undefined): BookkeepingPdfLayout {
+  return layout === 'statement_vertical' ? 'statement_vertical' : 'landscape_table';
+}
+
+function bookkeepingLayoutLabelKey(layout: BookkeepingPdfLayout) {
+  return layout === 'statement_vertical' ? 'bookkeepingPdfLayoutVertical' : 'bookkeepingPdfLayoutLandscape';
 }
 
 interface SwitchSettingProps {

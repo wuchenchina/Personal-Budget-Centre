@@ -171,6 +171,10 @@
   min-height: 100%;
 }
 
+.exportTabContent {
+  max-width: 100%;
+}
+
 .sideAlert {
   margin-bottom: 0;
 }
@@ -265,7 +269,7 @@
 
 .themeRadioGroup {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -276,7 +280,7 @@
   gap: 10px;
   width: 100%;
   margin-inline-end: 0;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid var(--bc-border-soft);
   border-radius: 0;
   transition:
@@ -295,17 +299,17 @@
 
 .themeOption {
   display: grid;
-  grid-template-columns: 86px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 10px;
   min-width: 0;
 }
 
 .themePreviewInline {
   display: grid;
   gap: 5px;
-  width: 86px;
+  width: 74px;
   min-width: 0;
-  padding: 7px;
+  padding: 6px;
   background: #ffffff;
   border: 1px solid var(--bc-border-soft);
 }
@@ -369,7 +373,7 @@
 }
 
 .switchField {
-  margin-bottom: 18px;
+  margin-bottom: 0;
 }
 
 .switchField :global(.ant-form-item-control-input) {
@@ -381,9 +385,71 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
-  padding: 12px;
+  min-height: 100%;
+  padding: 11px 12px;
   background: #ffffff;
   border: 1px solid var(--bc-border-soft);
+}
+
+.exportWorkbench {
+  display: grid;
+  grid-template-columns: minmax(380px, 1fr) minmax(300px, 380px);
+  align-items: stretch;
+  gap: 16px;
+  min-width: 0;
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid var(--bc-border-soft);
+}
+
+.exportForm {
+  min-width: 0;
+}
+
+.exportConfig {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.exportOptionGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.82fr);
+  gap: 10px;
+  min-width: 0;
+}
+
+.segmentedField {
+  margin-bottom: 0;
+  padding: 11px 12px;
+  background: #ffffff;
+  border: 1px solid var(--bc-border-soft);
+}
+
+.segmentedField :global(.ant-form-item-label) {
+  padding-bottom: 6px;
+}
+
+.segmentedField :global(.ant-form-item-label > label) {
+  height: auto;
+  color: var(--bc-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.segmentedField :global(.ant-form-item-control-input) {
+  min-height: 0;
+}
+
+.segmentedField :global(.ant-segmented) {
+  width: 100%;
+  border-radius: 0;
+}
+
+.segmentedField :global(.ant-segmented-item),
+.segmentedField :global(.ant-segmented-thumb) {
+  border-radius: 0;
 }
 
 .switchCopy {
@@ -408,9 +474,10 @@
   display: grid;
   gap: 10px;
   min-width: 0;
-  padding: 20px;
+  align-content: start;
+  padding: 0;
   background: #ffffff;
-  border: 1px solid var(--bc-border-soft);
+  border: 0;
 }
 
 .previewToolbar {
@@ -425,9 +492,10 @@
 
 .previewSheet {
   display: grid;
-  gap: 10px;
-  min-height: 430px;
-  padding: 16px;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 9px;
+  min-height: 318px;
+  padding: 14px;
   overflow: hidden;
   background: #ffffff;
   border: 1px solid var(--bc-border);
@@ -445,7 +513,7 @@
 
 .previewTop {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .previewTitle {
@@ -456,7 +524,7 @@
 
 .previewTitle span {
   color: var(--bc-accent);
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1.12;
 }
 
@@ -476,15 +544,15 @@
   display: grid;
   gap: 0;
   margin-left: auto;
-  width: min(100%, 210px);
+  width: min(100%, 224px);
   font-size: 10px;
 }
 
 .previewMeta span {
   display: grid;
-  grid-template-columns: 82px minmax(0, 1fr);
+  grid-template-columns: 92px minmax(0, 1fr);
   gap: 8px;
-  padding: 4px 0;
+  padding: 3px 0;
   border-bottom: 1px solid var(--bc-border-soft);
 }
 
@@ -504,7 +572,7 @@
 }
 
 .previewBand {
-  margin-top: 8px;
+  margin-top: 4px;
   padding: 6px 8px;
   color: var(--bc-text);
   background: #a4a4a4;
@@ -525,7 +593,7 @@
 }
 
 .previewRows span {
-  height: 30px;
+  height: 24px;
   border-bottom: 1px solid var(--bc-border-soft);
   background:
     linear-gradient(90deg, #d9d9d9 0 22%, transparent 22% 28%, #ececec 28% 60%, transparent 60% 66%, #f5f5f5 66% 100%);
@@ -543,12 +611,35 @@
 
 .previewSignature {
   align-self: end;
-  height: 52px;
-  margin-top: 18px;
+  height: 42px;
+  margin-top: 8px;
   border: 1px solid #7e7e7e;
   background:
     linear-gradient(#a4a4a4 0 13px, transparent 13px),
     linear-gradient(90deg, transparent 0 52%, #d9d9d9 52% 53%, transparent 53% 100%);
+}
+
+.previewVerticalLedger .previewRows {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  border-top: 0;
+}
+
+.previewVerticalLedger .previewRows span {
+  height: 56px;
+  border: 1px solid var(--bc-border-soft);
+  background:
+    linear-gradient(#ededed 0 12px, transparent 12px),
+    linear-gradient(90deg, #d9d9d9 0 42%, transparent 42% 52%, #eeeeee 52% 100%);
+}
+
+.previewVerticalLedger .previewRows span:nth-child(3) {
+  grid-column: 1 / -1;
+  height: 42px;
+}
+
+.previewLandscapeLedger .previewRows {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .form :global(.ant-btn-primary),
@@ -685,6 +776,14 @@
   }
 
   .exportLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .exportWorkbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .exportOptionGrid {
     grid-template-columns: minmax(0, 1fr);
   }
 }

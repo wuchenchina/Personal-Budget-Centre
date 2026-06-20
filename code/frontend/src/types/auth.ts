@@ -1,4 +1,4 @@
-import type { CurrencyCode, PdfThemeKey, WorkspaceRole } from './budget';
+import type { BookkeepingPdfLayout, CurrencyCode, PdfThemeKey, WorkspaceRole } from './budget';
 
 export type UserStatus = 'active' | 'disabled' | 'pending';
 
@@ -18,6 +18,7 @@ export interface AuthUser {
 }
 
 export interface PdfExportSettings {
+  bookkeepingLayout: BookkeepingPdfLayout;
   showWorkspace: boolean;
 }
 
