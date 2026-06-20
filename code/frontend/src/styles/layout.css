@@ -1,6 +1,6 @@
 .app-shell {
   min-height: 100dvh;
-  background: var(--bc-page);
+  background: #ffffff;
 }
 
 .app-shell > .ant-layout {
@@ -8,7 +8,7 @@
 }
 
 .app-sidebar {
-  background: #fbfdfd;
+  background: #ffffff;
   border-right: 1px solid var(--bc-border);
 }
 
@@ -47,18 +47,28 @@
 }
 
 .app-menu .ant-menu-item {
+  position: relative;
   color: var(--bc-text-muted);
   border-radius: 0;
 }
 
 .app-menu .ant-menu-item:hover {
-  color: var(--bc-accent-strong);
-  background: var(--bc-accent-soft);
+  color: var(--bc-text-muted);
+  background: #ffffff;
 }
 
 .app-menu .ant-menu-item-selected {
-  color: var(--bc-accent-strong);
-  background: var(--bc-accent-soft);
+  color: var(--bc-accent);
+  background: #ffffff;
+  font-weight: 700;
+}
+
+.app-menu .ant-menu-item-selected::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--bc-accent);
+  content: '';
 }
 
 .app-header {
@@ -69,7 +79,7 @@
   height: auto;
   min-height: 64px;
   padding: 8px 18px;
-  background: rgba(255, 255, 255, 0.92);
+  background: #ffffff;
   border-bottom: 1px solid var(--bc-border);
   line-height: normal;
 }
@@ -165,7 +175,7 @@
   min-height: 100dvh;
   overflow-x: hidden;
   padding: 18px;
-  background: var(--bc-page);
+  background: #ffffff;
 }
 
 .form-full-width {
@@ -267,7 +277,7 @@
 .installment-config-panel {
   margin: 4px 0 16px;
   padding: 12px;
-  background: #fafafa;
+  background: #ffffff;
   border: 1px solid #f0f0f0;
   border-radius: 0;
 }
@@ -306,7 +316,7 @@
 
 .installment-options-panel {
   padding: 12px;
-  background: #fafafa;
+  background: #ffffff;
   border: 1px solid #f0f0f0;
   border-radius: 0;
 }
@@ -346,7 +356,7 @@
 .currency-config-panel {
   margin: 8px 0 16px;
   padding: 12px;
-  background: #fafafa;
+  background: #ffffff;
   border: 1px solid #f0f0f0;
   border-radius: 0;
 }
@@ -419,12 +429,12 @@
 }
 
 .currency-field-card-muted {
-  background: #fcfcfc;
+  background: #ffffff;
 }
 
 .budget-modal-focus-target {
   border-color: var(--bc-accent) !important;
-  box-shadow: 0 0 0 2px rgba(219, 0, 17, 0.14);
+  box-shadow: none;
 }
 
 .entry-basic-grid.budget-modal-focus-target {
@@ -581,7 +591,7 @@
 
 .signature-config-row {
   padding: 12px;
-  background: #fafafa;
+  background: #ffffff;
   border: 1px solid #f0f0f0;
   border-radius: 0;
 }
@@ -592,7 +602,7 @@
 
 .signature-config-row-collapse {
   overflow: hidden;
-  background: #fafafa;
+  background: #ffffff;
   border: 1px solid #f0f0f0;
   border-radius: 0;
 }
@@ -634,8 +644,8 @@
 }
 
 .signature-row-drag-handle:hover {
-  color: var(--bc-accent);
-  background: var(--bc-accent-soft);
+  color: #8c8c8c;
+  background: #ffffff;
 }
 
 .signature-config-row-body {

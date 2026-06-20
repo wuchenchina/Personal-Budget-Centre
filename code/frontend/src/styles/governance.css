@@ -61,7 +61,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: #fafafa;
+  background: #ffffff;
   border: 1px solid #f0f0f0;
   border-radius: 0;
 }
@@ -74,8 +74,9 @@
 }
 
 .workspace-list-item-active {
-  background: var(--bc-accent-soft);
-  border-color: var(--bc-accent-border);
+  background: #ffffff;
+  border-color: var(--bc-accent);
+  color: var(--bc-accent);
 }
 
 .workspace-list-item span {
@@ -133,7 +134,7 @@
   gap: 8px;
   min-width: 0;
   padding: 8px 9px;
-  background: #fafafa;
+  background: #ffffff;
   border: 1px solid #f0f0f0;
   border-radius: 0;
 }
@@ -206,7 +207,7 @@
   min-height: 34px;
   margin-bottom: 10px;
   padding: 7px 10px;
-  background: #fafafa;
+  background: #ffffff;
   border: 1px solid #f0f0f0;
   border-radius: 0;
 }

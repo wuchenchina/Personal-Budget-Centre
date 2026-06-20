@@ -4,10 +4,10 @@
 
 :root {
   --bc-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --bc-page: #f3f3f3;
+  --bc-page: #ffffff;
   --bc-surface: #ffffff;
-  --bc-surface-soft: #fafafa;
-  --bc-surface-muted: #ededed;
+  --bc-surface-soft: #ffffff;
+  --bc-surface-muted: #ffffff;
   --bc-border: #d8d8d8;
   --bc-border-soft: #e6e6e6;
   --bc-text: #1b1b1b;
@@ -19,12 +19,12 @@
   --bc-accent-border: #f2a3aa;
   --bc-warning: #a86100;
   --bc-danger: #db0011;
-  --bc-shadow-soft: 0 1px 2px rgba(17, 17, 17, 0.04), 0 12px 30px rgba(17, 17, 17, 0.08);
+  --bc-shadow-soft: none;
 }
 
 html {
   min-width: 320px;
-  background: var(--bc-page);
+  background: #ffffff;
 }
 
 body {
@@ -32,7 +32,7 @@ body {
   min-height: 100dvh;
   margin: 0;
   color: var(--bc-text);
-  background: var(--bc-page);
+  background: #ffffff;
   font-family: var(--bc-font-sans);
   font-variant-numeric: tabular-nums;
 }
@@ -46,6 +46,14 @@ select {
 
 #root {
   min-height: 100dvh;
+}
+
+*,
+*::before,
+*::after {
+  box-shadow: none !important;
+  transition: none !important;
+  animation: none !important;
 }
 
 .ant-btn,
@@ -78,6 +86,32 @@ select {
 
 .ant-btn-primary:not(:disabled):hover,
 .ant-btn-primary:not(:disabled):focus-visible {
-  background: var(--bc-accent-strong) !important;
-  border-color: var(--bc-accent-strong) !important;
+  background: var(--bc-accent) !important;
+  border-color: var(--bc-accent) !important;
+}
+
+.ant-btn:not(:disabled):hover,
+.ant-btn:not(:disabled):active,
+.ant-menu-item:hover,
+.ant-table-tbody > tr:hover > td {
+  transform: none !important;
+}
+
+.ant-btn-default:not(:disabled):hover,
+.ant-btn-dashed:not(:disabled):hover,
+.ant-btn-text:not(:disabled):hover,
+.ant-btn-link:not(:disabled):hover {
+  color: inherit !important;
+  background: #ffffff !important;
+  border-color: var(--bc-border) !important;
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-number-focused,
+.ant-picker-focused,
+.ant-select-focused .ant-select-selector,
+.ant-btn:focus-visible {
+  outline: 2px solid var(--bc-accent) !important;
+  outline-offset: 2px;
 }

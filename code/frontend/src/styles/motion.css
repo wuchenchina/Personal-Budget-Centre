@@ -1,120 +1,9 @@
 :root {
-  --bc-motion-fast: 140ms;
-  --bc-motion-base: 220ms;
-  --bc-motion-slow: 520ms;
-  --bc-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --bc-ease-standard: cubic-bezier(0.2, 0, 0, 1);
-}
-
-@keyframes bc-reveal-up {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 12px, 0);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes bc-reveal-soft {
-  from {
-    opacity: 0;
-    transform: scale(0.985);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.app-content > *,
-.standalone-budget-editor > *,
-.auth-loading-panel,
-.verification-panel {
-  animation: bc-reveal-up var(--bc-motion-slow) var(--bc-ease-out) both;
-}
-
-.project-dashboard > *,
-.project-library > *,
-.workspace-grid > *,
-.view-stack > *,
-.budget-editor-shell > *,
-.bookkeeping-page > *,
-.admin-page > *,
-.profile-page > * {
-  animation: bc-reveal-up var(--bc-motion-slow) var(--bc-ease-out) both;
-}
-
-.project-dashboard > *:nth-child(2),
-.project-library > *:nth-child(2),
-.workspace-grid > *:nth-child(2),
-.view-stack > *:nth-child(2),
-.budget-editor-shell > *:nth-child(2),
-.bookkeeping-page > *:nth-child(2),
-.admin-page > *:nth-child(2),
-.profile-page > *:nth-child(2) {
-  animation-delay: 45ms;
-}
-
-.project-dashboard > *:nth-child(3),
-.project-library > *:nth-child(3),
-.view-stack > *:nth-child(3),
-.budget-editor-shell > *:nth-child(3),
-.bookkeeping-page > *:nth-child(3),
-.admin-page > *:nth-child(3),
-.profile-page > *:nth-child(3) {
-  animation-delay: 90ms;
-}
-
-.project-dashboard > *:nth-child(n + 4),
-.project-library > *:nth-child(n + 4),
-.view-stack > *:nth-child(n + 4),
-.budget-editor-shell > *:nth-child(n + 4),
-.bookkeeping-page > *:nth-child(n + 4),
-.admin-page > *:nth-child(n + 4),
-.profile-page > *:nth-child(n + 4) {
-  animation-delay: 120ms;
-}
-
-.project-hero,
-.project-page-header,
-.workspace-command-panel,
-.project-panel,
-.project-list-card,
-.overview-tile,
-.metric-panel,
-.document-workbench,
-.governance-panel,
-.admin-page-header,
-.admin-panel,
-.workspace-directory-panel,
-.workspace-summary-panel,
-.profile-hero,
-.profile-panel,
-.auth-loading-panel,
-.verification-panel {
-  transition:
-    border-color var(--bc-motion-base) var(--bc-ease-standard),
-    box-shadow var(--bc-motion-base) var(--bc-ease-standard),
-    transform var(--bc-motion-base) var(--bc-ease-standard),
-    background-color var(--bc-motion-base) var(--bc-ease-standard);
-}
-
-.project-panel:hover,
-.project-list-card:hover,
-.overview-tile:hover,
-.metric-panel:hover,
-.governance-panel:hover,
-.admin-panel:hover,
-.workspace-directory-panel:hover,
-.workspace-summary-panel:hover,
-.profile-panel:hover {
-  border-color: var(--bc-accent-border);
-  box-shadow: var(--bc-shadow-soft);
-  transform: translateY(-1px);
+  --bc-motion-fast: 0ms;
+  --bc-motion-base: 0ms;
+  --bc-motion-slow: 0ms;
+  --bc-ease-out: linear;
+  --bc-ease-standard: linear;
 }
 
 .project-list-card-active {
@@ -125,35 +14,54 @@
 .project-list-card-active::before {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 3px;
+  width: 4px;
   background: var(--bc-accent);
   content: '';
-  transform-origin: top;
-  animation: bc-reveal-soft 360ms var(--bc-ease-out) both;
 }
 
-.project-card,
-.workspace-directory-item,
-.workspace-list-item,
-.member-list-item,
-.operation-list-item,
-.budget-list-item,
-.currency-field-card,
-.signature-config-row,
-.signature-config-row-collapse,
-.individual-split-list,
-.per-person-split-preview,
-.group-participants-editor,
-.group-split-panel,
-.group-budget-panel,
-.workspace-stat {
-  transition:
-    border-color var(--bc-motion-base) var(--bc-ease-standard),
-    box-shadow var(--bc-motion-base) var(--bc-ease-standard),
-    transform var(--bc-motion-base) var(--bc-ease-standard),
-    background-color var(--bc-motion-base) var(--bc-ease-standard);
+.project-card:active,
+.workspace-directory-item:active,
+.budget-list-main:active,
+.ant-btn:not(:disabled):active,
+.project-panel:hover,
+.project-list-card:hover,
+.overview-tile:hover,
+.metric-panel:hover,
+.governance-panel:hover,
+.admin-panel:hover,
+.workspace-directory-panel:hover,
+.workspace-summary-panel:hover,
+.profile-panel:hover,
+.workspace-list-item:hover,
+.member-list-item:hover,
+.operation-list-item:hover,
+.budget-list-item:hover,
+.currency-field-card:hover,
+.signature-config-row:hover,
+.signature-config-row-collapse:hover,
+.individual-split-list:hover,
+.per-person-split-preview:hover,
+.group-participants-editor:hover,
+.group-split-panel:hover,
+.group-budget-panel:hover,
+.workspace-stat:hover,
+.ant-btn-primary:not(:disabled):hover,
+.app-menu .ant-menu-item:hover,
+.app-menu .ant-menu-item-selected,
+.mobile-nav .ant-menu-item:hover,
+.mobile-nav .ant-menu-item-selected {
+  transform: none;
 }
 
+.project-panel:hover,
+.project-list-card:hover,
+.overview-tile:hover,
+.metric-panel:hover,
+.governance-panel:hover,
+.admin-panel:hover,
+.workspace-directory-panel:hover,
+.workspace-summary-panel:hover,
+.profile-panel:hover,
 .workspace-list-item:hover,
 .member-list-item:hover,
 .operation-list-item:hover,
@@ -167,58 +75,8 @@
 .group-split-panel:hover,
 .group-budget-panel:hover,
 .workspace-stat:hover {
-  border-color: var(--bc-accent-border);
-  box-shadow: 0 10px 24px rgba(20, 52, 61, 0.07);
-  transform: translateY(-1px);
-}
-
-.project-card:active,
-.workspace-directory-item:active,
-.budget-list-main:active,
-.ant-btn:not(:disabled):active {
-  transform: translateY(1px) scale(0.99);
-}
-
-.ant-btn {
-  transition:
-    color var(--bc-motion-fast) var(--bc-ease-standard),
-    border-color var(--bc-motion-fast) var(--bc-ease-standard),
-    background-color var(--bc-motion-fast) var(--bc-ease-standard),
-    box-shadow var(--bc-motion-base) var(--bc-ease-standard),
-    transform var(--bc-motion-fast) var(--bc-ease-standard);
-}
-
-.ant-btn-primary:not(:disabled):hover {
-  box-shadow: 0 12px 24px rgba(219, 0, 17, 0.18);
-  transform: translateY(-1px);
-}
-
-.ant-menu-item,
-.ant-segmented-item,
-.ant-select-selector,
-.ant-input,
-.ant-input-number,
-.ant-picker,
-.ant-checkbox-inner,
-.ant-tag {
-  transition:
-    border-color var(--bc-motion-fast) var(--bc-ease-standard),
-    background-color var(--bc-motion-fast) var(--bc-ease-standard),
-    box-shadow var(--bc-motion-base) var(--bc-ease-standard),
-    color var(--bc-motion-fast) var(--bc-ease-standard),
-    transform var(--bc-motion-fast) var(--bc-ease-standard);
-}
-
-.app-menu .ant-menu-item:hover,
-.app-menu .ant-menu-item-selected,
-.mobile-nav .ant-menu-item:hover,
-.mobile-nav .ant-menu-item-selected {
-  transform: translateX(2px);
-}
-
-.mobile-nav .ant-menu-item:hover,
-.mobile-nav .ant-menu-item-selected {
-  transform: translateY(-1px);
+  border-color: var(--bc-border);
+  box-shadow: none;
 }
 
 .ant-input:focus,
@@ -226,95 +84,18 @@
 .ant-input-number-focused,
 .ant-picker-focused,
 .ant-select-focused .ant-select-selector {
-  box-shadow: 0 0 0 3px rgba(219, 0, 17, 0.12) !important;
-}
-
-.ant-table-tbody > tr > td {
-  transition:
-    background-color var(--bc-motion-fast) var(--bc-ease-standard),
-    color var(--bc-motion-fast) var(--bc-ease-standard);
+  outline: 2px solid var(--bc-accent) !important;
+  outline-offset: 2px;
+  box-shadow: none !important;
 }
 
 .ant-table-tbody > tr:hover > td {
-  background: rgba(219, 0, 17, 0.045) !important;
-}
-
-.ant-modal,
-.ant-dropdown,
-.ant-popover,
-.ant-select-dropdown {
-  animation-duration: var(--bc-motion-base) !important;
-  animation-timing-function: var(--bc-ease-out) !important;
+  background: #ffffff !important;
 }
 
 .ant-modal-content,
 .ant-popover-inner,
 .ant-dropdown-menu,
 .ant-select-dropdown {
-  box-shadow: 0 18px 42px rgba(20, 52, 61, 0.14);
-}
-
-.ant-skeleton.ant-skeleton-active .ant-skeleton-title,
-.ant-skeleton.ant-skeleton-active .ant-skeleton-paragraph > li,
-.ant-skeleton.ant-skeleton-active .ant-skeleton-button,
-.ant-skeleton.ant-skeleton-active .ant-skeleton-input {
-  background-size: 240% 100% !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-delay: 0ms !important;
-    animation-iteration-count: 1 !important;
-  }
-
-  .app-content > *,
-  .standalone-budget-editor > *,
-  .auth-loading-panel,
-  .verification-panel,
-  .project-dashboard > *,
-  .project-library > *,
-  .workspace-grid > *,
-  .view-stack > *,
-  .budget-editor-shell > *,
-  .bookkeeping-page > *,
-  .admin-page > *,
-  .profile-page > * {
-    opacity: 1 !important;
-    transform: none !important;
-  }
-
-  .project-panel:hover,
-  .project-list-card:hover,
-  .overview-tile:hover,
-  .metric-panel:hover,
-  .governance-panel:hover,
-  .admin-panel:hover,
-  .workspace-directory-panel:hover,
-  .workspace-summary-panel:hover,
-  .profile-panel:hover,
-  .workspace-list-item:hover,
-  .member-list-item:hover,
-  .operation-list-item:hover,
-  .budget-list-item:hover,
-  .currency-field-card:hover,
-  .signature-config-row:hover,
-  .signature-config-row-collapse:hover,
-  .individual-split-list:hover,
-  .per-person-split-preview:hover,
-  .group-participants-editor:hover,
-  .group-split-panel:hover,
-  .group-budget-panel:hover,
-  .workspace-stat:hover,
-  .ant-btn-primary:not(:disabled):hover,
-  .app-menu .ant-menu-item:hover,
-  .app-menu .ant-menu-item-selected,
-  .mobile-nav .ant-menu-item:hover,
-  .mobile-nav .ant-menu-item-selected {
-    transform: none;
-  }
+  box-shadow: none;
 }
