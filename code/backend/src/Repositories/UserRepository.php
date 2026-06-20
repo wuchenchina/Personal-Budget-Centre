@@ -26,6 +26,7 @@ final readonly class UserRepository
               timezone,
               locale,
               default_pdf_theme,
+              pdf_export_settings,
               status,
               is_admin,
               email_verified_at
@@ -54,6 +55,7 @@ final readonly class UserRepository
               timezone,
               locale,
               default_pdf_theme,
+              pdf_export_settings,
               status,
               is_admin,
               email_verified_at
@@ -88,6 +90,7 @@ final readonly class UserRepository
               timezone,
               locale,
               default_pdf_theme,
+              pdf_export_settings,
               status,
               is_admin,
               email_verified_at
@@ -116,6 +119,7 @@ final readonly class UserRepository
               timezone,
               locale,
               default_pdf_theme,
+              pdf_export_settings,
               status,
               is_admin,
               email_verified_at
@@ -194,6 +198,7 @@ final readonly class UserRepository
         string $email,
         string $displayName,
         string $defaultPdfTheme,
+        ?string $pdfExportSettings,
         bool $emailChanged,
     ): void {
         $emailVerifiedSql = $emailChanged ? 'email_verified_at = NULL,' : '';
@@ -203,6 +208,7 @@ final readonly class UserRepository
             SET email = :email,
                 display_name = :display_name,
                 default_pdf_theme = :default_pdf_theme,
+                pdf_export_settings = :pdf_export_settings,
                 {$emailVerifiedSql}
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = :id
@@ -212,6 +218,7 @@ final readonly class UserRepository
             'email' => $email,
             'display_name' => $displayName,
             'default_pdf_theme' => $defaultPdfTheme,
+            'pdf_export_settings' => $pdfExportSettings,
             'id' => $userId,
         ]);
     }

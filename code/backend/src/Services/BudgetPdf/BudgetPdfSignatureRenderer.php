@@ -19,14 +19,16 @@ final readonly class BudgetPdfSignatureRenderer
         return ($theme ?? new ClassicPdfTheme())->signatureCss();
     }
 
-    public function render(array $budget): string
+    public function render(array $budget, ?BudgetPdfThemeDefinition $theme = null): string
     {
         $config = $budget['signatureConfig'] ?? null;
         if (!is_array($config) || ($config['enabled'] ?? false) !== true || !is_array($config['rows'] ?? null) || $config['rows'] === []) {
             return '';
         }
 
-        $width = ($config['sectionAlign'] ?? null) === 'right' ? 76.0 : 152.0;
+        $width = ($config['sectionAlign'] ?? null) === 'right'
+            ? 76.0
+            : ($theme ?? new ClassicPdfTheme())->signatureFullWidthMm();
         $svg = $this->svg($config, $width);
         $height = $this->svgHeight($config, $width);
 

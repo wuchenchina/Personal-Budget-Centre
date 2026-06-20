@@ -22,22 +22,19 @@ final readonly class StatementRedPdfTheme implements BudgetPdfThemeDefinition
     {
         return '@page{margin:16mm 16mm 17mm;footer:html_budgetPageFooter;}'
             . 'body{font-family:Arial,TCSongti,sans-serif;color:#111;font-size:7.2pt;}'
-            . '.statement-red-header{margin:0 0 11mm;}'
-            . '.statement-red-brand-row{width:100%;border-collapse:collapse;margin:0 0 8mm;}'
-            . '.statement-red-mark-cell{width:42mm;vertical-align:top;}'
-            . '.statement-red-mark{display:inline-block;width:13mm;height:9mm;background:#db0011;}'
-            . '.statement-red-brand{display:inline-block;margin-left:3mm;color:#000;font-family:Arial,TCSongti,sans-serif;font-size:13pt;font-weight:700;line-height:1.05;}'
-            . '.statement-red-brand small{display:block;font-size:8pt;font-weight:700;line-height:1.1;}'
-            . '.statement-red-meta-cell{text-align:right;vertical-align:top;font-size:7.3pt;line-height:1.55;}'
-            . '.statement-red-title{color:#db0011;font-family:Arial,TCSongti,sans-serif;font-size:20pt;font-weight:400;line-height:1.12;margin:0 0 8mm;}'
+            . '.statement-red-header{margin:0 0 10mm;}'
+            . '.statement-red-header-table{width:100%;border-collapse:collapse;margin:0 0 8mm;}'
+            . '.statement-red-title-cell{vertical-align:bottom;padding:0 8mm 0 0;}'
+            . '.statement-red-meta-cell{width:64mm;text-align:right;vertical-align:top;padding:0;}'
+            . '.statement-red-meta-table{width:100%;border-collapse:collapse;font-size:7.1pt;line-height:1.28;}'
+            . '.statement-red-meta-table td{padding:0.55mm 0;border-bottom:0.2mm solid #d9d9d9;vertical-align:top;}'
+            . '.statement-red-meta-label{width:27mm;text-align:left;color:#555;white-space:nowrap;}'
+            . '.statement-red-meta-value{text-align:right;color:#111;}'
+            . '.statement-red-title{color:#db0011;font-family:Arial,TCSongti,sans-serif;font-size:20pt;font-weight:400;line-height:1.12;margin:0;}'
             . '.statement-red-subtitle{font-size:8.2pt;line-height:1.35;color:#111;}'
             . '.title,.subtitle{display:none;}'
             . '.title-line,.subtitle-line{display:block;line-height:1.22;}'
-            . '.page-footer{font-family:Arial,TCSongti,sans-serif;font-size:7pt;color:#111;}'
-            . '.statement-red-footer{width:100%;border-collapse:collapse;}'
-            . '.statement-red-footer td{vertical-align:bottom;}'
-            . '.statement-red-footer-right{text-align:right;}'
-            . '.statement-red-footer-code{display:block;font-size:5.6pt;margin-top:1.8mm;}';
+            . '.page-footer{font-family:Arial,TCSongti,sans-serif;font-size:7pt;color:#111;}';
     }
 
     public function budgetTableCss(): string
@@ -101,14 +98,14 @@ final readonly class StatementRedPdfTheme implements BudgetPdfThemeDefinition
             . '.signature-section{margin-top:5.5mm;}';
     }
 
+    public function signatureFullWidthMm(): float
+    {
+        return 178.0;
+    }
+
     public function footerHtml(string $scope): string
     {
-        $documentType = $scope === 'bookkeeping' ? 'Bookkeeping export' : 'Budget document';
-
-        return '<htmlpagefooter name="budgetPageFooter"><div class="page-footer">'
-            . '<table class="statement-red-footer"><tr><td>BudgetCentre PDF export<br>BudgetCentre PDF 匯出</td>'
-            . '<td class="statement-red-footer-right">' . $documentType . '<span class="statement-red-footer-code">BUDGETCENTRE</span></td></tr></table>'
-            . '</div></htmlpagefooter>';
+        return '<htmlpagefooter name="budgetPageFooter"></htmlpagefooter>';
     }
 
     public function headerHtml(
@@ -117,8 +114,8 @@ final readonly class StatementRedPdfTheme implements BudgetPdfThemeDefinition
         string $subtitleHtml,
         BudgetPdfFormatter $formatter,
         string $scope,
+        array $options = [],
     ): string {
-        $referenceNumber = $this->referenceNumber($budget);
         $date = date('j F Y');
         $documentTitle = $titleHtml;
         $subtitle = trim(strip_tags(str_replace(['</div>', '<br>'], "\n", $subtitleHtml)));
@@ -126,30 +123,36 @@ final readonly class StatementRedPdfTheme implements BudgetPdfThemeDefinition
         if ($subtitle !== '') {
             $subtitleContent .= ($subtitleContent === '' ? '' : '<br>') . $formatter->escapeHtml($subtitle);
         }
+        $metaRows = [
+            ['Page', '頁', 'Page {PAGENO} of {nbpg}'],
+            ['Date', '日期', $date],
+        ];
+        $workspaceName = trim((string) ($budget['workspaceName'] ?? $budget['workspace_name'] ?? ''));
+        if (($options['showWorkspace'] ?? $options['show_workspace'] ?? false) === true && $workspaceName !== '') {
+            $metaRows[] = ['Workspace', '工作區', $workspaceName];
+        }
 
         return '<div class="statement-red-header">'
-            . '<table class="statement-red-brand-row"><tr><td class="statement-red-mark-cell">'
-            . '<span class="statement-red-mark"></span><span class="statement-red-brand"><small>BudgetCentre</small>Report</span>'
-            . '</td><td class="statement-red-meta-cell">'
-            . 'Reference No. 參考編號: ' . $formatter->escapeHtml($referenceNumber) . '<br>'
-            . 'Workspace 工作區: DIGITAL LEDGER<br>'
-            . 'Page {PAGENO} of {nbpg}<br>'
-            . $formatter->escapeHtml($date)
-            . '</td></tr></table>'
+            . '<table class="statement-red-header-table"><tr><td class="statement-red-title-cell">'
             . '<div class="statement-red-title">' . $documentTitle . '</div>'
+            . '</td><td class="statement-red-meta-cell">'
+            . $this->metaTableHtml($metaRows, $formatter)
+            . '</td></tr></table>'
             . ($subtitleContent === '' ? '' : '<div class="statement-red-subtitle">' . $subtitleContent . '</div>')
             . '</div>';
     }
 
-    private function referenceNumber(array $budget): string
+    private function metaTableHtml(array $rows, BudgetPdfFormatter $formatter): string
     {
-        $id = (int) ($budget['id'] ?? 0);
-        $workspaceId = (int) ($budget['workspaceId'] ?? $budget['workspace_id'] ?? 0);
-        $seed = str_pad((string) max(1, $id), 6, '0', STR_PAD_LEFT);
+        $html = '<table class="statement-red-meta-table">';
+        foreach ($rows as [$english, $chinese, $value]) {
+            $html .= '<tr><td class="statement-red-meta-label">'
+                . $formatter->escapeHtml($english . ' / ' . $chinese)
+                . '</td><td class="statement-red-meta-value">'
+                . $formatter->escapeHtml((string) $value)
+                . '</td></tr>';
+        }
 
-        return str_pad((string) ($workspaceId % 1000), 3, '0', STR_PAD_LEFT)
-            . '-' . substr($seed, -6, 3)
-            . substr($seed, -3)
-            . '-' . str_pad((string) ($id % 1000), 3, '0', STR_PAD_LEFT);
+        return $html . '</table>';
     }
 }

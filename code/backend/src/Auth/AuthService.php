@@ -256,6 +256,7 @@ final readonly class AuthService
                 'timezone' => $session['timezone'],
                 'locale' => $session['locale'],
                 'default_pdf_theme' => $session['default_pdf_theme'] ?? BudgetPdfTheme::DEFAULT,
+                'pdf_export_settings' => $session['pdf_export_settings'] ?? null,
                 'status' => $session['status'],
                 'is_admin' => $session['is_admin'] ?? 0,
                 'email_verified_at' => $session['email_verified_at'] ?? null,
@@ -299,11 +300,19 @@ final readonly class AuthService
             ?? $currentUser['default_pdf_theme']
             ?? BudgetPdfTheme::DEFAULT,
         );
+        $pdfExportSettings = $this->pdfExportSettingsJsonFromInput($input, $currentUser['pdf_export_settings'] ?? null);
         $verificationToken = null;
 
         $this->pdo->beginTransaction();
         try {
-            $users->updateProfile($userId, $email, $displayName, $defaultPdfTheme, $emailChanged);
+            $users->updateProfile(
+                $userId,
+                $email,
+                $displayName,
+                $defaultPdfTheme,
+                $pdfExportSettings,
+                $emailChanged,
+            );
             if ($emailChanged) {
                 $verificationToken = $this->createEmailVerificationToken($userId);
             }
@@ -788,10 +797,58 @@ final readonly class AuthService
             'timezone' => $user['timezone'] ?? null,
             'locale' => $user['locale'] ?? null,
             'defaultPdfTheme' => BudgetPdfTheme::normalize($user['default_pdf_theme'] ?? null),
+            'pdfExportSettings' => $this->publicPdfExportSettings($user['pdf_export_settings'] ?? null),
             'status' => $user['status'] ?? null,
             'isAdmin' => isset($user['is_admin']) && (bool) $user['is_admin'],
             'emailVerifiedAt' => $user['email_verified_at'] ?? null,
         ];
+    }
+
+    private function pdfExportSettingsJsonFromInput(array $input, mixed $currentRaw): string
+    {
+        $raw = $input['pdfExportSettings'] ?? $input['pdf_export_settings'] ?? null;
+        $current = $this->publicPdfExportSettings($currentRaw);
+        if ($raw === null) {
+            return $this->encodePdfExportSettings($current);
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        if (!is_array($raw)) {
+            $raw = [];
+        }
+
+        return $this->encodePdfExportSettings([
+            'showWorkspace' => (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? $current['showWorkspace']),
+        ]);
+    }
+
+    private function publicPdfExportSettings(mixed $raw): array
+    {
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        if (!is_array($raw)) {
+            $raw = [];
+        }
+
+        return [
+            'showWorkspace' => (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? false),
+        ];
+    }
+
+    private function encodePdfExportSettings(array $settings): string
+    {
+        $encoded = json_encode([
+            'showWorkspace' => (bool) ($settings['showWorkspace'] ?? false),
+        ], JSON_THROW_ON_ERROR);
+
+        return $encoded;
     }
 
     private function casdoorAvatarUrl(array $userinfo): ?string

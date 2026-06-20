@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Alert, Avatar, Button, Form, Input, Modal, Radio, Space, Tabs, Tag, Typography, message } from 'antd';
+import { Alert, Avatar, Button, Form, Input, Modal, Radio, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 import { FileText, KeyRound, Link2, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import {
@@ -14,6 +14,7 @@ import { normalizePdfTheme, pdfThemeOptions } from '../../config/pdfThemes';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { useI18n } from '../../i18n';
 import type { AuthSession, SsoBinding } from '../../types/auth';
+import type { PdfExportSettings } from '../../types/auth';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
 import styles from './ProfilePage.module.css';
@@ -43,16 +44,29 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const [ssoBinding, setSsoBinding] = useState<SsoBinding | null>(null);
   const [isSsoLoading, setIsSsoLoading] = useState(true);
   const [isSsoUnlinking, setIsSsoUnlinking] = useState(false);
+  const watchedPdfTheme = Form.useWatch('defaultPdfTheme', exportForm);
+  const watchedShowWorkspace = Form.useWatch(['pdfExportSettings', 'showWorkspace'], exportForm);
+  const previewPdfTheme = normalizePdfTheme(watchedPdfTheme ?? session.user.defaultPdfTheme);
+  const previewShowWorkspace =
+    watchedShowWorkspace ?? normalizePdfExportSettings(session.user.pdfExportSettings).showWorkspace;
+  const previewWorkspaceName = session.workspace?.name ?? t('noWorkspaceSelected');
 
   useEffect(() => {
     const profileValues = {
       defaultPdfTheme: normalizePdfTheme(session.user.defaultPdfTheme),
       displayName: session.user.displayName,
+      pdfExportSettings: normalizePdfExportSettings(session.user.pdfExportSettings),
     };
 
     accountForm.setFieldsValue(profileValues);
     exportForm.setFieldsValue(profileValues);
-  }, [accountForm, exportForm, session.user.defaultPdfTheme, session.user.displayName]);
+  }, [
+    accountForm,
+    exportForm,
+    session.user.defaultPdfTheme,
+    session.user.displayName,
+    session.user.pdfExportSettings,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -89,6 +103,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
         defaultPdfTheme: normalizePdfTheme(values.defaultPdfTheme),
         displayName: values.displayName.trim(),
         email: session.user.email,
+        pdfExportSettings: normalizePdfExportSettings(values.pdfExportSettings ?? session.user.pdfExportSettings),
       });
 
       onSessionUpdate(result.session);
@@ -112,6 +127,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
         defaultPdfTheme: session.user.defaultPdfTheme,
         displayName: session.user.displayName,
         email: nextEmail,
+        pdfExportSettings: normalizePdfExportSettings(session.user.pdfExportSettings),
       });
 
       onSessionUpdate(result.session);
@@ -235,7 +251,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                   </span>
                 ),
                 children: (
-                  <div className={styles.tabContent}>
+                  <div className={`${styles.tabContent} ${styles.exportLayout}`}>
                     {profileError ? (
                       <Alert className={styles.sideAlert} type="error" showIcon message={profileError} />
                     ) : null}
@@ -345,7 +361,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                     {profileNotice ? (
                       <Alert className={styles.sideAlert} type="success" showIcon message={profileNotice} />
                     ) : null}
-                    <section className={styles.settingSection}>
+                    <section className={`${styles.settingSection} ${styles.exportSettings}`}>
                       <div className={styles.panelHeader}>
                         <span className={styles.panelIcon}>
                           <FileText size={16} />
@@ -405,10 +421,65 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         <Form.Item hidden name="displayName">
                           <Input />
                         </Form.Item>
+                        <Form.Item
+                          className={styles.switchField}
+                          name={['pdfExportSettings', 'showWorkspace']}
+                          valuePropName="checked"
+                        >
+                          <SwitchSetting
+                            title={t('pdfExportShowWorkspace')}
+                            description={t('pdfExportShowWorkspaceDescription')}
+                          />
+                        </Form.Item>
                         <Button type="primary" htmlType="submit" loading={isProfileSaving}>
                           {t('saveProfile')}
                         </Button>
                       </Form>
+                    </section>
+                    <section className={styles.exportPreview} aria-label={t('pdfExportPreview')}>
+                      <div className={styles.previewToolbar}>
+                        <span>{t('pdfExportPreview')}</span>
+                        <Tag color={previewPdfTheme === 'statement_red' ? 'red' : 'default'}>
+                          {t(pdfThemeLabelKey(previewPdfTheme))}
+                        </Tag>
+                      </div>
+                      <div
+                        className={`${styles.previewSheet} ${
+                          previewPdfTheme === 'statement_red' ? styles.previewStatement : styles.previewClassic
+                        }`}
+                      >
+                        <div className={styles.previewTop}>
+                          <div className={styles.previewTitle}>
+                            <span>{t('pdfExportPreviewTitle')}</span>
+                            <small>{t('pdfExportPreviewSubtitle')}</small>
+                          </div>
+                          <div className={styles.previewMeta}>
+                            <span>
+                              <b>Page / 頁</b>
+                              <em>1 of 1</em>
+                            </span>
+                            <span>
+                              <b>Date / 日期</b>
+                              <em>20 Jun 2026</em>
+                            </span>
+                            <span>
+                              <b>Workspace / 工作區</b>
+                              <em>
+                                {previewShowWorkspace
+                                  ? previewWorkspaceName
+                                  : t('pdfExportPreviewWorkspaceHidden')}
+                              </em>
+                            </span>
+                          </div>
+                        </div>
+                        <div className={styles.previewBand}>{t('pdfExportPreviewSection')}</div>
+                        <div className={styles.previewRows}>
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                        <div className={styles.previewSignature} />
+                      </div>
                     </section>
                   </div>
                 ),
@@ -639,6 +710,31 @@ function pdfThemeDescriptionKey(theme: string) {
   return normalizePdfTheme(theme) === 'statement_red'
     ? 'pdfThemeStatementRedDescription'
     : 'pdfThemeClassicDescription';
+}
+
+function normalizePdfExportSettings(settings: Partial<PdfExportSettings> | null | undefined): PdfExportSettings {
+  return {
+    showWorkspace: settings?.showWorkspace === true,
+  };
+}
+
+interface SwitchSettingProps {
+  checked?: boolean;
+  onChange?: (checked: boolean) => void;
+  title: string;
+  description: string;
+}
+
+function SwitchSetting({ checked = false, onChange, title, description }: SwitchSettingProps) {
+  return (
+    <div className={styles.switchSetting}>
+      <span className={styles.switchCopy}>
+        <strong>{title}</strong>
+        <small>{description}</small>
+      </span>
+      <Switch checked={checked} onChange={onChange} size="small" />
+    </div>
+  );
 }
 
 function getProfileInitial(displayName: string, email: string): string {

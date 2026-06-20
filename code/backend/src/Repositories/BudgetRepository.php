@@ -26,6 +26,7 @@ final readonly class BudgetRepository
             SELECT
               b.id,
               b.workspace_id,
+              w.name AS workspace_name,
               b.title,
               b.owner_name,
               b.start_date,
@@ -51,6 +52,7 @@ final readonly class BudgetRepository
               COALESCE(tx.transaction_count, 0) AS transaction_count,
               COALESCE(tx.transaction_total_base, 0) AS transaction_total_base
             FROM budgets b
+            INNER JOIN workspaces w ON w.id = b.workspace_id
             INNER JOIN currencies base ON base.id = b.base_currency_id
             INNER JOIN currencies display ON display.id = b.display_currency_id
             LEFT JOIN budget_templates bt ON bt.id = b.template_id
@@ -237,6 +239,7 @@ final readonly class BudgetRepository
             SELECT
               b.id,
               b.workspace_id,
+              w.name AS workspace_name,
               b.title,
               b.owner_name,
               b.start_date,
@@ -262,6 +265,7 @@ final readonly class BudgetRepository
               COALESCE(tx.transaction_count, 0) AS transaction_count,
               COALESCE(tx.transaction_total_base, 0) AS transaction_total_base
             FROM budgets b
+            INNER JOIN workspaces w ON w.id = b.workspace_id
             INNER JOIN currencies base ON base.id = b.base_currency_id
             INNER JOIN currencies display ON display.id = b.display_currency_id
             LEFT JOIN budget_templates bt ON bt.id = b.template_id
@@ -913,6 +917,7 @@ final readonly class BudgetRepository
         return [
             'id' => (int) $row['id'],
             'workspaceId' => (int) $row['workspace_id'],
+            'workspaceName' => $row['workspace_name'] ?? null,
             'title' => $row['title'],
             'ownerName' => $row['owner_name'],
             'startDate' => $row['start_date'],

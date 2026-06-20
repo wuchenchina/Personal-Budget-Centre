@@ -68,6 +68,7 @@ final readonly class SessionRepository
               u.timezone,
               u.locale,
               u.default_pdf_theme,
+              u.pdf_export_settings,
               u.status,
               u.is_admin,
               u.email_verified_at

@@ -11,9 +11,14 @@ export interface AuthUser {
   timezone: string | null;
   locale: string | null;
   defaultPdfTheme: PdfThemeKey;
+  pdfExportSettings: PdfExportSettings;
   status: UserStatus;
   isAdmin: boolean;
   emailVerifiedAt: string | null;
+}
+
+export interface PdfExportSettings {
+  showWorkspace: boolean;
 }
 
 export interface AuthWorkspace {

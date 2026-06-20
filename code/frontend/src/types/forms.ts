@@ -1,4 +1,5 @@
 import type { Dayjs } from 'dayjs';
+import type { PdfExportSettings } from './auth';
 import type {
   BudgetInstallmentConfig,
   BudgetInstallmentDisplayMode,
@@ -140,6 +141,7 @@ export interface BookkeepingRecordFormValues {
 export interface ProfileFormValues {
   displayName: string;
   defaultPdfTheme: PdfThemeKey;
+  pdfExportSettings: PdfExportSettings;
 }
 
 export interface EmailChangeFormValues {

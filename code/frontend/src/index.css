@@ -235,7 +235,7 @@ select {
 
 .ant-alert {
   align-items: flex-start;
-  padding: 16px 22px 16px 18px !important;
+  padding: 10px 14px 10px 12px !important;
   background: #ffffff !important;
   border: 1px solid var(--bc-border) !important;
   border-left-width: 4px !important;
@@ -244,26 +244,26 @@ select {
 
 .ant-alert-message {
   color: var(--bc-text) !important;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 650;
-  line-height: 1.45;
+  line-height: 1.35;
 }
 
 .ant-alert-description {
   color: var(--bc-text-muted) !important;
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .ant-alert-with-description {
-  padding: 18px 22px !important;
+  padding: 11px 14px 11px 12px !important;
 }
 
 .ant-alert .ant-alert-icon {
   flex: 0 0 auto;
-  margin-top: 2px;
-  margin-inline-end: 12px !important;
-  font-size: 18px;
+  margin-top: 1px;
+  margin-inline-end: 9px !important;
+  font-size: 16px;
   line-height: 1;
 }
 
@@ -304,7 +304,7 @@ select {
 
 .ant-alert-action {
   align-self: center;
-  margin-inline-start: 18px !important;
+  margin-inline-start: 12px !important;
 }
 
 .ant-message {
@@ -313,27 +313,27 @@ select {
 
 .ant-message .ant-message-notice-wrapper .ant-message-notice-content {
   max-width: calc(100vw - 32px);
-  padding: 12px 18px;
+  padding: 9px 13px;
   color: var(--bc-text);
   background: #ffffff;
   border: 1px solid var(--bc-border);
   border-left: 4px solid var(--bc-border);
   border-radius: 0;
   box-shadow: none;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 650;
-  line-height: 1.4;
+  line-height: 1.32;
 }
 
 .ant-message .ant-message-custom-content {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ant-message .anticon {
   flex: 0 0 auto;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
 }
 

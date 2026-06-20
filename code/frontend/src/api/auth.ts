@@ -2,6 +2,7 @@ import { apiDelete, apiGet, apiPatch, apiPost, clearCsrfToken } from './http';
 import type {
   AuthSession,
   LoginPayload,
+  PdfExportSettings,
   RegisterPayload,
   RegisterResult,
   SsoBinding,
@@ -22,6 +23,7 @@ export interface UpdateProfilePayload {
   displayName: string;
   email: string;
   defaultPdfTheme?: AuthSession['user']['defaultPdfTheme'];
+  pdfExportSettings?: PdfExportSettings;
 }
 
 export interface UpdateProfileResult {

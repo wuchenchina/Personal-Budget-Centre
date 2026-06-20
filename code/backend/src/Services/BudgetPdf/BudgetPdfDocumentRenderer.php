@@ -191,7 +191,7 @@ final readonly class BudgetPdfDocumentRenderer
             . $this->signatureRenderer->css($theme)
             . '</style></head><body>'
             . $theme->footerHtml('budget')
-            . $theme->headerHtml($budget, $titleHtml, $subtitleHtml, $this->formatter, 'budget')
+            . $theme->headerHtml($budget, $titleHtml, $subtitleHtml, $this->formatter, 'budget', $options)
             . $this->tableRenderer->render(
                 $budgetSection,
                 $periodText,
@@ -227,7 +227,7 @@ final readonly class BudgetPdfDocumentRenderer
                     )
                     : ''
             )
-            . $this->signatureRenderer->render($budget)
+            . $this->signatureRenderer->render($budget, $theme)
             . '</body></html>';
     }
 
@@ -449,10 +449,15 @@ final readonly class BudgetPdfDocumentRenderer
     private function datePrefix(array $context): string
     {
         if ($context['mode'] === 'bilingual') {
-            return 'Date: ' . $context['labels']['datePrefix'];
+            return 'Date / ' . $this->chineseDateLabel($context) . ': ';
         }
 
         return $context['mode'] === 'zh' ? $context['labels']['datePrefix'] : 'Date: ';
+    }
+
+    private function chineseDateLabel(array $context): string
+    {
+        return rtrim((string) $context['labels']['datePrefix'], ":\xEF\xBC\x9A ");
     }
 
     private function documentLanguage(array $context): string

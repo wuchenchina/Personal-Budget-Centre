@@ -298,12 +298,29 @@ final readonly class PasskeyService
                 'timezone' => $user['timezone'],
                 'locale' => $user['locale'],
                 'defaultPdfTheme' => BudgetPdfTheme::normalize($user['default_pdf_theme'] ?? null),
+                'pdfExportSettings' => $this->pdfExportSettings($user['pdf_export_settings'] ?? null),
                 'status' => $user['status'],
                 'isAdmin' => isset($user['is_admin']) && (bool) $user['is_admin'],
                 'emailVerifiedAt' => $user['email_verified_at'] ?? null,
             ],
             'workspace' => $workspace,
             'csrfToken' => $this->sessionManager->csrfToken($token),
+        ];
+    }
+
+    private function pdfExportSettings(mixed $raw): array
+    {
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        if (!is_array($raw)) {
+            $raw = [];
+        }
+
+        return [
+            'showWorkspace' => (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? false),
         ];
     }
 

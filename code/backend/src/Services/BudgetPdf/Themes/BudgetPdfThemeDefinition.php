@@ -20,6 +20,8 @@ interface BudgetPdfThemeDefinition
 
     public function signatureCss(): string;
 
+    public function signatureFullWidthMm(): float;
+
     public function footerHtml(string $scope): string;
 
     public function headerHtml(
@@ -28,5 +30,6 @@ interface BudgetPdfThemeDefinition
         string $subtitleHtml,
         BudgetPdfFormatter $formatter,
         string $scope,
+        array $options = [],
     ): string;
 }

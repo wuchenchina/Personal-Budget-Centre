@@ -342,6 +342,7 @@ export interface BudgetExportOptions {
   tableLanguageMode?: BudgetExportTableLanguageMode;
   tableChineseLanguage?: BudgetExportChineseLanguage;
   pdfTheme?: PdfThemeKey;
+  showWorkspace?: boolean;
 }
 
 export interface BudgetExport {

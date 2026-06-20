@@ -90,6 +90,11 @@ final readonly class ClassicPdfTheme implements BudgetPdfThemeDefinition
             . '.signature-svg{display:block;width:100%;height:auto;}';
     }
 
+    public function signatureFullWidthMm(): float
+    {
+        return 152.0;
+    }
+
     public function footerHtml(string $scope): string
     {
         return '<htmlpagefooter name="budgetPageFooter"><div class="page-footer">Page {PAGENO} of {nbpg}</div></htmlpagefooter>';
@@ -101,6 +106,7 @@ final readonly class ClassicPdfTheme implements BudgetPdfThemeDefinition
         string $subtitleHtml,
         BudgetPdfFormatter $formatter,
         string $scope,
+        array $options = [],
     ): string {
         return '<div class="title">' . $titleHtml . '</div>' . $subtitleHtml;
     }

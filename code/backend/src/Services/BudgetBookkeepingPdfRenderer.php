@@ -109,7 +109,7 @@ final readonly class BudgetBookkeepingPdfRenderer
             . $theme->bookkeepingTableCss()
             . '</style></head><body>'
             . $theme->footerHtml('bookkeeping')
-            . $theme->headerHtml($budget, $titleHtml, $subtitleHtml, $this->formatter, 'bookkeeping')
+            . $theme->headerHtml($budget, $titleHtml, $subtitleHtml, $this->formatter, 'bookkeeping', $options)
             . $this->renderBookkeepingTable(
                 $this->bookkeepingSection($context),
                 $periodText,
@@ -499,10 +499,15 @@ final readonly class BudgetBookkeepingPdfRenderer
     private function datePrefix(array $context): string
     {
         if ($context['mode'] === 'bilingual') {
-            return 'Date: ' . $context['labels']['datePrefix'];
+            return 'Date / ' . $this->chineseDateLabel($context) . ': ';
         }
 
         return $context['mode'] === 'zh' ? $context['labels']['datePrefix'] : 'Date: ';
+    }
+
+    private function chineseDateLabel(array $context): string
+    {
+        return rtrim((string) $context['labels']['datePrefix'], ":\xEF\xBC\x9A ");
     }
 
     private function documentLanguage(array $context): string

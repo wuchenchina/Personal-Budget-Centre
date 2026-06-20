@@ -161,6 +161,7 @@ final readonly class BudgetExportService
             ?? $session['default_pdf_theme']
             ?? BudgetPdfTheme::DEFAULT,
         );
+        $showWorkspace = $this->showWorkspacePreference($input, $session);
 
         return [
             'tableLanguageMode' => in_array($tableLanguageMode, ['en', 'zh', 'bilingual'], true)
@@ -170,7 +171,30 @@ final readonly class BudgetExportService
                 ? $tableChineseLanguage
                 : 'tc',
             'pdfTheme' => $pdfTheme,
+            'showWorkspace' => $showWorkspace,
         ];
+    }
+
+    private function showWorkspacePreference(array $input, array $session): bool
+    {
+        if (array_key_exists('showWorkspace', $input) || array_key_exists('show_workspace', $input)) {
+            return filter_var(
+                $input['showWorkspace'] ?? $input['show_workspace'],
+                FILTER_VALIDATE_BOOLEAN,
+                FILTER_NULL_ON_FAILURE,
+            ) ?? false;
+        }
+
+        $raw = $session['pdf_export_settings'] ?? null;
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($raw)) {
+            return false;
+        }
+
+        return (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? false);
     }
 
     private function templateForBudget(array $budget): array
