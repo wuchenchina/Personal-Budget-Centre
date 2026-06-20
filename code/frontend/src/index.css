@@ -235,9 +235,10 @@ select {
 
 .ant-alert {
   align-items: flex-start;
-  padding: 16px 22px !important;
+  padding: 16px 22px 16px 18px !important;
   background: #ffffff !important;
   border: 1px solid var(--bc-border) !important;
+  border-left-width: 4px !important;
   box-shadow: none !important;
 }
 
@@ -259,51 +260,46 @@ select {
 }
 
 .ant-alert .ant-alert-icon {
-  display: inline-grid !important;
   flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
   margin-top: 2px;
-  margin-inline-end: 14px !important;
-  place-items: center;
-  border-radius: 999px;
-}
-
-.ant-alert .ant-alert-icon svg {
-  width: 13px;
-  height: 13px;
+  margin-inline-end: 12px !important;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .ant-alert-success {
   border-color: var(--bc-border) !important;
+  border-left-color: var(--bc-success) !important;
 }
 
 .ant-alert-success .ant-alert-icon {
-  color: #ffffff !important;
-  background: var(--bc-success);
+  color: var(--bc-success) !important;
 }
 
 .ant-alert-info .ant-alert-icon {
-  color: #ffffff !important;
-  background: var(--bc-accent);
+  color: var(--bc-accent) !important;
 }
 
 .ant-alert-warning {
-  border-color: var(--bc-warning-border) !important;
+  border-color: var(--bc-border) !important;
+  border-left-color: var(--bc-warning) !important;
 }
 
 .ant-alert-warning .ant-alert-icon {
-  color: #ffffff !important;
-  background: var(--bc-warning);
+  color: var(--bc-warning) !important;
 }
 
 .ant-alert-error {
-  border-color: var(--bc-danger-border) !important;
+  border-color: var(--bc-border) !important;
+  border-left-color: var(--bc-danger) !important;
 }
 
 .ant-alert-error .ant-alert-icon {
-  color: #ffffff !important;
-  background: var(--bc-danger);
+  color: var(--bc-danger) !important;
+}
+
+.ant-alert-info {
+  border-left-color: var(--bc-accent) !important;
 }
 
 .ant-alert-action {
@@ -316,14 +312,15 @@ select {
 }
 
 .ant-message .ant-message-notice-wrapper .ant-message-notice-content {
-  min-width: min(680px, calc(100vw - 32px));
-  padding: 16px 22px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 18px;
   color: var(--bc-text);
   background: #ffffff;
   border: 1px solid var(--bc-border);
+  border-left: 4px solid var(--bc-border);
   border-radius: 0;
   box-shadow: none;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 650;
   line-height: 1.4;
 }
@@ -331,38 +328,30 @@ select {
 .ant-message .ant-message-custom-content {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 }
 
 .ant-message .anticon {
-  display: inline-grid;
   flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  border-radius: 999px;
-  font-size: 13px;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .ant-message-success .anticon {
-  color: #ffffff !important;
-  background: var(--bc-success);
+  color: var(--bc-success) !important;
 }
 
 .ant-message-error .anticon {
-  color: #ffffff !important;
-  background: var(--bc-danger);
+  color: var(--bc-danger) !important;
 }
 
 .ant-message-warning .anticon {
-  color: #ffffff !important;
-  background: var(--bc-warning);
+  color: var(--bc-warning) !important;
 }
 
 .ant-message-info .anticon,
 .ant-message-loading .anticon {
-  color: #ffffff !important;
-  background: var(--bc-accent);
+  color: var(--bc-accent) !important;
 }
 
 .ant-input:focus,
