@@ -148,8 +148,11 @@ final readonly class HsbcPdfTheme implements BudgetPdfThemeDefinition
     {
         $html = '<table class="hsbc-meta-table">';
         foreach ($rows as [$english, $chinese, $value]) {
+            $label = $english === 'Date'
+                ? $english . ' / ' . $chinese
+                : $english . ' ' . $chinese;
             $html .= '<tr><td class="hsbc-meta-label">'
-                . $formatter->escapeHtml($english . ' ' . $chinese)
+                . $formatter->escapeHtml($label)
                 . '</td><td class="hsbc-meta-value">'
                 . $formatter->escapeHtml((string) $value)
                 . '</td></tr>';

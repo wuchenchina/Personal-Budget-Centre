@@ -469,7 +469,7 @@ final readonly class BudgetPdfDocumentRenderer
     private function datePrefix(array $context): string
     {
         if ($context['mode'] === 'bilingual') {
-            return 'Date ' . $this->chineseDateLabel($context) . ': ';
+            return 'Date / ' . $this->chineseDateLabel($context) . ': ';
         }
 
         return $context['mode'] === 'en' ? 'Date: ' : $context['labels']['datePrefix'];
