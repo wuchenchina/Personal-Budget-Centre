@@ -161,7 +161,7 @@ final readonly class BudgetBookkeepingPdfRenderer
             . $this->bookkeepingColgroupHtml($columns)
             . '<thead>'
             . '<tr class="bookkeeping-section-row"><td colspan="' . $colspan . '">'
-            . $this->templateCellText((string) ($section['title'] ?? ''), false)
+            . $this->templateCellText($this->singleLineText((string) ($section['title'] ?? '')), false)
             . '</td></tr>'
             . $dateLine
             . '<tr class="bookkeeping-header-row">';
@@ -425,6 +425,11 @@ final readonly class BudgetBookkeepingPdfRenderer
         ));
     }
 
+    private function singleLineText(string $value): string
+    {
+        return trim((string) preg_replace('/\s*\R\s*/u', ' ', $value));
+    }
+
     private function templateMoneyCellText(string $value): string
     {
         $lines = preg_split('/\R/u', $value);
@@ -528,7 +533,7 @@ final readonly class BudgetBookkeepingPdfRenderer
     private function datePrefix(array $context): string
     {
         if ($context['mode'] === 'bilingual') {
-            return 'Date / ' . $this->chineseDateLabel($context) . ': ';
+            return 'Date ' . $this->chineseDateLabel($context) . ': ';
         }
 
         return $context['mode'] === 'en' ? 'Date: ' : $context['labels']['datePrefix'];

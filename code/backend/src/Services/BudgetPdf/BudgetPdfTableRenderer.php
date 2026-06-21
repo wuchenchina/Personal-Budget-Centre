@@ -36,7 +36,7 @@ final readonly class BudgetPdfTableRenderer
                 . $this->formatter->escapeHtml($periodText) . '</div>';
         $html = '<div class="template-section">'
             . '<table class="template-table section-band"><tbody><tr><td>'
-            . $this->formatter->templateCellText((string) ($section['title'] ?? ''))
+            . $this->formatter->templateCellText($this->singleLineText((string) ($section['title'] ?? '')))
             . '</td></tr></tbody></table>'
             . $dateLine
             . '<table class="template-table column-table">' . $colgroup . '<tbody><tr>';
@@ -94,6 +94,11 @@ final readonly class BudgetPdfTableRenderer
         }
 
         return $html . '</colgroup>';
+    }
+
+    private function singleLineText(string $value): string
+    {
+        return trim((string) preg_replace('/\s*\R\s*/u', ' ', $value));
     }
 
     private function cellWidthStyle(array $column): string

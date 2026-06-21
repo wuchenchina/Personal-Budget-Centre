@@ -99,7 +99,7 @@ final readonly class BudgetPdfFormatter
 
         return match ($config['labelSeparator'] ?? null) {
             'none' => implode('', $parts),
-            'slash' => implode(' / ', $parts),
+            'slash' => implode(' ', $parts),
             'line' => implode("\n", $parts),
             default => implode(' ', $parts),
         };
@@ -224,7 +224,7 @@ final readonly class BudgetPdfFormatter
             $chineseLanguage = $this->signatureChineseLanguage($language);
             $chinese = $labels[$chineseLanguage][$key];
 
-            return $labels['en'][$key] . ' / ' . $chinese;
+            return $labels['en'][$key] . ' ' . $chinese;
         }
 
         return $labels[$this->signaturePrimaryLanguage($language)][$key];
@@ -352,7 +352,7 @@ final readonly class BudgetPdfFormatter
             : [$labels[$mode]];
         $chineseLabel = match ($config['labelSeparator'] ?? null) {
             'none' => implode('', $parts),
-            'slash' => implode(' / ', $parts),
+            'slash' => implode(' ', $parts),
             'line' => implode("\n", $parts),
             default => implode(' ', $parts),
         };
@@ -442,7 +442,7 @@ final readonly class BudgetPdfFormatter
     private function signaturePhraseForLanguage(array $phrase, string $language): string
     {
         if ($this->signatureIsBilingual($language)) {
-            return $phrase['en'] . ' / ' . $phrase[$this->signatureChineseLanguage($language)];
+            return $phrase['en'] . ' ' . $phrase[$this->signatureChineseLanguage($language)];
         }
 
         return $phrase[$this->signaturePrimaryLanguage($language)] ?? $phrase['en'];
@@ -452,7 +452,7 @@ final readonly class BudgetPdfFormatter
     {
         $labels = $this->signatureMetaLabels();
         if ($this->signatureIsBilingual($language)) {
-            return $labels['en'][$key] . ' / ' . $labels[$this->signatureChineseLanguage($language)][$key];
+            return $labels['en'][$key] . ' ' . $labels[$this->signatureChineseLanguage($language)][$key];
         }
 
         return $labels[$this->signaturePrimaryLanguage($language)][$key];
