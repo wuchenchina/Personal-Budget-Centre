@@ -11,6 +11,7 @@ import {
   updatePassword,
   updateProfile,
 } from '../../api/auth';
+import { startCasdoorSignin } from '../../config/casdoor';
 import { setPendingSsoMergeToken } from '../../config/ssoMerge';
 import { normalizePdfTheme, pdfThemeOptions } from '../../config/pdfThemes';
 import type { OperationsController } from '../../hooks/useOperationsController';
@@ -44,6 +45,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const [isEmailVerificationSending, setIsEmailVerificationSending] = useState(false);
   const [isEmailChangeOpen, setIsEmailChangeOpen] = useState(false);
   const [ssoBinding, setSsoBinding] = useState<SsoBinding | null>(null);
+  const [isSsoLoading, setIsSsoLoading] = useState(true);
   const [isSsoUnlinking, setIsSsoUnlinking] = useState(false);
   const [isSsoMergeStarting, setIsSsoMergeStarting] = useState(false);
   const isSsoOnlyAccount = !session.user.hasPassword;
@@ -85,6 +87,11 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
           void message.error(error instanceof Error ? error.message : t('authFailed'));
         }
       })
+      .finally(() => {
+        if (isMounted) {
+          setIsSsoLoading(false);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -193,6 +200,10 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     } finally {
       setIsSsoMergeStarting(false);
     }
+  };
+
+  const handleSsoBind = () => {
+    startCasdoorSignin('bind');
   };
 
   const handleSsoUnlink = () => {
@@ -623,13 +634,9 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                       </div>
                       {ssoBinding === null ? (
                         session.user.hasPassword ? (
-                          <Alert
-                            className={styles.sideAlert}
-                            type="info"
-                            showIcon
-                            message={t('axchenSsoNotLinked')}
-                            description={t('ssoBindFromSsoOnlyDescription')}
-                          />
+                          <Button className={styles.outlineAction} loading={isSsoLoading} onClick={handleSsoBind}>
+                            {t('axchenSsoBind')}
+                          </Button>
                         ) : (
                           <Alert
                             className={styles.sideAlert}

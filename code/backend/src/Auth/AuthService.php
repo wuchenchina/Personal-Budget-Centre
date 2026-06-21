@@ -527,11 +527,7 @@ final readonly class AuthService
     {
         $mode = Input::string($request->query['mode'] ?? null) === 'bind' ? 'bind' : 'login';
         if ($mode === 'bind') {
-            throw new AuthException(
-                'SSO_BIND_FROM_SSO_ONLY_REQUIRED',
-                'SSO binding must be started from an SSO-only account merge flow.',
-                409,
-            );
+            $this->authenticator->authenticatedSession($request);
         }
 
         $state = $this->urlSafeRandom(32);
@@ -586,13 +582,42 @@ final readonly class AuthService
         }
 
         return match ($mode) {
-            'bind' => throw new AuthException(
-                'SSO_BIND_FROM_SSO_ONLY_REQUIRED',
-                'SSO binding must be started from an SSO-only account merge flow.',
-                409,
-            ),
+            'bind' => $this->bindCasdoorAccount($subject, $userinfo, $request),
             default => $this->loginWithCasdoorAccount($subject, $userinfo, $request),
         };
+    }
+
+    private function bindCasdoorAccount(string $subject, array $userinfo, Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $userId = (int) $session['user_id'];
+        $bindings = new UserSsoBindingRepository($this->pdo);
+        $existing = $bindings->findByProviderSubject($subject);
+
+        if ($existing !== null && (int) $existing['user_id'] !== $userId) {
+            throw new AuthException(
+                'SSO_ACCOUNT_ALREADY_BOUND',
+                'This Casdoor account is already linked to another user.',
+                409,
+            );
+        }
+
+        $binding = $bindings->upsert(
+            $userId,
+            $subject,
+            Input::string($userinfo['preferred_username'] ?? $userinfo['name'] ?? null),
+            Input::normalizedEmail($userinfo['email'] ?? null),
+            $userinfo,
+        );
+
+        $avatarUrl = $this->casdoorAvatarUrl($userinfo);
+        if ($avatarUrl !== null) {
+            (new UserRepository($this->pdo))->updateAvatarUrl($userId, $avatarUrl);
+        }
+
+        return [
+            'binding' => $this->publicSsoBinding($binding),
+        ];
     }
 
     private function loginWithCasdoorAccount(string $subject, array $userinfo, Request $request): array

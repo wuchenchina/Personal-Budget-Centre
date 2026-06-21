@@ -201,8 +201,18 @@ handle_interrupt() {
 trap handle_interrupt INT TERM
 
 write_remote_env() {
+  local app_key
+  app_key="$(
+    remote_exec "if [ -f '${REMOTE_PATH}/backend/.env' ]; then awk -F= '/^APP_KEY=/ {print substr(\$0, 9); exit}' '${REMOTE_PATH}/backend/.env'; fi" \
+      2>/dev/null || true
+  )"
+  if [[ -z "${app_key}" ]]; then
+    app_key="$(LC_ALL=C tr -dc 'A-Za-z0-9_-' </dev/urandom | head -c 64)"
+  fi
+
   ssh "${SSH_OPTS[@]}" "${REMOTE}" "cat > '${REMOTE_PATH}/backend/.env'" <<EOF
 APP_ENV=${APP_ENV}
+APP_KEY=${app_key}
 APP_URL=${APP_URL}
 API_URL=${API_URL}
 

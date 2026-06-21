@@ -70,6 +70,8 @@ export interface CasdoorCallbackPayload {
   ssoCreateToken?: string;
 }
 
+export type CasdoorCallbackMode = 'login' | 'bind';
+
 export function getCurrentSession(): Promise<AuthSession | null> {
   return apiGet<CurrentSessionResult>('/api/auth/me').then((result) => result.session);
 }
@@ -80,13 +82,16 @@ export function login(payload: LoginPayload): Promise<AuthSession> {
 
 export function casdoorCallback(
   payload: CasdoorCallbackPayload,
+  mode: 'login',
 ): Promise<AuthSession | SsoAccountActionRequired>;
+export function casdoorCallback(payload: CasdoorCallbackPayload, mode: 'bind'): Promise<SsoBindingResult>;
 export function casdoorCallback(
   payload: CasdoorCallbackPayload,
-): Promise<AuthSession | SsoAccountActionRequired> {
-  return apiPost<AuthSession | SsoAccountActionRequired>('/api/Callback', {
+  mode: CasdoorCallbackMode = 'login',
+): Promise<AuthSession | SsoBindingResult | SsoAccountActionRequired> {
+  return apiPost<AuthSession | SsoBindingResult | SsoAccountActionRequired>('/api/Callback', {
     ...payload,
-    mode: 'login',
+    mode,
   });
 }
 

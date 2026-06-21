@@ -76,25 +76,27 @@ function CasdoorCallbackScreen({
 
     if (code === null || code.trim() === '') {
       void message.error(handlers().t('authFailed'));
-      queueMicrotask(handlers().onNavigateHome);
-
-      return;
-    }
-
-    if (mode === 'bind') {
-      void message.error(handlers().t('ssoBindFromSsoOnlyDescription'));
-      queueMicrotask(handlers().onNavigateHome);
+      queueMicrotask(mode === 'bind' ? handlers().onNavigateProfile : handlers().onNavigateHome);
 
       return;
     }
 
     let isMounted = true;
 
-    const callbackRequest = casdoorCallback({ code, state });
+    const callbackRequest =
+      mode === 'bind'
+        ? casdoorCallback({ code, state }, 'bind')
+        : casdoorCallback({ code, state }, 'login');
 
     callbackRequest
       .then((result) => {
         if (!isMounted) {
+          return;
+        }
+
+        if (mode === 'bind') {
+          void message.success(handlers().t('axchenSsoBindingSuccess'));
+          handlers().onNavigateProfile();
           return;
         }
 
@@ -112,6 +114,11 @@ function CasdoorCallbackScreen({
         }
 
         void message.error(error instanceof Error ? error.message : handlers().t('authFailed'));
+        if (mode === 'bind') {
+          handlers().onNavigateProfile();
+          return;
+        }
+
         handlers().onNavigateHome();
       });
 
@@ -126,10 +133,13 @@ function CasdoorCallbackScreen({
     }
 
     setIsCreatingSsoAccount(true);
-    casdoorCallback({
-      action: 'create',
-      ssoCreateToken: ssoDecision.ssoCreateToken,
-    })
+    casdoorCallback(
+      {
+        action: 'create',
+        ssoCreateToken: ssoDecision.ssoCreateToken,
+      },
+      'login',
+    )
       .then((result) => {
         if ('requiresSsoAccountAction' in result) {
           setSsoDecision(result);
