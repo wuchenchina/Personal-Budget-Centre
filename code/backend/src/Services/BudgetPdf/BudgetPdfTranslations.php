@@ -556,6 +556,14 @@ final readonly class BudgetPdfTranslations
                 continue;
             }
 
+            if ($key === 'datePrefix') {
+                $base[$key] = self::datePrefixComposite(array_map(
+                    static fn (string $language): string => (string) (($provider($language))[$key] ?? $value),
+                    $languages,
+                ));
+                continue;
+            }
+
             $base[$key] = self::joinUnique(array_map(
                 static fn (string $language): string => (string) (($provider($language))[$key] ?? $value),
                 $languages,
@@ -608,5 +616,18 @@ final readonly class BudgetPdfTranslations
             array_map(static fn (string $value): string => trim($value), $values),
             static fn (string $value): bool => $value !== '',
         ))));
+    }
+
+    private static function datePrefixComposite(array $values): string
+    {
+        $labels = array_values(array_unique(array_filter(
+            array_map(
+                static fn (string $value): string => trim(rtrim($value, ":\xEF\xBC\x9A ")),
+                $values,
+            ),
+            static fn (string $value): bool => $value !== '',
+        )));
+
+        return $labels === [] ? 'Date: ' : implode(' / ', $labels) . ': ';
     }
 }
