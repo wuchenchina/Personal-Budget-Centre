@@ -57,6 +57,8 @@ final readonly class BudgetPdfSignatureRenderer
     {
         $height = $this->svgHeight($config, $width);
         $title = $this->formatter->signatureSectionTitle($config);
+        $titleLines = $this->titleLines($title, $width);
+        $titleBandHeight = $this->titleBandHeight($titleLines);
         $rows = array_values(array_filter(
             $config['rows'],
             static fn (mixed $row): bool => is_array($row),
@@ -65,11 +67,11 @@ final readonly class BudgetPdfSignatureRenderer
         $noteRows = $this->noteRows($rows);
 
         $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $this->number($width) . 'mm" height="' . $this->number($height) . 'mm" viewBox="0 0 ' . $this->number($width) . ' ' . $this->number($height) . '">'
-            . '<rect x="0" y="0" width="' . $this->number($width) . '" height="6" fill="#a4a4a4" stroke="#7e7e7e" stroke-width="0.2"/>'
-            . $this->text(2, 4.15, $title, 3.1, '#000')
-            . '<rect x="0" y="6" width="' . $this->number($width) . '" height="' . $this->number($height - 6) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>';
+            . '<rect x="0" y="0" width="' . $this->number($width) . '" height="' . $this->number($titleBandHeight) . '" fill="#a4a4a4" stroke="#7e7e7e" stroke-width="0.2"/>'
+            . $this->titleSvg($titleLines)
+            . '<rect x="0" y="' . $this->number($titleBandHeight) . '" width="' . $this->number($width) . '" height="' . $this->number($height - $titleBandHeight) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>';
 
-        $rowTop = 8.0;
+        $rowTop = $titleBandHeight + 2.0;
         foreach ($signingRows as $index => $row) {
             $rowHeight = $this->rowHeight($row, $config, $width);
             if ($index > 0) {
@@ -103,8 +105,12 @@ final readonly class BudgetPdfSignatureRenderer
 
         $signingRows = $this->signingRows($rows);
         $noteRows = $this->noteRows($rows);
+        $titleBandHeight = $this->titleBandHeight($this->titleLines(
+            $this->formatter->signatureSectionTitle($config),
+            $width,
+        ));
 
-        return 10.0 + array_sum(array_map(
+        return $titleBandHeight + 4.0 + array_sum(array_map(
             fn (array $row): float => $this->rowHeight($row, $config, $width),
             $signingRows,
         )) + $this->notesBlockHeight($noteRows, $config, $width);
@@ -390,6 +396,55 @@ final readonly class BudgetPdfSignatureRenderer
         return trim((string) ($item['details'] ?? '')) === '' ? 3.2 : 5.8;
     }
 
+    private function titleLines(string $title, float $width): array
+    {
+        $parts = preg_split('/\R/u', $title) ?: [$title];
+        $parts = array_values(array_filter(array_map(
+            static fn (string $part): string => trim($part),
+            $parts,
+        ), static fn (string $part): bool => $part !== ''));
+        if ($parts === []) {
+            return [''];
+        }
+
+        $maxWidth = max(36.0, $width - 4.0);
+        $lines = [];
+        $current = '';
+        foreach ($parts as $part) {
+            $candidate = $current === '' ? $part : $current . ' ' . $part;
+            if ($current !== '' && $this->estimatedTextWidth($candidate, 2.55) > $maxWidth) {
+                $lines[] = $current;
+                $current = $part;
+                continue;
+            }
+
+            $current = $candidate;
+        }
+        if ($current !== '') {
+            $lines[] = $current;
+        }
+
+        return array_map(
+            fn (string $line): string => $this->fitText($line, $maxWidth),
+            array_slice($lines, 0, 4),
+        );
+    }
+
+    private function titleBandHeight(array $lines): float
+    {
+        return max(6.0, 3.3 + (count($lines) * 3.05));
+    }
+
+    private function titleSvg(array $lines): string
+    {
+        $svg = '';
+        foreach ($lines as $index => $line) {
+            $svg .= $this->richText(2.0, 3.95 + ($index * 3.05), $line, 2.55, '#000');
+        }
+
+        return $svg;
+    }
+
     private function signingRows(array $rows): array
     {
         return array_values(array_filter(
@@ -474,6 +529,11 @@ final readonly class BudgetPdfSignatureRenderer
 
     private function estimatedCaptionWidth(string $text, float $fontSize): float
     {
+        return $this->estimatedTextWidth($text, $fontSize);
+    }
+
+    private function estimatedTextWidth(string $text, float $fontSize): float
+    {
         $width = 0.0;
         $chars = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY);
         if ($chars === false) {
@@ -481,9 +541,14 @@ final readonly class BudgetPdfSignatureRenderer
         }
 
         foreach ($chars as $char) {
-            $width += preg_match('/[\x{3400}-\x{9fff}\x{f900}-\x{faff}]/u', $char) === 1
-                ? $fontSize
-                : $fontSize * 0.64;
+            if ($this->usesCjkFont($char)) {
+                $width += $fontSize;
+                continue;
+            }
+
+            $width += preg_match('/[\x{0400}-\x{04ff}]/u', $char) === 1
+                ? $fontSize * 0.7
+                : $fontSize * 0.58;
         }
 
         return $width;
@@ -551,6 +616,49 @@ final readonly class BudgetPdfSignatureRenderer
             . '</text>';
     }
 
+    private function richText(
+        float $x,
+        float $y,
+        string $value,
+        float $size,
+        string $color,
+        string $font = 'sf-mono',
+    ): string {
+        return '<text x="' . $this->number($x) . '" y="' . $this->number($y) . '"'
+            . ' font-size="' . $this->number($size) . '"'
+            . ' fill="' . $color . '">'
+            . $this->richTextSpans($value, $font)
+            . '</text>';
+    }
+
+    private function richTextSpans(string $value, string $font): string
+    {
+        $chars = preg_split('//u', $value, -1, PREG_SPLIT_NO_EMPTY);
+        if ($chars === false) {
+            return '<tspan font-family="' . $this->fontFamily($value, $font) . '">'
+                . $this->svgEscape($value)
+                . '</tspan>';
+        }
+
+        $spans = '';
+        $current = '';
+        $currentFamily = null;
+        foreach ($chars as $char) {
+            $family = $this->fontFamily($char, $font);
+            if ($currentFamily !== null && $family !== $currentFamily) {
+                $spans .= '<tspan font-family="' . $currentFamily . '">' . $this->svgEscape($current) . '</tspan>';
+                $current = '';
+            }
+            $currentFamily = $family;
+            $current .= $char;
+        }
+        if ($current !== '' && $currentFamily !== null) {
+            $spans .= '<tspan font-family="' . $currentFamily . '">' . $this->svgEscape($current) . '</tspan>';
+        }
+
+        return $spans;
+    }
+
     private function fitText(string $value, float $maxWidth): string
     {
         $trimmed = trim($value);
@@ -583,11 +691,16 @@ final readonly class BudgetPdfSignatureRenderer
 
     private function fontFamily(string $value, string $font): string
     {
-        if (preg_match('/[\x{3400}-\x{9fff}\x{f900}-\x{faff}]/u', $value) === 1) {
+        if ($this->usesCjkFont($value)) {
             return 'tcsongti, Songti TC, serif';
         }
 
         return $font . ', sf-mono, monospace';
+    }
+
+    private function usesCjkFont(string $value): bool
+    {
+        return preg_match('/[\x{3040}-\x{30ff}\x{3400}-\x{9fff}\x{f900}-\x{faff}\x{ff00}-\x{ffef}]/u', $value) === 1;
     }
 
     private function number(float $value): string

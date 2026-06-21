@@ -151,7 +151,7 @@ final readonly class BudgetPdfFormatter
             'en' => 'Preparation & Review Record',
             'sc' => '制表及复核记录',
             'tc' => '製表及覆核記錄',
-            'ja' => '作成・確認記録',
+            'ja' => '作成及び確認記録',
             'fr' => 'Dossier de preparation et de revue',
             'ru' => 'Запись подготовки и проверки',
             'de' => 'Erstellungs- und Pruefprotokoll',
