@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { DragEvent } from 'react';
 import { Alert, AutoComplete, Button, Checkbox, Collapse, DatePicker, Form, Input, Modal, Select, Space } from 'antd';
 import type { CollapseProps, FormInstance } from 'antd';
 import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2 } from 'lucide-react';
 import { useI18n } from '../../i18n';
 import type { WorkspaceMember } from '../../types/auth';
-import type { BudgetSignatureLabelLanguage } from '../../types/budget';
 import type { BudgetFormValues } from '../../types/forms';
 import {
   createSignatureCustomField,
@@ -43,13 +42,7 @@ export function BudgetSignatureModal({
   const { language, t } = useI18n();
   const signatureEnabled = Form.useWatch(['signatureConfig', 'enabled'], form) === true;
   const customSignatureTitleEnabled = Form.useWatch(['signatureConfig', 'customTitleEnabled'], form) === true;
-  const signatureInfoLanguage = normalizeSignatureLanguage(
-    Form.useWatch(['signatureConfig', 'infoLanguage'], form),
-  );
-  const signatureLabelLanguage = Form.useWatch(['signatureConfig', 'labelLanguage'], form) ?? 'en';
   const signatureLabelMode = Form.useWatch(['signatureConfig', 'labelMode'], form) ?? 'confirmation_signature';
-  const signatureLabelSeparator = Form.useWatch(['signatureConfig', 'labelSeparator'], form) ?? 'space';
-  const signatureRows = Form.useWatch(['signatureConfig', 'rows'], form) ?? [];
   const onlineMemberOptions = memberOptions(workspaceMembers);
   const signatureDisplayLanguage = signatureLanguageFromAppLanguage(language);
   const signatureUiLabels = signatureMetaLabelsForLanguage(signatureDisplayLanguage);
@@ -60,15 +53,28 @@ export function BudgetSignatureModal({
     enabled: true,
     customTitleEnabled: false,
     title: '',
-    infoLanguage: signatureInfoLanguage,
-    labelLanguage: signatureLabelLanguage,
+    infoLanguage: signatureDisplayLanguage,
+    labelLanguage: signatureDisplayLanguage,
     labelMode: signatureLabelMode,
-    labelSeparator: signatureLabelSeparator,
+    labelSeparator: 'space',
     sectionAlign: 'full',
     labelAlign: 'left',
     showControlText: true,
     rows: [],
   });
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    form.setFields([
+      { name: ['signatureConfig', 'infoLanguage'], value: signatureDisplayLanguage },
+      { name: ['signatureConfig', 'labelLanguage'], value: signatureDisplayLanguage },
+      { name: ['signatureConfig', 'labelSeparator'], value: 'space' },
+    ]);
+  }, [form, open, signatureDisplayLanguage]);
+
   const syncSignatureMember = (fieldName: number, memberUserId: number | null | undefined) => {
     const member = workspaceMembers.find((item) => item.userId === memberUserId);
     if (member === undefined) {
@@ -155,39 +161,12 @@ export function BudgetSignatureModal({
                     </Form.Item>
                   ) : null}
                   <div className="modal-form-grid modal-form-grid-three">
-                    <Form.Item
-                      label={t('signatureInfoLanguage')}
-                      name={['signatureConfig', 'infoLanguage']}
-                    >
-                      <Select options={signatureLanguageOptions} />
-                    </Form.Item>
-                    <Form.Item
-                      label={t('signatureLabelLanguage')}
-                      name={['signatureConfig', 'labelLanguage']}
-                    >
-                      <Select options={signatureLanguageOptions} />
-                    </Form.Item>
                     <Form.Item label={t('signatureLabelMode')} name={['signatureConfig', 'labelMode']}>
                       <Select
                         options={[
                           { label: t('confirmationSignature'), value: 'confirmation_signature' },
                           { label: t('confirmationOnly'), value: 'confirmation' },
                           { label: t('signatureOnly'), value: 'signature' },
-                        ]}
-                      />
-                    </Form.Item>
-                  </div>
-                  <div className="modal-form-grid modal-form-grid-three">
-                    <Form.Item
-                      label={t('signatureLabelSeparator')}
-                      name={['signatureConfig', 'labelSeparator']}
-                    >
-                      <Select
-                        options={[
-                          { label: t('noneSeparator'), value: 'none' },
-                          { label: t('spaceSeparator'), value: 'space' },
-                          { label: t('slashSeparator'), value: 'slash' },
-                          { label: t('lineSeparator'), value: 'line' },
                         ]}
                       />
                     </Form.Item>
@@ -216,11 +195,6 @@ export function BudgetSignatureModal({
                     {(fields, { add, remove, move }) => (
                       <div className="signature-row-list">
                         {fields.map((field) => {
-                          const rowTitle = signatureRowTitle(
-                            signatureRows[field.name]?.displayName,
-                            field.name,
-                            t('signatureParticipant'),
-                          );
                           const participantItems: CollapseProps['items'] = [
                             {
                               key: 'participant',
@@ -235,7 +209,22 @@ export function BudgetSignatureModal({
                                   >
                                     <GripVertical size={16} />
                                   </span>
-                                  <strong>{rowTitle}</strong>
+                                  <Form.Item
+                                    noStyle
+                                    shouldUpdate={(previous, current) =>
+                                      previous.signatureConfig?.rows?.[field.name]?.displayName
+                                        !== current.signatureConfig?.rows?.[field.name]?.displayName}
+                                  >
+                                    {({ getFieldValue }) => (
+                                      <strong>
+                                        {signatureRowTitle(
+                                          getFieldValue(['signatureConfig', 'rows', field.name, 'displayName']),
+                                          field.name,
+                                          t('signatureParticipant'),
+                                        )}
+                                      </strong>
+                                    )}
+                                  </Form.Item>
                                 </span>
                               ),
                               extra: (
@@ -448,20 +437,6 @@ export function BudgetSignatureModal({
     </Modal>
   );
 }
-
-function normalizeSignatureLanguage(value: unknown): BudgetSignatureLabelLanguage {
-  return value === 'sc' || value === 'tc' || value === 'en' || value === 'en_sc' || value === 'en_tc'
-    ? value
-    : 'en';
-}
-
-const signatureLanguageOptions = [
-  { label: 'English', value: 'en' },
-  { label: '简体中文', value: 'sc' },
-  { label: '繁體中文', value: 'tc' },
-  { label: 'English / 简体中文', value: 'en_sc' },
-  { label: 'English / 繁體中文', value: 'en_tc' },
-];
 
 function signatureRowTitle(value: unknown, index: number, fallbackLabel: string): string {
   return typeof value === 'string' && value.trim().length > 0
