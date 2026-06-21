@@ -234,11 +234,26 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
       <div className={styles.workbench}>
         <section className={styles.profileSummary}>
           <div className={styles.summaryIdentity}>
-            <Avatar className={styles.avatar} size={72} src={session.user.avatarUrl ?? undefined}>
+            <Avatar
+              alt={session.user.displayName}
+              className={styles.avatar}
+              size={72}
+              src={session.user.avatarUrl ?? undefined}
+            >
               {getProfileInitial(session.user.displayName, session.user.email)}
             </Avatar>
             <div className={styles.summaryCopy}>
-              <Text className={styles.eyebrow}>{t('profile')}</Text>
+              <div className={styles.summaryTopline}>
+                <Text className={styles.eyebrow}>{t('profile')}</Text>
+                <Space className={styles.statusRow} size={[6, 6]} wrap>
+                  {session.user.emailVerifiedAt === null ? (
+                    <Tag color="warning">{t('emailPending')}</Tag>
+                  ) : (
+                    <Tag color="green">{t('emailVerified')}</Tag>
+                  )}
+                  {session.user.isAdmin ? <Tag color="red">{t('administrator')}</Tag> : null}
+                </Space>
+              </div>
               <Title className={styles.title} level={2}>
                 {session.user.displayName}
               </Title>
@@ -248,14 +263,6 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
               </span>
             </div>
           </div>
-          <Space className={styles.statusRow} wrap>
-            {session.user.emailVerifiedAt === null ? (
-              <Tag color="warning">{t('emailPending')}</Tag>
-            ) : (
-              <Tag color="green">{t('emailVerified')}</Tag>
-            )}
-            {session.user.isAdmin ? <Tag color="red">{t('administrator')}</Tag> : null}
-          </Space>
         </section>
 
         <main className={styles.contentPanel}>
