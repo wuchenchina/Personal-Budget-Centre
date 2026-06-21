@@ -103,7 +103,7 @@ export function AppShell({
               {t('workspace')}
             </Button>
             <Select<AppLanguage>
-              aria-label="Language"
+              aria-label={t('tableLanguage')}
               className="language-switcher"
               popupClassName="language-switcher-popup"
               options={languageOptions}

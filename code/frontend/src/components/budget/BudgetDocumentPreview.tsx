@@ -686,7 +686,7 @@ export function BudgetDocumentPreview({
                 columns={installmentColumns}
                 dataSource={installmentRows}
                 loading={isTemplateLoading || isBudgetDetailLoading}
-                locale={{ emptyText: <Empty description="No budget highlight items yet." /> }}
+                locale={{ emptyText: <Empty description={t('installmentRowsEmpty')} /> }}
                 pagination={false}
                 rowKey="id"
                 size="small"
@@ -1549,6 +1549,7 @@ function BudgetSignatureSection({
   fallbackTitle: string;
   onEdit?: () => void;
 }) {
+  const { t } = useI18n();
   if (!config.enabled || config.rows.length === 0) {
     return null;
   }
@@ -1570,7 +1571,7 @@ function BudgetSignatureSection({
       <div className="budget-signature-title">
         <span>{title}</span>
         {onEdit ? (
-          <Tooltip title="Edit">
+          <Tooltip title={t('edit')}>
             <Button
               icon={<Pencil size={12} />}
               size="small"
@@ -1760,6 +1761,7 @@ function InlineMoneyCell({
   editLabel?: string;
   onCommit: (value: number) => void;
 }) {
+  const { t } = useI18n();
   const [draftState, setDraftState] = useState<{ sourceValue: number; draftValue: number | null }>({
     sourceValue: value,
     draftValue: value,
@@ -1820,7 +1822,7 @@ function InlineMoneyCell({
           onPressEnter={commit}
         />
         {onEdit ? (
-          <Tooltip title={editLabel ?? 'Edit'}>
+          <Tooltip title={editLabel ?? t('edit')}>
             <Button
               icon={<Pencil size={12} />}
               size="small"

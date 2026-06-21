@@ -21,7 +21,7 @@ export function BudgetMetrics({ selectedBudget, baseCurrency, loading }: BudgetM
       };
 
   return (
-    <section className="metric-grid" aria-label="Budget totals">
+    <section className="metric-grid" aria-label={t('totalBudget')}>
       <div className="metric-panel">
         <Statistic
           title={t('totalBudgetLabel')}

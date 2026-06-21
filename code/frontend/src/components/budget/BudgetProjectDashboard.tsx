@@ -71,7 +71,7 @@ export function BudgetProjectDashboard({
         </Space>
       </section>
 
-      <section className="project-overview-grid" aria-label="Budget project overview">
+      <section className="project-overview-grid" aria-label={t('budgetProjectsTitle')}>
         <OverviewTile
           label={t('totalBudgetProjects')}
           value={totalProjects.toLocaleString('en-US')}
@@ -251,8 +251,10 @@ function MetricMini({ label, value }: { label: string; value: string }) {
 }
 
 function ProjectPanelSkeleton() {
+  const { t } = useI18n();
+
   return (
-    <div className="project-panel-skeleton" aria-label="Loading budget project">
+    <div className="project-panel-skeleton" aria-label={t('loadingBudget')}>
       <Skeleton active paragraph={{ rows: 1 }} title={{ width: '54%' }} />
       <div className="project-money-row">
         <Skeleton.Input active block size="small" />
