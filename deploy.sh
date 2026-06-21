@@ -50,7 +50,7 @@ DEPLOY_STARTED_AT="$(date +%s)"
 CURRENT_STEP="bootstrap"
 STEP_INDEX=0
 TOTAL_STEPS=0
-SSH_CONTROL_PATH="${TMPDIR:-/tmp}/${REMOTE_DEPLOY_TOKEN}.ssh"
+SSH_CONTROL_PATH="/tmp/bcd-$$.sock"
 SSH_OPTS=(
   -i "${SERVER_SSH_KEY}"
   -p "${SERVER_PORT}"
@@ -76,7 +76,6 @@ if [[ -t 1 && "${NO_COLOR:-0}" != "1" ]]; then
   C_GREEN=$'\033[32m'
   C_YELLOW=$'\033[33m'
   C_BLUE=$'\033[34m'
-  C_MAGENTA=$'\033[35m'
   C_CYAN=$'\033[36m'
 else
   C_RESET=""
@@ -86,7 +85,6 @@ else
   C_GREEN=""
   C_YELLOW=""
   C_BLUE=""
-  C_MAGENTA=""
   C_CYAN=""
 fi
 
@@ -101,14 +99,11 @@ print_banner() {
   local mode_label="${DEPLOY_COMMAND:-${DEPLOY_MODE}}"
   cat <<EOF
 
-${C_BOLD}${C_CYAN}◆ BudgetCentre deploy${C_RESET}
-${C_DIM}╭────────────────────────────────────────────────────────────╮${C_RESET}
-${C_DIM}│${C_RESET} mode      ${mode_label}
-${C_DIM}│${C_RESET} target    ${APP_URL}
-${C_DIM}│${C_RESET} remote    ${REMOTE}:${REMOTE_PATH}
-${C_DIM}│${C_RESET} database  ${DB_NAME} · $(db_action_label)
-${C_DIM}│${C_RESET} ssh       multiplexed · ${C_DIM}${SSH_CONTROL_PATH}${C_RESET}
-${C_DIM}╰────────────────────────────────────────────────────────────╯${C_RESET}
+${C_BOLD}${C_CYAN}BudgetCentre deploy${C_RESET}
+${C_DIM}mode${C_RESET}     ${mode_label}    ${C_DIM}db${C_RESET} ${db_action_label}
+${C_DIM}target${C_RESET}   ${APP_URL}
+${C_DIM}remote${C_RESET}   ${REMOTE}:${REMOTE_PATH}
+${C_DIM}ssh${C_RESET}      multiplexed (${SSH_CONTROL_PATH})
 EOF
 }
 
@@ -141,7 +136,7 @@ log_error() {
 progress_bar() {
   local current="$1"
   local total="$2"
-  local width=24
+  local width=28
   local filled=0
   local empty=0
   local percent=0
@@ -155,10 +150,10 @@ progress_bar() {
   empty=$((width - filled))
 
   for ((i = 0; i < filled; i += 1)); do
-    bar="${bar}━"
+    bar="${bar}█"
   done
   for ((i = 0; i < empty; i += 1)); do
-    bar="${bar}·"
+    bar="${bar}░"
   done
 
   printf '%s[%s]%s %3d%%' "${C_DIM}" "${bar}" "${C_RESET}" "${percent}"
@@ -166,7 +161,13 @@ progress_bar() {
 
 print_progress() {
   local current="$1"
-  printf '%s %02d/%02d %s\n' "${C_DIM}progress${C_RESET}" "${current}" "${TOTAL_STEPS}" "$(progress_bar "${current}" "${TOTAL_STEPS}")"
+  local label="$2"
+  local detail="${3:-}"
+  printf '  %-8s %s' "${label}" "$(progress_bar "${current}" "${TOTAL_STEPS}")"
+  if [[ -n "${detail}" ]]; then
+    printf '  %s%s%s' "${C_DIM}" "${detail}" "${C_RESET}"
+  fi
+  printf '\n'
 }
 
 run_step() {
@@ -177,14 +178,13 @@ run_step() {
   local started_at
   started_at="$(date +%s)"
 
-  printf '\n%s %s%s\n' "${C_MAGENTA}●${C_RESET}" "${C_BOLD}" "${title}${C_RESET}"
-  print_progress "$((STEP_INDEX - 1))"
+  printf '\n%s[%02d/%02d]%s %s%s\n' "${C_DIM}" "${STEP_INDEX}" "${TOTAL_STEPS}" "${C_RESET}" "${C_BOLD}" "${title}${C_RESET}"
+  print_progress "$((STEP_INDEX - 1))" "running"
   if "$@"; then
-    printf '%s %s %s%s\n' "${C_GREEN}✓${C_RESET}" "${title}" "${C_DIM}" "($(elapsed_since "${started_at}"))${C_RESET}"
-    print_progress "${STEP_INDEX}"
+    print_progress "${STEP_INDEX}" "done" "$(elapsed_since "${started_at}")"
   else
     local status=$?
-    printf '%s %s %s%s\n' "${C_RED}✖${C_RESET}" "${title}" "${C_DIM}" "failed after $(elapsed_since "${started_at}")${C_RESET}" >&2
+    printf '  %-8s %sfailed after %s%s\n' "${C_RED}failed${C_RESET}" "${C_DIM}" "$(elapsed_since "${started_at}")" "${C_RESET}" >&2
     return "${status}"
   fi
 }
