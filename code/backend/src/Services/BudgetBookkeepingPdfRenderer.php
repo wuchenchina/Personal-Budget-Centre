@@ -6,8 +6,10 @@ namespace BudgetCentre\Services;
 
 use BudgetCentre\Services\BudgetPdf\BudgetPdfConfigFactory;
 use BudgetCentre\Services\BudgetPdf\BudgetPdfFormatter;
+use BudgetCentre\Services\BudgetPdf\BudgetPdfTranslations;
 use BudgetCentre\Services\BudgetPdf\BudgetPdfTheme;
 use BudgetCentre\Services\BudgetPdf\BudgetPdfThemeRegistry;
+use BudgetCentre\Support\PdfLanguages;
 use Mpdf\Mpdf;
 
 final readonly class BudgetBookkeepingPdfRenderer
@@ -86,8 +88,7 @@ final readonly class BudgetBookkeepingPdfRenderer
         $config = $this->configFactory->config($tempDir);
         $config['format'] = 'A4-L';
         $mpdf = new Mpdf($config);
-        $html = $this->renderHtml($budget, $records, $options);
-        $mpdf->WriteHTML($html);
+        $mpdf->WriteHTML($this->renderHtml($budget, $records, $options));
         if ($mpdf->page <= 1) {
             $mpdf = new Mpdf($config);
             $mpdf->WriteHTML($this->renderHtml($budget, $records, [
@@ -466,13 +467,13 @@ final readonly class BudgetBookkeepingPdfRenderer
             'sof' => 'Source of funds',
             'transfer' => 'Transfer',
         ][$type] ?? $type;
-        $chinese = $context['labels']['transactionTypes'][$type] ?? $english;
+        $localized = $context['labels']['transactionTypes'][$type] ?? $english;
 
         if ($context['mode'] === 'bilingual') {
-            return $english . "\n" . $chinese;
+            return $english . "\n" . $localized;
         }
 
-        return $this->tableText($english, $chinese, $context);
+        return $this->tableText($english, $localized, $context);
     }
 
     private function columnLabel(string $key, string $english, array $context): string
@@ -481,13 +482,25 @@ final readonly class BudgetBookkeepingPdfRenderer
             return $english;
         }
 
-        $chinese = $context['labels']['columns'][$key] ?? $english;
+        $localized = $context['labels']['columns'][$key] ?? $english;
 
-        return $context['mode'] === 'bilingual' ? $english . "\n" . $chinese : $chinese;
+        return $context['mode'] === 'bilingual' ? $english . "\n" . $localized : $localized;
     }
 
     private function tableContext(array $options): array
     {
+        if (array_key_exists('pdfLanguages', $options) || array_key_exists('pdf_languages', $options)) {
+            $languages = PdfLanguages::normalizeList($options['pdfLanguages'] ?? $options['pdf_languages'] ?? null);
+
+            return [
+                'mode' => count($languages) === 1 && $languages[0] === 'en' ? 'en' : 'composite',
+                'language' => $languages[0] ?? 'en',
+                'languages' => $languages,
+                'chineseLanguage' => in_array('sc', $languages, true) ? 'sc' : 'tc',
+                'labels' => BudgetPdfTranslations::bookkeepingComposite($languages),
+            ];
+        }
+
         $mode = $options['tableLanguageMode'] ?? 'en';
         $chineseLanguage = $options['tableChineseLanguage'] ?? 'tc';
         $mode = in_array($mode, ['en', 'zh', 'bilingual'], true) ? (string) $mode : 'en';
@@ -497,18 +510,19 @@ final readonly class BudgetBookkeepingPdfRenderer
 
         return [
             'mode' => $mode,
+            'language' => $mode === 'en' ? 'en' : $chineseLanguage,
             'chineseLanguage' => $chineseLanguage,
-            'labels' => self::TABLE_TEXT[$chineseLanguage],
+            'labels' => BudgetPdfTranslations::bookkeeping($chineseLanguage),
         ];
     }
 
-    private function tableText(string $english, string $chinese, array $context): string
+    private function tableText(string $english, string $localized, array $context): string
     {
         if ($context['mode'] === 'bilingual') {
-            return $english . ' ' . $chinese;
+            return $english . ' ' . $localized;
         }
 
-        return $context['mode'] === 'zh' ? $chinese : $english;
+        return $context['mode'] === 'en' ? $english : $localized;
     }
 
     private function datePrefix(array $context): string
@@ -517,7 +531,7 @@ final readonly class BudgetBookkeepingPdfRenderer
             return 'Date / ' . $this->chineseDateLabel($context) . ': ';
         }
 
-        return $context['mode'] === 'zh' ? $context['labels']['datePrefix'] : 'Date: ';
+        return $context['mode'] === 'en' ? 'Date: ' : $context['labels']['datePrefix'];
     }
 
     private function chineseDateLabel(array $context): string
@@ -527,11 +541,7 @@ final readonly class BudgetBookkeepingPdfRenderer
 
     private function documentLanguage(array $context): string
     {
-        if ($context['mode'] === 'en') {
-            return 'en';
-        }
-
-        return $context['chineseLanguage'] === 'sc' ? 'zh-Hans' : 'zh-Hant';
+        return PdfLanguages::documentLanguage((string) ($context['language'] ?? 'en'));
     }
 
     private function multilineBlockHtml(string $value, string $lineClass): string

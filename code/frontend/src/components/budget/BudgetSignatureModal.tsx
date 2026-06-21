@@ -13,6 +13,7 @@ import {
   memberOptions,
   signatureCustomFieldLabelOptions,
   signatureMetaLabelsForLanguage,
+  signatureLanguageFromAppLanguage,
   signatureLabelForConfig,
   signaturePositionPhraseOptions,
   signatureRolePhraseOptions,
@@ -50,10 +51,11 @@ export function BudgetSignatureModal({
   const signatureLabelSeparator = Form.useWatch(['signatureConfig', 'labelSeparator'], form) ?? 'space';
   const signatureRows = Form.useWatch(['signatureConfig', 'rows'], form) ?? [];
   const onlineMemberOptions = memberOptions(workspaceMembers);
-  const signatureUiLabels = signatureMetaLabelsForLanguage(language);
-  const rolePhraseOptions = signatureRolePhraseOptions(language);
-  const positionPhraseOptions = signaturePositionPhraseOptions(language);
-  const customFieldLabelOptions = signatureCustomFieldLabelOptions(language);
+  const signatureDisplayLanguage = signatureLanguageFromAppLanguage(language);
+  const signatureUiLabels = signatureMetaLabelsForLanguage(signatureDisplayLanguage);
+  const rolePhraseOptions = signatureRolePhraseOptions(signatureDisplayLanguage);
+  const positionPhraseOptions = signaturePositionPhraseOptions(signatureDisplayLanguage);
+  const customFieldLabelOptions = signatureCustomFieldLabelOptions(signatureDisplayLanguage);
   const signatureLabelPreview = signatureLabelForConfig({
     enabled: true,
     customTitleEnabled: false,

@@ -440,6 +440,19 @@
   min-width: 0;
 }
 
+.languageField {
+  margin-bottom: 0;
+  padding: 11px 12px;
+  background: #ffffff;
+  border: 1px solid var(--bc-border-soft);
+}
+
+.languageCheckboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
 .switchCopy {
   display: grid;
   gap: 4px;

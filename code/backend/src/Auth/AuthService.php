@@ -15,6 +15,7 @@ use BudgetCentre\Services\BudgetPdf\BudgetPdfTheme;
 use BudgetCentre\Services\SmtpMailer;
 use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
+use BudgetCentre\Support\PdfLanguages;
 use DateTimeImmutable;
 use PDO;
 use RuntimeException;
@@ -1045,6 +1046,10 @@ final readonly class AuthService
 
         return $this->encodePdfExportSettings([
             'showWorkspace' => (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? $current['showWorkspace']),
+            'pdfLanguages' => PdfLanguages::normalizeList(
+                $raw['pdfLanguages'] ?? $raw['pdf_languages'] ?? null,
+                $current['pdfLanguages'] ?? PdfLanguages::DEFAULT,
+            ),
         ]);
     }
 
@@ -1061,6 +1066,7 @@ final readonly class AuthService
 
         return [
             'showWorkspace' => (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? false),
+            'pdfLanguages' => PdfLanguages::normalizeList($raw['pdfLanguages'] ?? $raw['pdf_languages'] ?? null),
         ];
     }
 
@@ -1068,6 +1074,7 @@ final readonly class AuthService
     {
         $encoded = json_encode([
             'showWorkspace' => (bool) ($settings['showWorkspace'] ?? false),
+            'pdfLanguages' => PdfLanguages::normalizeList($settings['pdfLanguages'] ?? $settings['pdf_languages'] ?? null),
         ], JSON_THROW_ON_ERROR);
 
         return $encoded;

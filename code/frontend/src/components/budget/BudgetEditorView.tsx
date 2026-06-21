@@ -5,7 +5,8 @@ import type { BudgetController } from '../../hooks/useBudgetController';
 import type { BudgetEntryController } from '../../hooks/useBudgetEntryController';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import type { TemplateController } from '../../hooks/useTemplateController';
-import type { CurrencyCode } from '../../types/budget';
+import type { PdfExportSettings } from '../../types/auth';
+import type { CurrencyCode, PdfThemeKey } from '../../types/budget';
 import { useI18n } from '../../i18n';
 
 const BudgetDocumentPreview = lazy(() =>
@@ -17,10 +18,12 @@ interface BudgetEditorViewProps {
   budget: BudgetController;
   canManageWorkspaceMembers: boolean;
   canWriteBudgets: boolean;
+  defaultPdfTheme: PdfThemeKey;
   entry: BudgetEntryController;
   entryCategoryOptions: Array<{ label: string; value: number }>;
   operations: OperationsController;
   onOpenShare: () => void;
+  pdfExportSettings: PdfExportSettings;
   template: TemplateController;
   transactionCategoryOptions: Array<{ label: string; value: number }>;
 }
@@ -30,10 +33,12 @@ export function BudgetEditorView({
   budget,
   canManageWorkspaceMembers,
   canWriteBudgets,
+  defaultPdfTheme,
   entry,
   entryCategoryOptions,
   operations,
   onOpenShare,
+  pdfExportSettings,
   template,
   transactionCategoryOptions,
 }: BudgetEditorViewProps) {
@@ -73,6 +78,7 @@ export function BudgetEditorView({
           budgetError={budget.budgetError}
           baseCurrency={baseCurrency}
           canWriteBudgets={canWriteBudgets}
+          defaultPdfTheme={defaultPdfTheme}
           entry={entry}
           operations={operations}
           isBudgetLoading={budget.isBudgetLoading}
@@ -88,6 +94,7 @@ export function BudgetEditorView({
           }
           onInlineHeaderSave={budget.handleBudgetHeaderSave}
           onOpenShare={canManageWorkspaceMembers ? onOpenShare : undefined}
+          pdfExportSettings={pdfExportSettings}
           categoryOptions={entryCategoryOptions}
           transactionCategoryOptions={transactionCategoryOptions}
         />

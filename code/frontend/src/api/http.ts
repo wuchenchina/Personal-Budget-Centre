@@ -108,6 +108,14 @@ function networkErrorMessage(): string {
       return '无法连接服务器，请确认正在使用 https:// 访问，或稍后重试。';
     case 'tc':
       return '無法連接伺服器，請確認正在使用 https:// 存取，或稍後重試。';
+    case 'ja':
+      return 'サーバーに接続できません。https:// でアクセスしていることを確認するか、後でもう一度お試しください。';
+    case 'fr':
+      return 'Impossible de se connecter au serveur. Vérifiez que vous utilisez https:// ou réessayez plus tard.';
+    case 'ru':
+      return 'Не удается подключиться к серверу. Убедитесь, что используется https://, или повторите попытку позже.';
+    case 'de':
+      return 'Es kann keine Verbindung zum Server hergestellt werden. Bitte prüfen Sie https:// oder versuchen Sie es später erneut.';
   }
 }
 
@@ -119,6 +127,14 @@ function requestFailedMessage(status: number): string {
       return `请求失败：${status}`;
     case 'tc':
       return `請求失敗：${status}`;
+    case 'ja':
+      return `リクエストに失敗しました：${status}`;
+    case 'fr':
+      return `La requête a échoué : ${status}`;
+    case 'ru':
+      return `Запрос завершился ошибкой: ${status}`;
+    case 'de':
+      return `Anfrage fehlgeschlagen: ${status}`;
   }
 }
 
@@ -130,6 +146,14 @@ function nonJsonResponseMessage(status: number, detail: string): string {
       return `服务器返回了非 JSON 响应，请检查 PHP warning、扩展或目录权限${detail || `：${status}`}`;
     case 'tc':
       return `伺服器返回了非 JSON 回應，請檢查 PHP warning、擴充或目錄權限${detail || `：${status}`}`;
+    case 'ja':
+      return `サーバーが JSON 以外の応答を返しました。PHP warning、拡張機能、またはディレクトリ権限を確認してください${detail || `：${status}`}`;
+    case 'fr':
+      return `Le serveur a retourné une réponse non JSON. Vérifiez les warnings PHP, les extensions ou les droits du répertoire${detail || ` : ${status}`}`;
+    case 'ru':
+      return `Сервер вернул ответ не в формате JSON. Проверьте предупреждения PHP, расширения или права каталога${detail || `: ${status}`}`;
+    case 'de':
+      return `Der Server hat eine Nicht-JSON-Antwort zurückgegeben. Prüfen Sie PHP-Warnungen, Erweiterungen oder Verzeichnisrechte${detail || `: ${status}`}`;
   }
 }
 

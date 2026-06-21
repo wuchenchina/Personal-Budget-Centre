@@ -55,7 +55,7 @@ export function AppShell({
     { key: 'rates', icon: <RefreshCcw size={iconSize} />, label: t('rates') },
   ];
   if (isAdmin) {
-    menuItems.push({ key: 'admin', icon: <ShieldCheck size={iconSize} />, label: 'Admin' });
+    menuItems.push({ key: 'admin', icon: <ShieldCheck size={iconSize} />, label: t('admin') });
   }
   const workspaceName = session.workspace?.name ?? t('selectWorkspace');
   const selectedMenuKey = ['budget-editor', 'budget-bookkeeping'].includes(activeKey)
@@ -69,7 +69,7 @@ export function AppShell({
           <img className="brand-mark" src="/favicon.webp" alt="BudgetCentre" width={38} height={38} />
           <div>
             <div className="brand-title">BudgetCentre</div>
-            <div className="brand-caption">Personal Finance</div>
+            <div className="brand-caption">{t('personalFinance')}</div>
           </div>
         </div>
         <Menu

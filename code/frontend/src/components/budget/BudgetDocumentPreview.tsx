@@ -1,5 +1,5 @@
 import type { CSSProperties, KeyboardEvent } from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   Alert,
@@ -27,6 +27,7 @@ import {
   Plus,
   RotateCcw,
   Share2,
+  Settings2,
   Signature,
   Trash2,
   X,
@@ -36,9 +37,11 @@ import type { BudgetEntryController } from '../../hooks/useBudgetEntryController
 import type { OperationsController } from '../../hooks/useOperationsController';
 import {
   budgetStatusLabelsByLanguage,
+  languageOptions,
   useI18n,
   visibilityLabelsByLanguage,
 } from '../../i18n';
+import type { PdfExportSettings } from '../../types/auth';
 import type {
   BudgetDetail,
   BudgetExportChineseLanguage,
@@ -49,6 +52,7 @@ import type {
   BudgetSignatureRow,
   BudgetTemplateDefinition,
   CurrencyCode,
+  PdfThemeKey,
   Transaction,
 } from '../../types/budget';
 import {
@@ -70,6 +74,10 @@ import {
   signatureRoleForDisplay,
   signatureTitleForDisplay,
 } from '../../utils/budgetSignature';
+import {
+  BudgetPdfExportSettingsModal,
+  budgetPdfExportSettingsValue,
+} from './BudgetPdfExportSettingsModal';
 
 interface BudgetDocumentPreviewProps {
   selectedBudget: BudgetDetail | null;
@@ -78,6 +86,7 @@ interface BudgetDocumentPreviewProps {
   budgetError: string | null;
   baseCurrency: CurrencyCode;
   canWriteBudgets: boolean;
+  defaultPdfTheme: PdfThemeKey;
   entry: BudgetEntryController;
   isBudgetLoading: boolean;
   isBudgetDetailLoading: boolean;
@@ -89,6 +98,7 @@ interface BudgetDocumentPreviewProps {
   onInlineHeaderSave?: (values: { title?: string; ownerName?: string }) => Promise<void>;
   onOpenShare?: () => void;
   operations: OperationsController;
+  pdfExportSettings: PdfExportSettings;
   categoryOptions: Array<{ label: string; value: number }>;
   transactionCategoryOptions: Array<{ label: string; value: number }>;
 }
@@ -270,6 +280,7 @@ export function BudgetDocumentPreview({
   budgetError,
   baseCurrency,
   canWriteBudgets,
+  defaultPdfTheme,
   entry,
   isBudgetLoading,
   isBudgetDetailLoading,
@@ -281,14 +292,22 @@ export function BudgetDocumentPreview({
   onInlineHeaderSave,
   onOpenShare,
   operations,
+  pdfExportSettings,
   categoryOptions,
   transactionCategoryOptions,
 }: BudgetDocumentPreviewProps) {
   const { language, t } = useI18n();
-  const [tableLanguageMode, setTableLanguageMode] = useState<BudgetTableLanguageMode>('en');
-  const [tableChineseLanguage, setTableChineseLanguage] = useState<BudgetTableChineseLanguage>(
-    language === 'sc' ? 'sc' : 'tc',
+  const [isExportSettingsOpen, setIsExportSettingsOpen] = useState(false);
+  const [exportSettings, setExportSettings] = useState(() =>
+    budgetPdfExportSettingsValue(defaultPdfTheme, pdfExportSettings),
   );
+  useEffect(() => {
+    setExportSettings(budgetPdfExportSettingsValue(defaultPdfTheme, pdfExportSettings));
+  }, [defaultPdfTheme, pdfExportSettings]);
+  const previewLanguage = exportSettings.pdfLanguages[0] ?? 'en';
+  const tableLanguageMode: BudgetTableLanguageMode =
+    previewLanguage === 'sc' || previewLanguage === 'tc' ? 'zh' : 'en';
+  const tableChineseLanguage: BudgetTableChineseLanguage = previewLanguage === 'sc' ? 'sc' : 'tc';
   const budgetHighlights = template?.sections.find(
     (section) => section.key === 'budget_highlights',
   );
@@ -312,8 +331,7 @@ export function BudgetDocumentPreview({
   );
   const remainingLabel = documentText('Remaining', documentLabels.remainingLabel, tableLanguageMode);
   const totalLabel = documentText('Total', documentLabels.totalLabel, tableLanguageMode);
-  const columnLabelStyle: BudgetColumnLabelStyle =
-    tableLanguageMode === 'bilingual' ? 'bilingual' : 'single';
+  const columnLabelStyle: BudgetColumnLabelStyle = 'single';
   const budgetColumns = useMemo(
     () => {
       const columns = createBudgetItemColumns(
@@ -499,42 +517,43 @@ export function BudgetDocumentPreview({
           </span>
           <Button
             disabled={selectedBudget === null}
+            icon={<Settings2 size={13} />}
+            size="small"
+            onClick={() => setIsExportSettingsOpen(true)}
+          >
+            {t('pdfExportSettings')}
+          </Button>
+          <Button
+            disabled={selectedBudget === null}
             icon={<Download size={13} />}
             loading={operations.creatingExportFormat === 'pdf'}
             size="small"
             onClick={() => operations.createExport('pdf', {
-              tableChineseLanguage,
-              tableLanguageMode,
+              pdfLanguages: exportSettings.pdfLanguages,
+              pdfTheme: exportSettings.pdfTheme,
+              showWorkspace: exportSettings.showWorkspace,
             })}
           >
-            PDF
+            {t('exportPdf')}
           </Button>
         </div>
-        <div className="budget-table-language-controls">
-          <span className="budget-export-label">{t('tableLanguage')}</span>
-          <Segmented<BudgetTableLanguageMode>
-            options={[
-              { label: t('tableLanguageEnglish'), value: 'en' },
-              { label: t('tableLanguageChinese'), value: 'zh' },
-              { label: t('tableLanguageBilingual'), value: 'bilingual' },
-            ]}
-            size="small"
-            value={tableLanguageMode}
-            onChange={setTableLanguageMode}
-          />
-          {tableLanguageMode !== 'en' ? (
-            <Segmented<BudgetTableChineseLanguage>
-              options={[
-                { label: t('tableChineseTraditional'), value: 'tc' },
-                { label: t('tableChineseSimplified'), value: 'sc' },
-              ]}
-              size="small"
-              value={tableChineseLanguage}
-              onChange={setTableChineseLanguage}
-            />
-          ) : null}
+        <div className="budget-export-meta">
+          {exportSettings.pdfLanguages.map((pdfLanguage) => (
+            <Tag key={pdfLanguage}>
+              {languageOptions.find((option) => option.value === pdfLanguage)?.label ?? pdfLanguage}
+            </Tag>
+          ))}
         </div>
       </div>
+      <BudgetPdfExportSettingsModal
+        open={isExportSettingsOpen}
+        value={exportSettings}
+        onApply={(nextSettings) => {
+          setExportSettings(nextSettings);
+          setIsExportSettingsOpen(false);
+        }}
+        onCancel={() => setIsExportSettingsOpen(false)}
+      />
 
       {operations.operationsError ? (
         <div className="state-panel state-panel-compact">

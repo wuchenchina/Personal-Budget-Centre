@@ -16,6 +16,7 @@ use BudgetCentre\Repositories\BudgetTemplateRepository;
 use BudgetCentre\Services\BudgetPdf\BudgetPdfTheme;
 use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
+use BudgetCentre\Support\PdfLanguages;
 use PDO;
 use Throwable;
 
@@ -162,6 +163,7 @@ final readonly class BudgetExportService
             ?? BudgetPdfTheme::DEFAULT,
         );
         $showWorkspace = $this->showWorkspacePreference($input, $session);
+        $pdfLanguages = $this->pdfLanguages($input, $session, $tableLanguageMode, $tableChineseLanguage);
 
         return [
             'tableLanguageMode' => in_array($tableLanguageMode, ['en', 'zh', 'bilingual'], true)
@@ -172,7 +174,37 @@ final readonly class BudgetExportService
                 : 'tc',
             'pdfTheme' => $pdfTheme,
             'showWorkspace' => $showWorkspace,
+            'pdfLanguages' => $pdfLanguages,
         ];
+    }
+
+    private function pdfLanguages(
+        array $input,
+        array $session,
+        string $tableLanguageMode,
+        string $tableChineseLanguage,
+    ): array {
+        if (array_key_exists('pdfLanguages', $input) || array_key_exists('pdf_languages', $input)) {
+            $languages = PdfLanguages::normalizeList($input['pdfLanguages'] ?? $input['pdf_languages'] ?? null, []);
+            if ($languages !== []) {
+                return $languages;
+            }
+        }
+
+        $raw = $session['pdf_export_settings'] ?? null;
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        if (is_array($raw)) {
+            $languages = PdfLanguages::normalizeList($raw['pdfLanguages'] ?? $raw['pdf_languages'] ?? null, []);
+            if ($languages !== []) {
+                return $languages;
+            }
+        }
+
+        return PdfLanguages::fromLegacyTableOptions($tableLanguageMode, $tableChineseLanguage);
     }
 
     private function showWorkspacePreference(array $input, array $session): bool

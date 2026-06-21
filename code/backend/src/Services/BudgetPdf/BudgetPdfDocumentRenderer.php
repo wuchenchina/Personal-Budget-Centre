@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace BudgetCentre\Services\BudgetPdf;
 
+use BudgetCentre\Support\PdfLanguages;
+
 final readonly class BudgetPdfDocumentRenderer
 {
     private const TABLE_TEXT = [
@@ -227,7 +229,7 @@ final readonly class BudgetPdfDocumentRenderer
                     )
                     : ''
             )
-            . $this->signatureRenderer->render($budget, $theme)
+            . $this->signatureRenderer->render($this->budgetWithSignatureLanguages($budget, $tableContext), $theme)
             . '</body></html>';
     }
 
@@ -238,6 +240,18 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function tableContext(array $options): array
     {
+        if (array_key_exists('pdfLanguages', $options) || array_key_exists('pdf_languages', $options)) {
+            $languages = PdfLanguages::normalizeList($options['pdfLanguages'] ?? $options['pdf_languages'] ?? null);
+
+            return [
+                'mode' => count($languages) === 1 && $languages[0] === 'en' ? 'en' : 'composite',
+                'language' => $languages[0] ?? 'en',
+                'languages' => $languages,
+                'chineseLanguage' => in_array('sc', $languages, true) ? 'sc' : 'tc',
+                'labels' => BudgetPdfTranslations::budgetComposite($languages),
+            ];
+        }
+
         $mode = $options['tableLanguageMode'] ?? 'en';
         $chineseLanguage = $options['tableChineseLanguage'] ?? 'tc';
         $mode = in_array($mode, ['en', 'zh', 'bilingual'], true) ? (string) $mode : 'en';
@@ -247,8 +261,9 @@ final readonly class BudgetPdfDocumentRenderer
 
         return [
             'mode' => $mode,
+            'language' => $mode === 'en' ? 'en' : $chineseLanguage,
             'chineseLanguage' => $chineseLanguage,
-            'labels' => self::TABLE_TEXT[$chineseLanguage],
+            'labels' => BudgetPdfTranslations::budget($chineseLanguage),
         ];
     }
 
@@ -426,9 +441,9 @@ final readonly class BudgetPdfDocumentRenderer
             return $english;
         }
 
-        $chinese = $context['labels']['columnLabels'][$key] ?? $english;
+        $localized = $context['labels']['columnLabels'][$key] ?? $english;
 
-        return $context['mode'] === 'bilingual' ? $english . "\n" . $chinese : $chinese;
+        return $context['mode'] === 'bilingual' ? $english . "\n" . $localized : $localized;
     }
 
     private function sectionHasColumn(array $section, string $key): bool
@@ -442,13 +457,13 @@ final readonly class BudgetPdfDocumentRenderer
         return false;
     }
 
-    private function tableText(string $english, string $chinese, array $context): string
+    private function tableText(string $english, string $localized, array $context): string
     {
         if ($context['mode'] === 'bilingual') {
-            return $english . ' ' . $chinese;
+            return $english . ' ' . $localized;
         }
 
-        return $context['mode'] === 'zh' ? $chinese : $english;
+        return $context['mode'] === 'en' ? $english : $localized;
     }
 
     private function datePrefix(array $context): string
@@ -457,7 +472,7 @@ final readonly class BudgetPdfDocumentRenderer
             return 'Date / ' . $this->chineseDateLabel($context) . ': ';
         }
 
-        return $context['mode'] === 'zh' ? $context['labels']['datePrefix'] : 'Date: ';
+        return $context['mode'] === 'en' ? 'Date: ' : $context['labels']['datePrefix'];
     }
 
     private function chineseDateLabel(array $context): string
@@ -467,11 +482,19 @@ final readonly class BudgetPdfDocumentRenderer
 
     private function documentLanguage(array $context): string
     {
-        if ($context['mode'] === 'en') {
-            return 'en';
-        }
+        return PdfLanguages::documentLanguage((string) ($context['language'] ?? 'en'));
+    }
 
-        return $context['chineseLanguage'] === 'sc' ? 'zh-Hans' : 'zh-Hant';
+    private function budgetWithSignatureLanguages(array $budget, array $context): array
+    {
+        $languages = PdfLanguages::normalizeList($context['languages'] ?? [$context['language'] ?? 'en']);
+        $signatureConfig = is_array($budget['signatureConfig'] ?? null) ? $budget['signatureConfig'] : [];
+        $budget['signatureConfig'] = [
+            ...$signatureConfig,
+            'pdfLanguages' => $languages,
+        ];
+
+        return $budget;
     }
 
     private function multilineBlockHtml(string $value, string $lineClass): string

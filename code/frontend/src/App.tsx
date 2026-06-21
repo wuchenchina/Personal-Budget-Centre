@@ -25,6 +25,16 @@ function initialLanguage(): AppLanguage {
   );
 }
 
+const documentLanguageTags: Record<AppLanguage, string> = {
+  en: 'en',
+  sc: 'zh-Hans',
+  tc: 'zh-Hant',
+  ja: 'ja',
+  fr: 'fr',
+  ru: 'ru',
+  de: 'de',
+};
+
 function replacePath(path: string) {
   window.history.replaceState(null, '', path);
 }
@@ -254,8 +264,7 @@ function App() {
 
   useEffect(() => {
     window.localStorage.setItem('budgetCentre.language', language);
-    document.documentElement.lang =
-      language === 'en' ? 'en' : language === 'sc' ? 'zh-Hans' : 'zh-Hant';
+    document.documentElement.lang = documentLanguageTags[language];
   }, [language]);
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import type { CurrencyCode, PdfThemeKey, WorkspaceRole } from './budget';
+import type { AppLanguage } from '../i18n/types';
 
 export type UserStatus = 'active' | 'disabled' | 'pending';
 
@@ -20,6 +21,7 @@ export interface AuthUser {
 
 export interface PdfExportSettings {
   showWorkspace: boolean;
+  pdfLanguages: AppLanguage[];
 }
 
 export interface AuthWorkspace {

@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import type { AppLanguage } from '../i18n';
 import type { WorkspaceMember } from '../types/auth';
 import type {
   BudgetSignatureCustomField,
@@ -367,6 +368,12 @@ export function signatureCustomFieldLabelForDisplay(config: BudgetSignatureConfi
 
 export function signatureInfoLanguage(config: BudgetSignatureConfig): BudgetSignatureLabelLanguage {
   return normalizeLabelLanguage(config.infoLanguage ?? config.labelLanguage);
+}
+
+export function signatureLanguageFromAppLanguage(
+  language: AppLanguage,
+): BudgetSignatureLabelLanguage {
+  return language === 'sc' || language === 'tc' ? language : 'en';
 }
 
 export function signatureMetaLabelsForLanguage(

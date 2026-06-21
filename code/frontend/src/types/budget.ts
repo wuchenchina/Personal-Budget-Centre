@@ -1,3 +1,5 @@
+import type { AppLanguage } from '../i18n/types';
+
 export type CurrencyCode =
   | 'CNY'
   | 'CNH'
@@ -344,6 +346,7 @@ export interface BudgetExportOptions {
   tableChineseLanguage?: BudgetExportChineseLanguage;
   pdfTheme?: PdfThemeKey;
   showWorkspace?: boolean;
+  pdfLanguages?: AppLanguage[];
 }
 
 export interface BudgetExport {

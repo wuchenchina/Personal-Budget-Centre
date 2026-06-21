@@ -80,6 +80,19 @@
   font-weight: 700;
 }
 
+.budget-export-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.budget-export-meta .ant-tag {
+  margin-inline-end: 0;
+}
+
 .budget-export-label {
   gap: 6px;
   color: var(--bc-text);

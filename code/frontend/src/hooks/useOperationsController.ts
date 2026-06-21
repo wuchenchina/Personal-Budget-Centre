@@ -30,6 +30,7 @@ import type {
   CurrencyCode,
 } from '../types/budget';
 import { translateCurrent } from '../i18n';
+import { normalizePdfExportSettings } from '../utils/pdfExportSettings';
 
 interface UseOperationsControllerOptions {
   activeWorkspaceId: number | null;
@@ -368,8 +369,11 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     setOperationsError(null);
 
     try {
+      const userPdfExportSettings = normalizePdfExportSettings(session?.user.pdfExportSettings);
       const nextExport = await createBudgetExport(selectedBudget.id, format, {
         pdfTheme: session?.user.defaultPdfTheme ?? 'classic',
+        showWorkspace: userPdfExportSettings.showWorkspace,
+        pdfLanguages: userPdfExportSettings.pdfLanguages,
         ...exportOptions,
       });
       triggerExportDownload(exportDownloadUrl(nextExport));

@@ -15,6 +15,7 @@ use BudgetCentre\Repositories\WorkspaceRepository;
 use BudgetCentre\Services\BudgetPdf\BudgetPdfTheme;
 use BudgetCentre\Support\Env;
 use BudgetCentre\Support\Input;
+use BudgetCentre\Support\PdfLanguages;
 use ParagonIE\ConstantTime\Base64UrlSafe;
 use PDO;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
@@ -336,6 +337,7 @@ final readonly class PasskeyService
 
         return [
             'showWorkspace' => (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? false),
+            'pdfLanguages' => PdfLanguages::normalizeList($raw['pdfLanguages'] ?? $raw['pdf_languages'] ?? null),
         ];
     }
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Alert, Avatar, Button, Form, Input, Modal, Radio, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
+import { Alert, Avatar, Button, Checkbox, Form, Input, Modal, Radio, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 import { FileText, KeyRound, Link2, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import {
@@ -15,10 +15,10 @@ import { startCasdoorSignin } from '../../config/casdoor';
 import { setPendingSsoMergeToken } from '../../config/ssoMerge';
 import { normalizePdfTheme, pdfThemeOptions } from '../../config/pdfThemes';
 import type { OperationsController } from '../../hooks/useOperationsController';
-import { useI18n } from '../../i18n';
+import { languageOptions, useI18n } from '../../i18n';
 import type { AuthSession, SsoBinding } from '../../types/auth';
-import type { PdfExportSettings } from '../../types/auth';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
+import { normalizePdfExportSettings } from '../../utils/pdfExportSettings';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
 import styles from './ProfilePage.module.css';
 
@@ -51,10 +51,15 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const isSsoOnlyAccount = !session.user.hasPassword;
   const watchedPdfTheme = Form.useWatch('defaultPdfTheme', exportForm);
   const watchedShowWorkspace = Form.useWatch(['pdfExportSettings', 'showWorkspace'], exportForm);
+  const watchedPdfLanguages = Form.useWatch(['pdfExportSettings', 'pdfLanguages'], exportForm);
   const previewPdfTheme = normalizePdfTheme(watchedPdfTheme ?? session.user.defaultPdfTheme);
   const previewSettings = normalizePdfExportSettings(session.user.pdfExportSettings);
   const previewShowWorkspace =
     watchedShowWorkspace ?? previewSettings.showWorkspace;
+  const previewPdfLanguages = normalizePdfExportSettings({
+    ...previewSettings,
+    pdfLanguages: watchedPdfLanguages ?? previewSettings.pdfLanguages,
+  }).pdfLanguages;
   const previewWorkspaceName = session.workspace?.name ?? t('noWorkspaceSelected');
   useEffect(() => {
     const profileValues = {
@@ -454,6 +459,27 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                           </Form.Item>
                           <div className={styles.exportOptionGrid}>
                             <Form.Item
+                              className={styles.languageField}
+                              label={t('pdfExportLanguages')}
+                              name={['pdfExportSettings', 'pdfLanguages']}
+                              rules={[
+                                {
+                                  validator: async (_, value: unknown) => {
+                                    if (Array.isArray(value) && value.length > 0) {
+                                      return;
+                                    }
+
+                                    throw new Error(t('pdfExportLanguageRequired'));
+                                  },
+                                },
+                              ]}
+                            >
+                              <Checkbox.Group
+                                className={styles.languageCheckboxes}
+                                options={languageOptions}
+                              />
+                            </Form.Item>
+                            <Form.Item
                               className={styles.switchField}
                               name={['pdfExportSettings', 'showWorkspace']}
                               valuePropName="checked"
@@ -476,6 +502,9 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                             <Tag color={previewPdfTheme === 'hsbc' ? 'red' : 'default'}>
                               {t(pdfThemeLabelKey(previewPdfTheme))}
                             </Tag>
+                            {previewPdfLanguages.map((pdfLanguage) => (
+                              <Tag key={pdfLanguage}>{languageOptions.find((option) => option.value === pdfLanguage)?.label ?? pdfLanguage}</Tag>
+                            ))}
                           </Space>
                         </div>
                         <div
@@ -774,12 +803,6 @@ function pdfThemeDescriptionKey(theme: string) {
   return normalizePdfTheme(theme) === 'hsbc'
     ? 'pdfThemeHsbcDescription'
     : 'pdfThemeClassicDescription';
-}
-
-function normalizePdfExportSettings(settings: Partial<PdfExportSettings> | null | undefined): PdfExportSettings {
-  return {
-    showWorkspace: settings?.showWorkspace === true,
-  };
 }
 
 interface SwitchSettingProps {

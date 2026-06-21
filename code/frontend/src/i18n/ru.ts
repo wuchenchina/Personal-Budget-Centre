@@ -1,0 +1,177 @@
+import ruRU from 'antd/es/locale/ru_RU';
+import type { UserStatus } from '../types/auth';
+import type {
+  BudgetSharePrincipalType,
+  BudgetShareRole,
+  BudgetStatus,
+  CurrencyRate,
+  Visibility,
+  WorkspaceRole,
+} from '../types/budget';
+import { enDictionary } from './en';
+import type { AppLanguage, WorkspaceType } from './types';
+
+export const ruLanguage = 'ru' satisfies AppLanguage;
+
+export const ruLanguageLabel = 'Русский';
+
+export const ruLanguageOption = { label: ruLanguageLabel, value: ruLanguage };
+
+export const ruAntdLocale = ruRU;
+
+export const ruDictionary = {
+  ...enDictionary,
+  active: 'Активен',
+  add: 'Добавить',
+  admin: 'Администрирование',
+  all: 'Все',
+  amount: 'Сумма',
+  archived: 'В архиве',
+  budget: 'Бюджет',
+  budgetProjects: 'Бюджетные проекты',
+  bookkeeping: 'Учет',
+  cancel: 'Отмена',
+  categories: 'Категории',
+  closed: 'Закрыт',
+  create: 'Создать',
+  createBudgetProject: 'Создать бюджетный проект',
+  currentWorkspace: 'Текущее рабочее пространство',
+  dashboard: 'Панель',
+  delete: 'Удалить',
+  deleteBudgetDescription: 'Удалить этот бюджетный проект, все его позиции и транзакции? Это действие нельзя отменить.',
+  deleteBudgetTitle: 'Удалить этот бюджетный проект?',
+  draft: 'Черновик',
+  estimatedActuals: 'Оценка факта',
+  exportPdf: 'Экспорт PDF',
+  loadingBudgetProjects: 'Загрузка бюджетных проектов...',
+  logout: 'Выйти',
+  newTabEdit: 'Редактировать',
+  noMatchingBudgetProjects: 'Нет подходящих бюджетных проектов',
+  pdfExportApplySettings: 'Применить настройки',
+  pdfExportLanguages: 'Языки PDF',
+  pdfExportLanguagesDescription: 'Выбранные языки объединяются в одном PDF-документе.',
+  pdfExportLanguageRequired: 'Выберите хотя бы один язык PDF.',
+  pdfExportPreview: 'Предпросмотр',
+  pdfExportPreviewSection: 'Сводка бюджета',
+  pdfExportPreviewSubtitle: 'Пример макета экспорта',
+  pdfExportPreviewTitle: 'Название бюджета',
+  pdfExportSettings: 'Настройки экспорта',
+  pdfExportSettingsDescription: 'Выберите настройки для текущего экспорта PDF.',
+  pdfExportShowWorkspace: 'Показывать Workspace',
+  pdfExportShowWorkspaceDescription: 'Показывать настоящее имя Workspace в поддерживаемых темах PDF.',
+  pdfTheme: 'Тема PDF',
+  pdfThemeClassic: 'Классическая',
+  pdfThemeClassicDescription: 'Сохраняет текущий шаблон экспорта.',
+  pdfThemeHsbc: 'Стиль HSBC',
+  pdfThemeHsbcDescription: 'Макет в стиле официальных документов для экспорта бюджета и учета.',
+  pdfThemeProfileHelp: 'Эта настройка используется для экспорта PDF бюджета и учета.',
+  pdfThemeRequired: 'Выберите тему PDF.',
+  personal: 'Личное',
+  personalFinance: 'Личные финансы',
+  projectInfo: 'Информация о проекте',
+  projectLibrary: 'Библиотека проектов',
+  projectLibraryDesc: 'Бюджетные проекты остаются независимыми; для совместной работы подключайте их к рабочим пространствам или пользователям через правила доступа.',
+  projectLibraryTitle: 'Библиотека бюджетных проектов',
+  rate: 'Курс',
+  rates: 'Курсы',
+  save: 'Сохранить',
+  searchBudgetProjects: 'Поиск бюджетных проектов',
+  setCurrent: 'Сделать текущим',
+  variance: 'Отклонение',
+  workspace: 'Рабочее пространство',
+} satisfies Record<keyof typeof enDictionary, string>;
+
+export const ruRoleLabels = {
+  owner: "Владелец",
+  admin: "Администратор",
+  editor: "Редактор",
+  viewer: "Наблюдатель",
+  auditor: "Аудитор",
+} satisfies Record<WorkspaceRole, string>;
+
+export const ruBudgetShareRoleLabels = {
+  owner: "Владелец",
+  editor: "Редактор",
+  viewer: "Наблюдатель",
+  auditor: "Аудитор",
+} satisfies Record<BudgetShareRole, string>;
+
+export const ruBudgetStatusLabels = {
+  draft: "Черновик",
+  active: "Активен",
+  closed: "Закрыт",
+  archived: "В архиве",
+} satisfies Record<BudgetStatus, string>;
+
+export const ruVisibilityLabels = {
+  private: "Приватно",
+  workspace: "Рабочая область",
+  custom: "Пользовательский",
+} satisfies Record<Visibility, string>;
+
+export const ruPrincipalTypeLabels = {
+  user: "Пользователь",
+  workgroup: "Рабочая группа",
+  workspace: "Рабочая область",
+} satisfies Record<BudgetSharePrincipalType, string>;
+
+export const ruUserStatusLabels = {
+  active: "Активен",
+  pending: "Ожидает",
+  disabled: "Отключен",
+} satisfies Record<UserStatus, string>;
+
+export const ruWorkspaceTypeLabels = {
+  personal: "Personal",
+  family: "Семья",
+  team: "Команда",
+  custom: "Пользовательский",
+} satisfies Record<WorkspaceType, string>;
+
+export const ruCurrencyRateSourceLabels = {
+  manual: "Вручную",
+  budget_default: "Бюджет по умолчанию",
+  bochk: "BOCHK",
+} satisfies Record<CurrencyRate['source'], string>;
+
+export const ruApiErrorMessages = {
+  AUTHENTICATION_FAILED: "Ошибка аутентификации. Войдите снова.",
+  BUDGET_NOT_FOUND: "Бюджет не существует или был удален.",
+  CSRF_TOKEN_INVALID: "Срок действия сеанса истек. Войдите снова.",
+  DATABASE_NOT_CONFIGURED: "База данных еще не настроена.",
+  DATABASE_UNAVAILABLE: "База данных временно недоступна.",
+  EMAIL_ALREADY_EXISTS: "Этот адрес электронной почты уже зарегистрирован.",
+  EMAIL_NOT_VERIFIED: "Адрес электронной почты не подтвержден. Сначала завершите подтверждение.",
+  EXCHANGE_RATE_NOT_FOUND: "Курс обмена отсутствует. Обновите курсы BOCHK или введите курс вручную.",
+  EXCHANGE_RATE_PROVIDER_DISABLED: "Этот поставщик курсов отключен. Используйте BOCHK или ручные курсы.",
+  EXCHANGE_RATE_PROVIDER_EMPTY: "Доступные курсы не были возвращены. Повторите попытку позже или введите курс вручную.",
+  EXCHANGE_RATE_PROVIDER_FAILED: "Поставщик курсов временно недоступен.",
+  EXCHANGE_RATE_PROVIDER_INVALID: "Поставщик курсов вернул недействительный ответ.",
+  EXPORT_FAILED: "Не удалось создать файл экспорта. Проверьте расширения PHP и права каталога экспорта.",
+  EXPORT_STORAGE_UNWRITABLE: "Каталог экспорта недоступен для записи. Укажите EXPORT_STORAGE_DIR или предоставьте права записи.",
+  FORBIDDEN: "У этой учетной записи нет прав для выполнения этого действия.",
+  INVALID_CREDENTIALS: "Имя пользователя, e-mail или пароль неверны.",
+  INVALID_EMAIL_TOKEN: "Ссылка подтверждения e-mail недействительна или истекла.",
+  MAIL_DELIVERY_FAILED: "Не удалось отправить письмо подтверждения. Повторите попытку позже.",
+  MISSING_SEED_DATA: "Отсутствуют базовые данные. Сначала инициализируйте базу данных.",
+  NOT_FOUND: "API endpoint не существует.",
+  PERMISSION_DENIED: "У этой учетной записи нет прав для выполнения этого действия.",
+  SERVER_ERROR: "Сервер не может обработать запрос сейчас. Повторите попытку позже.",
+  SSO_CREATE_TOKEN_INVALID: "Создание учетной записи SSO истекло. Начните вход через SSO заново.",
+  SSO_BIND_FROM_SSO_ONLY_REQUIRED: "Привязку SSO нужно начинать из учетной записи только SSO.",
+  SSO_EMAIL_ALREADY_EXISTS: "Учетная запись с этим e-mail уже существует. Войдите в нее и привяжите SSO из профиля.",
+  SSO_EMAIL_REQUIRED: "Эта учетная запись SSO не предоставляет e-mail, поэтому BudgetCentre не может создать учетную запись.",
+  SSO_MERGE_BINDING_REQUIRED: "Эта учетная запись не привязана к SSO.",
+  SSO_MERGE_SOURCE_NOT_SSO_ONLY: "Только учетные записи только SSO могут быть объединены с существующей учетной записью.",
+  SSO_MERGE_TARGET_PASSWORD_REQUIRED: "Целевая учетная запись должна быть учетной записью с паролем.",
+  SSO_MERGE_TOKEN_INVALID: "Срок привязки SSO истек. Начните заново из профиля.",
+  SSO_ONLY_EMAIL_LOCKED: "Учетные записи только SSO не могут напрямую менять e-mail.",
+  SSO_ONLY_PASSWORD_DISABLED: "Учетные записи только SSO не могут создавать пароль.",
+  SSO_ONLY_UNLINK_DISABLED: "Перед отключением SSO сначала привяжите существующую учетную запись.",
+  SSO_TARGET_ALREADY_BOUND: "Существующая учетная запись уже привязана к учетной записи SSO.",
+  TEMPLATE_NOT_FOUND: "Шаблон бюджета отсутствует. Сначала инициализируйте данные шаблона.",
+  UNAUTHENTICATED: "Сначала войдите в систему.",
+  USER_NOT_FOUND: "Пользователь не существует или был удален.",
+  USERNAME_ALREADY_EXISTS: "Это имя пользователя уже зарегистрировано.",
+  VALIDATION_ERROR: "Введенные данные недействительны.",
+} satisfies Record<string, string>;

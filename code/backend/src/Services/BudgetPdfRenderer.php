@@ -30,8 +30,7 @@ final readonly class BudgetPdfRenderer
         array $options = [],
     ): void {
         $mpdf = new Mpdf($this->configFactory->config($tempDir));
-        $html = $this->renderHtml($budget, $template, $options);
-        $mpdf->WriteHTML($html);
+        $mpdf->WriteHTML($this->renderHtml($budget, $template, $options));
         if ($mpdf->page <= 1) {
             $mpdf = new Mpdf($this->configFactory->config($tempDir));
             $mpdf->WriteHTML($this->renderHtml($budget, $template, [

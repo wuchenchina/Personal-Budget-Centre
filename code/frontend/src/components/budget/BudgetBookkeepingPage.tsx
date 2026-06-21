@@ -1,18 +1,23 @@
-import { useMemo, useState } from 'react';
-import { Alert, Button, Empty, FloatButton, Input, Popconfirm, Segmented, Space, Table, Tabs, Tag, Tooltip } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Empty, FloatButton, Input, Popconfirm, Space, Table, Tabs, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
-import { ArrowLeft, Download, FileText, Landmark, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Landmark, Pencil, Plus, Search, Settings2, Trash2 } from 'lucide-react';
 import { transactionTypeColors } from '../../config/appConfig';
-import { useI18n } from '../../i18n';
+import { languageOptions, useI18n } from '../../i18n';
+import type { PdfExportSettings } from '../../types/auth';
 import type {
   BookkeepingRecord,
   BudgetDetail,
-  BudgetExportChineseLanguage,
-  BudgetExportTableLanguageMode,
+  BudgetExportOptions,
   CurrencyCode,
+  PdfThemeKey,
   TransactionType,
 } from '../../types/budget';
 import { formatMoney } from '../../utils/currency';
+import {
+  BudgetPdfExportSettingsModal,
+  budgetPdfExportSettingsValue,
+} from './BudgetPdfExportSettingsModal';
 
 interface BudgetBookkeepingPageProps {
   selectedBudget: BudgetDetail | null;
@@ -23,13 +28,12 @@ interface BudgetBookkeepingPageProps {
   records: BookkeepingRecord[];
   saving: boolean;
   deletingRecordId: number | null;
+  defaultPdfTheme: PdfThemeKey;
   exportingPdf: boolean;
+  pdfExportSettings: PdfExportSettings;
   onBackToProjects: () => void;
   onOpenEditor: (budgetId: number) => void;
-  onExportPdf: (options: {
-    tableChineseLanguage: BudgetExportChineseLanguage;
-    tableLanguageMode: BudgetExportTableLanguageMode;
-  }) => void;
+  onExportPdf: (options: BudgetExportOptions) => void;
   onNewRecord: () => void;
   onEditRecord: (record: BookkeepingRecord) => void;
   onDeleteRecord: (recordId: number) => void;
@@ -46,7 +50,9 @@ export function BudgetBookkeepingPage({
   records,
   saving,
   deletingRecordId,
+  defaultPdfTheme,
   exportingPdf,
+  pdfExportSettings,
   onBackToProjects,
   onOpenEditor,
   onExportPdf,
@@ -54,15 +60,16 @@ export function BudgetBookkeepingPage({
   onEditRecord,
   onDeleteRecord,
 }: BudgetBookkeepingPageProps) {
-  const { language, t } = useI18n();
+  const { t } = useI18n();
   const [activeFilter, setActiveFilter] = useState<LedgerFilter>('all');
   const [searchText, setSearchText] = useState('');
-  const [tableLanguageMode, setTableLanguageMode] = useState<BudgetExportTableLanguageMode>(
-    language === 'en' ? 'en' : 'zh',
+  const [isExportSettingsOpen, setIsExportSettingsOpen] = useState(false);
+  const [exportSettings, setExportSettings] = useState(() =>
+    budgetPdfExportSettingsValue(defaultPdfTheme, pdfExportSettings),
   );
-  const [tableChineseLanguage, setTableChineseLanguage] = useState<BudgetExportChineseLanguage>(
-    language === 'sc' ? 'sc' : 'tc',
-  );
+  useEffect(() => {
+    setExportSettings(budgetPdfExportSettingsValue(defaultPdfTheme, pdfExportSettings));
+  }, [defaultPdfTheme, pdfExportSettings]);
   const currency = selectedBudget?.baseCurrency ?? baseCurrency;
   const normalizedSearch = searchText.trim().toLowerCase();
   const filteredRecords = useMemo(
@@ -262,42 +269,43 @@ export function BudgetBookkeepingPage({
           </span>
           <Button
             disabled={selectedBudget === null}
+            icon={<Settings2 size={13} />}
+            size="small"
+            onClick={() => setIsExportSettingsOpen(true)}
+          >
+            {t('pdfExportSettings')}
+          </Button>
+          <Button
+            disabled={selectedBudget === null}
             icon={<Download size={13} />}
             loading={exportingPdf}
             size="small"
             onClick={() => onExportPdf({
-              tableChineseLanguage,
-              tableLanguageMode,
+              pdfLanguages: exportSettings.pdfLanguages,
+              pdfTheme: exportSettings.pdfTheme,
+              showWorkspace: exportSettings.showWorkspace,
             })}
           >
-            PDF
+            {t('exportPdf')}
           </Button>
         </div>
-        <div className="budget-table-language-controls">
-          <span className="budget-export-label">{t('tableLanguage')}</span>
-          <Segmented<BudgetExportTableLanguageMode>
-            options={[
-              { label: t('tableLanguageEnglish'), value: 'en' },
-              { label: t('tableLanguageChinese'), value: 'zh' },
-              { label: t('tableLanguageBilingual'), value: 'bilingual' },
-            ]}
-            size="small"
-            value={tableLanguageMode}
-            onChange={setTableLanguageMode}
-          />
-          {tableLanguageMode !== 'en' ? (
-            <Segmented<BudgetExportChineseLanguage>
-              options={[
-                { label: t('tableChineseTraditional'), value: 'tc' },
-                { label: t('tableChineseSimplified'), value: 'sc' },
-              ]}
-              size="small"
-              value={tableChineseLanguage}
-              onChange={setTableChineseLanguage}
-            />
-          ) : null}
+        <div className="budget-export-meta">
+          {exportSettings.pdfLanguages.map((pdfLanguage) => (
+            <Tag key={pdfLanguage}>
+              {languageOptions.find((option) => option.value === pdfLanguage)?.label ?? pdfLanguage}
+            </Tag>
+          ))}
         </div>
       </div>
+      <BudgetPdfExportSettingsModal
+        open={isExportSettingsOpen}
+        value={exportSettings}
+        onApply={(nextSettings) => {
+          setExportSettings(nextSettings);
+          setIsExportSettingsOpen(false);
+        }}
+        onCancel={() => setIsExportSettingsOpen(false)}
+      />
 
       <section className="project-overview-grid bookkeeping-overview-grid">
         <BookkeepingTile label={t('ledgerRecords')} value={records.length.toLocaleString('en-US')} />

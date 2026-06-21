@@ -226,8 +226,10 @@ function AuthenticatedApp({
       canWriteBudgets={canWriteBudgets}
       entry={budgetEntry}
       entryCategoryOptions={entryCategoryOptions}
+      defaultPdfTheme={session.user.defaultPdfTheme}
       operations={operations}
       onOpenShare={() => setIsShareModalOpen(true)}
+      pdfExportSettings={session.user.pdfExportSettings}
       template={template}
       transactionCategoryOptions={transactionCategoryOptions}
     />
@@ -243,7 +245,9 @@ function AuthenticatedApp({
         records={bookkeeping.records}
         saving={bookkeeping.saving}
         deletingRecordId={bookkeeping.deletingRecordId}
+        defaultPdfTheme={session.user.defaultPdfTheme}
         exportingPdf={operations.creatingExportFormat === 'pdf'}
+        pdfExportSettings={session.user.pdfExportSettings}
         onBackToProjects={() => navigateToPath('/budgets')}
         onOpenEditor={openBudgetProjectInNewTab}
         onExportPdf={(exportOptions) => operations.createExport('pdf', {

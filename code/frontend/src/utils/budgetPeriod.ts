@@ -11,9 +11,17 @@ export function formatBudgetPeriod(budget: BudgetPeriodLike, language: AppLangua
   }
 
   if (budget.startDate !== null && budget.endDate !== null) {
-    const separator = language === 'en' ? ' to ' : language === 'sc' ? ' 至 ' : ' 至 ';
+    const separator = {
+      en: ' to ',
+      sc: ' 至 ',
+      tc: ' 至 ',
+      ja: ' 〜 ',
+      fr: ' au ',
+      ru: ' — ',
+      de: ' bis ',
+    } satisfies Record<AppLanguage, string>;
 
-    return `${budget.startDate}${separator}${budget.endDate}`;
+    return `${budget.startDate}${separator[language]}${budget.endDate}`;
   }
 
   return budget.startDate ?? budget.endDate;

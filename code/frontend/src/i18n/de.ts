@@ -1,0 +1,177 @@
+import deDE from 'antd/es/locale/de_DE';
+import type { UserStatus } from '../types/auth';
+import type {
+  BudgetSharePrincipalType,
+  BudgetShareRole,
+  BudgetStatus,
+  CurrencyRate,
+  Visibility,
+  WorkspaceRole,
+} from '../types/budget';
+import { enDictionary } from './en';
+import type { AppLanguage, WorkspaceType } from './types';
+
+export const deLanguage = 'de' satisfies AppLanguage;
+
+export const deLanguageLabel = 'Deutsch';
+
+export const deLanguageOption = { label: deLanguageLabel, value: deLanguage };
+
+export const deAntdLocale = deDE;
+
+export const deDictionary = {
+  ...enDictionary,
+  active: 'Aktiv',
+  add: 'Hinzufuegen',
+  admin: 'Administration',
+  all: 'Alle',
+  amount: 'Betrag',
+  archived: 'Archiviert',
+  budget: 'Budget',
+  budgetProjects: 'Budgetprojekte',
+  bookkeeping: 'Buchhaltung',
+  cancel: 'Abbrechen',
+  categories: 'Kategorien',
+  closed: 'Geschlossen',
+  create: 'Erstellen',
+  createBudgetProject: 'Budgetprojekt erstellen',
+  currentWorkspace: 'Aktueller Arbeitsbereich',
+  dashboard: 'Dashboard',
+  delete: 'Loeschen',
+  deleteBudgetDescription: 'Dieses Budgetprojekt mit allen Positionen und Transaktionen loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.',
+  deleteBudgetTitle: 'Dieses Budgetprojekt loeschen?',
+  draft: 'Entwurf',
+  estimatedActuals: 'Geschaetzte Istwerte',
+  exportPdf: 'PDF exportieren',
+  loadingBudgetProjects: 'Budgetprojekte werden geladen...',
+  logout: 'Abmelden',
+  newTabEdit: 'Bearbeiten',
+  noMatchingBudgetProjects: 'Keine passenden Budgetprojekte',
+  pdfExportApplySettings: 'Einstellungen anwenden',
+  pdfExportLanguages: 'PDF-Sprachen',
+  pdfExportLanguagesDescription: 'Ausgewaehlte Sprachen werden im selben PDF-Dokument kombiniert.',
+  pdfExportLanguageRequired: 'Waehlen Sie mindestens eine PDF-Sprache aus.',
+  pdfExportPreview: 'Live-Vorschau',
+  pdfExportPreviewSection: 'Budgetuebersicht',
+  pdfExportPreviewSubtitle: 'Beispiel fuer das Exportlayout',
+  pdfExportPreviewTitle: 'Budgettitel',
+  pdfExportSettings: 'Exporteinstellungen',
+  pdfExportSettingsDescription: 'Waehlen Sie die Einstellungen fuer diesen PDF-Export.',
+  pdfExportShowWorkspace: 'Workspace anzeigen',
+  pdfExportShowWorkspaceDescription: 'Zeigt den echten Workspace-Namen in unterstuetzten PDF-Themes an.',
+  pdfTheme: 'PDF-Theme',
+  pdfThemeClassic: 'Klassisch',
+  pdfThemeClassicDescription: 'Behaelt die aktuelle Exportvorlage bei.',
+  pdfThemeHsbc: 'HSBC-Stil',
+  pdfThemeHsbcDescription: 'An offiziellen Belegen orientiertes Layout fuer Budget- und Buchhaltungsexporte.',
+  pdfThemeProfileHelp: 'Diese Praeferenz wird fuer Budget- und Buchhaltungs-PDF-Exporte genutzt.',
+  pdfThemeRequired: 'Waehlen Sie ein PDF-Theme aus.',
+  personal: 'Persoenlich',
+  personalFinance: 'Persoenliche Finanzen',
+  projectInfo: 'Projektinfo',
+  projectLibrary: 'Projektbibliothek',
+  projectLibraryDesc: 'Budgetprojekte bleiben unabhaengig; fuer Zusammenarbeit verbinden Sie sie ueber Freigaberegeln mit Arbeitsbereichen oder Benutzern.',
+  projectLibraryTitle: 'Bibliothek der Budgetprojekte',
+  rate: 'Kurs',
+  rates: 'Kurse',
+  save: 'Speichern',
+  searchBudgetProjects: 'Budgetprojekte suchen',
+  setCurrent: 'Als aktuell setzen',
+  variance: 'Abweichung',
+  workspace: 'Arbeitsbereich',
+} satisfies Record<keyof typeof enDictionary, string>;
+
+export const deRoleLabels = {
+  owner: "Eigentümer",
+  admin: "Administrator",
+  editor: "Bearbeiter",
+  viewer: "Betrachter",
+  auditor: "Prüfer",
+} satisfies Record<WorkspaceRole, string>;
+
+export const deBudgetShareRoleLabels = {
+  owner: "Eigentümer",
+  editor: "Bearbeiter",
+  viewer: "Betrachter",
+  auditor: "Prüfer",
+} satisfies Record<BudgetShareRole, string>;
+
+export const deBudgetStatusLabels = {
+  draft: "Entwurf",
+  active: "Aktiv",
+  closed: "Geschlossen",
+  archived: "Archiviert",
+} satisfies Record<BudgetStatus, string>;
+
+export const deVisibilityLabels = {
+  private: "Privat",
+  workspace: "Arbeitsbereich",
+  custom: "Benutzerdefiniert",
+} satisfies Record<Visibility, string>;
+
+export const dePrincipalTypeLabels = {
+  user: "Benutzer",
+  workgroup: "Arbeitsgruppe",
+  workspace: "Arbeitsbereich",
+} satisfies Record<BudgetSharePrincipalType, string>;
+
+export const deUserStatusLabels = {
+  active: "Aktiv",
+  pending: "Ausstehend",
+  disabled: "Deaktiviert",
+} satisfies Record<UserStatus, string>;
+
+export const deWorkspaceTypeLabels = {
+  personal: "Personal",
+  family: "Familie",
+  team: "Team",
+  custom: "Benutzerdefiniert",
+} satisfies Record<WorkspaceType, string>;
+
+export const deCurrencyRateSourceLabels = {
+  manual: "Manuell",
+  budget_default: "Budgetstandard",
+  bochk: "BOCHK",
+} satisfies Record<CurrencyRate['source'], string>;
+
+export const deApiErrorMessages = {
+  AUTHENTICATION_FAILED: "Authentifizierung fehlgeschlagen. Bitte erneut anmelden.",
+  BUDGET_NOT_FOUND: "Das Budget existiert nicht oder wurde gelöscht.",
+  CSRF_TOKEN_INVALID: "Ihre Sitzung ist abgelaufen. Bitte erneut anmelden.",
+  DATABASE_NOT_CONFIGURED: "Die Datenbank wurde noch nicht konfiguriert.",
+  DATABASE_UNAVAILABLE: "Die Datenbank ist vorübergehend nicht verfügbar.",
+  EMAIL_ALREADY_EXISTS: "Diese E-Mail-Adresse ist bereits registriert.",
+  EMAIL_NOT_VERIFIED: "Die E-Mail-Adresse ist nicht verifiziert. Bitte zuerst die Verifizierung abschließen.",
+  EXCHANGE_RATE_NOT_FOUND: "Der Wechselkurs fehlt. Aktualisieren Sie BOCHK-Kurse oder geben Sie einen manuellen Kurs ein.",
+  EXCHANGE_RATE_PROVIDER_DISABLED: "Dieser Wechselkursanbieter ist deaktiviert. Verwenden Sie BOCHK oder manuelle Kurse.",
+  EXCHANGE_RATE_PROVIDER_EMPTY: "Es wurden keine verfügbaren Kurse zurückgegeben. Versuchen Sie es später erneut oder geben Sie einen manuellen Kurs ein.",
+  EXCHANGE_RATE_PROVIDER_FAILED: "Der Wechselkursanbieter ist vorübergehend nicht verfügbar.",
+  EXCHANGE_RATE_PROVIDER_INVALID: "Der Wechselkursanbieter hat eine ungültige Antwort zurückgegeben.",
+  EXPORT_FAILED: "Exportdatei konnte nicht erstellt werden. Prüfen Sie PHP-Erweiterungen und Berechtigungen des Exportverzeichnisses.",
+  EXPORT_STORAGE_UNWRITABLE: "Das Exportverzeichnis ist nicht beschreibbar. Setzen Sie EXPORT_STORAGE_DIR oder vergeben Sie Schreibrechte.",
+  FORBIDDEN: "Dieses Konto hat keine Berechtigung für diese Aktion.",
+  INVALID_CREDENTIALS: "Benutzername, E-Mail oder Passwort ist falsch.",
+  INVALID_EMAIL_TOKEN: "Der Link zur E-Mail-Verifizierung ist ungültig oder abgelaufen.",
+  MAIL_DELIVERY_FAILED: "Die Verifizierungs-E-Mail konnte nicht gesendet werden. Bitte später erneut versuchen.",
+  MISSING_SEED_DATA: "Basisdaten fehlen. Initialisieren Sie zuerst die Datenbank.",
+  NOT_FOUND: "Der API-Endpunkt existiert nicht.",
+  PERMISSION_DENIED: "Dieses Konto hat keine Berechtigung für diese Aktion.",
+  SERVER_ERROR: "Der Server kann die Anfrage derzeit nicht abschließen. Bitte später erneut versuchen.",
+  SSO_CREATE_TOKEN_INVALID: "Die Erstellung des SSO-Kontos ist abgelaufen. Starten Sie die SSO-Anmeldung erneut.",
+  SSO_BIND_FROM_SSO_ONLY_REQUIRED: "Die SSO-Verknüpfung muss von einem reinen SSO-Konto gestartet werden.",
+  SSO_EMAIL_ALREADY_EXISTS: "Ein Konto mit dieser E-Mail existiert bereits. Melden Sie sich damit an und verknüpfen Sie SSO im Profil.",
+  SSO_EMAIL_REQUIRED: "Dieses SSO-Konto liefert keine E-Mail-Adresse, daher kann BudgetCentre kein Konto erstellen.",
+  SSO_MERGE_BINDING_REQUIRED: "Dieses Konto ist nicht mit SSO verknüpft.",
+  SSO_MERGE_SOURCE_NOT_SSO_ONLY: "Nur reine SSO-Konten können in ein bestehendes Konto zusammengeführt werden.",
+  SSO_MERGE_TARGET_PASSWORD_REQUIRED: "Das Zielkonto muss ein Passwortkonto sein.",
+  SSO_MERGE_TOKEN_INVALID: "Die SSO-Verknüpfung ist abgelaufen. Starten Sie sie im Profil erneut.",
+  SSO_ONLY_EMAIL_LOCKED: "Reine SSO-Konten können die E-Mail nicht direkt ändern.",
+  SSO_ONLY_PASSWORD_DISABLED: "Reine SSO-Konten können kein Passwort erstellen.",
+  SSO_ONLY_UNLINK_DISABLED: "Verknüpfen Sie zuerst ein bestehendes Konto, bevor Sie SSO trennen.",
+  SSO_TARGET_ALREADY_BOUND: "Das bestehende Konto ist bereits mit einem SSO-Konto verknüpft.",
+  TEMPLATE_NOT_FOUND: "Die Budgetvorlage fehlt. Initialisieren Sie zuerst die Vorlagendaten.",
+  UNAUTHENTICATED: "Bitte zuerst anmelden.",
+  USER_NOT_FOUND: "Der Benutzer existiert nicht oder wurde gelöscht.",
+  USERNAME_ALREADY_EXISTS: "Dieser Benutzername ist bereits registriert.",
+  VALIDATION_ERROR: "Die Eingabe ist ungültig.",
+} satisfies Record<string, string>;

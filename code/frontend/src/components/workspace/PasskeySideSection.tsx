@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Input, Popconfirm, Space } from 'antd';
 import { Check, KeyRound, Pencil, ShieldCheck, Trash2, X } from 'lucide-react';
 import type { OperationsController } from '../../hooks/useOperationsController';
+import type { AppLanguage } from '../../i18n';
 import { useI18n } from '../../i18n';
 import type { PasskeyCredential } from '../../types/auth';
 
@@ -139,15 +140,23 @@ export function PasskeySideSection({
   );
 }
 
-function formatPasskeyDate(value: string, language: string): string {
+const passkeyDateLocales: Record<AppLanguage, string> = {
+  en: 'en-US',
+  sc: 'zh-CN',
+  tc: 'zh-HK',
+  ja: 'ja-JP',
+  fr: 'fr-FR',
+  ru: 'ru-RU',
+  de: 'de-DE',
+};
+
+function formatPasskeyDate(value: string, language: AppLanguage): string {
   const timestamp = new Date(value);
   if (Number.isNaN(timestamp.getTime())) {
     return value;
   }
 
-  const locale = language === 'en' ? 'en-US' : language === 'sc' ? 'zh-CN' : 'zh-HK';
-
-  return timestamp.toLocaleString(locale, {
+  return timestamp.toLocaleString(passkeyDateLocales[language], {
     hour: '2-digit',
     minute: '2-digit',
     month: '2-digit',

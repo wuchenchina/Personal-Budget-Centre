@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace BudgetCentre\Services\BudgetPdf;
 
+use BudgetCentre\Support\PdfLanguages;
 use DateTimeImmutable;
 
 final readonly class BudgetPdfFormatter
@@ -66,12 +67,24 @@ final readonly class BudgetPdfFormatter
 
     public function signatureLabel(array $config): string
     {
+        $pdfLanguages = $this->signaturePdfLanguages($config);
+        if ($pdfLanguages !== null) {
+            return $this->joinUnique(array_map(
+                fn (string $language): string => $this->signatureLabel($this->signatureConfigForLanguage($config, $language)),
+                $pdfLanguages,
+            ));
+        }
+
         $language = $this->signatureLanguage($config);
         $primaryLanguage = $this->signaturePrimaryLanguage($language);
         $labels = [
             'en' => ['confirmation' => 'Confirmation', 'signature' => 'Signature'],
             'sc' => ['confirmation' => '确认', 'signature' => '签署'],
             'tc' => ['confirmation' => '確認', 'signature' => '簽署'],
+            'ja' => ['confirmation' => '確認', 'signature' => '署名'],
+            'fr' => ['confirmation' => 'Confirmation', 'signature' => 'Signature'],
+            'ru' => ['confirmation' => 'Подтверждение', 'signature' => 'Подпись'],
+            'de' => ['confirmation' => 'Bestaetigung', 'signature' => 'Unterschrift'],
         ][$primaryLanguage];
         $mode = in_array($config['labelMode'] ?? null, ['confirmation_signature', 'confirmation', 'signature'], true)
             ? $config['labelMode']
@@ -95,9 +108,17 @@ final readonly class BudgetPdfFormatter
     public function signatureSectionTitle(array $config): string
     {
         if (($config['customTitleEnabled'] ?? $config['custom_title_enabled'] ?? false) === true) {
-            return is_string($config['title'] ?? null) && trim($config['title']) !== ''
-                ? trim($config['title'])
-                : $this->defaultSignatureSectionTitle($this->signatureInfoLanguage($config));
+            if (is_string($config['title'] ?? null) && trim($config['title']) !== '') {
+                return trim($config['title']);
+            }
+        }
+
+        $pdfLanguages = $this->signaturePdfLanguages($config);
+        if ($pdfLanguages !== null) {
+            return $this->joinUnique(array_map(
+                fn (string $language): string => $this->defaultSignatureSectionTitle($language),
+                $pdfLanguages,
+            ));
         }
 
         return $this->defaultSignatureSectionTitle($this->signatureInfoLanguage($config));
@@ -130,11 +151,23 @@ final readonly class BudgetPdfFormatter
             'en' => 'Preparation & Review Record',
             'sc' => '制表及复核记录',
             'tc' => '製表及覆核記錄',
+            'ja' => '作成・確認記録',
+            'fr' => 'Dossier de preparation et de revue',
+            'ru' => 'Запись подготовки и проверки',
+            'de' => 'Erstellungs- und Pruefprotokoll',
         ][$language] ?? 'Preparation & Review Record';
     }
 
     public function signatureMetaLabel(array $config, string $key): string
     {
+        $pdfLanguages = $this->signaturePdfLanguages($config);
+        if ($pdfLanguages !== null) {
+            return $this->joinUnique(array_map(
+                fn (string $language): string => $this->signatureMetaLabel($this->signatureConfigForLanguage($config, $language), $key),
+                $pdfLanguages,
+            ));
+        }
+
         $labels = [
             'en' => [
                 'participant' => 'Name',
@@ -157,6 +190,34 @@ final readonly class BudgetPdfFormatter
                 'email' => '電子郵件',
                 'dateTime' => '日期及時間',
             ],
+            'ja' => [
+                'participant' => '氏名',
+                'capacity' => '役割',
+                'position' => '職位',
+                'email' => 'メール',
+                'dateTime' => '日時',
+            ],
+            'fr' => [
+                'participant' => 'Nom',
+                'capacity' => 'Qualite',
+                'position' => 'Poste',
+                'email' => 'E-mail',
+                'dateTime' => 'Date et heure',
+            ],
+            'ru' => [
+                'participant' => 'Имя',
+                'capacity' => 'Роль',
+                'position' => 'Должность',
+                'email' => 'Email',
+                'dateTime' => 'Дата и время',
+            ],
+            'de' => [
+                'participant' => 'Name',
+                'capacity' => 'Funktion',
+                'position' => 'Position',
+                'email' => 'E-Mail',
+                'dateTime' => 'Datum und Uhrzeit',
+            ],
         ];
         $language = $this->signatureInfoLanguage($config);
         if ($this->signatureIsBilingual($language)) {
@@ -171,6 +232,14 @@ final readonly class BudgetPdfFormatter
 
     public function signatureRoleForDisplay(array $config, string $value): string
     {
+        $pdfLanguages = $this->signaturePdfLanguages($config);
+        if ($pdfLanguages !== null) {
+            return $this->joinUnique(array_map(
+                fn (string $language): string => $this->signatureRoleForDisplay($this->signatureConfigForLanguage($config, $language), $value),
+                $pdfLanguages,
+            ));
+        }
+
         $trimmed = trim($value);
         $language = $this->signatureInfoLanguage($config);
         $primaryLanguage = $this->signaturePrimaryLanguage($language);
@@ -178,7 +247,12 @@ final readonly class BudgetPdfFormatter
             'en' => 'Confirmed by',
             'sc' => '确认人',
             'tc' => '確認人',
+            'ja' => '確認者',
+            'fr' => 'Confirme par',
+            'ru' => 'Подтвердил',
+            'de' => 'Bestaetigt von',
         ][$primaryLanguage];
+        unset($defaultRole);
         if ($trimmed === '') {
             return $this->signaturePhraseForLanguage($this->signatureRolePhrases()[6], $language);
         }
@@ -205,6 +279,14 @@ final readonly class BudgetPdfFormatter
 
     public function signaturePositionForDisplay(array $config, string $value): string
     {
+        $pdfLanguages = $this->signaturePdfLanguages($config);
+        if ($pdfLanguages !== null) {
+            return $this->joinUnique(array_map(
+                fn (string $language): string => $this->signaturePositionForDisplay($this->signatureConfigForLanguage($config, $language), $value),
+                $pdfLanguages,
+            ));
+        }
+
         return $this->translateSignaturePhrase(
             trim($value),
             $this->signaturePositionPhrases(),
@@ -214,6 +296,14 @@ final readonly class BudgetPdfFormatter
 
     public function signatureCustomFieldLabelForDisplay(array $config, string $value): string
     {
+        $pdfLanguages = $this->signaturePdfLanguages($config);
+        if ($pdfLanguages !== null) {
+            return $this->joinUnique(array_map(
+                fn (string $language): string => $this->signatureCustomFieldLabelForDisplay($this->signatureConfigForLanguage($config, $language), $value),
+                $pdfLanguages,
+            ));
+        }
+
         $trimmed = trim($value);
         $language = $this->signatureInfoLanguage($config);
         foreach ($this->signatureMetaLabels() as $labels) {
@@ -235,6 +325,14 @@ final readonly class BudgetPdfFormatter
 
     public function signatureLabelForDisplay(array $config): string
     {
+        $pdfLanguages = $this->signaturePdfLanguages($config);
+        if ($pdfLanguages !== null) {
+            return $this->joinUnique(array_map(
+                fn (string $language): string => $this->signatureLabelForDisplay($this->signatureConfigForLanguage($config, $language)),
+                $pdfLanguages,
+            ));
+        }
+
         $label = $this->signatureLabel($config);
         $language = $this->signatureLanguage($config);
         if (!$this->signatureIsBilingual($language)) {
@@ -264,14 +362,46 @@ final readonly class BudgetPdfFormatter
 
     private function signatureLanguage(array $config): string
     {
-        return in_array($config['labelLanguage'] ?? null, ['en', 'sc', 'tc', 'en_sc', 'en_tc'], true)
+        return in_array($config['labelLanguage'] ?? null, ['en', 'sc', 'tc', 'ja', 'fr', 'ru', 'de', 'en_sc', 'en_tc'], true)
             ? $config['labelLanguage']
             : 'en';
     }
 
+    private function signaturePdfLanguages(array $config): ?array
+    {
+        if (!array_key_exists('pdfLanguages', $config) && !array_key_exists('pdf_languages', $config)) {
+            return null;
+        }
+
+        return PdfLanguages::normalizeList($config['pdfLanguages'] ?? $config['pdf_languages'] ?? null);
+    }
+
+    private function signatureConfigForLanguage(array $config, string $language): array
+    {
+        unset($config['pdfLanguages'], $config['pdf_languages']);
+        $config['labelLanguage'] = $language;
+        $config['infoLanguage'] = $language;
+
+        return $config;
+    }
+
+    private function joinUnique(array $parts): string
+    {
+        $values = [];
+        foreach ($parts as $part) {
+            $text = trim((string) $part);
+            if ($text === '' || in_array($text, $values, true)) {
+                continue;
+            }
+            $values[] = $text;
+        }
+
+        return implode("\n", $values);
+    }
+
     private function signatureInfoLanguage(array $config): string
     {
-        if (in_array($config['infoLanguage'] ?? null, ['en', 'sc', 'tc', 'en_sc', 'en_tc'], true)) {
+        if (in_array($config['infoLanguage'] ?? null, ['en', 'sc', 'tc', 'ja', 'fr', 'ru', 'de', 'en_sc', 'en_tc'], true)) {
             return $config['infoLanguage'];
         }
 
@@ -291,13 +421,17 @@ final readonly class BudgetPdfFormatter
             'en' => ['telephone' => 'Tel. No.', 'mobile' => 'Mobile No.'],
             'sc' => ['telephone' => '电话号码', 'mobile' => '流动电话号码'],
             'tc' => ['telephone' => '電話號碼', 'mobile' => '流動電話號碼'],
+            'ja' => ['telephone' => '電話番号', 'mobile' => '携帯電話番号'],
+            'fr' => ['telephone' => 'Telephone', 'mobile' => 'Mobile'],
+            'ru' => ['telephone' => 'Телефон', 'mobile' => 'Мобильный'],
+            'de' => ['telephone' => 'Telefon', 'mobile' => 'Mobiltelefon'],
         ];
     }
 
     private function translateSignaturePhrase(string $value, array $phrases, string $language): string
     {
         foreach ($phrases as $phrase) {
-            if ($phrase['en'] === $value || $phrase['sc'] === $value || $phrase['tc'] === $value) {
+            if (in_array($value, $phrase, true)) {
                 return $this->signaturePhraseForLanguage($phrase, $language);
             }
         }
@@ -348,7 +482,15 @@ final readonly class BudgetPdfFormatter
             ['en' => 'Reviewed by', 'sc' => '审核', 'tc' => '審核'],
             ['en' => 'Approved by', 'sc' => '审批', 'tc' => '審批'],
             ['en' => 'Audited by', 'sc' => '审计', 'tc' => '審計'],
-            ['en' => 'Confirmed by', 'sc' => '确认', 'tc' => '確認'],
+            [
+                'en' => 'Confirmed by',
+                'sc' => '确认',
+                'tc' => '確認',
+                'ja' => '確認者',
+                'fr' => 'Confirme par',
+                'ru' => 'Подтвердил',
+                'de' => 'Bestaetigt von',
+            ],
             ['en' => 'Verified by', 'sc' => '核验', 'tc' => '核驗'],
             ['en' => 'Authorised by', 'sc' => '授权', 'tc' => '授權'],
             ['en' => 'Accepted by', 'sc' => '接纳', 'tc' => '接納'],

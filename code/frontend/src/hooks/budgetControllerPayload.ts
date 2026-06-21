@@ -9,6 +9,7 @@ import {
   emptySignatureConfig,
   signatureConfigFromForm,
   signatureConfigToForm,
+  signatureLanguageFromAppLanguage,
   signatureTitleForLanguage,
 } from '../utils/budgetSignature';
 import { defaultBudgetDateRange, defaultBudgetTitle } from '../utils/budgetTitle';
@@ -25,6 +26,7 @@ export function defaultBudgetFormValues(
 ): Partial<BudgetFormValues> {
   const dateRange = defaultBudgetDateRange();
   const language = currentLanguage();
+  const signatureLanguage = signatureLanguageFromAppLanguage(language);
   const defaultSignatureRow = createSignatureRow('manual');
 
   return {
@@ -44,10 +46,10 @@ export function defaultBudgetFormValues(
     status: 'draft',
     signatureConfig: {
       ...emptySignatureConfig(),
-      title: signatureTitleForLanguage(language),
-      infoLanguage: language,
-      labelLanguage: language,
-      labelSeparator: language === 'en' ? 'space' : 'none',
+      title: signatureTitleForLanguage(signatureLanguage),
+      infoLanguage: signatureLanguage,
+      labelLanguage: signatureLanguage,
+      labelSeparator: signatureLanguage === 'en' ? 'space' : 'none',
       rows: [
         {
           ...defaultSignatureRow,
@@ -83,7 +85,10 @@ export function budgetFormValuesFromSummary(
     visibility: budget.visibility,
     status: budget.status,
     note: budget.note ?? undefined,
-    signatureConfig: signatureConfigToForm(budget.signatureConfig, currentLanguage()),
+    signatureConfig: signatureConfigToForm(
+      budget.signatureConfig,
+      signatureLanguageFromAppLanguage(currentLanguage()),
+    ),
   };
 }
 
