@@ -100,7 +100,7 @@ print_banner() {
   cat <<EOF
 
 ${C_BOLD}${C_CYAN}BudgetCentre deploy${C_RESET}
-${C_DIM}mode${C_RESET}     ${mode_label}    ${C_DIM}db${C_RESET} ${db_action_label}
+${C_DIM}mode${C_RESET}     ${mode_label}    ${C_DIM}db${C_RESET} $(db_action_label)
 ${C_DIM}target${C_RESET}   ${APP_URL}
 ${C_DIM}remote${C_RESET}   ${REMOTE}:${REMOTE_PATH}
 ${C_DIM}ssh${C_RESET}      multiplexed (${SSH_CONTROL_PATH})
