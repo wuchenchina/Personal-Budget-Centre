@@ -99,16 +99,16 @@ final readonly class BudgetPdfSignatureRenderer
         $rows = is_array($config['rows'] ?? null)
             ? array_values(array_filter($config['rows'], static fn (mixed $row): bool => is_array($row)))
             : [];
-        if ($rows === []) {
-            return 10.0 + $this->minimumRowHeight($width);
-        }
-
-        $signingRows = $this->signingRows($rows);
-        $noteRows = $this->noteRows($rows);
         $titleBandHeight = $this->titleBandHeight($this->titleLines(
             $this->formatter->signatureSectionTitle($config),
             $width,
         ));
+        if ($rows === []) {
+            return $titleBandHeight + 4.0 + $this->minimumRowHeight($width);
+        }
+
+        $signingRows = $this->signingRows($rows);
+        $noteRows = $this->noteRows($rows);
 
         return $titleBandHeight + 4.0 + array_sum(array_map(
             fn (array $row): float => $this->rowHeight($row, $config, $width),
@@ -182,13 +182,13 @@ final readonly class BudgetPdfSignatureRenderer
     private function metaSvg(array $fields, float $rowTop, float $width): string
     {
         $labelX = 3.0;
-        $valueX = $width <= 80.0 ? 25.0 : 30.0;
-        $valueWidth = $width <= 80.0 ? 46.0 : 42.0;
+        $valueX = $width <= 80.0 ? 25.0 : 41.0;
+        $valueWidth = $width <= 80.0 ? 46.0 : 56.0;
         $baseline = $rowTop + 4.0;
         $svg = '';
         foreach (array_slice($fields, 0, 18) as $index => [$label, $value]) {
             $y = $baseline + ($index * 5.0);
-            $svg .= $this->text($labelX, $y, $this->fitText((string) $label, $valueX - $labelX - 2.0), 2.25, '#555', 'sf-mono-light');
+            $svg .= $this->text($labelX, $y, $this->fitText($this->compactInlineText((string) $label), $valueX - $labelX - 2.0), 2.25, '#555', 'sf-mono-light');
             $svg .= $this->text($valueX, $y, $this->fitText((string) $value, $valueWidth), 2.55, '#111');
         }
 
@@ -408,38 +408,23 @@ final readonly class BudgetPdfSignatureRenderer
         }
 
         $maxWidth = max(36.0, $width - 4.0);
-        $lines = [];
-        $current = '';
-        foreach ($parts as $part) {
-            $candidate = $current === '' ? $part : $current . ' ' . $part;
-            if ($current !== '' && $this->estimatedTextWidth($candidate, 2.55) > $maxWidth) {
-                $lines[] = $current;
-                $current = $part;
-                continue;
-            }
-
-            $current = $candidate;
-        }
-        if ($current !== '') {
-            $lines[] = $current;
-        }
 
         return array_map(
             fn (string $line): string => $this->fitText($line, $maxWidth),
-            array_slice($lines, 0, 4),
+            array_slice($parts, 0, 8),
         );
     }
 
     private function titleBandHeight(array $lines): float
     {
-        return max(6.0, 3.3 + (count($lines) * 3.05));
+        return max(6.0, 3.0 + (count($lines) * 2.85));
     }
 
     private function titleSvg(array $lines): string
     {
         $svg = '';
         foreach ($lines as $index => $line) {
-            $svg .= $this->richText(2.0, 3.95 + ($index * 3.05), $line, 2.55, '#000');
+            $svg .= $this->text(2.0, 3.65 + ($index * 2.85), $line, 2.35, '#000');
         }
 
         return $svg;
@@ -616,49 +601,6 @@ final readonly class BudgetPdfSignatureRenderer
             . '</text>';
     }
 
-    private function richText(
-        float $x,
-        float $y,
-        string $value,
-        float $size,
-        string $color,
-        string $font = 'sf-mono',
-    ): string {
-        return '<text x="' . $this->number($x) . '" y="' . $this->number($y) . '"'
-            . ' font-size="' . $this->number($size) . '"'
-            . ' fill="' . $color . '">'
-            . $this->richTextSpans($value, $font)
-            . '</text>';
-    }
-
-    private function richTextSpans(string $value, string $font): string
-    {
-        $chars = preg_split('//u', $value, -1, PREG_SPLIT_NO_EMPTY);
-        if ($chars === false) {
-            return '<tspan font-family="' . $this->fontFamily($value, $font) . '">'
-                . $this->svgEscape($value)
-                . '</tspan>';
-        }
-
-        $spans = '';
-        $current = '';
-        $currentFamily = null;
-        foreach ($chars as $char) {
-            $family = $this->fontFamily($char, $font);
-            if ($currentFamily !== null && $family !== $currentFamily) {
-                $spans .= '<tspan font-family="' . $currentFamily . '">' . $this->svgEscape($current) . '</tspan>';
-                $current = '';
-            }
-            $currentFamily = $family;
-            $current .= $char;
-        }
-        if ($current !== '' && $currentFamily !== null) {
-            $spans .= '<tspan font-family="' . $currentFamily . '">' . $this->svgEscape($current) . '</tspan>';
-        }
-
-        return $spans;
-    }
-
     private function fitText(string $value, float $maxWidth): string
     {
         $trimmed = trim($value);
@@ -672,6 +614,20 @@ final readonly class BudgetPdfSignatureRenderer
             ? mb_substr($trimmed, 0, $limit - 1, 'UTF-8')
             : substr($trimmed, 0, $limit - 1))
             . '...';
+    }
+
+    private function compactInlineText(string $value): string
+    {
+        $parts = preg_split('/\R/u', $value) ?: [$value];
+        $parts = array_values(array_unique(array_filter(array_map(
+            static fn (string $part): string => trim($part),
+            $parts,
+        ), static fn (string $part): bool => $part !== '')));
+        if (count($parts) > 3) {
+            $parts = array_slice($parts, 0, 3);
+        }
+
+        return implode(' ', $parts);
     }
 
     private function textLength(string $value): int
@@ -695,7 +651,9 @@ final readonly class BudgetPdfSignatureRenderer
             return 'tcsongti, Songti TC, serif';
         }
 
-        return $font . ', sf-mono, monospace';
+        return $font === 'sf-mono'
+            ? 'sf-mono, monospace'
+            : $font . ', sf-mono, monospace';
     }
 
     private function usesCjkFont(string $value): bool
