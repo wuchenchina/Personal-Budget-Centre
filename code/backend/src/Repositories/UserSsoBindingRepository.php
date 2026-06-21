@@ -23,6 +23,7 @@ final readonly class UserSsoBindingRepository
               provider_subject,
               provider_username,
               provider_email,
+              raw_userinfo_json,
               linked_at,
               updated_at
             FROM user_sso_bindings
@@ -48,6 +49,7 @@ final readonly class UserSsoBindingRepository
               provider_subject,
               provider_username,
               provider_email,
+              raw_userinfo_json,
               linked_at,
               updated_at
             FROM user_sso_bindings

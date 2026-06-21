@@ -63,6 +63,7 @@ final readonly class SessionRepository
               us.expires_at,
               u.email,
               u.username,
+              u.password_hash,
               u.display_name,
               u.avatar_url,
               u.timezone,
@@ -110,6 +111,12 @@ final readonly class SessionRepository
             'DELETE FROM user_sessions WHERE session_token_hash = :session_token_hash'
         );
         $statement->execute(['session_token_hash' => $tokenHash]);
+    }
+
+    public function deleteForUser(int $userId): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM user_sessions WHERE user_id = :user_id');
+        $statement->execute(['user_id' => $userId]);
     }
 
     private function packedIp(?string $ipAddress): ?string

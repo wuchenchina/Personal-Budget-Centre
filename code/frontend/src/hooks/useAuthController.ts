@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Form } from 'antd';
-import { getCurrentSession, login, logout, register } from '../api/auth';
+import { completeSsoMerge, getCurrentSession, login, logout, register } from '../api/auth';
+import { consumePendingSsoMergeToken, hasPendingSsoMergeToken } from '../config/ssoMerge';
 import type { AuthSession } from '../types/auth';
 import type { AuthFormValues, AuthMode } from '../types/forms';
 import { translateCurrent } from '../i18n';
@@ -16,7 +17,9 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
   const [authForm] = Form.useForm<AuthFormValues>();
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [authError, setAuthError] = useState<string | null>(null);
-  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(
+    hasPendingSsoMergeToken() ? translateCurrent('ssoMergeLoginPrompt') : null,
+  );
   const [session, setSession] = useState<AuthSession | null>(options.initialSession ?? null);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [isSessionLoading, setIsSessionLoading] = useState(options.loadSession !== false);
@@ -89,7 +92,11 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
         password: values.password,
       });
 
-      setSession(nextSession);
+      const merged = await completePendingSsoMerge(nextSession);
+      if (merged.completed) {
+        setAuthNotice(translateCurrent('ssoMergeComplete'));
+      }
+      setSession(merged.session);
       setAuthError(null);
     } catch (error: unknown) {
       setAuthError(error instanceof Error ? error.message : translateCurrent('authFailed'));
@@ -113,7 +120,11 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
       const credential = await getPasskeyCredential(passkeyOptions);
       const nextSession = await verifyPasskeyLogin(credential);
 
-      setSession(nextSession);
+      const merged = await completePendingSsoMerge(nextSession);
+      if (merged.completed) {
+        setAuthNotice(translateCurrent('ssoMergeComplete'));
+      }
+      setSession(merged.session);
       setAuthError(null);
     } catch (error: unknown) {
       setAuthError(error instanceof Error ? error.message : translateCurrent('authFailed'));
@@ -164,3 +175,16 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
 }
 
 export type AuthController = ReturnType<typeof useAuthController>;
+
+async function completePendingSsoMerge(
+  session: AuthSession,
+): Promise<{ session: AuthSession; completed: boolean }> {
+  const mergeToken = consumePendingSsoMergeToken();
+  if (mergeToken === null) {
+    return { session, completed: false };
+  }
+
+  const result = await completeSsoMerge(mergeToken);
+
+  return { session: result.session, completed: true };
+}

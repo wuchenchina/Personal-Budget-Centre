@@ -15,6 +15,7 @@ export interface AuthUser {
   status: UserStatus;
   isAdmin: boolean;
   emailVerifiedAt: string | null;
+  hasPassword: boolean;
 }
 
 export interface PdfExportSettings {

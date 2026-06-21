@@ -213,6 +213,18 @@
   margin: auto;
 }
 
+.ssoDecisionCard {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 420px);
+  margin: auto;
+}
+
+.ssoDecisionActions {
+  display: grid;
+  gap: 12px;
+}
+
 .loadingBrand {
   display: grid;
   justify-items: center;

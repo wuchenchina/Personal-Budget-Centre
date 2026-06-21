@@ -1,13 +1,15 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { ConfigProvider, message } from 'antd';
+import { Alert, Button, ConfigProvider, message } from 'antd';
 import { casdoorCallback, getCurrentSession, logout } from './api/auth';
 import { AuthLoadingScreen } from './components/auth/AuthLoadingScreen';
+import styles from './components/auth/AuthScreen.module.css';
 import { appTheme } from './config/appConfig';
 import { consumeCasdoorIntent } from './config/casdoor';
 import type { AppLanguage, I18nKey, I18nValues } from './i18n';
 import { I18nContext, antdLocales, normalizeLanguage, translate, useI18n } from './i18n';
 import './App.css';
 import type { AuthSession } from './types/auth';
+import type { SsoAccountActionRequired } from './api/auth';
 
 const AuthFlow = lazy(() => import('./AuthFlow'));
 const AuthenticatedApp = lazy(() => import('./AuthenticatedApp'));
@@ -39,6 +41,8 @@ function CasdoorCallbackScreen({
   onNavigateProfile,
 }: CasdoorCallbackScreenProps) {
   const { t } = useI18n();
+  const [ssoDecision, setSsoDecision] = useState<SsoAccountActionRequired | null>(null);
+  const [isCreatingSsoAccount, setIsCreatingSsoAccount] = useState(false);
   const hasHandledCallback = useRef(false);
   const callbackHandlersRef = useRef({
     onAuthenticated,
@@ -72,17 +76,21 @@ function CasdoorCallbackScreen({
 
     if (code === null || code.trim() === '') {
       void message.error(handlers().t('authFailed'));
-      queueMicrotask(mode === 'bind' ? handlers().onNavigateProfile : handlers().onNavigateHome);
+      queueMicrotask(handlers().onNavigateHome);
+
+      return;
+    }
+
+    if (mode === 'bind') {
+      void message.error(handlers().t('ssoBindFromSsoOnlyDescription'));
+      queueMicrotask(handlers().onNavigateHome);
 
       return;
     }
 
     let isMounted = true;
 
-    const callbackRequest =
-      mode === 'bind'
-        ? casdoorCallback({ code, state }, 'bind')
-        : casdoorCallback({ code, state }, 'login');
+    const callbackRequest = casdoorCallback({ code, state });
 
     callbackRequest
       .then((result) => {
@@ -90,9 +98,8 @@ function CasdoorCallbackScreen({
           return;
         }
 
-        if (mode === 'bind') {
-          void message.success(handlers().t('axchenSsoBindingSuccess'));
-          handlers().onNavigateProfile();
+        if ('requiresSsoAccountAction' in result) {
+          setSsoDecision(result);
           return;
         }
 
@@ -105,11 +112,6 @@ function CasdoorCallbackScreen({
         }
 
         void message.error(error instanceof Error ? error.message : handlers().t('authFailed'));
-        if (mode === 'bind') {
-          handlers().onNavigateProfile();
-          return;
-        }
-
         handlers().onNavigateHome();
       });
 
@@ -117,6 +119,79 @@ function CasdoorCallbackScreen({
       isMounted = false;
     };
   }, []);
+
+  const handleCreateSsoAccount = () => {
+    if (ssoDecision === null || isCreatingSsoAccount) {
+      return;
+    }
+
+    setIsCreatingSsoAccount(true);
+    casdoorCallback({
+      action: 'create',
+      ssoCreateToken: ssoDecision.ssoCreateToken,
+    })
+      .then((result) => {
+        if ('requiresSsoAccountAction' in result) {
+          setSsoDecision(result);
+          return;
+        }
+
+        onAuthenticated(result);
+        onNavigateHome();
+      })
+      .catch((error: unknown) => {
+        void message.error(error instanceof Error ? error.message : t('authFailed'));
+      })
+      .finally(() => {
+        setIsCreatingSsoAccount(false);
+      });
+  };
+
+  if (ssoDecision !== null) {
+    const accountLabel =
+      ssoDecision.ssoAccount.email
+      ?? ssoDecision.ssoAccount.username
+      ?? ssoDecision.ssoAccount.displayName;
+
+    return (
+      <main className={styles.loadingShell}>
+        <section className={styles.ssoDecisionCard}>
+          <div className={styles.loadingBrand}>
+            <img
+              className={styles.brandLogo}
+              src="/favicon.webp"
+              alt="BudgetCentre"
+              width={48}
+              height={48}
+            />
+            <span className={styles.brandName}>BudgetCentre</span>
+            <p className={styles.brandSubtitle}>{t('ssoAccountNotLinked')}</p>
+          </div>
+          <Alert
+            className={styles.authAlert}
+            message={t('ssoAccountNotLinkedTitle')}
+            description={t('ssoAccountNotLinkedDescription', { account: accountLabel })}
+            type="info"
+            showIcon
+          />
+          <div className={styles.ssoDecisionActions}>
+            <Button
+              className={styles.submitButton}
+              type="primary"
+              block
+              loading={isCreatingSsoAccount}
+              onClick={handleCreateSsoAccount}
+            >
+              {t('ssoCreateAccountAndLogin')}
+            </Button>
+            <Button className={styles.altButton} block onClick={onNavigateHome}>
+              {t('backToLogin')}
+            </Button>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return <AuthLoadingScreen />;
 }
@@ -126,6 +201,9 @@ function App() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState(true);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState(
+    () => `${window.location.pathname}${window.location.search}`,
+  );
   const i18nValue = useMemo(
     () => ({
       language,
@@ -133,10 +211,11 @@ function App() {
     }),
     [language],
   );
-  const isEmailVerificationRoute = window.location.pathname === '/email/verify';
+  const currentUrl = new URL(currentLocation, window.location.origin);
+  const isEmailVerificationRoute = currentUrl.pathname === '/email/verify';
   const isCasdoorCallbackRoute =
-    window.location.pathname === '/api/callback'
-    || window.location.search.includes('casdoor_callback=1');
+    currentUrl.pathname === '/api/callback'
+    || currentUrl.search.includes('casdoor_callback=1');
 
   useEffect(() => {
     let isMounted = true;
@@ -169,6 +248,21 @@ function App() {
       language === 'en' ? 'en' : language === 'sc' ? 'zh-Hans' : 'zh-Hant';
   }, [language]);
 
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentLocation(`${window.location.pathname}${window.location.search}`);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateToPath = (path: string) => {
+    replacePath(path);
+    setCurrentLocation(`${window.location.pathname}${window.location.search}`);
+  };
+
   const handleAuthenticated = (nextSession: AuthSession) => {
     setSession(nextSession);
   };
@@ -184,7 +278,7 @@ function App() {
       .finally(() => {
         setSession(null);
         setIsAuthSubmitting(false);
-        replacePath('/');
+        navigateToPath('/');
       });
   };
 
@@ -200,8 +294,8 @@ function App() {
     content = (
       <CasdoorCallbackScreen
         onAuthenticated={handleAuthenticated}
-        onNavigateHome={() => replacePath('/')}
-        onNavigateProfile={() => replacePath('/profile')}
+        onNavigateHome={() => navigateToPath('/')}
+        onNavigateProfile={() => navigateToPath('/profile')}
       />
     );
   } else if (isSessionLoading) {

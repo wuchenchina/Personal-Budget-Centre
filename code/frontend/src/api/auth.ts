@@ -40,12 +40,34 @@ export interface SsoBindingResult {
   binding: SsoBinding | null;
 }
 
-export type CasdoorCallbackMode = 'login' | 'bind';
+export interface SsoMergeBeginResult {
+  mergeToken: string;
+}
+
+export interface SsoMergeCompleteResult {
+  session: AuthSession;
+  binding: SsoBinding;
+}
+
+export interface SsoAccountActionRequired {
+  requiresSsoAccountAction: true;
+  ssoAccount: {
+    subject: string;
+    username: string | null;
+    email: string | null;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+  ssoCreateToken: string;
+}
+
 export interface CasdoorCallbackPayload {
   code?: string;
   state?: string;
   accessToken?: string;
   idToken?: string;
+  action?: 'create';
+  ssoCreateToken?: string;
 }
 
 export function getCurrentSession(): Promise<AuthSession | null> {
@@ -56,13 +78,16 @@ export function login(payload: LoginPayload): Promise<AuthSession> {
   return apiPost<AuthSession>('/api/auth/login', payload);
 }
 
-export function casdoorCallback(payload: CasdoorCallbackPayload, mode: 'login'): Promise<AuthSession>;
-export function casdoorCallback(payload: CasdoorCallbackPayload, mode: 'bind'): Promise<SsoBindingResult>;
 export function casdoorCallback(
   payload: CasdoorCallbackPayload,
-  mode: CasdoorCallbackMode = 'login',
-): Promise<AuthSession | SsoBindingResult> {
-  return apiPost<AuthSession | SsoBindingResult>('/api/Callback', { ...payload, mode });
+): Promise<AuthSession | SsoAccountActionRequired>;
+export function casdoorCallback(
+  payload: CasdoorCallbackPayload,
+): Promise<AuthSession | SsoAccountActionRequired> {
+  return apiPost<AuthSession | SsoAccountActionRequired>('/api/Callback', {
+    ...payload,
+    mode: 'login',
+  });
 }
 
 export function register(payload: RegisterPayload): Promise<RegisterResult> {
@@ -89,6 +114,17 @@ export function updatePassword(payload: UpdatePasswordPayload): Promise<{ change
 
 export function getSsoBinding(): Promise<SsoBindingResult> {
   return apiGet<SsoBindingResult>('/api/auth/sso-binding');
+}
+
+export function beginSsoMerge(): Promise<SsoMergeBeginResult> {
+  return apiPost<SsoMergeBeginResult>('/api/auth/sso-merge', { action: 'begin' });
+}
+
+export function completeSsoMerge(mergeToken: string): Promise<SsoMergeCompleteResult> {
+  return apiPost<SsoMergeCompleteResult>('/api/auth/sso-merge', {
+    action: 'complete',
+    mergeToken,
+  });
 }
 
 export function unlinkSsoBinding(): Promise<SsoBindingResult> {

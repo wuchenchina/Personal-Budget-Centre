@@ -3,13 +3,15 @@ import { Alert, Avatar, Button, Form, Input, Modal, Radio, Space, Switch, Tabs, 
 import type { RadioChangeEvent } from 'antd';
 import { FileText, KeyRound, Link2, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import {
+  beginSsoMerge,
   getSsoBinding,
+  logout,
   resendEmailVerification,
   unlinkSsoBinding,
   updatePassword,
   updateProfile,
 } from '../../api/auth';
-import { startCasdoorSignin } from '../../config/casdoor';
+import { setPendingSsoMergeToken } from '../../config/ssoMerge';
 import { normalizePdfTheme, pdfThemeOptions } from '../../config/pdfThemes';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { useI18n } from '../../i18n';
@@ -42,8 +44,9 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const [isEmailVerificationSending, setIsEmailVerificationSending] = useState(false);
   const [isEmailChangeOpen, setIsEmailChangeOpen] = useState(false);
   const [ssoBinding, setSsoBinding] = useState<SsoBinding | null>(null);
-  const [isSsoLoading, setIsSsoLoading] = useState(true);
   const [isSsoUnlinking, setIsSsoUnlinking] = useState(false);
+  const [isSsoMergeStarting, setIsSsoMergeStarting] = useState(false);
+  const isSsoOnlyAccount = !session.user.hasPassword;
   const watchedPdfTheme = Form.useWatch('defaultPdfTheme', exportForm);
   const watchedShowWorkspace = Form.useWatch(['pdfExportSettings', 'showWorkspace'], exportForm);
   const previewPdfTheme = normalizePdfTheme(watchedPdfTheme ?? session.user.defaultPdfTheme);
@@ -51,7 +54,6 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const previewShowWorkspace =
     watchedShowWorkspace ?? previewSettings.showWorkspace;
   const previewWorkspaceName = session.workspace?.name ?? t('noWorkspaceSelected');
-
   useEffect(() => {
     const profileValues = {
       defaultPdfTheme: normalizePdfTheme(session.user.defaultPdfTheme),
@@ -83,11 +85,6 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
           void message.error(error instanceof Error ? error.message : t('authFailed'));
         }
       })
-      .finally(() => {
-        if (isMounted) {
-          setIsSsoLoading(false);
-        }
-      });
 
     return () => {
       isMounted = false;
@@ -182,8 +179,20 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     }
   };
 
-  const handleSsoBind = () => {
-    startCasdoorSignin('bind');
+  const handleSsoMergeStart = async () => {
+    setIsSsoMergeStarting(true);
+
+    try {
+      const result = await beginSsoMerge();
+      setPendingSsoMergeToken(result.mergeToken);
+      await logout();
+      void message.info(t('ssoMergeLoginPrompt'));
+      window.location.replace('/');
+    } catch (error: unknown) {
+      void message.error(error instanceof Error ? error.message : t('authFailed'));
+    } finally {
+      setIsSsoMergeStarting(false);
+    }
   };
 
   const handleSsoUnlink = () => {
@@ -332,16 +341,18 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         <strong>{session.user.email}</strong>
                         <small>{t('emailChangeNote')}</small>
                       </div>
-                      <Button
-                        className={styles.fullWidthAction}
-                        icon={<Mail size={15} />}
-                        onClick={() => {
-                          emailChangeForm.resetFields();
-                          setIsEmailChangeOpen(true);
-                        }}
-                      >
-                        {t('emailChange')}
-                      </Button>
+                      {session.user.hasPassword ? (
+                        <Button
+                          className={styles.fullWidthAction}
+                          icon={<Mail size={15} />}
+                          onClick={() => {
+                            emailChangeForm.resetFields();
+                            setIsEmailChangeOpen(true);
+                          }}
+                        >
+                          {t('emailChange')}
+                        </Button>
+                      ) : null}
                     </section>
                   </div>
                 ),
@@ -611,9 +622,33 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         </div>
                       </div>
                       {ssoBinding === null ? (
-                        <Button className={styles.outlineAction} loading={isSsoLoading} onClick={handleSsoBind}>
-                          {t('axchenSsoBind')}
-                        </Button>
+                        session.user.hasPassword ? (
+                          <Alert
+                            className={styles.sideAlert}
+                            type="info"
+                            showIcon
+                            message={t('axchenSsoNotLinked')}
+                            description={t('ssoBindFromSsoOnlyDescription')}
+                          />
+                        ) : (
+                          <Alert
+                            className={styles.sideAlert}
+                            type="info"
+                            showIcon
+                            message={t('ssoOnlyAccount')}
+                            description={t('ssoOnlyBindExistingDescription')}
+                            action={
+                              <Button
+                                size="small"
+                                type="primary"
+                                loading={isSsoMergeStarting}
+                                onClick={() => void handleSsoMergeStart()}
+                              >
+                                {t('ssoBindExistingAccount')}
+                              </Button>
+                            }
+                          />
+                        )
                       ) : (
                         <>
                           <div className={styles.readonlyValue}>
@@ -622,14 +657,24 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                           </div>
                           <div className={styles.ssoActions}>
                             <Tag color="green">{t('axchenSsoBound')}</Tag>
-                            <Button
-                              danger
-                              className={styles.dangerOutlineAction}
-                              loading={isSsoUnlinking}
-                              onClick={handleSsoUnlink}
-                            >
-                              {t('axchenSsoUnlink')}
-                            </Button>
+                            {session.user.hasPassword ? (
+                              <Button
+                                danger
+                                className={styles.dangerOutlineAction}
+                                loading={isSsoUnlinking}
+                                onClick={handleSsoUnlink}
+                              >
+                                {t('axchenSsoUnlink')}
+                              </Button>
+                            ) : (
+                              <Button
+                                className={styles.outlineAction}
+                                loading={isSsoMergeStarting}
+                                onClick={() => void handleSsoMergeStart()}
+                              >
+                                {t('ssoBindExistingAccount')}
+                              </Button>
+                            )}
                           </div>
                         </>
                       )}
@@ -637,7 +682,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                   </div>
                 ),
               },
-            ]}
+            ].filter((item) => item.key !== 'loginSecurity' || !isSsoOnlyAccount)}
           />
         </main>
       </div>

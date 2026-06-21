@@ -70,6 +70,7 @@ final class App
             ['PATCH', '/api/auth/profile'] => $this->authProfileUpdate($request),
             ['PATCH', '/api/auth/password'] => $this->authPasswordUpdate($request),
             ['GET', '/api/auth/sso-binding'] => $this->authSsoBinding($request),
+            ['POST', '/api/auth/sso-merge'] => $this->authSsoMerge($request),
             ['DELETE', '/api/auth/sso-binding'] => $this->authSsoUnlink($request),
             ['GET', '/api/auth/email/verify'] => $this->authEmailVerify($request),
             ['POST', '/api/auth/email/resend'] => $this->authEmailResend($request),
@@ -233,6 +234,15 @@ final class App
         return $this->authResponse(
             fn (AuthService $auth): JsonResponse => JsonResponse::ok(
                 $auth->ssoBinding($request),
+            ),
+        );
+    }
+
+    private function authSsoMerge(Request $request): JsonResponse
+    {
+        return $this->authResponse(
+            fn (AuthService $auth): JsonResponse => JsonResponse::ok(
+                $auth->mergeSsoAccount($request->json(), $request),
             ),
         );
     }

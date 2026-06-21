@@ -251,6 +251,7 @@ final readonly class AuthService
                 'id' => $session['user_id'],
                 'email' => $session['email'],
                 'username' => $session['username'] ?? null,
+                'password_hash' => $session['password_hash'] ?? null,
                 'display_name' => $session['display_name'],
                 'avatar_url' => $session['avatar_url'] ?? null,
                 'timezone' => $session['timezone'],
@@ -288,6 +289,13 @@ final readonly class AuthService
         $users = new UserRepository($this->pdo);
         $currentUser = $users->findWithPasswordById($userId)
             ?? throw new AuthException('USER_NOT_FOUND', 'User was not found.', 404);
+        if (!is_string($currentUser['password_hash'] ?? null) && strtolower((string) $currentUser['email']) !== $email) {
+            throw new AuthException(
+                'SSO_ONLY_EMAIL_LOCKED',
+                'SSO-only accounts cannot change email directly. Bind an existing account to merge data.',
+                409,
+            );
+        }
         $existingUser = $users->findByEmail($email);
         if ($existingUser !== null && (int) $existingUser['id'] !== $userId) {
             throw new AuthException('EMAIL_ALREADY_EXISTS', 'Email is already registered.', 409);
@@ -349,6 +357,13 @@ final readonly class AuthService
         $users = new UserRepository($this->pdo);
         $user = $users->findWithPasswordById((int) $session['user_id'])
             ?? throw new AuthException('USER_NOT_FOUND', 'User was not found.', 404);
+        if (!is_string($user['password_hash'] ?? null)) {
+            throw new AuthException(
+                'SSO_ONLY_PASSWORD_DISABLED',
+                'SSO-only accounts cannot create a password. Bind an existing account to merge data.',
+                409,
+            );
+        }
         if (!is_string($user['password_hash']) || !password_verify($currentPassword, $user['password_hash'])) {
             throw new AuthException('INVALID_CREDENTIALS', 'Current password is incorrect.', 401);
         }
@@ -373,6 +388,16 @@ final readonly class AuthService
     public function unlinkSso(Request $request): array
     {
         $session = $this->authenticator->authenticatedSession($request);
+        $user = (new UserRepository($this->pdo))->findWithPasswordById((int) $session['user_id'])
+            ?? throw new AuthException('USER_NOT_FOUND', 'User was not found.', 404);
+        if (!is_string($user['password_hash'] ?? null)) {
+            throw new AuthException(
+                'SSO_ONLY_UNLINK_DISABLED',
+                'SSO-only accounts cannot unlink SSO before binding an existing account.',
+                409,
+            );
+        }
+
         (new UserSsoBindingRepository($this->pdo))->deleteByUserId((int) $session['user_id']);
 
         return [
@@ -380,11 +405,133 @@ final readonly class AuthService
         ];
     }
 
+    public function mergeSsoAccount(array $input, Request $request): array
+    {
+        $action = Input::string($input['action'] ?? null);
+
+        return match ($action) {
+            'begin' => $this->beginSsoAccountMerge($request),
+            'complete' => $this->completeSsoAccountMerge($input, $request),
+            default => throw new AuthException('VALIDATION_ERROR', 'SSO merge action is required.', 422),
+        };
+    }
+
+    private function beginSsoAccountMerge(Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $sourceUserId = (int) $session['user_id'];
+        $users = new UserRepository($this->pdo);
+        $sourceUser = $users->findWithPasswordById($sourceUserId)
+            ?? throw new AuthException('USER_NOT_FOUND', 'Current SSO account was not found.', 404);
+        if (is_string($sourceUser['password_hash'] ?? null)) {
+            throw new AuthException(
+                'SSO_MERGE_SOURCE_NOT_SSO_ONLY',
+                'Only SSO-only accounts can be merged into an existing account.',
+                409,
+            );
+        }
+
+        $bindingRepository = new UserSsoBindingRepository($this->pdo);
+        $binding = $bindingRepository->findByUserId($sourceUserId);
+        if ($binding === null) {
+            throw new AuthException('SSO_MERGE_BINDING_REQUIRED', 'Current account is not linked to SSO.', 409);
+        }
+
+        return [
+            'mergeToken' => $this->issueSsoMergeToken($sourceUserId, (string) $binding['provider_subject']),
+        ];
+    }
+
+    private function completeSsoAccountMerge(array $input, Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $targetUserId = (int) $session['user_id'];
+        $merge = $this->ssoMergePayload($input);
+        $sourceUserId = (int) $merge['sourceUserId'];
+        $providerSubject = Input::string($merge['providerSubject'] ?? null);
+        if ($sourceUserId === $targetUserId || $providerSubject === null) {
+            throw new AuthException('SSO_MERGE_TOKEN_INVALID', 'SSO account merge token is invalid.', 422);
+        }
+
+        $users = new UserRepository($this->pdo);
+        $sourceUser = $users->findWithPasswordById($sourceUserId)
+            ?? throw new AuthException('USER_NOT_FOUND', 'SSO account was not found.', 404);
+        if (is_string($sourceUser['password_hash'] ?? null)) {
+            throw new AuthException(
+                'SSO_MERGE_SOURCE_NOT_SSO_ONLY',
+                'Only SSO-only accounts can be merged into an existing account.',
+                409,
+            );
+        }
+
+        $targetUser = $users->findWithPasswordById($targetUserId)
+            ?? throw new AuthException('USER_NOT_FOUND', 'Existing account was not found.', 404);
+        if (!is_string($targetUser['password_hash'] ?? null)) {
+            throw new AuthException(
+                'SSO_MERGE_TARGET_PASSWORD_REQUIRED',
+                'Target account must be a password account.',
+                409,
+            );
+        }
+
+        $bindingRepository = new UserSsoBindingRepository($this->pdo);
+        $binding = $bindingRepository->findByUserId($sourceUserId);
+        if ($binding === null || !hash_equals($providerSubject, (string) $binding['provider_subject'])) {
+            throw new AuthException('SSO_MERGE_TOKEN_INVALID', 'SSO account merge token is invalid.', 422);
+        }
+        $existingTargetBinding = $bindingRepository->findByUserId($targetUserId);
+        if ($existingTargetBinding !== null) {
+            throw new AuthException(
+                'SSO_TARGET_ALREADY_BOUND',
+                'The existing account is already linked to an SSO account.',
+                409,
+            );
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $users->mergeUserData($sourceUserId, $targetUserId);
+            $sessions = new SessionRepository($this->pdo);
+            $sessions->deleteForUser($sourceUserId);
+            $sessions->deleteForUser($targetUserId);
+            $users->delete($sourceUserId);
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+
+        $workspace = (new WorkspaceRepository($this->pdo))->firstForUser($targetUserId);
+        $nextSession = $this->createSession(
+            $targetUserId,
+            $request,
+            $workspace === null ? null : (int) $workspace['id'],
+        );
+        $this->sessionManager->issueCookie($nextSession['token']);
+        $freshTargetUser = $users->findById($targetUserId)
+            ?? throw new AuthException('USER_NOT_FOUND', 'Merged account was not found.', 500);
+
+        return [
+            'session' => [
+                'user' => $this->publicUser($freshTargetUser),
+                'workspace' => $workspace,
+                'csrfToken' => $this->sessionManager->csrfToken($nextSession['token']),
+            ],
+            'binding' => $this->publicSsoBinding(
+                $bindingRepository->findByUserId($targetUserId) ?? $binding,
+            ),
+        ];
+    }
+
     public function casdoorAuthorize(Request $request): string
     {
         $mode = Input::string($request->query['mode'] ?? null) === 'bind' ? 'bind' : 'login';
         if ($mode === 'bind') {
-            $this->authenticator->authenticatedSession($request);
+            throw new AuthException(
+                'SSO_BIND_FROM_SSO_ONLY_REQUIRED',
+                'SSO binding must be started from an SSO-only account merge flow.',
+                409,
+            );
         }
 
         $state = $this->urlSafeRandom(32);
@@ -414,6 +561,17 @@ final readonly class AuthService
         $state = Input::string($input['state'] ?? null);
         $pkce = $this->consumeCasdoorPkceCookie($request, $state);
         $mode = $pkce['mode'] ?? (Input::string($input['mode'] ?? null) ?? 'login');
+        $action = Input::string($input['action'] ?? null);
+
+        if ($action === 'create' && $code === null && $accessToken === null) {
+            $userinfo = $this->userinfoFromSsoCreateToken($request);
+            $subject = Input::string($userinfo['sub'] ?? null);
+            if ($subject === null) {
+                throw new AuthException('CASDOOR_USERINFO_INVALID', 'Casdoor user info is missing subject.', 502);
+            }
+
+            return $this->createAndLoginWithCasdoorAccount($subject, $userinfo, $request);
+        }
 
         if ($code === null && $accessToken === null) {
             throw new AuthException('VALIDATION_ERROR', 'Casdoor authorization data is required.', 422);
@@ -428,49 +586,24 @@ final readonly class AuthService
         }
 
         return match ($mode) {
-            'bind' => $this->bindCasdoorAccount($subject, $userinfo, $request),
+            'bind' => throw new AuthException(
+                'SSO_BIND_FROM_SSO_ONLY_REQUIRED',
+                'SSO binding must be started from an SSO-only account merge flow.',
+                409,
+            ),
             default => $this->loginWithCasdoorAccount($subject, $userinfo, $request),
         };
-    }
-
-    private function bindCasdoorAccount(string $subject, array $userinfo, Request $request): array
-    {
-        $session = $this->authenticator->authenticatedSession($request);
-        $userId = (int) $session['user_id'];
-        $bindings = new UserSsoBindingRepository($this->pdo);
-        $existing = $bindings->findByProviderSubject($subject);
-
-        if ($existing !== null && (int) $existing['user_id'] !== $userId) {
-            throw new AuthException(
-                'SSO_ACCOUNT_ALREADY_BOUND',
-                'This Casdoor account is already linked to another user.',
-                409,
-            );
-        }
-
-        $binding = $bindings->upsert(
-            $userId,
-            $subject,
-            Input::string($userinfo['preferred_username'] ?? $userinfo['name'] ?? null),
-            Input::normalizedEmail($userinfo['email'] ?? null),
-            $userinfo,
-        );
-
-        $avatarUrl = $this->casdoorAvatarUrl($userinfo);
-        if ($avatarUrl !== null) {
-            (new UserRepository($this->pdo))->updateAvatarUrl($userId, $avatarUrl);
-        }
-
-        return [
-            'binding' => $this->publicSsoBinding($binding),
-        ];
     }
 
     private function loginWithCasdoorAccount(string $subject, array $userinfo, Request $request): array
     {
         $binding = (new UserSsoBindingRepository($this->pdo))->findByProviderSubject($subject);
         if ($binding === null) {
-            throw new AuthException('SSO_ACCOUNT_NOT_BOUND', 'This Casdoor account is not linked.', 401);
+            return [
+                'requiresSsoAccountAction' => true,
+                'ssoAccount' => $this->publicCasdoorAccount($subject, $userinfo),
+                'ssoCreateToken' => $this->issueSsoCreateToken($subject, $userinfo),
+            ];
         }
 
         $users = new UserRepository($this->pdo);
@@ -488,6 +621,69 @@ final readonly class AuthService
         $workspace = (new WorkspaceRepository($this->pdo))->firstForUser((int) $user['id']);
         $session = $this->createSession(
             (int) $user['id'],
+            $request,
+            $workspace === null ? null : (int) $workspace['id'],
+        );
+        $this->sessionManager->issueCookie($session['token']);
+
+        return [
+            'user' => $this->publicUser($user),
+            'workspace' => $workspace,
+            'csrfToken' => $this->sessionManager->csrfToken($session['token']),
+        ];
+    }
+
+    private function createAndLoginWithCasdoorAccount(string $subject, array $userinfo, Request $request): array
+    {
+        $users = new UserRepository($this->pdo);
+        $providerEmail = Input::normalizedEmail($userinfo['email'] ?? null);
+        if ($providerEmail === null) {
+            throw new AuthException(
+                'SSO_EMAIL_REQUIRED',
+                'Casdoor account must provide an email before a BudgetCentre account can be created.',
+                422,
+            );
+        }
+
+        if ((new UserSsoBindingRepository($this->pdo))->findByProviderSubject($subject) !== null) {
+            return $this->loginWithCasdoorAccount($subject, $userinfo, $request);
+        }
+
+        $displayName = $this->casdoorDisplayName($userinfo);
+        $accountEmail = $this->availableSsoAccountEmail($users, $providerEmail, $subject);
+        $username = $this->availableSsoUsername($users, $userinfo, $providerEmail, $subject);
+        $currencyId = (new CurrencyRepository($this->pdo))->findIdByCode('CNY');
+        $avatarUrl = $this->casdoorAvatarUrl($userinfo);
+
+        $this->pdo->beginTransaction();
+        try {
+            $userId = $users->createSsoOnly($accountEmail, $username, $displayName, $currencyId, $avatarUrl);
+            (new WorkspaceRepository($this->pdo))->createPersonalWorkspace(
+                $userId,
+                "{$displayName} Personal",
+                $currencyId,
+            );
+            (new UserSsoBindingRepository($this->pdo))->upsert(
+                $userId,
+                $subject,
+                Input::string($userinfo['preferred_username'] ?? $userinfo['name'] ?? null),
+                $providerEmail,
+                $userinfo,
+            );
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+
+        $user = $users->findById($userId);
+        if ($user === null) {
+            throw new AuthException('USER_NOT_FOUND', 'Created user was not found.', 500);
+        }
+
+        $workspace = (new WorkspaceRepository($this->pdo))->firstForUser($userId);
+        $session = $this->createSession(
+            $userId,
             $request,
             $workspace === null ? null : (int) $workspace['id'],
         );
@@ -801,6 +997,7 @@ final readonly class AuthService
             'status' => $user['status'] ?? null,
             'isAdmin' => isset($user['is_admin']) && (bool) $user['is_admin'],
             'emailVerifiedAt' => $user['email_verified_at'] ?? null,
+            'hasPassword' => is_string($user['password_hash'] ?? null),
         ];
     }
 
@@ -861,6 +1058,198 @@ final readonly class AuthService
         }
 
         return null;
+    }
+
+    private function publicCasdoorAccount(string $subject, array $userinfo): array
+    {
+        return [
+            'subject' => $subject,
+            'username' => Input::string($userinfo['preferred_username'] ?? $userinfo['name'] ?? null),
+            'email' => Input::normalizedEmail($userinfo['email'] ?? null),
+            'displayName' => $this->casdoorDisplayName($userinfo),
+            'avatarUrl' => $this->casdoorAvatarUrl($userinfo),
+        ];
+    }
+
+    private function casdoorDisplayName(array $userinfo): string
+    {
+        return Input::string(
+            $userinfo['displayName']
+                ?? $userinfo['display_name']
+                ?? $userinfo['name']
+                ?? $userinfo['preferred_username']
+                ?? $userinfo['email']
+                ?? null,
+        ) ?? 'SSO User';
+    }
+
+    private function availableSsoUsername(
+        UserRepository $users,
+        array $userinfo,
+        string $email,
+        string $subject,
+    ): ?string {
+        $candidates = [
+            Input::username($userinfo['preferred_username'] ?? null),
+            Input::username($userinfo['name'] ?? null),
+            Input::username(strstr($email, '@', true) ?: null),
+            Input::username('sso-' . substr(preg_replace('/[^a-zA-Z0-9]/', '', $subject), 0, 24)),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate !== null && $users->findByUsername($candidate) === null) {
+                return $candidate;
+            }
+        }
+
+        for ($index = 0; $index < 5; $index++) {
+            $candidate = Input::username('sso-' . strtolower(bin2hex(random_bytes(4))));
+            if ($candidate !== null && $users->findByUsername($candidate) === null) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function availableSsoAccountEmail(UserRepository $users, string $providerEmail, string $subject): string
+    {
+        if ($users->findByEmail($providerEmail) === null) {
+            return $providerEmail;
+        }
+
+        $localPart = strstr($providerEmail, '@', true);
+        $normalizedLocal = preg_replace('/[^a-z0-9._+-]/', '', strtolower((string) $localPart));
+        $normalizedLocal = trim((string) $normalizedLocal, '.');
+        if ($normalizedLocal === '') {
+            $normalizedLocal = 'sso';
+        }
+
+        $subjectPart = strtolower(substr(preg_replace('/[^a-zA-Z0-9]/', '', $subject), 0, 20));
+        $base = substr($normalizedLocal, 0, 32) . '+sso-' . ($subjectPart !== '' ? $subjectPart : bin2hex(random_bytes(4)));
+
+        for ($index = 0; $index < 20; $index++) {
+            $suffix = $index === 0 ? '' : '-' . strtolower(bin2hex(random_bytes(3)));
+            $candidate = "{$base}{$suffix}@sso.local";
+            if ($users->findByEmail($candidate) === null) {
+                return $candidate;
+            }
+        }
+
+        return 'sso-' . strtolower(bin2hex(random_bytes(12))) . '@sso.local';
+    }
+
+    private function issueSsoCreateToken(string $subject, array $userinfo): string
+    {
+        $payload = [
+            'sub' => $subject,
+            'exp' => time() + 600,
+            'userinfo' => $userinfo,
+        ];
+        $encodedPayload = $this->base64UrlEncode(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+        $signature = hash_hmac('sha256', $encodedPayload, $this->ssoCreateTokenSecret(), true);
+
+        return $encodedPayload . '.' . $this->base64UrlEncode($signature);
+    }
+
+    private function userinfoFromSsoCreateToken(Request $request): array
+    {
+        $input = $request->json();
+        $token = Input::string($input['ssoCreateToken'] ?? $input['sso_create_token'] ?? null);
+        if ($token === null) {
+            throw new AuthException('SSO_CREATE_TOKEN_INVALID', 'SSO account creation token is required.', 422);
+        }
+
+        [$encodedPayload, $encodedSignature] = array_pad(explode('.', $token, 2), 2, '');
+        if ($encodedPayload === '' || $encodedSignature === '') {
+            throw new AuthException('SSO_CREATE_TOKEN_INVALID', 'SSO account creation token is invalid.', 422);
+        }
+
+        $expectedSignature = hash_hmac('sha256', $encodedPayload, $this->ssoCreateTokenSecret(), true);
+        $actualSignature = $this->base64UrlDecode($encodedSignature);
+        if ($actualSignature === null || !hash_equals($expectedSignature, $actualSignature)) {
+            throw new AuthException('SSO_CREATE_TOKEN_INVALID', 'SSO account creation token is invalid.', 422);
+        }
+
+        $payloadJson = $this->base64UrlDecode($encodedPayload);
+        $payload = is_string($payloadJson) ? json_decode($payloadJson, true) : null;
+        if (!is_array($payload) || (int) ($payload['exp'] ?? 0) < time() || !is_array($payload['userinfo'] ?? null)) {
+            throw new AuthException('SSO_CREATE_TOKEN_INVALID', 'SSO account creation token is invalid or expired.', 422);
+        }
+
+        return $payload['userinfo'];
+    }
+
+    private function issueSsoMergeToken(int $sourceUserId, string $providerSubject): string
+    {
+        $payload = [
+            'sourceUserId' => $sourceUserId,
+            'providerSubject' => $providerSubject,
+            'exp' => time() + 600,
+        ];
+        $encodedPayload = $this->base64UrlEncode(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+        $signature = hash_hmac('sha256', $encodedPayload, $this->ssoCreateTokenSecret(), true);
+
+        return $encodedPayload . '.' . $this->base64UrlEncode($signature);
+    }
+
+    private function ssoMergePayload(array $input): array
+    {
+        $token = Input::string($input['mergeToken'] ?? $input['merge_token'] ?? null);
+        if ($token === null) {
+            throw new AuthException('SSO_MERGE_TOKEN_INVALID', 'SSO account merge token is required.', 422);
+        }
+
+        [$encodedPayload, $encodedSignature] = array_pad(explode('.', $token, 2), 2, '');
+        if ($encodedPayload === '' || $encodedSignature === '') {
+            throw new AuthException('SSO_MERGE_TOKEN_INVALID', 'SSO account merge token is invalid.', 422);
+        }
+
+        $expectedSignature = hash_hmac('sha256', $encodedPayload, $this->ssoCreateTokenSecret(), true);
+        $actualSignature = $this->base64UrlDecode($encodedSignature);
+        if ($actualSignature === null || !hash_equals($expectedSignature, $actualSignature)) {
+            throw new AuthException('SSO_MERGE_TOKEN_INVALID', 'SSO account merge token is invalid.', 422);
+        }
+
+        $payloadJson = $this->base64UrlDecode($encodedPayload);
+        $payload = is_string($payloadJson) ? json_decode($payloadJson, true) : null;
+        if (!is_array($payload) || (int) ($payload['exp'] ?? 0) < time()) {
+            throw new AuthException('SSO_MERGE_TOKEN_INVALID', 'SSO account merge token is invalid or expired.', 422);
+        }
+
+        return $payload;
+    }
+
+    private function ssoCreateTokenSecret(): string
+    {
+        $secret = Env::string('APP_KEY') ?? Env::string('CASDOOR_CLIENT_SECRET');
+        if ($secret === null) {
+            throw new AuthException(
+                'SERVER_ERROR',
+                'APP_KEY or CASDOOR_CLIENT_SECRET is required for SSO account creation.',
+                503,
+            );
+        }
+
+        return $secret;
+    }
+
+    private function base64UrlEncode(string $value): string
+    {
+        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+    }
+
+    private function base64UrlDecode(string $value): ?string
+    {
+        $payload = strtr($value, '-_', '+/');
+        $padding = strlen($payload) % 4;
+        if ($padding > 0) {
+            $payload .= str_repeat('=', 4 - $padding);
+        }
+
+        $decoded = base64_decode($payload, true);
+
+        return is_string($decoded) ? $decoded : null;
     }
 
     private function publicSsoBinding(array $binding): array

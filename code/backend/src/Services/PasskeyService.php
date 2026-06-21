@@ -54,6 +54,7 @@ final readonly class PasskeyService
     public function registrationOptions(Request $request): array
     {
         $session = $this->authenticator->authenticatedSession($request);
+        $this->assertPasswordAccount((int) $session['user_id']);
         $userId = (int) $session['user_id'];
         $challenge = random_bytes(32);
         $repository = new WebAuthnRepository($this->pdo);
@@ -80,6 +81,7 @@ final readonly class PasskeyService
     public function verifyRegistration(array $input, Request $request): array
     {
         $session = $this->authenticator->authenticatedSession($request);
+        $this->assertPasswordAccount((int) $session['user_id']);
         $credential = $this->credentialFromInput($input);
         if (!$credential->response instanceof AuthenticatorAttestationResponse) {
             throw new AuthException('PASSKEY_INVALID', 'Registration response is invalid.', 422);
@@ -123,6 +125,19 @@ final readonly class PasskeyService
         );
 
         return ['credentials' => $repository->listForUser((int) $session['user_id'])];
+    }
+
+    private function assertPasswordAccount(int $userId): void
+    {
+        $user = (new UserRepository($this->pdo))->findWithPasswordById($userId)
+            ?? throw new AuthException('USER_NOT_FOUND', 'User was not found.', 404);
+        if (!is_string($user['password_hash'] ?? null)) {
+            throw new AuthException(
+                'SSO_ONLY_PASSWORD_DISABLED',
+                'SSO-only accounts cannot add passwordless login methods. Bind an existing account to merge data.',
+                409,
+            );
+        }
     }
 
     public function loginOptions(Request $request): array
