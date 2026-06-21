@@ -57,8 +57,8 @@ final readonly class BudgetPdfSignatureRenderer
     {
         $height = $this->svgHeight($config, $width);
         $title = $this->formatter->signatureSectionTitle($config);
-        $titleLines = $this->titleLines($title, $width);
-        $titleBandHeight = $this->titleBandHeight($titleLines);
+        $titleRows = $this->titleRows($title, $width);
+        $titleBandHeight = $this->titleBandHeight($titleRows);
         $rows = array_values(array_filter(
             $config['rows'],
             static fn (mixed $row): bool => is_array($row),
@@ -68,7 +68,7 @@ final readonly class BudgetPdfSignatureRenderer
 
         $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $this->number($width) . 'mm" height="' . $this->number($height) . 'mm" viewBox="0 0 ' . $this->number($width) . ' ' . $this->number($height) . '">'
             . '<rect x="0" y="0" width="' . $this->number($width) . '" height="' . $this->number($titleBandHeight) . '" fill="#a4a4a4" stroke="#7e7e7e" stroke-width="0.2"/>'
-            . $this->titleSvg($titleLines)
+            . $this->titleSvg($titleRows)
             . '<rect x="0" y="' . $this->number($titleBandHeight) . '" width="' . $this->number($width) . '" height="' . $this->number($height - $titleBandHeight) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>';
 
         $rowTop = $titleBandHeight + 2.0;
@@ -99,7 +99,7 @@ final readonly class BudgetPdfSignatureRenderer
         $rows = is_array($config['rows'] ?? null)
             ? array_values(array_filter($config['rows'], static fn (mixed $row): bool => is_array($row)))
             : [];
-        $titleBandHeight = $this->titleBandHeight($this->titleLines(
+        $titleBandHeight = $this->titleBandHeight($this->titleRows(
             $this->formatter->signatureSectionTitle($config),
             $width,
         ));
@@ -188,8 +188,17 @@ final readonly class BudgetPdfSignatureRenderer
         $svg = '';
         foreach (array_slice($fields, 0, 18) as $index => [$label, $value]) {
             $y = $baseline + ($index * 5.0);
-            $svg .= $this->text($labelX, $y, $this->fitText($this->compactInlineText((string) $label), $valueX - $labelX - 2.0), 2.25, '#555', 'sf-mono-light');
-            $svg .= $this->text($valueX, $y, $this->fitText((string) $value, $valueWidth), 2.55, '#111');
+            $labelLines = $this->packedTextLines((string) $label, $valueX - $labelX - 2.0, 1.62, 3);
+            foreach ($labelLines as $lineIndex => $line) {
+                $svg .= $this->text($labelX, $y + ($lineIndex * 1.62), $line, 1.62, '#555', 'sf-mono-light');
+            }
+            $valueLines = str_contains((string) $value, "\n")
+                ? $this->packedTextLines((string) $value, $valueWidth, 1.62, 3)
+                : [$this->fitText((string) $value, $valueWidth)];
+            $valueSize = count($valueLines) > 1 ? 1.62 : 2.55;
+            foreach ($valueLines as $lineIndex => $line) {
+                $svg .= $this->text($valueX, $y + ($lineIndex * 1.62), $line, $valueSize, '#111');
+            }
         }
 
         return $svg;
@@ -396,7 +405,7 @@ final readonly class BudgetPdfSignatureRenderer
         return trim((string) ($item['details'] ?? '')) === '' ? 3.2 : 5.8;
     }
 
-    private function titleLines(string $title, float $width): array
+    private function titleRows(string $title, float $width): array
     {
         $parts = preg_split('/\R/u', $title) ?: [$title];
         $parts = array_values(array_filter(array_map(
@@ -404,27 +413,50 @@ final readonly class BudgetPdfSignatureRenderer
             $parts,
         ), static fn (string $part): bool => $part !== ''));
         if ($parts === []) {
-            return [''];
+            return [['']];
         }
 
         $maxWidth = max(36.0, $width - 4.0);
+        $rows = [];
+        $current = [];
+        $currentWidth = 0.0;
+        $gap = 3.0;
+        foreach ($parts as $part) {
+            $part = $this->fitText($part, $maxWidth);
+            $partWidth = $this->estimatedTextWidth($part, 2.35);
+            $candidateWidth = $currentWidth + ($current === [] ? 0.0 : $gap) + $partWidth;
+            if ($current !== [] && $candidateWidth > $maxWidth) {
+                $rows[] = $current;
+                $current = [$part];
+                $currentWidth = $partWidth;
+                continue;
+            }
 
-        return array_map(
-            fn (string $line): string => $this->fitText($line, $maxWidth),
-            array_slice($parts, 0, 8),
-        );
+            $current[] = $part;
+            $currentWidth = $candidateWidth;
+        }
+        if ($current !== []) {
+            $rows[] = $current;
+        }
+
+        return array_slice($rows, 0, 4);
     }
 
-    private function titleBandHeight(array $lines): float
+    private function titleBandHeight(array $rows): float
     {
-        return max(6.0, 3.0 + (count($lines) * 2.85));
+        return max(6.0, 3.0 + (count($rows) * 3.0));
     }
 
-    private function titleSvg(array $lines): string
+    private function titleSvg(array $rows): string
     {
         $svg = '';
-        foreach ($lines as $index => $line) {
-            $svg .= $this->text(2.0, 3.65 + ($index * 2.85), $line, 2.35, '#000');
+        foreach ($rows as $rowIndex => $segments) {
+            $x = 2.0;
+            $y = 3.75 + ($rowIndex * 3.0);
+            foreach ($segments as $segment) {
+                $svg .= $this->text($x, $y, $segment, 2.35, '#000');
+                $x += $this->estimatedTextWidth($segment, 2.35) + 3.0;
+            }
         }
 
         return $svg;
@@ -478,7 +510,7 @@ final readonly class BudgetPdfSignatureRenderer
             $lines,
         ), static fn (string $line): bool => $line !== ''));
 
-        return array_slice($lines === [] ? [trim($label)] : $lines, 0, 3);
+        return array_slice($lines === [] ? [trim($label)] : $lines, 0, 7);
     }
 
     private function signatureLabelTextSvg(
@@ -616,18 +648,37 @@ final readonly class BudgetPdfSignatureRenderer
             . '...';
     }
 
-    private function compactInlineText(string $value): string
+    private function packedTextLines(string $value, float $maxWidth, float $fontSize, int $maxLines): array
     {
         $parts = preg_split('/\R/u', $value) ?: [$value];
         $parts = array_values(array_unique(array_filter(array_map(
             static fn (string $part): string => trim($part),
             $parts,
         ), static fn (string $part): bool => $part !== '')));
-        if (count($parts) > 3) {
-            $parts = array_slice($parts, 0, 3);
+        if ($parts === []) {
+            return [''];
         }
 
-        return implode(' ', $parts);
+        $lines = [];
+        $current = '';
+        foreach ($parts as $part) {
+            $candidate = $current === '' ? $part : $current . ' ' . $part;
+            if ($current !== '' && $this->estimatedTextWidth($candidate, $fontSize) > $maxWidth) {
+                $lines[] = $current;
+                $current = $part;
+                continue;
+            }
+
+            $current = $candidate;
+        }
+        if ($current !== '') {
+            $lines[] = $current;
+        }
+
+        return array_map(
+            fn (string $line): string => $this->fitText($line, $maxWidth),
+            array_slice($lines, 0, max(1, $maxLines)),
+        );
     }
 
     private function textLength(string $value): int

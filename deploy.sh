@@ -50,6 +50,7 @@ DEPLOY_STARTED_AT="$(date +%s)"
 CURRENT_STEP="bootstrap"
 STEP_INDEX=0
 TOTAL_STEPS=0
+SSH_CONTROL_PATH="${TMPDIR:-/tmp}/${REMOTE_DEPLOY_TOKEN}.ssh"
 SSH_OPTS=(
   -i "${SERVER_SSH_KEY}"
   -p "${SERVER_PORT}"
@@ -57,8 +58,15 @@ SSH_OPTS=(
   -o StrictHostKeyChecking=accept-new
   -o ServerAliveInterval=15
   -o ServerAliveCountMax=4
+  -o ControlMaster=auto
+  -o ControlPersist=90s
+  -o ControlPath="${SSH_CONTROL_PATH}"
 )
-RSYNC_SSH="ssh -i ${SERVER_SSH_KEY} -p ${SERVER_PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+RSYNC_SSH="ssh -i ${SERVER_SSH_KEY} -p ${SERVER_PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o ControlMaster=auto -o ControlPersist=90s -o ControlPath=${SSH_CONTROL_PATH}"
+RSYNC_COMMON_FLAGS=(-a --delete --info=stats2 --human-readable)
+if [[ "${RSYNC_COMPRESS:-0}" == "1" ]]; then
+  RSYNC_COMMON_FLAGS+=(-z)
+fi
 
 if [[ -t 1 && "${NO_COLOR:-0}" != "1" ]]; then
   C_RESET=$'\033[0m'
@@ -68,6 +76,7 @@ if [[ -t 1 && "${NO_COLOR:-0}" != "1" ]]; then
   C_GREEN=$'\033[32m'
   C_YELLOW=$'\033[33m'
   C_BLUE=$'\033[34m'
+  C_MAGENTA=$'\033[35m'
   C_CYAN=$'\033[36m'
 else
   C_RESET=""
@@ -77,6 +86,7 @@ else
   C_GREEN=""
   C_YELLOW=""
   C_BLUE=""
+  C_MAGENTA=""
   C_CYAN=""
 fi
 
@@ -88,17 +98,17 @@ elapsed_since() {
 }
 
 print_banner() {
+  local mode_label="${DEPLOY_COMMAND:-${DEPLOY_MODE}}"
   cat <<EOF
 
-${C_BOLD}${C_CYAN}BudgetCentre Deploy${C_RESET}
-${C_DIM}────────────────────────────────────────${C_RESET}
-Mode        ${DEPLOY_COMMAND:-sync}
-Domain      ${APP_URL}
-Remote      ${REMOTE}:${REMOTE_PATH}
-Database    ${DB_NAME}
-DB action   $(db_action_label)
-Token       ${REMOTE_DEPLOY_TOKEN}
-${C_DIM}────────────────────────────────────────${C_RESET}
+${C_BOLD}${C_CYAN}◆ BudgetCentre deploy${C_RESET}
+${C_DIM}╭────────────────────────────────────────────────────────────╮${C_RESET}
+${C_DIM}│${C_RESET} mode      ${mode_label}
+${C_DIM}│${C_RESET} target    ${APP_URL}
+${C_DIM}│${C_RESET} remote    ${REMOTE}:${REMOTE_PATH}
+${C_DIM}│${C_RESET} database  ${DB_NAME} · $(db_action_label)
+${C_DIM}│${C_RESET} ssh       multiplexed · ${C_DIM}${SSH_CONTROL_PATH}${C_RESET}
+${C_DIM}╰────────────────────────────────────────────────────────────╯${C_RESET}
 EOF
 }
 
@@ -128,6 +138,37 @@ log_error() {
   printf '%s\n' "${C_RED}✖${C_RESET} $*" >&2
 }
 
+progress_bar() {
+  local current="$1"
+  local total="$2"
+  local width=24
+  local filled=0
+  local empty=0
+  local percent=0
+  local bar=""
+  local i
+
+  if [[ "${total}" -gt 0 ]]; then
+    percent=$((current * 100 / total))
+    filled=$((current * width / total))
+  fi
+  empty=$((width - filled))
+
+  for ((i = 0; i < filled; i += 1)); do
+    bar="${bar}━"
+  done
+  for ((i = 0; i < empty; i += 1)); do
+    bar="${bar}·"
+  done
+
+  printf '%s[%s]%s %3d%%' "${C_DIM}" "${bar}" "${C_RESET}" "${percent}"
+}
+
+print_progress() {
+  local current="$1"
+  printf '%s %02d/%02d %s\n' "${C_DIM}progress${C_RESET}" "${current}" "${TOTAL_STEPS}" "$(progress_bar "${current}" "${TOTAL_STEPS}")"
+}
+
 run_step() {
   local title="$1"
   shift
@@ -136,9 +177,11 @@ run_step() {
   local started_at
   started_at="$(date +%s)"
 
-  printf '\n%s [%02d/%02d] %s%s\n' "${C_BLUE}◆${C_RESET}" "${STEP_INDEX}" "${TOTAL_STEPS}" "${C_BOLD}" "${title}${C_RESET}"
+  printf '\n%s %s%s\n' "${C_MAGENTA}●${C_RESET}" "${C_BOLD}" "${title}${C_RESET}"
+  print_progress "$((STEP_INDEX - 1))"
   if "$@"; then
     printf '%s %s %s%s\n' "${C_GREEN}✓${C_RESET}" "${title}" "${C_DIM}" "($(elapsed_since "${started_at}"))${C_RESET}"
+    print_progress "${STEP_INDEX}"
   else
     local status=$?
     printf '%s %s %s%s\n' "${C_RED}✖${C_RESET}" "${title}" "${C_DIM}" "failed after $(elapsed_since "${started_at}")${C_RESET}" >&2
@@ -149,6 +192,7 @@ run_step() {
 finish_deploy() {
   local status=$?
   trap - EXIT
+  close_ssh_control_master
   if [[ "${status}" -eq 0 ]]; then
     printf '\n%s Deploy finished in %s\n' "${C_GREEN}✓${C_RESET}" "$(elapsed_since "${DEPLOY_STARTED_AT}")"
     return 0
@@ -177,6 +221,10 @@ require_command() {
 
 remote_exec() {
   ssh "${SSH_OPTS[@]}" "${REMOTE}" "$@"
+}
+
+close_ssh_control_master() {
+  ssh "${SSH_OPTS[@]}" -O exit "${REMOTE}" >/dev/null 2>&1 || true
 }
 
 remote_exec_tracked() {
@@ -236,14 +284,36 @@ EOF
 }
 
 remote_composer_install() {
-  local command="cd '${REMOTE_PATH}/backend' && \
-    mkdir -p vendor/composer && \
-    http_proxy='${REMOTE_HTTP_PROXY}' \
-    https_proxy='${REMOTE_HTTPS_PROXY}' \
-    HTTP_PROXY='${REMOTE_HTTP_PROXY}' \
-    HTTPS_PROXY='${REMOTE_HTTPS_PROXY}' \
-    COMPOSER_ALLOW_SUPERUSER=1 \
-    composer install --no-dev --optimize-autoloader --no-interaction"
+  local command
+  command="$(cat <<EOF
+cd '${REMOTE_PATH}/backend'
+lock_hash=""
+if command -v sha256sum >/dev/null 2>&1 && [ -f composer.lock ]; then
+  lock_hash="\$(sha256sum composer.lock | awk '{print \$1}')"
+elif command -v shasum >/dev/null 2>&1 && [ -f composer.lock ]; then
+  lock_hash="\$(shasum -a 256 composer.lock | awk '{print \$1}')"
+fi
+
+if [ '${FORCE_COMPOSER_INSTALL:-0}' != '1' ] &&
+  [ -n "\${lock_hash}" ] &&
+  [ -f vendor/autoload.php ] &&
+  [ -f vendor/.composer-lock.sha256 ] &&
+  [ "\$(cat vendor/.composer-lock.sha256 2>/dev/null)" = "\${lock_hash}" ]; then
+  echo "Composer lock unchanged; using existing vendor."
+else
+  mkdir -p vendor/composer
+  http_proxy='${REMOTE_HTTP_PROXY}' \\
+    https_proxy='${REMOTE_HTTPS_PROXY}' \\
+    HTTP_PROXY='${REMOTE_HTTP_PROXY}' \\
+    HTTPS_PROXY='${REMOTE_HTTPS_PROXY}' \\
+    COMPOSER_ALLOW_SUPERUSER=1 \\
+    composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
+  if [ -n "\${lock_hash}" ]; then
+    printf '%s\n' "\${lock_hash}" > vendor/.composer-lock.sha256
+  fi
+fi
+EOF
+)"
 
   if ! remote_exec_tracked "${command}"; then
     log_warn "Remote Composer install failed once. Retrying..."
@@ -285,7 +355,7 @@ build_frontend() {
 }
 
 upload_frontend() {
-  rsync -az --delete --info=stats2 --human-readable \
+  rsync "${RSYNC_COMMON_FLAGS[@]}" \
     -e "${RSYNC_SSH}" \
     --filter='P /backend/***' \
     --filter='P /database/***' \
@@ -297,7 +367,12 @@ upload_frontend() {
 }
 
 upload_fonts() {
-  rsync -azc --delete --info=stats2 --human-readable \
+  local flags=("${RSYNC_COMMON_FLAGS[@]}")
+  if [[ "${RSYNC_CHECKSUM:-0}" == "1" ]]; then
+    flags+=(-c)
+  fi
+
+  rsync "${flags[@]}" \
     -e "${RSYNC_SSH}" \
     "${FONT_DIR}/" \
     "${REMOTE}:${REMOTE_PATH}/font/"
@@ -405,7 +480,7 @@ run_step "Prepare remote directories" remote_exec_tracked "mkdir -p '${REMOTE_PA
 
 run_step "Upload frontend" upload_frontend
 
-run_step "Upload backend" rsync -az --delete --info=stats2 --human-readable \
+run_step "Upload backend" rsync "${RSYNC_COMMON_FLAGS[@]}" \
   -e "${RSYNC_SSH}" \
   --exclude '.env' \
   --exclude 'vendor/' \
@@ -413,7 +488,7 @@ run_step "Upload backend" rsync -az --delete --info=stats2 --human-readable \
   "${BACKEND_DIR}/" \
   "${REMOTE}:${REMOTE_PATH}/backend/"
 
-run_step "Upload database SQL" rsync -az --delete --info=stats2 --human-readable \
+run_step "Upload database SQL" rsync "${RSYNC_COMMON_FLAGS[@]}" \
   -e "${RSYNC_SSH}" \
   "${DATABASE_DIR}/" \
   "${REMOTE}:${REMOTE_PATH}/database/"

@@ -476,12 +476,12 @@ final readonly class BudgetPdfFormatter
     private function signatureRolePhrases(): array
     {
         return [
-            ['en' => 'Prepared by', 'sc' => '制表', 'tc' => '製表'],
-            ['en' => 'Handled by', 'sc' => '经办', 'tc' => '經辦'],
-            ['en' => 'Checked by', 'sc' => '复核', 'tc' => '覆核'],
-            ['en' => 'Reviewed by', 'sc' => '审核', 'tc' => '審核'],
-            ['en' => 'Approved by', 'sc' => '审批', 'tc' => '審批'],
-            ['en' => 'Audited by', 'sc' => '审计', 'tc' => '審計'],
+            ['en' => 'Prepared by', 'sc' => '制表', 'tc' => '製表', 'ja' => '作成者', 'fr' => 'Prepare par', 'ru' => 'Подготовил', 'de' => 'Erstellt von'],
+            ['en' => 'Handled by', 'sc' => '经办', 'tc' => '經辦', 'ja' => '取扱者', 'fr' => 'Traite par', 'ru' => 'Обработал', 'de' => 'Bearbeitet von'],
+            ['en' => 'Checked by', 'sc' => '复核', 'tc' => '覆核', 'ja' => '照合者', 'fr' => 'Verifie par', 'ru' => 'Проверил', 'de' => 'Geprueft von'],
+            ['en' => 'Reviewed by', 'sc' => '审核', 'tc' => '審核', 'ja' => 'レビュー者', 'fr' => 'Revu par', 'ru' => 'Рассмотрел', 'de' => 'Ueberprueft von'],
+            ['en' => 'Approved by', 'sc' => '审批', 'tc' => '審批', 'ja' => '承認者', 'fr' => 'Approuve par', 'ru' => 'Утвердил', 'de' => 'Genehmigt von'],
+            ['en' => 'Audited by', 'sc' => '审计', 'tc' => '審計', 'ja' => '監査者', 'fr' => 'Audite par', 'ru' => 'Аудировал', 'de' => 'Revidiert von'],
             [
                 'en' => 'Confirmed by',
                 'sc' => '确认',
@@ -491,33 +491,33 @@ final readonly class BudgetPdfFormatter
                 'ru' => 'Подтвердил',
                 'de' => 'Bestaetigt von',
             ],
-            ['en' => 'Verified by', 'sc' => '核验', 'tc' => '核驗'],
-            ['en' => 'Authorised by', 'sc' => '授权', 'tc' => '授權'],
-            ['en' => 'Accepted by', 'sc' => '接纳', 'tc' => '接納'],
-            ['en' => 'Acknowledged by', 'sc' => '知悉确认', 'tc' => '知悉確認'],
-            ['en' => 'Reconciled by', 'sc' => '对账', 'tc' => '對賬'],
-            ['en' => 'Documented by', 'sc' => '记录', 'tc' => '記錄'],
-            ['en' => 'Processed by', 'sc' => '处理', 'tc' => '處理'],
-            ['en' => 'Finance reviewed by', 'sc' => '财务复核', 'tc' => '財務覆核'],
+            ['en' => 'Verified by', 'sc' => '核验', 'tc' => '核驗', 'ja' => '検証者', 'fr' => 'Verifie par', 'ru' => 'Проверил', 'de' => 'Verifiziert von'],
+            ['en' => 'Authorised by', 'sc' => '授权', 'tc' => '授權', 'ja' => '権限者', 'fr' => 'Autorise par', 'ru' => 'Авторизовал', 'de' => 'Autorisiert von'],
+            ['en' => 'Accepted by', 'sc' => '接纳', 'tc' => '接納', 'ja' => '受領者', 'fr' => 'Accepte par', 'ru' => 'Принял', 'de' => 'Akzeptiert von'],
+            ['en' => 'Acknowledged by', 'sc' => '知悉确认', 'tc' => '知悉確認', 'ja' => '確認済み', 'fr' => 'Pris connaissance par', 'ru' => 'Ознакомлен', 'de' => 'Zur Kenntnis genommen von'],
+            ['en' => 'Reconciled by', 'sc' => '对账', 'tc' => '對賬', 'ja' => '照合者', 'fr' => 'Rapproche par', 'ru' => 'Сверил', 'de' => 'Abgestimmt von'],
+            ['en' => 'Documented by', 'sc' => '记录', 'tc' => '記錄', 'ja' => '記録者', 'fr' => 'Documente par', 'ru' => 'Задокументировал', 'de' => 'Dokumentiert von'],
+            ['en' => 'Processed by', 'sc' => '处理', 'tc' => '處理', 'ja' => '処理者', 'fr' => 'Traite par', 'ru' => 'Обработал', 'de' => 'Verarbeitet von'],
+            ['en' => 'Finance reviewed by', 'sc' => '财务复核', 'tc' => '財務覆核', 'ja' => '財務レビュー', 'fr' => 'Revu par finance', 'ru' => 'Финансовая проверка', 'de' => 'Finanziell geprueft von'],
         ];
     }
 
     private function signaturePositionPhrases(): array
     {
         return [
-            ['en' => 'Account Holder', 'sc' => '账户持有人', 'tc' => '帳戶持有人'],
-            ['en' => 'Budget Owner', 'sc' => '预算负责人', 'tc' => '預算負責人'],
-            ['en' => 'Finance Owner', 'sc' => '财务负责人', 'tc' => '財務負責人'],
-            ['en' => 'Finance Officer', 'sc' => '财务专员', 'tc' => '財務專員'],
-            ['en' => 'Accounts Officer', 'sc' => '会计专员', 'tc' => '會計專員'],
-            ['en' => 'Relationship Manager', 'sc' => '客户经理', 'tc' => '客戶經理'],
-            ['en' => 'Operations Officer', 'sc' => '运营专员', 'tc' => '營運專員'],
-            ['en' => 'Compliance Reviewer', 'sc' => '合规复核', 'tc' => '合規覆核'],
-            ['en' => 'Reviewer', 'sc' => '复核人', 'tc' => '覆核人'],
-            ['en' => 'Approver', 'sc' => '审批人', 'tc' => '審批人'],
-            ['en' => 'Internal Auditor', 'sc' => '内部审计', 'tc' => '內部審計'],
-            ['en' => 'External Auditor', 'sc' => '外部审计', 'tc' => '外部審計'],
-            ['en' => 'Authorised Representative', 'sc' => '授权代表', 'tc' => '授權代表'],
+            ['en' => 'Account Holder', 'sc' => '账户持有人', 'tc' => '帳戶持有人', 'ja' => '口座名義人', 'fr' => 'Titulaire du compte', 'ru' => 'Владелец счета', 'de' => 'Kontoinhaber'],
+            ['en' => 'Budget Owner', 'sc' => '预算负责人', 'tc' => '預算負責人', 'ja' => '予算責任者', 'fr' => 'Responsable budget', 'ru' => 'Владелец бюджета', 'de' => 'Budgetverantwortlicher'],
+            ['en' => 'Finance Owner', 'sc' => '财务负责人', 'tc' => '財務負責人', 'ja' => '財務責任者', 'fr' => 'Responsable financier', 'ru' => 'Финансовый владелец', 'de' => 'Finanzverantwortlicher'],
+            ['en' => 'Finance Officer', 'sc' => '财务专员', 'tc' => '財務專員', 'ja' => '財務担当者', 'fr' => 'Agent financier', 'ru' => 'Финансовый специалист', 'de' => 'Finanzsachbearbeiter'],
+            ['en' => 'Accounts Officer', 'sc' => '会计专员', 'tc' => '會計專員', 'ja' => '会計担当者', 'fr' => 'Agent comptable', 'ru' => 'Бухгалтер', 'de' => 'Buchhaltung'],
+            ['en' => 'Relationship Manager', 'sc' => '客户经理', 'tc' => '客戶經理', 'ja' => 'リレーション担当', 'fr' => 'Charge de relation', 'ru' => 'Менеджер по работе', 'de' => 'Kundenbetreuer'],
+            ['en' => 'Operations Officer', 'sc' => '运营专员', 'tc' => '營運專員', 'ja' => '業務担当者', 'fr' => 'Agent operations', 'ru' => 'Операционный специалист', 'de' => 'Operations-Sachbearbeiter'],
+            ['en' => 'Compliance Reviewer', 'sc' => '合规复核', 'tc' => '合規覆核', 'ja' => 'コンプライアンス審査', 'fr' => 'Controle conformite', 'ru' => 'Проверка комплаенса', 'de' => 'Compliance-Pruefer'],
+            ['en' => 'Reviewer', 'sc' => '复核人', 'tc' => '覆核人', 'ja' => 'レビュー担当', 'fr' => 'Relecteur', 'ru' => 'Рецензент', 'de' => 'Pruefer'],
+            ['en' => 'Approver', 'sc' => '审批人', 'tc' => '審批人', 'ja' => '承認者', 'fr' => 'Approbateur', 'ru' => 'Утверждающий', 'de' => 'Genehmiger'],
+            ['en' => 'Internal Auditor', 'sc' => '内部审计', 'tc' => '內部審計', 'ja' => '内部監査', 'fr' => 'Auditeur interne', 'ru' => 'Внутренний аудитор', 'de' => 'Interner Auditor'],
+            ['en' => 'External Auditor', 'sc' => '外部审计', 'tc' => '外部審計', 'ja' => '外部監査', 'fr' => 'Auditeur externe', 'ru' => 'Внешний аудитор', 'de' => 'Externer Auditor'],
+            ['en' => 'Authorised Representative', 'sc' => '授权代表', 'tc' => '授權代表', 'ja' => '権限代表者', 'fr' => 'Representant autorise', 'ru' => 'Уполномоченный представитель', 'de' => 'Bevollmaechtigter Vertreter'],
         ];
     }
 

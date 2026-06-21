@@ -104,7 +104,7 @@ composer db:init
 
 部署腳本會為本次遠端長任務標記唯一 token；若本地以 `Ctrl+C` 中斷，會嘗試停止同 token 的遠端 composer / migration / reset / init 任務，避免遠端在本地退出後繼續改動。
 
-部署輸出會按步驟顯示進度、耗時與失敗階段；若終端不支援色彩或需要純文字輸出，可使用 `NO_COLOR=1 ./deploy.sh sync`。
+部署輸出會按步驟顯示總進度條、耗時與失敗階段；若終端不支援色彩或需要純文字輸出，可使用 `NO_COLOR=1 ./deploy.sh sync`。部署期間會複用 SSH 連線，減少多段遠端操作的握手時間。
 
 部署前會檢查遠端根目錄是否為空；`fresh` 模式在清資料庫前會先跑一次 reset dry-run，方便確認即將清理的資料庫 objects。
 
@@ -113,7 +113,12 @@ composer db:init
 ```bash
 SKIP_BUILD=1 ./deploy.sh
 SKIP_DB_INIT=1 ./deploy.sh migrate
+FORCE_COMPOSER_INSTALL=1 ./deploy.sh
+RSYNC_COMPRESS=1 ./deploy.sh
+RSYNC_CHECKSUM=1 ./deploy.sh
 ```
+
+遠端 Composer 依賴預設會用 `composer.lock` 雜湊判斷；lockfile 沒變且 `vendor/autoload.php` 存在時會跳過 `composer install`。`FORCE_COMPOSER_INSTALL=1` 可強制重跑。rsync 預設採快速的 size/time 比對；網路很慢時可開 `RSYNC_COMPRESS=1`，需要字體 checksum 校驗時再開 `RSYNC_CHECKSUM=1`。
 
 `deploy.sh` 內已包含正式域名、SSH、MySQL、SMTP、WebAuthn RP、Composer proxy 等遠端部署配置；不要把這些正式資料同步到 `.env.example`。
 
