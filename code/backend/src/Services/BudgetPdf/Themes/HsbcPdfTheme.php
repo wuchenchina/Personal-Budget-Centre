@@ -34,7 +34,7 @@ final readonly class HsbcPdfTheme implements BudgetPdfThemeDefinition
             . '.hsbc-subtitle{font-size:8.2pt;line-height:1.35;color:#111;}'
             . '.title,.subtitle{display:none;}'
             . '.title-line,.subtitle-line{display:block;line-height:1.22;}'
-            . '.page-footer{font-family:Arial,TCSongti,sans-serif;font-size:7pt;color:#555;text-align:right;}';
+            . '.page-footer{font-family:Arial,TCSongti,sans-serif;font-size:7pt;color:#555;text-align:center;}';
     }
 
     public function budgetTableCss(): string
@@ -107,7 +107,7 @@ final readonly class HsbcPdfTheme implements BudgetPdfThemeDefinition
 
     public function footerHtml(string $scope): string
     {
-        return '<htmlpagefooter name="budgetPageFooter"><div class="page-footer">Page {PAGENO}</div></htmlpagefooter>';
+        return '<htmlpagefooter name="budgetPageFooter"><div class="page-footer">{PAGENO}</div></htmlpagefooter>';
     }
 
     public function headerHtml(
@@ -121,7 +121,7 @@ final readonly class HsbcPdfTheme implements BudgetPdfThemeDefinition
         $date = date('j F Y');
         $documentTitle = $titleHtml;
         $subtitle = trim(strip_tags(str_replace(['</div>', '<br>'], "\n", $subtitleHtml)));
-        $subtitleContent = $scope === 'bookkeeping' ? $titleHtml : '';
+        $subtitleContent = '';
         if ($subtitle !== '') {
             $subtitleContent .= ($subtitleContent === '' ? '' : '<br>') . $formatter->escapeHtml($subtitle);
         }
