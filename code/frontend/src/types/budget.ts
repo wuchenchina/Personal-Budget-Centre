@@ -347,6 +347,8 @@ export interface BudgetExportOptions {
   pdfTheme?: PdfThemeKey;
   showWorkspace?: boolean;
   pdfLanguages?: AppLanguage[];
+  signatureLabelMode?: BudgetSignatureLabelMode;
+  signatureLabelLanguages?: AppLanguage[];
 }
 
 export interface BudgetExport {

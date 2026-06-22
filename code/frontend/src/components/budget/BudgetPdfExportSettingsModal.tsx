@@ -4,7 +4,7 @@ import { normalizePdfTheme, pdfThemeOptions } from '../../config/pdfThemes';
 import { languageOptions, useI18n } from '../../i18n';
 import type { AppLanguage } from '../../i18n';
 import type { PdfExportSettings } from '../../types/auth';
-import type { PdfThemeKey } from '../../types/budget';
+import type { BudgetSignatureLabelMode, PdfThemeKey } from '../../types/budget';
 import { normalizePdfExportSettings, normalizePdfLanguages, normalizeSignatureLabelMode } from '../../utils/pdfExportSettings';
 
 export interface BudgetPdfExportSettingsValue extends PdfExportSettings {
@@ -112,6 +112,32 @@ export function BudgetPdfExportSettingsModal({
         >
           <Switch />
         </Form.Item>
+        <Form.Item
+          extra={t('pdfExportSignatureLabelModeDescription')}
+          label={t('pdfExportSignatureLabelMode')}
+          name="signatureLabelMode"
+          rules={[{ required: true, message: t('pdfExportSignatureLabelModeRequired') }]}
+        >
+          <Radio.Group options={signatureLabelModeOptions(t)} />
+        </Form.Item>
+        <Form.Item
+          extra={t('pdfExportSignatureLabelLanguagesDescription')}
+          label={t('pdfExportSignatureLabelLanguages')}
+          name="signatureLabelLanguages"
+          rules={[
+            {
+              validator: async (_, selected: AppLanguage[] | undefined) => {
+                if (Array.isArray(selected) && selected.length > 0) {
+                  return;
+                }
+
+                throw new Error(t('pdfExportSignatureLabelLanguageRequired'));
+              },
+            },
+          ]}
+        >
+          <Checkbox.Group options={languageOptions} />
+        </Form.Item>
       </Form>
     </Modal>
   );
@@ -126,4 +152,12 @@ function pdfThemeLabelKey(theme: PdfThemeKey) {
     default:
       return 'pdfThemeClassic';
   }
+}
+
+function signatureLabelModeOptions(t: (key: 'confirmationSignature' | 'confirmationOnly' | 'signatureOnly') => string) {
+  return [
+    { label: t('confirmationSignature'), value: 'confirmation_signature' },
+    { label: t('confirmationOnly'), value: 'confirmation' },
+    { label: t('signatureOnly'), value: 'signature' },
+  ] satisfies Array<{ label: string; value: BudgetSignatureLabelMode }>;
 }

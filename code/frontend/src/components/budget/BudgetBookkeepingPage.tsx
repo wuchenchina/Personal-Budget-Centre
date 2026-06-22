@@ -9,6 +9,7 @@ import type {
   BookkeepingRecord,
   BudgetDetail,
   BudgetExportOptions,
+  BudgetSignatureLabelMode,
   CurrencyCode,
   PdfThemeKey,
   TransactionType,
@@ -284,6 +285,8 @@ export function BudgetBookkeepingPage({
               pdfLanguages: exportSettings.pdfLanguages,
               pdfTheme: exportSettings.pdfTheme,
               showWorkspace: exportSettings.showWorkspace,
+              signatureLabelLanguages: exportSettings.signatureLabelLanguages,
+              signatureLabelMode: exportSettings.signatureLabelMode,
             })}
           >
             {t('exportPdf')}
@@ -293,6 +296,12 @@ export function BudgetBookkeepingPage({
           {exportSettings.pdfLanguages.map((pdfLanguage) => (
             <Tag key={pdfLanguage}>
               {languageOptions.find((option) => option.value === pdfLanguage)?.label ?? pdfLanguage}
+            </Tag>
+          ))}
+          <Tag color="geekblue">{t(signatureLabelModeKey(exportSettings.signatureLabelMode))}</Tag>
+          {exportSettings.signatureLabelLanguages.map((signatureLanguage) => (
+            <Tag key={`signature-${signatureLanguage}`} color="cyan">
+              {languageOptions.find((option) => option.value === signatureLanguage)?.label ?? signatureLanguage}
             </Tag>
           ))}
         </div>
@@ -459,6 +468,17 @@ function isOrderTransaction(type: TransactionType): boolean {
 
 function isTransferTransaction(type: TransactionType): boolean {
   return type === 'transfer' || type === 'fx_exchange' || type === 'cross_border_remittance';
+}
+
+function signatureLabelModeKey(mode: BudgetSignatureLabelMode) {
+  switch (mode) {
+    case 'confirmation':
+      return 'confirmationOnly';
+    case 'signature':
+      return 'signatureOnly';
+    default:
+      return 'confirmationSignature';
+  }
 }
 
 function accountRouteText(record: BookkeepingRecord): string | null {

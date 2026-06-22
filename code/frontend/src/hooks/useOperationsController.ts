@@ -374,6 +374,8 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         pdfTheme: session?.user.defaultPdfTheme ?? 'classic',
         showWorkspace: userPdfExportSettings.showWorkspace,
         pdfLanguages: userPdfExportSettings.pdfLanguages,
+        signatureLabelMode: userPdfExportSettings.signatureLabelMode,
+        signatureLabelLanguages: userPdfExportSettings.signatureLabelLanguages,
         ...exportOptions,
       });
       triggerExportDownload(exportDownloadUrl(nextExport));

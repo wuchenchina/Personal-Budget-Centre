@@ -49,6 +49,7 @@ import type {
   BudgetItem,
   BudgetParticipant,
   BudgetSignatureConfig,
+  BudgetSignatureLabelMode,
   BudgetSignatureRow,
   BudgetTemplateDefinition,
   CurrencyCode,
@@ -532,6 +533,8 @@ export function BudgetDocumentPreview({
               pdfLanguages: exportSettings.pdfLanguages,
               pdfTheme: exportSettings.pdfTheme,
               showWorkspace: exportSettings.showWorkspace,
+              signatureLabelLanguages: exportSettings.signatureLabelLanguages,
+              signatureLabelMode: exportSettings.signatureLabelMode,
             })}
           >
             {t('exportPdf')}
@@ -541,6 +544,12 @@ export function BudgetDocumentPreview({
           {exportSettings.pdfLanguages.map((pdfLanguage) => (
             <Tag key={pdfLanguage}>
               {languageOptions.find((option) => option.value === pdfLanguage)?.label ?? pdfLanguage}
+            </Tag>
+          ))}
+          <Tag color="geekblue">{t(signatureLabelModeKey(exportSettings.signatureLabelMode))}</Tag>
+          {exportSettings.signatureLabelLanguages.map((signatureLanguage) => (
+            <Tag key={`signature-${signatureLanguage}`} color="cyan">
+              {languageOptions.find((option) => option.value === signatureLanguage)?.label ?? signatureLanguage}
             </Tag>
           ))}
         </div>
@@ -2718,6 +2727,17 @@ function appendBudgetItemActions(
       ),
     },
   ];
+}
+
+function signatureLabelModeKey(mode: BudgetSignatureLabelMode) {
+  switch (mode) {
+    case 'confirmation':
+      return 'confirmationOnly';
+    case 'signature':
+      return 'signatureOnly';
+    default:
+      return 'confirmationSignature';
+  }
 }
 
 function appendTransactionActions(
