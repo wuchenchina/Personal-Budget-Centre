@@ -17,6 +17,11 @@ export const pdfThemeOptions: PdfThemeOption[] = [
     swatch: '#db0011',
     accent: '#111111',
   },
+  {
+    key: 'uswds',
+    swatch: '#005ea8',
+    accent: '#1a4480',
+  },
 ];
 
 export function normalizePdfTheme(theme: string | null | undefined): PdfThemeKey {

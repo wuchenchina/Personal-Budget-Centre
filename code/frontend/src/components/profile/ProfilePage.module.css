@@ -507,6 +507,11 @@
   font-family: Arial, "Helvetica Neue", sans-serif;
 }
 
+.previewUswds {
+  border-top: 5px solid #005ea8;
+  font-family: Arial, "Helvetica Neue", sans-serif;
+}
+
 .previewClassic {
   border-top: 5px solid #8a8a8a;
   font-family: "SFMono-Regular", Menlo, Consolas, monospace;
@@ -533,6 +538,11 @@
   color: var(--bc-text);
   font-size: 16px;
   text-align: center;
+}
+
+.previewUswds .previewTitle span {
+  color: #1a4480;
+  font-weight: 700;
 }
 
 .previewTitle small {
@@ -587,6 +597,13 @@
   border-color: #111111;
 }
 
+.previewUswds .previewBand {
+  color: #ffffff;
+  background: #1a4480;
+  border-color: #1a4480;
+  font-weight: 700;
+}
+
 .previewRows {
   display: grid;
   gap: 0;
@@ -618,6 +635,14 @@
   background:
     linear-gradient(#a4a4a4 0 13px, transparent 13px),
     linear-gradient(90deg, transparent 0 52%, #d9d9d9 52% 53%, transparent 53% 100%);
+}
+
+.previewUswds .previewSignature {
+  border-color: #dfe1e2;
+  border-top: 3px solid #005ea8;
+  background:
+    linear-gradient(#e7f6f8 0 13px, transparent 13px),
+    linear-gradient(90deg, transparent 0 52%, #dfe1e2 52% 53%, transparent 53% 100%);
 }
 
 .previewRows {

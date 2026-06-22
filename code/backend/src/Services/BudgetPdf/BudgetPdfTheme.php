@@ -8,12 +8,14 @@ final readonly class BudgetPdfTheme
 {
     public const CLASSIC = 'classic';
     public const HSBC = 'hsbc';
+    public const USWDS = 'uswds';
     public const LEGACY_STATEMENT_RED = 'statement_red';
     public const DEFAULT = self::CLASSIC;
 
     public const THEMES = [
         self::CLASSIC,
         self::HSBC,
+        self::USWDS,
     ];
 
     public static function normalize(mixed $theme): string

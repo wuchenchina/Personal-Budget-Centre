@@ -357,7 +357,7 @@ final readonly class BudgetPdfFormatter
             default => implode(' ', $parts),
         };
 
-        return $label . "\n" . $chineseLabel;
+        return $label . ' ' . $chineseLabel;
     }
 
     private function signatureLanguage(array $config): string
@@ -396,7 +396,7 @@ final readonly class BudgetPdfFormatter
             $values[] = $text;
         }
 
-        return implode("\n", $values);
+        return implode(' ', $values);
     }
 
     private function signatureInfoLanguage(array $config): string

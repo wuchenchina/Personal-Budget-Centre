@@ -29,7 +29,7 @@ final readonly class BudgetPdfSignatureRenderer
         $width = ($config['sectionAlign'] ?? null) === 'right'
             ? 76.0
             : ($theme ?? new ClassicPdfTheme())->signatureFullWidthMm();
-        $svg = $this->svg($config, $width);
+        $svg = $this->svg($config, $width, $theme);
         $height = $this->svgHeight($config, $width);
 
         $image = $this->imageHtml($svg, $width, $height, 'block');
@@ -53,7 +53,7 @@ final readonly class BudgetPdfSignatureRenderer
             . 'mm" alt="">';
     }
 
-    private function svg(array $config, float $width): string
+    private function svg(array $config, float $width, ?BudgetPdfThemeDefinition $theme): string
     {
         $height = $this->svgHeight($config, $width);
         $title = $this->formatter->signatureSectionTitle($config);
@@ -65,30 +65,31 @@ final readonly class BudgetPdfSignatureRenderer
         ));
         $signingRows = $this->signingRows($rows);
         $noteRows = $this->noteRows($rows);
+        $palette = $this->palette($theme);
 
         $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $this->number($width) . 'mm" height="' . $this->number($height) . 'mm" viewBox="0 0 ' . $this->number($width) . ' ' . $this->number($height) . '">'
-            . '<rect x="0" y="0" width="' . $this->number($width) . '" height="' . $this->number($titleBandHeight) . '" fill="#a4a4a4" stroke="#7e7e7e" stroke-width="0.2"/>'
-            . $this->titleSvg($titleRows)
-            . '<rect x="0" y="' . $this->number($titleBandHeight) . '" width="' . $this->number($width) . '" height="' . $this->number($height - $titleBandHeight) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>';
+            . '<rect x="0" y="0" width="' . $this->number($width) . '" height="' . $this->number($titleBandHeight) . '" fill="' . $palette['titleFill'] . '" stroke="' . $palette['titleStroke'] . '" stroke-width="0.2"/>'
+            . $this->titleSvg($titleRows, $palette)
+            . '<rect x="0" y="' . $this->number($titleBandHeight) . '" width="' . $this->number($width) . '" height="' . $this->number($height - $titleBandHeight) . '" fill="#fff" stroke="' . $palette['border'] . '" stroke-width="0.2"/>';
 
         $rowTop = $titleBandHeight + 2.0;
         foreach ($signingRows as $index => $row) {
             $rowHeight = $this->rowHeight($row, $config, $width);
             if ($index > 0) {
-                $svg .= '<line x1="2" y1="' . $this->number($rowTop - 1.1) . '" x2="' . $this->number($width - 2) . '" y2="' . $this->number($rowTop - 1.1) . '" stroke="#bfbfbf" stroke-width="0.16"/>';
+                $svg .= '<line x1="2" y1="' . $this->number($rowTop - 1.1) . '" x2="' . $this->number($width - 2) . '" y2="' . $this->number($rowTop - 1.1) . '" stroke="' . $palette['divider'] . '" stroke-width="0.16"/>';
             }
             $fields = $this->signatureFields($row, $config);
-            $svg .= $this->metaSvg($fields, $rowTop, $width);
+            $svg .= $this->metaSvg($fields, $rowTop, $width, $palette);
             if (($row['showSignature'] ?? true) !== false) {
-                $svg .= $this->signatureBoxSvg($config, $rowTop, $width, max(1, count($fields)));
+                $svg .= $this->signatureBoxSvg($config, $rowTop, $width, max(1, count($fields)), $palette);
             }
             $rowTop += $rowHeight;
         }
         if ($noteRows !== []) {
             if ($signingRows !== []) {
-                $svg .= '<line x1="2" y1="' . $this->number($rowTop - 1.1) . '" x2="' . $this->number($width - 2) . '" y2="' . $this->number($rowTop - 1.1) . '" stroke="#d9d9d9" stroke-width="0.14"/>';
+                $svg .= '<line x1="2" y1="' . $this->number($rowTop - 1.1) . '" x2="' . $this->number($width - 2) . '" y2="' . $this->number($rowTop - 1.1) . '" stroke="' . $palette['noteDivider'] . '" stroke-width="0.14"/>';
             }
-            $svg .= $this->notesBlockSvg($noteRows, $config, $rowTop, $width);
+            $svg .= $this->notesBlockSvg($noteRows, $config, $rowTop, $width, $palette);
         }
 
         return $svg . '</svg>';
@@ -179,7 +180,7 @@ final readonly class BudgetPdfSignatureRenderer
         return $fields;
     }
 
-    private function metaSvg(array $fields, float $rowTop, float $width): string
+    private function metaSvg(array $fields, float $rowTop, float $width, array $palette): string
     {
         $labelX = 3.0;
         $valueX = $width <= 80.0 ? 25.0 : 41.0;
@@ -190,26 +191,26 @@ final readonly class BudgetPdfSignatureRenderer
             $y = $baseline + ($index * 5.0);
             $labelLines = $this->packedTextLines((string) $label, $valueX - $labelX - 2.0, 1.62, 3);
             foreach ($labelLines as $lineIndex => $line) {
-                $svg .= $this->text($labelX, $y + ($lineIndex * 1.62), $line, 1.62, '#555', 'sf-mono-light');
+                $svg .= $this->text($labelX, $y + ($lineIndex * 1.62), $line, 1.62, $palette['mutedText'], 'sf-mono-light');
             }
             $valueLines = str_contains((string) $value, "\n")
                 ? $this->packedTextLines((string) $value, $valueWidth, 1.62, 3)
                 : [$this->fitText((string) $value, $valueWidth)];
             $valueSize = count($valueLines) > 1 ? 1.62 : 2.55;
             foreach ($valueLines as $lineIndex => $line) {
-                $svg .= $this->text($valueX, $y + ($lineIndex * 1.62), $line, $valueSize, '#111');
+                $svg .= $this->text($valueX, $y + ($lineIndex * 1.62), $line, $valueSize, $palette['bodyText']);
             }
         }
 
         return $svg;
     }
 
-    private function notesBlockSvg(array $rows, array $config, float $rowTop, float $width): string
+    private function notesBlockSvg(array $rows, array $config, float $rowTop, float $width, array $palette): string
     {
         $height = $this->notesBlockHeight($rows, $config, $width);
         $x = 2.0;
         $innerWidth = $width - 4.0;
-        $svg = '<rect x="' . $this->number($x) . '" y="' . $this->number($rowTop) . '" width="' . $this->number($innerWidth) . '" height="' . $this->number($height) . '" fill="#fafafa" stroke="#d9d9d9" stroke-width="0.14"/>';
+        $svg = '<rect x="' . $this->number($x) . '" y="' . $this->number($rowTop) . '" width="' . $this->number($innerWidth) . '" height="' . $this->number($height) . '" fill="' . $palette['noteFill'] . '" stroke="' . $palette['noteStroke'] . '" stroke-width="0.14"/>';
         $items = $this->compactNoteItems($rows, $config);
         if ($items === []) {
             return $svg;
@@ -226,7 +227,7 @@ final readonly class BudgetPdfSignatureRenderer
             ));
             foreach ($gridRow as $columnIndex => $item) {
                 $cellX = $x + 2.0 + ($columnIndex * ($cellWidth + $gapX));
-                $svg .= $this->noteItemSvg($item, $cellX, $y, $cellWidth);
+                $svg .= $this->noteItemSvg($item, $cellX, $y, $cellWidth, $palette);
             }
             $y += $rowHeight + $gapY;
         }
@@ -374,7 +375,7 @@ final readonly class BudgetPdfSignatureRenderer
         return max(1, min($maxColumns, 2));
     }
 
-    private function noteItemSvg(array $item, float $x, float $y, float $width): string
+    private function noteItemSvg(array $item, float $x, float $y, float $width, array $palette): string
     {
         $primary = trim((string) ($item['primary'] ?? ''));
         $details = trim((string) ($item['details'] ?? ''));
@@ -383,7 +384,7 @@ final readonly class BudgetPdfSignatureRenderer
             $y + 2.4,
             $this->fitText($primary, $width),
             2.2,
-            '#111',
+            $palette['bodyText'],
             'sf-mono',
         );
         if ($details !== '') {
@@ -392,7 +393,7 @@ final readonly class BudgetPdfSignatureRenderer
                 $y + 5.0,
                 $this->fitText($details, $width),
                 1.85,
-                '#555',
+                $palette['mutedText'],
                 'sf-mono-light',
             );
         }
@@ -447,14 +448,14 @@ final readonly class BudgetPdfSignatureRenderer
         return max(6.0, 3.0 + (count($rows) * 3.0));
     }
 
-    private function titleSvg(array $rows): string
+    private function titleSvg(array $rows, array $palette): string
     {
         $svg = '';
         foreach ($rows as $rowIndex => $segments) {
             $x = 2.0;
             $y = 3.75 + ($rowIndex * 3.0);
             foreach ($segments as $segment) {
-                $svg .= $this->text($x, $y, $segment, 2.35, '#000');
+                $svg .= $this->text($x, $y, $segment, 2.35, $palette['titleText']);
                 $x += $this->estimatedTextWidth($segment, 2.35) + 3.0;
             }
         }
@@ -478,7 +479,7 @@ final readonly class BudgetPdfSignatureRenderer
         ));
     }
 
-    private function signatureBoxSvg(array $config, float $rowTop, float $width, int $fieldCount): string
+    private function signatureBoxSvg(array $config, float $rowTop, float $width, int $fieldCount, array $palette): string
     {
         $boxWidth = $width <= 80.0 ? 66.0 : 78.0;
         $boxHeight = $width <= 80.0 ? 26.0 : 29.0;
@@ -494,10 +495,10 @@ final readonly class BudgetPdfSignatureRenderer
         $captionY = $captionBottomY - ((count($captionLines) - 1) * $captionLineHeight);
         $lineY = max($boxY + 8.0, $captionY - 2.0);
 
-        $svg = '<rect x="' . $this->number($boxX) . '" y="' . $this->number($boxY) . '" width="' . $this->number($boxWidth) . '" height="' . $this->number($boxHeight) . '" fill="#fff" stroke="#7e7e7e" stroke-width="0.2"/>'
-            . $this->securityPatternSvg($boxX, $boxY, $boxWidth, $boxHeight)
-            . '<line x1="' . $this->number($boxX + 4.0) . '" y1="' . $this->number($lineY) . '" x2="' . $this->number($boxX + $boxWidth - 4.0) . '" y2="' . $this->number($lineY) . '" stroke="#8f8f8f" stroke-width="0.16"/>'
-            . $this->signatureLabelTextSvg($captionLines, $captionLeft, $captionRight, $captionY, $captionLineHeight, $captionAlign);
+        $svg = '<rect x="' . $this->number($boxX) . '" y="' . $this->number($boxY) . '" width="' . $this->number($boxWidth) . '" height="' . $this->number($boxHeight) . '" fill="#fff" stroke="' . $palette['border'] . '" stroke-width="0.2"/>'
+            . $this->securityPatternSvg($boxX, $boxY, $boxWidth, $boxHeight, $palette)
+            . '<line x1="' . $this->number($boxX + 4.0) . '" y1="' . $this->number($lineY) . '" x2="' . $this->number($boxX + $boxWidth - 4.0) . '" y2="' . $this->number($lineY) . '" stroke="' . $palette['signatureLine'] . '" stroke-width="0.16"/>'
+            . $this->signatureLabelTextSvg($captionLines, $captionLeft, $captionRight, $captionY, $captionLineHeight, $captionAlign, $palette);
 
         return $svg;
     }
@@ -520,6 +521,7 @@ final readonly class BudgetPdfSignatureRenderer
         float $y,
         float $lineHeight,
         string $align,
+        array $palette,
     ): string {
         $svg = '';
         $maxWidth = $right - $left;
@@ -532,7 +534,7 @@ final readonly class BudgetPdfSignatureRenderer
                 $y + ($index * $lineHeight),
                 $text,
                 1.75,
-                '#555',
+                $palette['mutedText'],
                 'sf-mono-light',
                 'start',
                 $align === 'right'
@@ -571,7 +573,7 @@ final readonly class BudgetPdfSignatureRenderer
         return $width;
     }
 
-    private function securityPatternSvg(float $x, float $y, float $width, float $height): string
+    private function securityPatternSvg(float $x, float $y, float $width, float $height, array $palette): string
     {
         $innerTop = $y + 4.8;
         $innerBottom = $y + $height - 7.3;
@@ -594,20 +596,77 @@ final readonly class BudgetPdfSignatureRenderer
             . ' C ' . $this->number($x + $this->randomFloat(17.0, 22.0)) . ' ' . $this->number($waveOneTop)
             . ', ' . $this->number($x + $width - $this->randomFloat(17.0, 22.0)) . ' ' . $this->number($waveOneBottom)
             . ', ' . $this->number($right) . ' ' . $this->number($middle)
-            . '" fill="none" stroke="#eeeeee" stroke-width="0.18"/>'
+            . '" fill="none" stroke="' . $palette['patternPrimary'] . '" stroke-width="0.18"/>'
             . '<path d="M ' . $this->number($left) . ' ' . $this->number($middle + $waveGap)
             . ' C ' . $this->number($x + $this->randomFloat(18.0, 23.0)) . ' ' . $this->number($waveTwoBottom)
             . ', ' . $this->number($x + $width - $this->randomFloat(18.0, 23.0)) . ' ' . $this->number($waveTwoTop)
             . ', ' . $this->number($right) . ' ' . $this->number($middle + $waveGap)
-            . '" fill="none" stroke="#f1f1f1" stroke-width="0.18"/>'
+            . '" fill="none" stroke="' . $palette['patternSecondary'] . '" stroke-width="0.18"/>'
             . '<path d="M ' . $this->number($left + 2.0) . ' ' . $this->number($thirdMiddle)
             . ' C ' . $this->number($x + $this->randomFloat(20.0, 25.0)) . ' ' . $this->number($innerTop + $this->randomFloat(2.2, 4.0))
             . ', ' . $this->number($x + $width - $this->randomFloat(20.0, 25.0)) . ' ' . $this->number($innerBottom + $this->randomFloat(0.4, 1.6))
             . ', ' . $this->number($right - 2.0) . ' ' . $this->number($thirdMiddle + $this->randomFloat(-0.8, 0.6))
-            . '" fill="none" stroke="#eeeeee" stroke-width="0.16"/>'
-            . '<line x1="' . $this->number($x + 7) . '" y1="' . $this->number($crossStartY) . '" x2="' . $this->number($x + $width - 7) . '" y2="' . $this->number($crossEndY) . '" stroke="#f3f3f3" stroke-width="0.12"/>'
-            . '<line x1="' . $this->number($x + $width - 7) . '" y1="' . $this->number($counterCrossStartY) . '" x2="' . $this->number($x + 7) . '" y2="' . $this->number($counterCrossEndY) . '" stroke="#f3f3f3" stroke-width="0.12"/>'
-            . '<line x1="' . $this->number($x + 7) . '" y1="' . $this->number($guideY) . '" x2="' . $this->number($x + $width - 7) . '" y2="' . $this->number($guideY + $this->randomFloat(-0.35, 0.35)) . '" stroke="#f4f4f4" stroke-width="0.12"/>';
+            . '" fill="none" stroke="' . $palette['patternPrimary'] . '" stroke-width="0.16"/>'
+            . '<line x1="' . $this->number($x + 7) . '" y1="' . $this->number($crossStartY) . '" x2="' . $this->number($x + $width - 7) . '" y2="' . $this->number($crossEndY) . '" stroke="' . $palette['patternTertiary'] . '" stroke-width="0.12"/>'
+            . '<line x1="' . $this->number($x + $width - 7) . '" y1="' . $this->number($counterCrossStartY) . '" x2="' . $this->number($x + 7) . '" y2="' . $this->number($counterCrossEndY) . '" stroke="' . $palette['patternTertiary'] . '" stroke-width="0.12"/>'
+            . '<line x1="' . $this->number($x + 7) . '" y1="' . $this->number($guideY) . '" x2="' . $this->number($x + $width - 7) . '" y2="' . $this->number($guideY + $this->randomFloat(-0.35, 0.35)) . '" stroke="' . $palette['patternGuide'] . '" stroke-width="0.12"/>';
+    }
+
+    private function palette(?BudgetPdfThemeDefinition $theme): array
+    {
+        return match ($theme?->key()) {
+            BudgetPdfTheme::HSBC => [
+                'titleFill' => '#9d9d9d',
+                'titleStroke' => '#111111',
+                'titleText' => '#000000',
+                'border' => '#111111',
+                'divider' => '#bfbfbf',
+                'noteDivider' => '#d9d9d9',
+                'noteFill' => '#fafafa',
+                'noteStroke' => '#d9d9d9',
+                'bodyText' => '#111111',
+                'mutedText' => '#555555',
+                'signatureLine' => '#8f8f8f',
+                'patternPrimary' => '#eeeeee',
+                'patternSecondary' => '#f1f1f1',
+                'patternTertiary' => '#f3f3f3',
+                'patternGuide' => '#f4f4f4',
+            ],
+            BudgetPdfTheme::USWDS => [
+                'titleFill' => '#1a4480',
+                'titleStroke' => '#1a4480',
+                'titleText' => '#ffffff',
+                'border' => '#dfe1e2',
+                'divider' => '#dfe1e2',
+                'noteDivider' => '#dfe1e2',
+                'noteFill' => '#e7f6f8',
+                'noteStroke' => '#dfe1e2',
+                'bodyText' => '#1b1b1b',
+                'mutedText' => '#565c65',
+                'signatureLine' => '#005ea8',
+                'patternPrimary' => '#e7f6f8',
+                'patternSecondary' => '#dfe1e2',
+                'patternTertiary' => '#eef7fb',
+                'patternGuide' => '#f5fbfc',
+            ],
+            default => [
+                'titleFill' => '#a4a4a4',
+                'titleStroke' => '#7e7e7e',
+                'titleText' => '#000000',
+                'border' => '#7e7e7e',
+                'divider' => '#bfbfbf',
+                'noteDivider' => '#d9d9d9',
+                'noteFill' => '#fafafa',
+                'noteStroke' => '#d9d9d9',
+                'bodyText' => '#111111',
+                'mutedText' => '#555555',
+                'signatureLine' => '#8f8f8f',
+                'patternPrimary' => '#eeeeee',
+                'patternSecondary' => '#f1f1f1',
+                'patternTertiary' => '#f3f3f3',
+                'patternGuide' => '#f4f4f4',
+            ],
+        };
     }
 
     private function text(

@@ -16,9 +16,11 @@ import { setPendingSsoMergeToken } from '../../config/ssoMerge';
 import { normalizePdfTheme, pdfThemeOptions } from '../../config/pdfThemes';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { languageOptions, useI18n } from '../../i18n';
+import type { I18nKey } from '../../i18n';
 import type { AuthSession, SsoBinding } from '../../types/auth';
+import type { BudgetSignatureLabelMode } from '../../types/budget';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
-import { normalizePdfExportSettings } from '../../utils/pdfExportSettings';
+import { normalizePdfExportSettings, normalizePdfLanguages, normalizeSignatureLabelMode } from '../../utils/pdfExportSettings';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
 import styles from './ProfilePage.module.css';
 
@@ -52,6 +54,8 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const watchedPdfTheme = Form.useWatch('defaultPdfTheme', exportForm);
   const watchedShowWorkspace = Form.useWatch(['pdfExportSettings', 'showWorkspace'], exportForm);
   const watchedPdfLanguages = Form.useWatch(['pdfExportSettings', 'pdfLanguages'], exportForm);
+  const watchedSignatureLabelMode = Form.useWatch(['pdfExportSettings', 'signatureLabelMode'], exportForm);
+  const watchedSignatureLabelLanguages = Form.useWatch(['pdfExportSettings', 'signatureLabelLanguages'], exportForm);
   const previewPdfTheme = normalizePdfTheme(watchedPdfTheme ?? session.user.defaultPdfTheme);
   const previewSettings = normalizePdfExportSettings(session.user.pdfExportSettings);
   const previewShowWorkspace =
@@ -60,6 +64,12 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     ...previewSettings,
     pdfLanguages: watchedPdfLanguages ?? previewSettings.pdfLanguages,
   }).pdfLanguages;
+  const previewSignatureLabelMode = normalizeSignatureLabelMode(
+    watchedSignatureLabelMode ?? previewSettings.signatureLabelMode,
+  );
+  const previewSignatureLabelLanguages = normalizePdfLanguages(
+    watchedSignatureLabelLanguages ?? previewSettings.signatureLabelLanguages,
+  );
   const previewWorkspaceName = session.workspace?.name ?? t('noWorkspaceSelected');
   useEffect(() => {
     const profileValues = {
@@ -489,6 +499,45 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                                 description={t('pdfExportShowWorkspaceDescription')}
                               />
                             </Form.Item>
+                            <Form.Item
+                              className={styles.languageField}
+                              extra={t('pdfExportSignatureLabelModeDescription')}
+                              label={t('pdfExportSignatureLabelMode')}
+                              name={['pdfExportSettings', 'signatureLabelMode']}
+                              rules={[{ required: true, message: t('pdfExportSignatureLabelModeRequired') }]}
+                            >
+                              <Radio.Group
+                                options={signatureLabelModeOptions(t)}
+                                onChange={(event: RadioChangeEvent) => {
+                                  exportForm.setFieldValue(
+                                    ['pdfExportSettings', 'signatureLabelMode'],
+                                    normalizeSignatureLabelMode(event.target.value),
+                                  );
+                                }}
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              className={styles.languageField}
+                              extra={t('pdfExportSignatureLabelLanguagesDescription')}
+                              label={t('pdfExportSignatureLabelLanguages')}
+                              name={['pdfExportSettings', 'signatureLabelLanguages']}
+                              rules={[
+                                {
+                                  validator: async (_, value: unknown) => {
+                                    if (Array.isArray(value) && value.length > 0) {
+                                      return;
+                                    }
+
+                                    throw new Error(t('pdfExportSignatureLabelLanguageRequired'));
+                                  },
+                                },
+                              ]}
+                            >
+                              <Checkbox.Group
+                                className={styles.languageCheckboxes}
+                                options={languageOptions}
+                              />
+                            </Form.Item>
                           </div>
                           <Button type="primary" htmlType="submit" loading={isProfileSaving}>
                             {t('saveProfile')}
@@ -499,18 +548,22 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         <div className={styles.previewToolbar}>
                           <span>{t('pdfExportPreview')}</span>
                           <Space size={6} wrap>
-                            <Tag color={previewPdfTheme === 'hsbc' ? 'red' : 'default'}>
+                            <Tag color={pdfThemeTagColor(previewPdfTheme)}>
                               {t(pdfThemeLabelKey(previewPdfTheme))}
                             </Tag>
                             {previewPdfLanguages.map((pdfLanguage) => (
                               <Tag key={pdfLanguage}>{languageOptions.find((option) => option.value === pdfLanguage)?.label ?? pdfLanguage}</Tag>
                             ))}
+                            <Tag color="geekblue">{t(signatureLabelModeKey(previewSignatureLabelMode))}</Tag>
+                            {previewSignatureLabelLanguages.map((signatureLanguage) => (
+                              <Tag key={`signature-${signatureLanguage}`} color="cyan">
+                                {languageOptions.find((option) => option.value === signatureLanguage)?.label ?? signatureLanguage}
+                              </Tag>
+                            ))}
                           </Space>
                         </div>
                         <div
-                          className={`${styles.previewSheet} ${
-                            previewPdfTheme === 'hsbc' ? styles.previewStatement : styles.previewClassic
-                          }`}
+                          className={`${styles.previewSheet} ${pdfThemePreviewClass(previewPdfTheme)}`}
                         >
                           <div className={styles.previewTop}>
                             <div className={styles.previewTitle}>
@@ -795,14 +848,67 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   );
 }
 
+function pdfThemeTagColor(theme: string) {
+  switch (normalizePdfTheme(theme)) {
+    case 'hsbc':
+      return 'red';
+    case 'uswds':
+      return 'blue';
+    default:
+      return 'default';
+  }
+}
+
+function pdfThemePreviewClass(theme: string) {
+  switch (normalizePdfTheme(theme)) {
+    case 'hsbc':
+      return styles.previewStatement;
+    case 'uswds':
+      return styles.previewUswds;
+    default:
+      return styles.previewClassic;
+  }
+}
+
 function pdfThemeLabelKey(theme: string) {
-  return normalizePdfTheme(theme) === 'hsbc' ? 'pdfThemeHsbc' : 'pdfThemeClassic';
+  switch (normalizePdfTheme(theme)) {
+    case 'hsbc':
+      return 'pdfThemeHsbc';
+    case 'uswds':
+      return 'pdfThemeUswds';
+    default:
+      return 'pdfThemeClassic';
+  }
 }
 
 function pdfThemeDescriptionKey(theme: string) {
-  return normalizePdfTheme(theme) === 'hsbc'
-    ? 'pdfThemeHsbcDescription'
-    : 'pdfThemeClassicDescription';
+  switch (normalizePdfTheme(theme)) {
+    case 'hsbc':
+      return 'pdfThemeHsbcDescription';
+    case 'uswds':
+      return 'pdfThemeUswdsDescription';
+    default:
+      return 'pdfThemeClassicDescription';
+  }
+}
+
+function signatureLabelModeOptions(t: (key: I18nKey) => string) {
+  return [
+    { label: t('confirmationSignature'), value: 'confirmation_signature' },
+    { label: t('confirmationOnly'), value: 'confirmation' },
+    { label: t('signatureOnly'), value: 'signature' },
+  ] satisfies Array<{ label: string; value: BudgetSignatureLabelMode }>;
+}
+
+function signatureLabelModeKey(mode: BudgetSignatureLabelMode) {
+  switch (mode) {
+    case 'confirmation':
+      return 'confirmationOnly';
+    case 'signature':
+      return 'signatureOnly';
+    default:
+      return 'confirmationSignature';
+  }
 }
 
 interface SwitchSettingProps {

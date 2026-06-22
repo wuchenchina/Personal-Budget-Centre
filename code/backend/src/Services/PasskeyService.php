@@ -338,7 +338,18 @@ final readonly class PasskeyService
         return [
             'showWorkspace' => (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? false),
             'pdfLanguages' => PdfLanguages::normalizeList($raw['pdfLanguages'] ?? $raw['pdf_languages'] ?? null),
+            'signatureLabelMode' => $this->signatureLabelMode($raw['signatureLabelMode'] ?? $raw['signature_label_mode'] ?? null),
+            'signatureLabelLanguages' => PdfLanguages::normalizeList(
+                $raw['signatureLabelLanguages'] ?? $raw['signature_label_languages'] ?? null,
+            ),
         ];
+    }
+
+    private function signatureLabelMode(mixed $value): string
+    {
+        return in_array($value, ['confirmation_signature', 'confirmation', 'signature'], true)
+            ? $value
+            : 'confirmation_signature';
     }
 
     private function credentialFromInput(array $input): PublicKeyCredential

@@ -1050,6 +1050,13 @@ final readonly class AuthService
                 $raw['pdfLanguages'] ?? $raw['pdf_languages'] ?? null,
                 $current['pdfLanguages'] ?? PdfLanguages::DEFAULT,
             ),
+            'signatureLabelMode' => $this->signatureLabelMode(
+                $raw['signatureLabelMode'] ?? $raw['signature_label_mode'] ?? $current['signatureLabelMode'] ?? null,
+            ),
+            'signatureLabelLanguages' => PdfLanguages::normalizeList(
+                $raw['signatureLabelLanguages'] ?? $raw['signature_label_languages'] ?? null,
+                $current['signatureLabelLanguages'] ?? PdfLanguages::DEFAULT,
+            ),
         ]);
     }
 
@@ -1067,6 +1074,10 @@ final readonly class AuthService
         return [
             'showWorkspace' => (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? false),
             'pdfLanguages' => PdfLanguages::normalizeList($raw['pdfLanguages'] ?? $raw['pdf_languages'] ?? null),
+            'signatureLabelMode' => $this->signatureLabelMode($raw['signatureLabelMode'] ?? $raw['signature_label_mode'] ?? null),
+            'signatureLabelLanguages' => PdfLanguages::normalizeList(
+                $raw['signatureLabelLanguages'] ?? $raw['signature_label_languages'] ?? null,
+            ),
         ];
     }
 
@@ -1075,9 +1086,20 @@ final readonly class AuthService
         $encoded = json_encode([
             'showWorkspace' => (bool) ($settings['showWorkspace'] ?? false),
             'pdfLanguages' => PdfLanguages::normalizeList($settings['pdfLanguages'] ?? $settings['pdf_languages'] ?? null),
+            'signatureLabelMode' => $this->signatureLabelMode($settings['signatureLabelMode'] ?? $settings['signature_label_mode'] ?? null),
+            'signatureLabelLanguages' => PdfLanguages::normalizeList(
+                $settings['signatureLabelLanguages'] ?? $settings['signature_label_languages'] ?? null,
+            ),
         ], JSON_THROW_ON_ERROR);
 
         return $encoded;
+    }
+
+    private function signatureLabelMode(mixed $value): string
+    {
+        return in_array($value, ['confirmation_signature', 'confirmation', 'signature'], true)
+            ? $value
+            : 'confirmation_signature';
     }
 
     private function casdoorAvatarUrl(array $userinfo): ?string

@@ -5,7 +5,7 @@ import { languageOptions, useI18n } from '../../i18n';
 import type { AppLanguage } from '../../i18n';
 import type { PdfExportSettings } from '../../types/auth';
 import type { PdfThemeKey } from '../../types/budget';
-import { normalizePdfExportSettings, normalizePdfLanguages } from '../../utils/pdfExportSettings';
+import { normalizePdfExportSettings, normalizePdfLanguages, normalizeSignatureLabelMode } from '../../utils/pdfExportSettings';
 
 export interface BudgetPdfExportSettingsValue extends PdfExportSettings {
   pdfTheme: PdfThemeKey;
@@ -52,6 +52,8 @@ export function BudgetPdfExportSettingsModal({
       pdfTheme: normalizePdfTheme(values.pdfTheme),
       showWorkspace: values.showWorkspace === true,
       pdfLanguages: normalizePdfLanguages(values.pdfLanguages),
+      signatureLabelMode: normalizeSignatureLabelMode(values.signatureLabelMode),
+      signatureLabelLanguages: normalizePdfLanguages(values.signatureLabelLanguages),
     });
   };
 
@@ -79,7 +81,7 @@ export function BudgetPdfExportSettingsModal({
         >
           <Radio.Group
             options={pdfThemeOptions.map((theme) => ({
-              label: t(theme.key === 'hsbc' ? 'pdfThemeHsbc' : 'pdfThemeClassic'),
+              label: t(pdfThemeLabelKey(theme.key)),
               value: theme.key,
             }))}
           />
@@ -113,4 +115,15 @@ export function BudgetPdfExportSettingsModal({
       </Form>
     </Modal>
   );
+}
+
+function pdfThemeLabelKey(theme: PdfThemeKey) {
+  switch (theme) {
+    case 'hsbc':
+      return 'pdfThemeHsbc';
+    case 'uswds':
+      return 'pdfThemeUswds';
+    default:
+      return 'pdfThemeClassic';
+  }
 }

@@ -46,7 +46,7 @@ export type PrincipalType = 'user' | 'workgroup' | 'workspace';
 
 export type WorkspaceRole = 'owner' | 'admin' | 'editor' | 'viewer' | 'auditor';
 
-export type PdfThemeKey = 'classic' | 'hsbc';
+export type PdfThemeKey = 'classic' | 'hsbc' | 'uswds';
 
 export type BudgetShareRole = 'owner' | 'editor' | 'viewer' | 'auditor';
 

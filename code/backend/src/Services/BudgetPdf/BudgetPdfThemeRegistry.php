@@ -7,6 +7,7 @@ namespace BudgetCentre\Services\BudgetPdf;
 use BudgetCentre\Services\BudgetPdf\Themes\BudgetPdfThemeDefinition;
 use BudgetCentre\Services\BudgetPdf\Themes\ClassicPdfTheme;
 use BudgetCentre\Services\BudgetPdf\Themes\HsbcPdfTheme;
+use BudgetCentre\Services\BudgetPdf\Themes\UswdsPdfTheme;
 
 final readonly class BudgetPdfThemeRegistry
 {
@@ -14,6 +15,7 @@ final readonly class BudgetPdfThemeRegistry
     {
         return match (BudgetPdfTheme::normalize($theme)) {
             BudgetPdfTheme::HSBC => new HsbcPdfTheme(),
+            BudgetPdfTheme::USWDS => new UswdsPdfTheme(),
             default => new ClassicPdfTheme(),
         };
     }

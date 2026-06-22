@@ -229,7 +229,7 @@ final readonly class BudgetPdfDocumentRenderer
                     )
                     : ''
             )
-            . $this->signatureRenderer->render($this->budgetWithSignatureLanguages($budget, $tableContext), $theme)
+            . $this->signatureRenderer->render($this->budgetWithSignatureExportDefaults($budget, $options), $theme)
             . '</body></html>';
     }
 
@@ -485,16 +485,29 @@ final readonly class BudgetPdfDocumentRenderer
         return PdfLanguages::documentLanguage((string) ($context['language'] ?? 'en'));
     }
 
-    private function budgetWithSignatureLanguages(array $budget, array $context): array
+    private function budgetWithSignatureExportDefaults(array $budget, array $options): array
     {
-        $languages = PdfLanguages::normalizeList($context['languages'] ?? [$context['language'] ?? 'en']);
         $signatureConfig = is_array($budget['signatureConfig'] ?? null) ? $budget['signatureConfig'] : [];
+        $signatureLabelLanguages = PdfLanguages::normalizeList(
+            $options['signatureLabelLanguages'] ?? $options['signature_label_languages'] ?? null,
+        );
+        $signatureLabelMode = $this->signatureLabelMode(
+            $options['signatureLabelMode'] ?? $options['signature_label_mode'] ?? null,
+        );
         $budget['signatureConfig'] = [
             ...$signatureConfig,
-            'pdfLanguages' => $languages,
+            'labelMode' => $signatureLabelMode,
+            'pdfLanguages' => $signatureLabelLanguages,
         ];
 
         return $budget;
+    }
+
+    private function signatureLabelMode(mixed $value): string
+    {
+        return in_array($value, ['confirmation_signature', 'confirmation', 'signature'], true)
+            ? $value
+            : 'confirmation_signature';
     }
 
     private function multilineBlockHtml(string $value, string $lineClass): string

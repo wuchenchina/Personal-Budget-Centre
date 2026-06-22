@@ -164,6 +164,8 @@ final readonly class BudgetExportService
         );
         $showWorkspace = $this->showWorkspacePreference($input, $session);
         $pdfLanguages = $this->pdfLanguages($input, $session, $tableLanguageMode, $tableChineseLanguage);
+        $signatureLabelMode = $this->signatureLabelModePreference($input, $session);
+        $signatureLabelLanguages = $this->signatureLabelLanguagesPreference($input, $session);
 
         return [
             'tableLanguageMode' => in_array($tableLanguageMode, ['en', 'zh', 'bilingual'], true)
@@ -175,6 +177,8 @@ final readonly class BudgetExportService
             'pdfTheme' => $pdfTheme,
             'showWorkspace' => $showWorkspace,
             'pdfLanguages' => $pdfLanguages,
+            'signatureLabelMode' => $signatureLabelMode,
+            'signatureLabelLanguages' => $signatureLabelLanguages,
         ];
     }
 
@@ -227,6 +231,54 @@ final readonly class BudgetExportService
         }
 
         return (bool) ($raw['showWorkspace'] ?? $raw['show_workspace'] ?? false);
+    }
+
+    private function exportSettings(array $session): array
+    {
+        $raw = $session['pdf_export_settings'] ?? null;
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        return is_array($raw) ? $raw : [];
+    }
+
+    private function signatureLabelModePreference(array $input, array $session): string
+    {
+        $mode = Input::string($input['signatureLabelMode'] ?? $input['signature_label_mode'] ?? null);
+        if ($mode !== null) {
+            return $this->signatureLabelMode($mode);
+        }
+
+        $settings = $this->exportSettings($session);
+
+        return $this->signatureLabelMode($settings['signatureLabelMode'] ?? $settings['signature_label_mode'] ?? null);
+    }
+
+    private function signatureLabelMode(mixed $value): string
+    {
+        return in_array($value, ['confirmation_signature', 'confirmation', 'signature'], true)
+            ? $value
+            : 'confirmation_signature';
+    }
+
+    private function signatureLabelLanguagesPreference(array $input, array $session): array
+    {
+        if (array_key_exists('signatureLabelLanguages', $input) || array_key_exists('signature_label_languages', $input)) {
+            $languages = PdfLanguages::normalizeList($input['signatureLabelLanguages'] ?? $input['signature_label_languages'] ?? null, []);
+            if ($languages !== []) {
+                return $languages;
+            }
+        }
+
+        $settings = $this->exportSettings($session);
+        $languages = PdfLanguages::normalizeList(
+            $settings['signatureLabelLanguages'] ?? $settings['signature_label_languages'] ?? null,
+            [],
+        );
+
+        return $languages === [] ? PdfLanguages::DEFAULT : $languages;
     }
 
     private function templateForBudget(array $budget): array
