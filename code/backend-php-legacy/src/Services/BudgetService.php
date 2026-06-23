@@ -1,0 +1,842 @@
+<?php
+
+declare(strict_types=1);
+
+namespace BudgetCentre\Services;
+
+use BudgetCentre\Auth\AuthException;
+use BudgetCentre\Auth\PermissionGuard;
+use BudgetCentre\Auth\SessionAuthenticator;
+use BudgetCentre\Http\Request;
+use BudgetCentre\Repositories\BudgetRepository;
+use BudgetCentre\Repositories\BudgetTemplateRepository;
+use BudgetCentre\Repositories\CurrencyRepository;
+use BudgetCentre\Support\Input;
+use DateTimeImmutable;
+use PDO;
+use Throwable;
+
+final readonly class BudgetService
+{
+    private const VISIBILITIES = ['private', 'workspace', 'custom'];
+    private const STATUSES = ['draft', 'active', 'closed', 'archived'];
+    private const BUDGET_TYPES = ['regular', 'installment'];
+    private const PARTICIPANT_MODES = ['solo', 'group'];
+    private const INSTALLMENT_DISPLAY_MODES = ['item', 'overall'];
+    private const INSTALLMENT_PERIOD_UNITS = ['day', 'week', 'month', 'year'];
+    private const PARTICIPANT_LIMIT = 50;
+    private const SIGNATURE_ROW_LIMIT = 50;
+    private const SIGNATURE_CUSTOM_FIELD_LIMIT = 12;
+
+    public function __construct(
+        private PDO $pdo,
+        private SessionAuthenticator $authenticator,
+    ) {
+    }
+
+    public function budgets(Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $workspaceId = Input::positiveInt($request->query['workspaceId'] ?? null);
+        if ($workspaceId === null) {
+            throw new AuthException('VALIDATION_ERROR', 'workspaceId query parameter is required.', 422);
+        }
+
+        $permissions = $this->permissions();
+        $role = $permissions->requireWorkspaceRole($workspaceId, (int) $session['user_id']);
+        $includePrivate = $permissions->canReadPrivateBudgets($role);
+
+        return (new BudgetRepository($this->pdo))->listForWorkspace(
+            $workspaceId,
+            (int) $session['user_id'],
+            $includePrivate,
+        );
+    }
+
+    public function createBudget(array $input, Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $workspaceId = Input::positiveInt($input['workspaceId'] ?? $input['workspace_id'] ?? null);
+        $title = Input::string($input['title'] ?? null);
+        $ownerName = $this->ownerNameFromInput($input, (string) $session['display_name']);
+        $startDate = $this->optionalDateFromInput($input, 'startDate', 'start_date');
+        $endDate = $this->optionalDateFromInput($input, 'endDate', 'end_date');
+        $baseCurrencyCode = strtoupper(
+            Input::string($input['baseCurrency'] ?? $input['base_currency'] ?? null) ?? 'CNY',
+        );
+        $displayCurrencyCode = strtoupper(
+            Input::string($input['displayCurrency'] ?? $input['display_currency'] ?? null)
+                ?? $baseCurrencyCode,
+        );
+        $budgetType = Input::string($input['budgetType'] ?? $input['budget_type'] ?? null) ?? 'regular';
+        $participantMode = Input::string(
+            $input['participantMode'] ?? $input['participant_mode'] ?? null,
+        ) ?? 'solo';
+        $installmentDisplayMode = Input::string(
+            $input['installmentDisplayMode'] ?? $input['installment_display_mode'] ?? null,
+        ) ?? 'item';
+        $installmentPeriodUnit = Input::string(
+            $input['installmentPeriodUnit'] ?? $input['installment_period_unit'] ?? null,
+        ) ?? 'month';
+        $pricingEnabled = $this->boolFromInput($input['pricingEnabled'] ?? $input['pricing_enabled'] ?? null) ?? false;
+        $visibility = Input::string($input['visibility'] ?? null) ?? 'private';
+        $status = Input::string($input['status'] ?? null) ?? 'draft';
+        $note = Input::string($input['note'] ?? null);
+        $signatureConfig = $this->signatureConfigJsonFromInput($input);
+        $participants = $this->participantsFromInput($input, $participantMode, $session);
+
+        if ($workspaceId === null) {
+            throw new AuthException('VALIDATION_ERROR', 'workspaceId is required.', 422);
+        }
+
+        $this->permissions()->requireWorkspaceRole(
+            $workspaceId,
+            (int) $session['user_id'],
+            PermissionGuard::WRITE_ROLES,
+        );
+        $this->validateBudgetInput(
+            $title,
+            $ownerName,
+            $startDate,
+            $endDate,
+            $budgetType,
+            $participantMode,
+            $installmentDisplayMode,
+            $installmentPeriodUnit,
+            $visibility,
+            $status,
+            $note,
+        );
+
+        $currencies = new CurrencyRepository($this->pdo);
+        $baseCurrencyId = $currencies->findIdByCode($baseCurrencyCode);
+        $displayCurrencyId = $currencies->findIdByCode($displayCurrencyCode);
+        if ($baseCurrencyId === null || $displayCurrencyId === null) {
+            throw new AuthException('CURRENCY_NOT_FOUND', 'Budget currency is not available.', 422);
+        }
+
+        $templateId = (new BudgetTemplateRepository($this->pdo))->findGlobalIdByKey(
+            'personal_living_budget',
+        );
+
+        $repository = new BudgetRepository($this->pdo);
+        $this->pdo->beginTransaction();
+        try {
+            $budgetId = $repository->create(
+                $workspaceId,
+                (int) $session['user_id'],
+                (int) $session['user_id'],
+                (int) $session['user_id'],
+                $templateId,
+                $title,
+                $ownerName,
+                $startDate,
+                $endDate,
+                $baseCurrencyId,
+                $displayCurrencyId,
+                $budgetType,
+                $participantMode,
+                $installmentDisplayMode,
+                $installmentPeriodUnit,
+                $pricingEnabled,
+                $visibility,
+                $status,
+                $note,
+                $signatureConfig,
+            );
+            if ($participantMode === 'group') {
+                $repository->replaceParticipants($budgetId, $participants);
+            }
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+
+        return $repository->findForUser($budgetId, (int) $session['user_id'], true) ?? [
+            'id' => $budgetId,
+            'workspaceId' => $workspaceId,
+            'title' => $title,
+            'ownerName' => $ownerName,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'baseCurrency' => $baseCurrencyCode,
+            'displayCurrency' => $displayCurrencyCode,
+            'budgetType' => $budgetType,
+            'participantMode' => $participantMode,
+            'installmentDisplayMode' => $installmentDisplayMode,
+            'installmentPeriodUnit' => $installmentPeriodUnit,
+            'pricingEnabled' => $pricingEnabled,
+            'visibility' => $visibility,
+            'status' => $status,
+            'note' => $note,
+            'signatureConfig' => $this->signatureConfigFromJson($signatureConfig),
+            'participants' => $participantMode === 'group' ? $participants : [],
+            'items' => [],
+            'transactions' => [],
+        ];
+    }
+
+    public function budget(Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $budgetId = Input::positiveInt($request->query['id'] ?? null);
+        if ($budgetId === null) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget id query parameter is required.', 422);
+        }
+
+        $repository = new BudgetRepository($this->pdo);
+
+        $permissions = $this->permissions();
+        $role = $permissions->requireBudgetRole($budgetId, (int) $session['user_id']);
+        $includePrivate = $permissions->canReadPrivateBudgets($role);
+        $budget = $repository->findForUser($budgetId, (int) $session['user_id'], $includePrivate);
+        if ($budget === null) {
+            throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
+        }
+
+        return $budget;
+    }
+
+    public function updateBudget(array $input, Request $request): array
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $budgetId = Input::positiveInt($input['id'] ?? null);
+        if ($budgetId === null) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget id is required.', 422);
+        }
+
+        $repository = new BudgetRepository($this->pdo);
+        $this->permissions()->requireBudgetRole(
+            $budgetId,
+            (int) $session['user_id'],
+            PermissionGuard::WRITE_ROLES,
+        );
+
+        $payload = $this->validatedBudgetPayload($input, (string) $session['display_name']);
+        $existingBudget = null;
+        if (
+            !$this->hasSignatureConfigInput($input)
+            || !$this->hasParticipantModeInput($input)
+            || !$this->hasPricingEnabledInput($input)
+        ) {
+            $existingBudget = $repository->findForUser($budgetId, (int) $session['user_id'], true)
+                ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
+        }
+        if (!$this->hasParticipantModeInput($input)) {
+            $payload['participantMode'] = $existingBudget['participantMode'] ?? 'solo';
+        }
+        if (!$this->hasPricingEnabledInput($input)) {
+            $payload['pricingEnabled'] = $existingBudget['pricingEnabled'] ?? false;
+        }
+        $hasParticipantsInput = $this->hasParticipantsInput($input);
+        $participants = $hasParticipantsInput
+            ? $this->participantsFromInput($input, $payload['participantMode'], $session)
+            : null;
+        if (!$this->hasSignatureConfigInput($input)) {
+            $payload['signatureConfig'] = json_encode(
+                $existingBudget['signatureConfig'] ?? $this->emptySignatureConfig(),
+                JSON_UNESCAPED_UNICODE,
+            ) ?: null;
+        }
+
+        $currencies = new CurrencyRepository($this->pdo);
+        $baseCurrencyId = $currencies->findIdByCode($payload['baseCurrency']);
+        $displayCurrencyId = $currencies->findIdByCode($payload['displayCurrency']);
+        if ($baseCurrencyId === null || $displayCurrencyId === null) {
+            throw new AuthException('CURRENCY_NOT_FOUND', 'Budget currency is not available.', 422);
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $repository->update(
+                $budgetId,
+                $payload['title'],
+                $payload['ownerName'],
+                $payload['startDate'],
+                $payload['endDate'],
+                $baseCurrencyId,
+                $displayCurrencyId,
+                $payload['budgetType'],
+                $payload['participantMode'],
+                $payload['installmentDisplayMode'],
+                $payload['installmentPeriodUnit'],
+                $payload['pricingEnabled'],
+                $payload['visibility'],
+                $payload['status'],
+                $payload['note'],
+                $payload['signatureConfig'],
+            );
+            if ($payload['participantMode'] === 'solo') {
+                $repository->replaceParticipants($budgetId, []);
+            } elseif ($participants !== null) {
+                $repository->replaceParticipants($budgetId, $participants);
+            }
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+
+        return $repository->findForUser($budgetId, (int) $session['user_id'], true)
+            ?? throw new AuthException('BUDGET_NOT_FOUND', 'Budget was not found.', 404);
+    }
+
+    public function deleteBudget(array $input, Request $request): void
+    {
+        $session = $this->authenticator->authenticatedSession($request);
+        $budgetId = Input::positiveInt($input['id'] ?? null);
+        if ($budgetId === null) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget id is required.', 422);
+        }
+
+        $repository = new BudgetRepository($this->pdo);
+        $this->permissions()->requireBudgetRole(
+            $budgetId,
+            (int) $session['user_id'],
+            PermissionGuard::WRITE_ROLES,
+        );
+        $repository->delete($budgetId);
+    }
+
+    private function permissions(): PermissionGuard
+    {
+        return new PermissionGuard($this->pdo, $this->authenticator);
+    }
+
+    private function validatedBudgetPayload(array $input, string $defaultOwnerName): array
+    {
+        $title = Input::string($input['title'] ?? null);
+        $ownerName = $this->ownerNameFromInput($input, $defaultOwnerName);
+        $startDate = $this->optionalDateFromInput($input, 'startDate', 'start_date');
+        $endDate = $this->optionalDateFromInput($input, 'endDate', 'end_date');
+        $baseCurrencyCode = strtoupper(
+            Input::string($input['baseCurrency'] ?? $input['base_currency'] ?? null) ?? 'CNY',
+        );
+        $displayCurrencyCode = strtoupper(
+            Input::string($input['displayCurrency'] ?? $input['display_currency'] ?? null)
+                ?? $baseCurrencyCode,
+        );
+        $budgetType = Input::string($input['budgetType'] ?? $input['budget_type'] ?? null) ?? 'regular';
+        $participantMode = Input::string(
+            $input['participantMode'] ?? $input['participant_mode'] ?? null,
+        ) ?? 'solo';
+        $installmentDisplayMode = Input::string(
+            $input['installmentDisplayMode'] ?? $input['installment_display_mode'] ?? null,
+        ) ?? 'item';
+        $installmentPeriodUnit = Input::string(
+            $input['installmentPeriodUnit'] ?? $input['installment_period_unit'] ?? null,
+        ) ?? 'month';
+        $pricingEnabled = $this->boolFromInput($input['pricingEnabled'] ?? $input['pricing_enabled'] ?? null) ?? false;
+        $visibility = Input::string($input['visibility'] ?? null) ?? 'private';
+        $status = Input::string($input['status'] ?? null) ?? 'draft';
+        $note = Input::string($input['note'] ?? null);
+        $signatureConfig = $this->signatureConfigJsonFromInput($input);
+
+        $this->validateBudgetInput(
+            $title,
+            $ownerName,
+            $startDate,
+            $endDate,
+            $budgetType,
+            $participantMode,
+            $installmentDisplayMode,
+            $installmentPeriodUnit,
+            $visibility,
+            $status,
+            $note,
+        );
+
+        return [
+            'title' => $title,
+            'ownerName' => $ownerName,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'baseCurrency' => $baseCurrencyCode,
+            'displayCurrency' => $displayCurrencyCode,
+            'budgetType' => $budgetType,
+            'participantMode' => $participantMode,
+            'installmentDisplayMode' => $installmentDisplayMode,
+            'installmentPeriodUnit' => $installmentPeriodUnit,
+            'pricingEnabled' => $pricingEnabled,
+            'visibility' => $visibility,
+            'status' => $status,
+            'note' => $note,
+            'signatureConfig' => $signatureConfig,
+        ];
+    }
+
+    private function validateBudgetInput(
+        ?string $title,
+        string $ownerName,
+        ?string $startDate,
+        ?string $endDate,
+        string $budgetType,
+        string $participantMode,
+        string $installmentDisplayMode,
+        string $installmentPeriodUnit,
+        string $visibility,
+        string $status,
+        ?string $note,
+    ): void {
+        if ($title === null || strlen($title) > 255) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget title is required and must be 255 characters or less.', 422);
+        }
+
+        if (strlen($ownerName) > 160) {
+            throw new AuthException('VALIDATION_ERROR', 'Owner name must be 160 characters or less.', 422);
+        }
+
+        if (($startDate === null) !== ($endDate === null)) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget period must include both start date and end date.', 422);
+        }
+
+        if ($startDate !== null && $endDate !== null && $startDate > $endDate) {
+            throw new AuthException('VALIDATION_ERROR', 'Start date must be before or equal to end date.', 422);
+        }
+
+        if (!in_array($budgetType, self::BUDGET_TYPES, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget type must be regular or installment.', 422);
+        }
+
+        if (!in_array($participantMode, self::PARTICIPANT_MODES, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Participant mode must be solo or group.', 422);
+        }
+
+        if (!in_array($installmentDisplayMode, self::INSTALLMENT_DISPLAY_MODES, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment display mode must be item or overall.', 422);
+        }
+
+        if (!in_array($installmentPeriodUnit, self::INSTALLMENT_PERIOD_UNITS, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Installment period unit must be day, week, month, or year.', 422);
+        }
+
+        if (!in_array($visibility, self::VISIBILITIES, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget visibility must be private, workspace, or custom.', 422);
+        }
+
+        if (!in_array($status, self::STATUSES, true)) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget status must be draft, active, closed, or archived.', 422);
+        }
+
+        if ($note !== null && strlen($note) > 20000) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget note must be 20000 characters or less.', 422);
+        }
+    }
+
+    private function ownerNameFromInput(array $input, string $defaultOwnerName): string
+    {
+        foreach (['ownerName', 'owner_name'] as $key) {
+            if (!array_key_exists($key, $input)) {
+                continue;
+            }
+
+            return is_string($input[$key]) ? trim($input[$key]) : '';
+        }
+
+        return $defaultOwnerName;
+    }
+
+    private function hasParticipantModeInput(array $input): bool
+    {
+        return array_key_exists('participantMode', $input) || array_key_exists('participant_mode', $input);
+    }
+
+    private function hasParticipantsInput(array $input): bool
+    {
+        return array_key_exists('participants', $input);
+    }
+
+    private function hasPricingEnabledInput(array $input): bool
+    {
+        return array_key_exists('pricingEnabled', $input) || array_key_exists('pricing_enabled', $input);
+    }
+
+    private function boolFromInput(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value)) {
+            return $value === 1 ? true : ($value === 0 ? false : null);
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        return match (strtolower(trim($value))) {
+            '1', 'true', 'yes', 'on' => true,
+            '0', 'false', 'no', 'off', '' => false,
+            default => null,
+        };
+    }
+
+    private function participantsFromInput(array $input, string $participantMode, array $session): array
+    {
+        if ($participantMode === 'solo') {
+            return [];
+        }
+
+        $rawParticipants = $input['participants'] ?? null;
+        if ($rawParticipants === null) {
+            return [$this->defaultParticipantFromSession($session)];
+        }
+
+        if (!is_array($rawParticipants)) {
+            throw new AuthException('VALIDATION_ERROR', 'Budget participants must be an array.', 422);
+        }
+
+        $participants = [];
+        foreach (array_slice($rawParticipants, 0, self::PARTICIPANT_LIMIT) as $index => $participant) {
+            if (!is_array($participant)) {
+                continue;
+            }
+
+            $name = Input::string($participant['name'] ?? null);
+            if ($name === null) {
+                continue;
+            }
+
+            if (strlen($name) > 160) {
+                throw new AuthException('VALIDATION_ERROR', 'Participant name must be 160 characters or less.', 422);
+            }
+
+            $email = $participant['email'] ?? null;
+            if (is_string($email) && trim($email) !== '') {
+                $email = Input::normalizedEmail($email);
+                if ($email === null) {
+                    throw new AuthException('VALIDATION_ERROR', 'Participant email must be valid.', 422);
+                }
+            } else {
+                $email = null;
+            }
+
+            $participants[] = [
+                'id' => $this->positiveInt($participant['id'] ?? null),
+                'memberUserId' => $this->positiveInt($participant['memberUserId'] ?? $participant['member_user_id'] ?? null),
+                'name' => $name,
+                'email' => $email,
+                'sortOrder' => $this->positiveInt($participant['sortOrder'] ?? $participant['sort_order'] ?? null) ?? ($index + 1),
+            ];
+        }
+
+        if ($participants === []) {
+            throw new AuthException('VALIDATION_ERROR', 'Group budget requires at least one participant.', 422);
+        }
+
+        return $participants;
+    }
+
+    private function defaultParticipantFromSession(array $session): array
+    {
+        return [
+            'id' => null,
+            'memberUserId' => (int) $session['user_id'],
+            'name' => (string) ($session['display_name'] ?? 'Me'),
+            'email' => is_string($session['email'] ?? null) ? (string) $session['email'] : null,
+            'sortOrder' => 1,
+        ];
+    }
+
+    private function optionalDateFromInput(array $input, string $camelKey, string $snakeKey): ?string
+    {
+        foreach ([$camelKey, $snakeKey] as $key) {
+            if (!array_key_exists($key, $input)) {
+                continue;
+            }
+
+            if ($input[$key] === null || $input[$key] === '') {
+                return null;
+            }
+
+            $date = Input::date($input[$key]);
+            if ($date === null) {
+                throw new AuthException('VALIDATION_ERROR', 'Budget period dates must use YYYY-MM-DD.', 422);
+            }
+
+            return $date;
+        }
+
+        return null;
+    }
+
+    private function signatureConfigJsonFromInput(array $input): ?string
+    {
+        $raw = $input['signatureConfig'] ?? $input['signature_config'] ?? null;
+        if ($raw === null) {
+            return null;
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (!is_array($decoded)) {
+                throw new AuthException('VALIDATION_ERROR', 'Signature settings must be valid JSON.', 422);
+            }
+            $raw = $decoded;
+        }
+
+        if (!is_array($raw)) {
+            throw new AuthException('VALIDATION_ERROR', 'Signature settings must be an object.', 422);
+        }
+
+        $config = $this->signatureConfigFromArray($raw);
+        $json = json_encode($config, JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            throw new AuthException('VALIDATION_ERROR', 'Signature settings could not be encoded.', 422);
+        }
+
+        return $json;
+    }
+
+    private function hasSignatureConfigInput(array $input): bool
+    {
+        return array_key_exists('signatureConfig', $input) || array_key_exists('signature_config', $input);
+    }
+
+    private function signatureConfigFromJson(?string $json): array
+    {
+        if ($json === null || trim($json) === '') {
+            return $this->emptySignatureConfig();
+        }
+
+        $decoded = json_decode($json, true);
+
+        return is_array($decoded) ? $decoded : $this->emptySignatureConfig();
+    }
+
+    private function signatureConfigFromArray(array $input): array
+    {
+        $infoLanguage = $this->signatureLabelLanguage($input['infoLanguage'] ?? $input['info_language'] ?? $input['labelLanguage'] ?? $input['label_language'] ?? null);
+        $customTitleEnabled = ($input['customTitleEnabled'] ?? $input['custom_title_enabled'] ?? false) === true;
+        $title = $customTitleEnabled
+            ? ($this->limitedString($input['title'] ?? null, 120) ?? '')
+            : $this->signatureSectionTitle(null, $infoLanguage);
+        $rows = [];
+        $rawRows = is_array($input['rows'] ?? null) ? array_slice($input['rows'], 0, self::SIGNATURE_ROW_LIMIT) : [];
+        foreach ($rawRows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $normalized = $this->signatureRowFromArray($row);
+            if ($normalized !== null) {
+                $rows[] = $normalized;
+            }
+        }
+
+        return [
+            'enabled' => ($input['enabled'] ?? false) === true,
+            'customTitleEnabled' => $customTitleEnabled,
+            'title' => $title,
+            'infoLanguage' => $infoLanguage,
+            'labelLanguage' => $this->signatureLabelLanguage($input['labelLanguage'] ?? $input['label_language'] ?? null),
+            'labelMode' => $this->signatureLabelMode($input['labelMode'] ?? $input['label_mode'] ?? null),
+            'labelSeparator' => $this->signatureLabelSeparator($input['labelSeparator'] ?? $input['label_separator'] ?? null),
+            'sectionAlign' => ($input['sectionAlign'] ?? $input['section_align'] ?? null) === 'right' ? 'right' : 'full',
+            'labelAlign' => $this->signatureLabelAlign($input['labelAlign'] ?? $input['label_align'] ?? null),
+            'showControlText' => ($input['showControlText'] ?? $input['show_control_text'] ?? true) !== false,
+            'rows' => $rows,
+        ];
+    }
+
+    private function signatureRowFromArray(array $row): ?array
+    {
+        $displayName = $this->limitedString($row['displayName'] ?? $row['display_name'] ?? null, 160) ?? '';
+        $roleLabel = $this->limitedString($row['roleLabel'] ?? $row['role_label'] ?? null, 120) ?? '';
+        $email = $this->limitedString($row['email'] ?? null, 190);
+        $position = $this->limitedString($row['position'] ?? null, 160);
+        $signedAt = $this->signatureDateTime($row['signedAt'] ?? $row['signed_at'] ?? null);
+        $memberUserId = Input::positiveInt($row['memberUserId'] ?? $row['member_user_id'] ?? null);
+        $customFields = $this->signatureCustomFieldsFromArray($row['customFields'] ?? $row['custom_fields'] ?? null);
+
+        if (
+            $displayName === ''
+            && $roleLabel === ''
+            && $email === null
+            && $position === null
+            && $signedAt === null
+            && $customFields === []
+            && $memberUserId === null
+        ) {
+            return null;
+        }
+
+        return [
+            'id' => $this->limitedString($row['id'] ?? null, 80) ?? bin2hex(random_bytes(8)),
+            'participantType' => ($row['participantType'] ?? $row['participant_type'] ?? null) === 'workspace_member'
+                ? 'workspace_member'
+                : 'manual',
+            'memberUserId' => $memberUserId,
+            'roleLabel' => $roleLabel,
+            'displayName' => $displayName,
+            'email' => $email,
+            'position' => $position,
+            'signedAt' => $signedAt,
+            'customFields' => $customFields,
+            'showRole' => ($row['showRole'] ?? $row['show_role'] ?? true) !== false,
+            'showName' => ($row['showName'] ?? $row['show_name'] ?? true) !== false,
+            'showEmail' => ($row['showEmail'] ?? $row['show_email'] ?? false) === true,
+            'showPosition' => ($row['showPosition'] ?? $row['show_position'] ?? false) === true,
+            'showSignature' => ($row['showSignature'] ?? $row['show_signature'] ?? true) !== false,
+            'showDateTime' => ($row['showDateTime'] ?? $row['show_date_time'] ?? true) !== false,
+        ];
+    }
+
+    private function signatureCustomFieldsFromArray(mixed $fields): array
+    {
+        if (!is_array($fields)) {
+            return [];
+        }
+
+        $normalizedFields = [];
+        foreach (array_slice($fields, 0, self::SIGNATURE_CUSTOM_FIELD_LIMIT) as $field) {
+            if (!is_array($field)) {
+                continue;
+            }
+
+            $normalized = $this->signatureCustomFieldFromArray($field);
+            if ($normalized !== null) {
+                $normalizedFields[] = $normalized;
+            }
+        }
+
+        return $normalizedFields;
+    }
+
+    private function signatureCustomFieldFromArray(array $field): ?array
+    {
+        $label = $this->limitedString($field['label'] ?? null, 80) ?? '';
+        $value = $this->limitedString($field['value'] ?? null, 240) ?? '';
+
+        if ($label === '' && $value === '') {
+            return null;
+        }
+
+        return [
+            'id' => $this->limitedString($field['id'] ?? null, 80) ?? bin2hex(random_bytes(8)),
+            'label' => $label,
+            'value' => $value,
+            'show' => ($field['show'] ?? true) !== false,
+        ];
+    }
+
+    private function signatureDateTime(mixed $value): ?string
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $trimmed = trim($value);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $trimmed) === 1) {
+            $date = Input::date($trimmed);
+            if ($date !== null) {
+                return $date;
+            }
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/', $trimmed) === 1) {
+            $normalized = strlen($trimmed) === 16 ? $trimmed . ':00' : $trimmed;
+            $date = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $normalized);
+            if ($date !== false && $date->format('Y-m-d H:i:s') === $normalized) {
+                return $normalized;
+            }
+        }
+
+        throw new AuthException('VALIDATION_ERROR', 'Signature date and time must use YYYY-MM-DD HH:mm:ss.', 422);
+    }
+
+    private function limitedString(mixed $value, int $maxLength): ?string
+    {
+        $string = Input::string($value);
+        if ($string === null) {
+            return null;
+        }
+
+        if (strlen($string) > $maxLength) {
+            throw new AuthException('VALIDATION_ERROR', 'Signature settings contain text that is too long.', 422);
+        }
+
+        return $string;
+    }
+
+    private function positiveInt(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value > 0 ? $value : null;
+        }
+
+        if (is_float($value) && floor($value) === $value) {
+            return $value > 0 ? (int) $value : null;
+        }
+
+        if (!is_string($value) || !ctype_digit($value)) {
+            return null;
+        }
+
+        $intValue = (int) $value;
+
+        return $intValue > 0 ? $intValue : null;
+    }
+
+    private function signatureLabelLanguage(mixed $value): string
+    {
+        return in_array($value, ['en', 'sc', 'tc', 'en_sc', 'en_tc'], true) ? $value : 'en';
+    }
+
+    private function signatureLabelMode(mixed $value): string
+    {
+        return in_array($value, ['confirmation_signature', 'confirmation', 'signature'], true)
+            ? $value
+            : 'confirmation_signature';
+    }
+
+    private function signatureLabelSeparator(mixed $value): string
+    {
+        return in_array($value, ['none', 'space', 'slash', 'line'], true) ? $value : 'space';
+    }
+
+    private function signatureLabelAlign(mixed $value): string
+    {
+        return $value === 'right' ? 'right' : 'left';
+    }
+
+    private function signatureSectionTitle(?string $title, string $language): string
+    {
+        $value = $title ?? 'Preparation & Review Record';
+        $legacyTitles = [
+            'Confirmation Signature',
+            '签核确认信息',
+            '簽核確認資訊',
+        ];
+        if (!in_array($value, $legacyTitles, true)) {
+            return $value;
+        }
+
+        return [
+            'en' => 'Preparation & Review Record',
+            'sc' => '制表及复核记录',
+            'tc' => '製表及覆核記錄',
+            'en_sc' => 'Preparation & Review Record 制表及复核记录',
+            'en_tc' => 'Preparation & Review Record 製表及覆核記錄',
+        ][$language] ?? 'Preparation & Review Record';
+    }
+
+    private function emptySignatureConfig(): array
+    {
+        return [
+            'enabled' => false,
+            'customTitleEnabled' => false,
+            'title' => 'Preparation & Review Record',
+            'infoLanguage' => 'en',
+            'labelLanguage' => 'en',
+            'labelMode' => 'confirmation_signature',
+            'labelSeparator' => 'space',
+            'sectionAlign' => 'full',
+            'labelAlign' => 'left',
+            'showControlText' => true,
+            'rows' => [],
+        ];
+    }
+}
