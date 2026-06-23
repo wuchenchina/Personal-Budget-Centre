@@ -1,0 +1,40 @@
+services:
+  web:
+    build:
+      context: .
+      target: web
+    ports:
+      - "${WEB_BIND:-127.0.0.1:18080}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      target: api
+    env_file:
+      - .env
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY:-}
+      APP_URL: ${APP_URL:-https://bc.tool.axchen.top}
+      API_URL: ${API_URL:-https://bc.tool.axchen.top}
+      DB_HOST: ${DB_HOST:-172.17.0.1}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-}
+      DB_USER: ${DB_USER:-}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      CASDOOR_SERVER_URL: ${CASDOOR_SERVER_URL:-https://sso.axchen.top}
+      CASDOOR_CLIENT_ID: ${CASDOOR_CLIENT_ID:-3e4912a22fdbce3dd6ca}
+      CASDOOR_REDIRECT_URI: ${CASDOOR_REDIRECT_URI:-https://bc.tool.axchen.top/api/callback}
+      CASDOOR_CLIENT_SECRET: ${CASDOOR_CLIENT_SECRET:-}
+      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-bc.tool.axchen.top}
+      WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-BudgetCentre}
+      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-https://bc.tool.axchen.top}
+    volumes:
+      - budgetcentre_exports:/app/storage/exports
+    restart: unless-stopped
+
+volumes:
+  budgetcentre_exports:

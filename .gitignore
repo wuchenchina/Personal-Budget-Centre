@@ -1,11 +1,47 @@
-code/frontend/node_modules/
-code/frontend/dist/
-code/backend/vendor/
-code/backend/storage/
-.playwright-mcp
+# OS / editor
 .DS_Store
-skills-lock.json
-.agents
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment files
+.env
+.env.*
+!**/.env.example
+
+# Node / frontend builds
+**/node_modules/
+code/frontend/dist/
+code/frontend/dist-ssr/
+template/frontend/dist/
+template/frontend/dist-ssr/
+coverage/
+*.local
+
+# Go backend runtime
+code/backend/storage/
+
+# Legacy PHP backend runtime
+code/backend-php-legacy/storage/
+code/backend-php-legacy/vendor/
+
+# Local tooling state
+.playwright-mcp
+.agents/
+.claude/
 CLAUDE.md
-.claude
-AGENTS.md
+skills-lock.json

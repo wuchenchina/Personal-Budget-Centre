@@ -1,0 +1,9 @@
+.git
+code/frontend/node_modules
+code/frontend/dist
+code/backend-php-legacy/vendor
+parsed_templates
+template/frontend/node_modules
+template/frontend/dist
+*.log
+.DS_Store

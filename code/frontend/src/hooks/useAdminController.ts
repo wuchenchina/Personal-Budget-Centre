@@ -2,15 +2,18 @@ import { useEffect, useState } from 'react';
 import {
   cleanupAdminExportCache,
   createAdminUser,
+  getAdminDatabaseStatus,
   getAdminEnvironment,
   listAdminLogs,
   listAdminUsers,
+  runAdminDatabaseMigration,
   resendAdminEmailVerification,
   updateAdminUser,
   type AdminUserListParams,
 } from '../api/admin';
 import type {
   AdminEnvironmentCheck,
+  AdminDatabaseStatus,
   AdminLogEntry,
   AdminUser,
   AdminUserCreatePayload,
@@ -35,6 +38,8 @@ export function useAdminController(enabled: boolean) {
   const [logPath, setLogPath] = useState<string | null>(null);
   const [isLogsLoading, setIsLogsLoading] = useState(false);
   const [isExportCacheCleaning, setIsExportCacheCleaning] = useState(false);
+  const [databaseStatus, setDatabaseStatus] = useState<AdminDatabaseStatus | null>(null);
+  const [isDatabaseLoading, setIsDatabaseLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -244,6 +249,55 @@ export function useAdminController(enabled: boolean) {
     }
   };
 
+  const refreshDatabaseStatus = async () => {
+    setIsDatabaseLoading(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const result = await getAdminDatabaseStatus();
+      setDatabaseStatus(result);
+      setNotice(`資料庫狀態已更新：${result.pending.length} 個待套用 migration`);
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : '資料庫狀態讀取失敗');
+    } finally {
+      setIsDatabaseLoading(false);
+    }
+  };
+
+  const dryRunDatabaseMigration = async () => {
+    setIsDatabaseLoading(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const result = await runAdminDatabaseMigration(true);
+      setNotice(`Dry-run 完成：${result.pending?.length ?? 0} 個待套用 migration`);
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : 'Migration dry-run 失敗');
+    } finally {
+      setIsDatabaseLoading(false);
+    }
+  };
+
+  const retryDatabaseMigration = async () => {
+    setIsDatabaseLoading(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const result = await runAdminDatabaseMigration(false);
+      if (result.database) {
+        setDatabaseStatus(result.database);
+      }
+      setNotice('Migration 已重試完成');
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : 'Migration 重試失敗');
+    } finally {
+      setIsDatabaseLoading(false);
+    }
+  };
+
   return {
     users,
     total,
@@ -260,6 +314,8 @@ export function useAdminController(enabled: boolean) {
     logPath,
     isLogsLoading,
     isExportCacheCleaning,
+    databaseStatus,
+    isDatabaseLoading,
     error,
     notice,
     applySearch,
@@ -272,6 +328,9 @@ export function useAdminController(enabled: boolean) {
     checkEnvironment,
     refreshLogs,
     cleanupExportCache,
+    refreshDatabaseStatus,
+    dryRunDatabaseMigration,
+    retryDatabaseMigration,
   };
 }
 

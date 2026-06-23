@@ -92,3 +92,18 @@ export interface AdminLogsResult {
   path: string;
   entries: AdminLogEntry[];
 }
+
+export interface AdminDatabaseMigration {
+  version: string;
+  filename: string;
+  checksum: string;
+  appliedAt?: string;
+}
+
+export interface AdminDatabaseStatus {
+  connected: boolean;
+  database: string;
+  coreReady: boolean;
+  applied: AdminDatabaseMigration[];
+  pending: AdminDatabaseMigration[];
+}

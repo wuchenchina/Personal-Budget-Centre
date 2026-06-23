@@ -3,6 +3,7 @@ import type {
   AdminEnvironmentCheck,
   AdminExportCacheCleanupResult,
   AdminLogsResult,
+  AdminDatabaseStatus,
   AdminUser,
   AdminUserCreatePayload,
   AdminUserListResult,
@@ -67,4 +68,22 @@ export function cleanupAdminExportCache(): Promise<AdminExportCacheCleanupResult
     '/api/admin/export-cache/cleanup',
     {},
   ).then(({ cleanup }) => cleanup);
+}
+
+export function getAdminDatabaseStatus(): Promise<AdminDatabaseStatus> {
+  return apiGet<{ database: AdminDatabaseStatus }>('/api/admin/database').then(
+    ({ database }) => database,
+  );
+}
+
+export function runAdminDatabaseMigration(dryRun: boolean): Promise<{
+  database?: AdminDatabaseStatus;
+  pending?: AdminDatabaseStatus['pending'];
+  applied: boolean;
+}> {
+  return apiPost<{
+    database?: AdminDatabaseStatus;
+    pending?: AdminDatabaseStatus['pending'];
+    applied: boolean;
+  }>('/api/admin/database/migrate', { dryRun });
 }

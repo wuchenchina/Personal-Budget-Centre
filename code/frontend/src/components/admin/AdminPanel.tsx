@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Alert,
   Button,
+  Descriptions,
   Form,
   Input,
   Popconfirm,
@@ -15,6 +16,7 @@ import type { TableProps } from 'antd';
 import {
   Mail,
   RefreshCcw,
+  Database,
   ServerCog,
   ShieldCheck,
   Trash2,
@@ -246,6 +248,75 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
       {controller.environment ? (
         <EnvironmentCheckSummary environment={controller.environment} />
       ) : null}
+
+      <section className="admin-panel">
+        <div className="admin-toolbar">
+          <div>
+            <h2>資料庫維護</h2>
+          </div>
+          <Space wrap>
+            <Button
+              icon={<Database size={14} />}
+              loading={controller.isDatabaseLoading}
+              onClick={() => void controller.refreshDatabaseStatus()}
+            >
+              讀取狀態
+            </Button>
+            <Button
+              loading={controller.isDatabaseLoading}
+              onClick={() => void controller.dryRunDatabaseMigration()}
+            >
+              Dry-run
+            </Button>
+            <Button
+              icon={<RefreshCcw size={14} />}
+              loading={controller.isDatabaseLoading}
+              onClick={() => void controller.retryDatabaseMigration()}
+            >
+              重試增量
+            </Button>
+          </Space>
+        </div>
+        {controller.databaseStatus ? (
+          <Descriptions
+            bordered
+            size="small"
+            column={{ xs: 1, sm: 2, md: 4 }}
+            items={[
+              {
+                key: 'connected',
+                label: '連線',
+                children: (
+                  <Tag color={controller.databaseStatus.connected ? 'green' : 'red'}>
+                    {controller.databaseStatus.connected ? '正常' : '異常'}
+                  </Tag>
+                ),
+              },
+              {
+                key: 'database',
+                label: '資料庫',
+                children: controller.databaseStatus.database,
+              },
+              {
+                key: 'coreReady',
+                label: '核心表',
+                children: (
+                  <Tag color={controller.databaseStatus.coreReady ? 'green' : 'orange'}>
+                    {controller.databaseStatus.coreReady ? '已就緒' : '待初始化'}
+                  </Tag>
+                ),
+              },
+              {
+                key: 'pending',
+                label: '待套用',
+                children: controller.databaseStatus.pending.length,
+              },
+            ]}
+          />
+        ) : (
+          <Alert type="info" showIcon message="尚未讀取資料庫狀態。" />
+        )}
+      </section>
 
       <AdminLogsPanel controller={controller} />
 

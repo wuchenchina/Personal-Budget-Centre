@@ -30,17 +30,13 @@ yarn build
 
 ## 後端標準
 
-- 技術棧：PHP 8.2+、Composer、PDO MySQL。
-- HTTP entrypoint 為 `code/backend/public/index.php`。
-- Route 分發集中在 `BudgetCentre\App`。
-- 業務邏輯放在 `Services`。
-- SQL 存取放在 `Repositories`。
-- Request parsing 使用 `BudgetCentre\Http\Request`。
-- API response 使用 `JsonResponse` / `FileResponse`。
-- Validation 或授權錯誤使用 `AuthException`。
-- 字串、日期、正整數等輸入使用 `Support\Input`。
-- 權限檢查優先使用 `PermissionGuard`。
+- 技術棧：Go、標準 `net/http`、`database/sql`、MySQL。
+- HTTP entrypoint 為 `code/backend/cmd/api`。
+- Route 分發集中在 `internal/app/router.go`，具體 domain handler 需拆到獨立檔案。
+- API response 必須維持 `{ ok, data, error }` envelope。
 - 新 API route 必須考慮 session、CSRF、workspace/budget 權限。
+- 單檔接近 500 行前應拆分；避免重新形成巨型 controller。
+- PHP 後端只保留於 `code/backend-php-legacy` 作比對，不進正式 runtime。
 
 ## 資料庫標準
 
@@ -55,26 +51,8 @@ code/database/003_seed_template.sql
 code/database/004_views.sql
 ```
 
-- 初始化前先跑：
-
-```bash
-php code/backend/bin/init-database.php --dry-run
-```
-
-- 既有資料庫部署更新只跑 migration-only：
-
-```bash
-cd code/backend
-composer db:migrate:dry-run
-composer db:migrate
-```
-
-- 正式初始化既有 database：
-
-```bash
-cd code/backend
-composer db:init
-```
+- Go API 啟動時自動執行安全 bootstrap/migration。
+- 不提供 reset、fresh、drop、truncate 或清空資料庫入口。
 
 ## 匯率標準
 
@@ -156,14 +134,12 @@ template/Personal Budget of 15th June to 15th July_New.docx
 ./deploy.sh
 ```
 
-- 部署腳本可以生成遠端 backend `.env`，但不得建立 MySQL database。
-- `./deploy.sh sync` 不得執行資料庫初始化、reset 或 migration；資料庫變更必須用 `./deploy.sh migrate`，且只能跑 non-destructive migration-only。
-- 只有 `./deploy.sh fresh` 能 reset database objects，且必須有明確確認。
-- 部署腳本需在本地 `Ctrl+C` / TERM 時嘗試停止本次 token 標記的遠端長任務，不得讓遠端 composer、reset、init 或 migration 孤兒化繼續執行。
-- Web server 需把 `/api/*` rewrite 到：
+- 部署腳本只允許上傳檔案與寫入遠端 `.env`。
+- 部署腳本不得執行 `docker compose up/down/restart`，不得執行 DB init/migration/reset。
+- 寶塔需將正式域名反向代理到 Docker Compose `web` 入口：
 
 ```text
-/www/wwwroot/bc.tool.axchen.top/backend/public/index.php
+http://127.0.0.1:18080
 ```
 
 - 部署後至少驗證：
@@ -179,12 +155,10 @@ GET /
 提交前至少執行：
 
 ```bash
-cd code/backend && composer validate --strict
-cd code/backend && composer check
+cd code/backend && go test ./...
 cd code/frontend && yarn build
-php code/backend/bin/init-database.php --dry-run
-php code/backend/bin/init-database.php --dry-run --migrations-only
 bash -n deploy.sh
+docker compose config
 ```
 
 若未能執行某項檢查，需要在交接說明中明確寫出原因。
