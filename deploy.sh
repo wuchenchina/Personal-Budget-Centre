@@ -45,7 +45,17 @@ BUILD_HTTP_PROXY="${BUILD_HTTP_PROXY:-}"
 BUILD_HTTPS_PROXY="${BUILD_HTTPS_PROXY:-}"
 BUILD_ALL_PROXY="${BUILD_ALL_PROXY:-}"
 BUILD_NO_PROXY="${BUILD_NO_PROXY:-localhost,127.0.0.1,::1}"
+WEB_BUILD_TARGET="${WEB_BUILD_TARGET:-web-prebuilt}"
+API_BUILD_TARGET="${API_BUILD_TARGET:-api-prebuilt}"
+BACKEND_GOOS="${BACKEND_GOOS:-linux}"
+BACKEND_GOARCH="${BACKEND_GOARCH:-amd64}"
+BACKEND_CGO_ENABLED="${BACKEND_CGO_ENABLED:-0}"
+BACKEND_LDFLAGS="${BACKEND_LDFLAGS:--s -w}"
 DEPLOY_TMP_ENV=""
+LOCAL_BUILD_ROOT="${PROJECT_ROOT:-}/build/deploy"
+FRONTEND_ARTIFACT_DIR="${LOCAL_BUILD_ROOT}/frontend"
+BACKEND_ARTIFACT_DIR="${LOCAL_BUILD_ROOT}/backend"
+BACKEND_ARTIFACT_BINARY="${BACKEND_ARTIFACT_DIR}/budgetcentre-api"
 
 DEPLOY_ROOT_FILES=(
   ".dockerignore"
@@ -56,6 +66,7 @@ DEPLOY_ROOT_FILES=(
 )
 
 DEPLOY_DIRS=(
+  "build/deploy"
   "code/backend"
   "code/database"
   "code/deploy"
@@ -73,6 +84,7 @@ DEPLOY_REMOTE_PRUNE_PATHS=(
   ".claude"
   ".gitignore"
   "AGENTS.md"
+  "build/deploy"
   "code/README.md"
   "code/backend-php-legacy"
   "code/backend/api"
@@ -145,6 +157,8 @@ write_env() {
     env_line BUILD_HTTPS_PROXY "${BUILD_HTTPS_PROXY}"
     env_line BUILD_ALL_PROXY "${BUILD_ALL_PROXY}"
     env_line BUILD_NO_PROXY "${BUILD_NO_PROXY}"
+    env_line WEB_BUILD_TARGET "${WEB_BUILD_TARGET}"
+    env_line API_BUILD_TARGET "${API_BUILD_TARGET}"
   } >"${target}"
 }
 
@@ -225,6 +239,40 @@ sync_release_dir() {
     "${PROJECT_ROOT}/./${rel}/" "${REMOTE}:${REMOTE_PATH}/"
 }
 
+prepare_local_artifacts() {
+  LOCAL_BUILD_ROOT="${PROJECT_ROOT}/build/deploy"
+  FRONTEND_ARTIFACT_DIR="${LOCAL_BUILD_ROOT}/frontend"
+  BACKEND_ARTIFACT_DIR="${LOCAL_BUILD_ROOT}/backend"
+  BACKEND_ARTIFACT_BINARY="${BACKEND_ARTIFACT_DIR}/budgetcentre-api"
+
+  echo "Building frontend locally..."
+  (cd "${PROJECT_ROOT}/code/frontend" && yarn install --frozen-lockfile && yarn build)
+
+  echo "Packaging frontend artifact..."
+  rm -rf "${FRONTEND_ARTIFACT_DIR}"
+  mkdir -p "${FRONTEND_ARTIFACT_DIR}"
+  rsync -a --delete "${PROJECT_ROOT}/code/frontend/dist/" "${FRONTEND_ARTIFACT_DIR}/"
+
+  echo "Verifying Go backend locally..."
+  (cd "${PROJECT_ROOT}/code/backend" && go test ./...)
+
+  echo "Building backend Linux artifact locally (${BACKEND_GOOS}/${BACKEND_GOARCH})..."
+  rm -rf "${BACKEND_ARTIFACT_DIR}"
+  mkdir -p "${BACKEND_ARTIFACT_DIR}"
+  (
+    cd "${PROJECT_ROOT}/code/backend"
+    GOOS="${BACKEND_GOOS}" \
+      GOARCH="${BACKEND_GOARCH}" \
+      CGO_ENABLED="${BACKEND_CGO_ENABLED}" \
+      go build -trimpath -ldflags "${BACKEND_LDFLAGS}" -o "${BACKEND_ARTIFACT_BINARY}" ./cmd/api
+  )
+  chmod +x "${BACKEND_ARTIFACT_BINARY}"
+
+  if command -v file >/dev/null 2>&1; then
+    file "${BACKEND_ARTIFACT_BINARY}"
+  fi
+}
+
 prune_remote_release() {
   local command="cd '${REMOTE_PATH}'"
   local rel
@@ -242,11 +290,7 @@ main() {
   require_command yarn
   require_command go
 
-  echo "Building frontend..."
-  (cd "${PROJECT_ROOT}/code/frontend" && yarn install --frozen-lockfile && yarn build)
-
-  echo "Verifying Go backend..."
-  (cd "${PROJECT_ROOT}/code/backend" && go test ./...)
+  prepare_local_artifacts
 
   DEPLOY_TMP_ENV="$(mktemp)"
   write_env "${DEPLOY_TMP_ENV}"
@@ -272,11 +316,12 @@ main() {
   cat <<EOF
 
 Upload complete.
+Local frontend/backend prebuild artifacts were uploaded.
 No Docker or database management was performed.
 
 On the server, run manually when ready:
   cd ${REMOTE_PATH}
-  docker compose build --no-cache
+  docker compose build
   docker compose up -d
 
 BaoTa reverse proxy target:

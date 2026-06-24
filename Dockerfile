@@ -33,7 +33,11 @@ FROM nginx:1.29-alpine AS web
 COPY code/deploy/docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=frontend /src/code/frontend/dist /usr/share/nginx/html
 
-FROM alpine:3.22 AS api
+FROM nginx:1.29-alpine AS web-prebuilt
+COPY code/deploy/docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY build/deploy/frontend /usr/share/nginx/html
+
+FROM alpine:3.22 AS api-runtime
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG ALL_PROXY
@@ -44,9 +48,6 @@ ARG all_proxy
 ARG no_proxy
 RUN apk add --no-cache ca-certificates chromium fontconfig tzdata
 WORKDIR /app
-COPY --from=backend /out/budgetcentre-api /app/budgetcentre-api
-COPY code/database /app/database
-COPY code/font /app/font
 RUN mkdir -p /app/storage/exports /app/storage/tmp/pdf /app/storage/logs
 ENV LISTEN_ADDR=:8080 \
     DATABASE_DIR=/app/database \
@@ -57,3 +58,15 @@ ENV LISTEN_ADDR=:8080 \
     CHROME_BIN=/usr/bin/chromium-browser
 EXPOSE 8080
 CMD ["/app/budgetcentre-api"]
+
+FROM api-runtime AS api
+COPY --from=backend /out/budgetcentre-api /app/budgetcentre-api
+COPY code/database /app/database
+COPY code/font /app/font
+RUN chmod +x /app/budgetcentre-api
+
+FROM api-runtime AS api-prebuilt
+COPY build/deploy/backend/budgetcentre-api /app/budgetcentre-api
+COPY code/database /app/database
+COPY code/font /app/font
+RUN chmod +x /app/budgetcentre-api

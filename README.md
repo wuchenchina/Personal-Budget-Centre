@@ -40,7 +40,7 @@ go run ./cmd/api
 Compose 同時提供前端靜態站與 Go API：
 
 ```bash
-docker compose build --no-cache
+docker compose build
 docker compose up -d
 ```
 
@@ -87,17 +87,28 @@ storage/logs
 
 ## 部署
 
-`deploy.sh` 只負責建置驗證、上傳檔案與寫入遠端 `.env`，不啟動 Docker、不重啟服務、不操作資料庫：
+`deploy.sh` 只負責本地預構建、建置驗證、上傳檔案與寫入遠端 `.env`，不啟動 Docker、不重啟服務、不操作資料庫：
 
 ```bash
 ./deploy.sh
+```
+
+部署腳本會在本地完成：
+
+- 前端 `yarn build`，並把 `code/frontend/dist` 打包到 `build/deploy/frontend`。
+- 後端 `go test ./...`，再交叉編譯 Linux binary 到 `build/deploy/backend/budgetcentre-api`。
+
+伺服器端 Compose 預設使用 `web-prebuilt` / `api-prebuilt` targets，只把已上傳的 artifacts 封裝進 runtime image，不再執行 `yarn build` 或 `go build`。需要臨時改回伺服器編譯時，可設定：
+
+```bash
+WEB_BUILD_TARGET=web API_BUILD_TARGET=api docker compose build
 ```
 
 上傳完成後，在伺服器手動執行：
 
 ```bash
 cd /www/wwwroot/bc.tool.axchen.top
-docker compose build --no-cache
+docker compose build
 docker compose up -d
 ```
 

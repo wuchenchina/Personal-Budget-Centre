@@ -24,6 +24,7 @@ lerna-debug.log*
 !**/.env.example
 
 # Node / frontend builds
+build/
 **/node_modules/
 code/frontend/dist/
 code/frontend/dist-ssr/

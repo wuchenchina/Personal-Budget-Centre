@@ -2,7 +2,7 @@ services:
   web:
     build:
       context: .
-      target: web
+      target: ${WEB_BUILD_TARGET:-web-prebuilt}
       args:
         HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
         HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
@@ -21,7 +21,7 @@ services:
   api:
     build:
       context: .
-      target: api
+      target: ${API_BUILD_TARGET:-api-prebuilt}
       args:
         HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
         HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
