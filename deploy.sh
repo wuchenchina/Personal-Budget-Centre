@@ -40,6 +40,64 @@ MAIL_FROM="${MAIL_FROM:-${SMTP_USERNAME}}"
 MAIL_FROM_NAME="${MAIL_FROM_NAME:-BudgetCentre}"
 WEB_BIND="${WEB_BIND:-127.0.0.1:18080}"
 APP_STORAGE_ROOT="${APP_STORAGE_ROOT:-./storage}"
+DEPLOY_TMP_ENV=""
+
+DEPLOY_ROOT_FILES=(
+  ".dockerignore"
+  ".env.example"
+  "Dockerfile"
+  "README.md"
+  "docker-compose.yaml"
+)
+
+DEPLOY_DIRS=(
+  "code/backend"
+  "code/database"
+  "code/deploy"
+  "code/font"
+  "code/frontend"
+)
+
+DEPLOY_MANUAL_FILES=(
+  "scripts/legacy_currency_audit.sql"
+  "scripts/legacy_currency_cleanup.sql"
+)
+
+DEPLOY_REMOTE_PRUNE_PATHS=(
+  ".agents"
+  ".claude"
+  ".gitignore"
+  "AGENTS.md"
+  "code/README.md"
+  "code/backend-php-legacy"
+  "code/backend/api"
+  "code/frontend/dist"
+  "code/frontend/node_modules"
+  "docs"
+  "parsed_templates"
+  "scripts"
+  "template"
+)
+
+RSYNC_RELEASE_EXCLUDES=(
+  "--exclude=.DS_Store"
+  "--exclude=*.log"
+  "--exclude=__pycache__/"
+  "--exclude=*.pyc"
+  "--exclude=node_modules/"
+  "--exclude=dist/"
+  "--exclude=vendor/"
+  "--exclude=coverage/"
+  "--exclude=tmp/"
+  "--exclude=.env"
+  "--exclude=.env.local"
+  "--exclude=.env.development"
+  "--exclude=.env.production"
+  "--exclude=.env.test"
+  "--exclude=/code/backend/api"
+  "--exclude=/code/backend/*.test"
+  "--exclude=/code/backend/coverage.out"
+)
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -89,7 +147,57 @@ env_line() {
   printf '%s="%s"\n' "${key}" "${value}"
 }
 
+cleanup_tmp_env() {
+  if [[ -n "${DEPLOY_TMP_ENV:-}" && -f "${DEPLOY_TMP_ENV}" ]]; then
+    rm -f "${DEPLOY_TMP_ENV}"
+  fi
+}
+
+require_release_file() {
+  local rel="$1"
+  if [[ ! -f "${PROJECT_ROOT}/${rel}" ]]; then
+    echo "Missing deploy file: ${rel}" >&2
+    exit 1
+  fi
+}
+
+require_release_dir() {
+  local rel="$1"
+  if [[ ! -d "${PROJECT_ROOT}/${rel}" ]]; then
+    echo "Missing deploy directory: ${rel}" >&2
+    exit 1
+  fi
+}
+
+sync_release_file() {
+  local rel="$1"
+  require_release_file "${rel}"
+  rsync -az --relative \
+    -e "${RSYNC_SSH}" \
+    "${PROJECT_ROOT}/./${rel}" "${REMOTE}:${REMOTE_PATH}/"
+}
+
+sync_release_dir() {
+  local rel="$1"
+  require_release_dir "${rel}"
+  rsync -az --delete --delete-excluded --relative \
+    "${RSYNC_RELEASE_EXCLUDES[@]}" \
+    -e "${RSYNC_SSH}" \
+    "${PROJECT_ROOT}/./${rel}/" "${REMOTE}:${REMOTE_PATH}/"
+}
+
+prune_remote_release() {
+  local command="cd '${REMOTE_PATH}'"
+  local rel
+  for rel in "${DEPLOY_REMOTE_PRUNE_PATHS[@]}"; do
+    command="${command} && rm -rf -- '${rel}'"
+  done
+  ssh "${SSH_OPTS[@]}" "${REMOTE}" "${command}"
+}
+
 main() {
+  trap cleanup_tmp_env EXIT
+
   require_command ssh
   require_command rsync
   require_command yarn
@@ -101,23 +209,25 @@ main() {
   echo "Verifying Go backend..."
   (cd "${PROJECT_ROOT}/code/backend" && go test ./...)
 
-  local tmp_env
-  tmp_env="$(mktemp)"
-  trap 'rm -f "${tmp_env}"' EXIT
-  write_env "${tmp_env}"
+  DEPLOY_TMP_ENV="$(mktemp)"
+  write_env "${DEPLOY_TMP_ENV}"
 
-  echo "Uploading project files to ${REMOTE}:${REMOTE_PATH}..."
+  echo "Preparing remote release directory at ${REMOTE}:${REMOTE_PATH}..."
   ssh "${SSH_OPTS[@]}" "${REMOTE}" "mkdir -p '${REMOTE_PATH}'"
-  rsync -az --delete \
-    --exclude '.git' \
-    --exclude '.env' \
-    --exclude 'storage/' \
-    --exclude 'code/frontend/node_modules' \
-    --exclude 'code/frontend/dist' \
-    --exclude 'code/backend-php-legacy/vendor' \
-    -e "${RSYNC_SSH}" \
-    "${PROJECT_ROOT}/" "${REMOTE}:${REMOTE_PATH}/"
-  rsync -az -e "${RSYNC_SSH}" "${tmp_env}" "${REMOTE}:${REMOTE_PATH}/.env"
+  prune_remote_release
+
+  echo "Uploading release allowlist to ${REMOTE}:${REMOTE_PATH}..."
+  local rel
+  for rel in "${DEPLOY_ROOT_FILES[@]}"; do
+    sync_release_file "${rel}"
+  done
+  for rel in "${DEPLOY_DIRS[@]}"; do
+    sync_release_dir "${rel}"
+  done
+  for rel in "${DEPLOY_MANUAL_FILES[@]}"; do
+    sync_release_file "${rel}"
+  done
+  rsync -az -e "${RSYNC_SSH}" "${DEPLOY_TMP_ENV}" "${REMOTE}:${REMOTE_PATH}/.env"
   ssh "${SSH_OPTS[@]}" "${REMOTE}" "mkdir -p '${REMOTE_PATH}/storage/exports' '${REMOTE_PATH}/storage/tmp' '${REMOTE_PATH}/storage/logs' && chmod 600 '${REMOTE_PATH}/.env'"
 
   cat <<EOF
