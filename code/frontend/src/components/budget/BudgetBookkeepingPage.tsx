@@ -19,6 +19,8 @@ import {
   BudgetPdfExportSettingsModal,
   budgetPdfExportSettingsValue,
 } from './BudgetPdfExportSettingsModal';
+import { BudgetExchangeRateManager } from './BudgetExchangeRateManager';
+import type { CurrencySelectOption } from '../../utils/currencyOptions';
 
 interface BudgetBookkeepingPageProps {
   selectedBudget: BudgetDetail | null;
@@ -32,6 +34,7 @@ interface BudgetBookkeepingPageProps {
   defaultPdfTheme: PdfThemeKey;
   exportingPdf: boolean;
   pdfExportSettings: PdfExportSettings;
+  currencyOptions: CurrencySelectOption[];
   onBackToProjects: () => void;
   onOpenEditor: (budgetId: number) => void;
   onExportPdf: (options: BudgetExportOptions) => void;
@@ -54,6 +57,7 @@ export function BudgetBookkeepingPage({
   defaultPdfTheme,
   exportingPdf,
   pdfExportSettings,
+  currencyOptions,
   onBackToProjects,
   onOpenEditor,
   onExportPdf,
@@ -252,6 +256,12 @@ export function BudgetBookkeepingPage({
               {t('newTabEdit')}
             </Button>
           ) : null}
+          <BudgetExchangeRateManager
+            budgetId={selectedBudget?.id ?? null}
+            baseCurrency={currency}
+            canWriteBudgets={canWriteBudgets}
+            currencyOptions={currencyOptions}
+          />
           {canWriteBudgets ? (
             <Button type="primary" icon={<Plus size={16} />} onClick={onNewRecord}>
               {t('addBookkeepingRecord')}

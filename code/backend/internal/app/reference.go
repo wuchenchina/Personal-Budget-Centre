@@ -89,6 +89,49 @@ func (a *App) exchangeRateList(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func (a *App) bochkRateBoardList(w http.ResponseWriter, r *http.Request) error {
+	s, err := a.currentSession(r)
+	if err != nil {
+		return err
+	}
+	workspaceID := queryInt(r, "workspaceId")
+	if workspaceID > 0 {
+		if err := a.requireWorkspaceRole(r.Context(), workspaceID, s.UserID, "owner", "admin", "editor", "viewer", "auditor"); err != nil {
+			return err
+		}
+	}
+	rows, err := a.bochkRateBoard(r.Context(), dateString(r.URL.Query().Get("rateDate")))
+	if err != nil {
+		return err
+	}
+	items := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, map[string]any{
+			"currency":          row.CurrencyCode,
+			"currencyName":      row.CurrencyName,
+			"currencySymbol":    row.CurrencySymbol,
+			"baseCurrency":      "HKD",
+			"customerSellRate":  row.CustomerSellRate,
+			"customerBuyRate":   row.CustomerBuyRate,
+			"rateDate":          row.RateDate,
+			"providerUpdatedAt": nullableText(row.ProviderUpdatedAt),
+			"fetchedAt":         nullableText(row.FetchedAt),
+			"sourceName":        nullableText(row.SourceName),
+			"sourceUrl":         nullableText(row.SourceURL),
+		})
+	}
+	httpx.WriteOK(w, map[string]any{
+		"board": map[string]any{
+			"baseCurrency": "HKD",
+			"source":       bochkSource,
+			"sourceName":   bochkSourceName,
+			"sourceUrl":    bochkSourceURL,
+			"rates":        items,
+		},
+	}, http.StatusOK)
+	return nil
+}
+
 func (a *App) exchangeRateCreate(w http.ResponseWriter, r *http.Request) error {
 	s, input, err := a.sessionInput(r)
 	if err != nil {
@@ -140,6 +183,139 @@ func (a *App) exchangeRateCreate(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	httpx.WriteOK(w, map[string]any{"rate": rate}, http.StatusOK)
+	return nil
+}
+
+func (a *App) accountExchangeRateList(w http.ResponseWriter, r *http.Request) error {
+	s, err := a.currentSession(r)
+	if err != nil {
+		return err
+	}
+	rates, err := a.accountExchangeRates(r.Context(), s.UserID)
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{
+		"rates":               rates,
+		"bochkSupportedCodes": bochkCurrencyCodes(),
+		"baseCurrencyHint":    "BOCHK supported currency",
+		"counterCurrencyHint": "Non-BOCHK currency from currency presets",
+	}, http.StatusOK)
+	return nil
+}
+
+func (a *App) accountExchangeRateCreate(w http.ResponseWriter, r *http.Request) error {
+	return a.accountExchangeRateSave(w, r, 0)
+}
+
+func (a *App) accountExchangeRateUpdate(w http.ResponseWriter, r *http.Request) error {
+	_, input, err := a.sessionInput(r)
+	if err != nil {
+		return err
+	}
+	id := int64Value(input["id"])
+	if id <= 0 {
+		return apiError("VALIDATION_ERROR", "Exchange rate id is required.", http.StatusUnprocessableEntity)
+	}
+	return a.accountExchangeRateSaveWithInput(w, r, id, input)
+}
+
+func (a *App) accountExchangeRateSave(w http.ResponseWriter, r *http.Request, id int64) error {
+	_, input, err := a.sessionInput(r)
+	if err != nil {
+		return err
+	}
+	return a.accountExchangeRateSaveWithInput(w, r, id, input)
+}
+
+func (a *App) accountExchangeRateSaveWithInput(w http.ResponseWriter, r *http.Request, id int64, input map[string]any) error {
+	s, err := a.currentSession(r)
+	if err != nil {
+		return err
+	}
+	if id > 0 {
+		if err := a.requireAccountExchangeRateOwner(r.Context(), id, s.UserID); err != nil {
+			return err
+		}
+	}
+	fromCode := normalizedCurrencyCode(firstValue(input, "fromCurrency", "from_currency", "from"))
+	toCode := normalizedCurrencyCode(firstValue(input, "toCurrency", "to_currency", "to"))
+	if fromCode == "" || toCode == "" || fromCode == toCode {
+		return apiError("VALIDATION_ERROR", "Private exchange-rate currencies must differ.", http.StatusUnprocessableEntity)
+	}
+	fromIsBochk := isBochkSupportedCurrency(fromCode)
+	toIsBochk := isBochkSupportedCurrency(toCode)
+	if fromIsBochk == toIsBochk {
+		return apiError("VALIDATION_ERROR", "Private account rates must pair one BOCHK-supported currency with one non-BOCHK currency.", http.StatusUnprocessableEntity)
+	}
+	from, err := a.requiredCurrencyID(r.Context(), fromCode)
+	if err != nil {
+		return err
+	}
+	to, err := a.requiredCurrencyID(r.Context(), toCode)
+	if err != nil {
+		return err
+	}
+	rateValue, ok := numericInput(input["rate"])
+	if !ok || rateValue <= 0 {
+		return apiError("VALIDATION_ERROR", "Exchange rate is required.", http.StatusUnprocessableEntity)
+	}
+	rateDate := dateString(firstValue(input, "rateDate", "rate_date"))
+	if rateDate == "" {
+		rateDate = todayDate()
+	}
+	if text := stringValue(input["note"]); len(text) > 500 {
+		return apiError("VALIDATION_ERROR", "Exchange rate note must be 500 characters or less.", http.StatusUnprocessableEntity)
+	}
+	rateID, err := a.saveCurrentExchangeRate(r.Context(), currentExchangeRateInput{
+		UserID:           sql.NullInt64{Int64: s.UserID, Valid: true},
+		WorkspaceID:      sql.NullInt64{},
+		FromCurrencyID:   from,
+		ToCurrencyID:     to,
+		Rate:             rateValue,
+		RateDate:         rateDate,
+		Source:           "manual",
+		ProviderRateType: "manual",
+		Note:             nullableStringValue(input["note"]),
+	})
+	if err != nil {
+		return err
+	}
+	if id > 0 && id != rateID {
+		if _, err := a.db.ExecContext(r.Context(), `DELETE FROM exchange_rates
+WHERE id = ? AND user_id = ? AND workspace_id IS NULL AND source = 'manual'`, id, s.UserID); err != nil {
+			return err
+		}
+	}
+	rate, err := a.exchangeRateByID(r.Context(), rateID)
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{"rate": rate}, http.StatusOK)
+	return nil
+}
+
+func (a *App) accountExchangeRateDelete(w http.ResponseWriter, r *http.Request) error {
+	s, input, err := a.sessionInput(r)
+	if err != nil {
+		return err
+	}
+	id := int64Value(input["id"])
+	if id <= 0 {
+		return apiError("VALIDATION_ERROR", "Exchange rate id is required.", http.StatusUnprocessableEntity)
+	}
+	if err := a.requireAccountExchangeRateOwner(r.Context(), id, s.UserID); err != nil {
+		return err
+	}
+	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM exchange_rates
+WHERE id = ? AND user_id = ? AND workspace_id IS NULL AND source = 'manual'`, id, s.UserID); err != nil {
+		return err
+	}
+	rates, err := a.accountExchangeRates(r.Context(), s.UserID)
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{"rates": rates}, http.StatusOK)
 	return nil
 }
 
@@ -208,6 +384,84 @@ func (a *App) budgetExchangeRateCreate(w http.ResponseWriter, r *http.Request) e
 		return err
 	}
 	httpx.WriteOK(w, map[string]any{"rate": rate}, http.StatusOK)
+	return nil
+}
+
+func (a *App) budgetExchangeRateUpdate(w http.ResponseWriter, r *http.Request) error {
+	s, input, err := a.sessionInput(r)
+	if err != nil {
+		return err
+	}
+	id := int64Value(input["id"])
+	if id <= 0 {
+		return apiError("VALIDATION_ERROR", "Budget exchange rate id is required.", http.StatusUnprocessableEntity)
+	}
+	budgetID, err := a.budgetExchangeRateBudgetID(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	if err := a.requireBudgetWrite(r, budgetID, s.UserID); err != nil {
+		return err
+	}
+	from, err := a.requiredCurrencyID(r.Context(), firstValue(input, "fromCurrency", "from_currency"))
+	if err != nil {
+		return err
+	}
+	to, err := a.requiredCurrencyID(r.Context(), firstValue(input, "toCurrency", "to_currency"))
+	if err != nil {
+		return err
+	}
+	if from == to {
+		return apiError("VALIDATION_ERROR", "Budget exchange-rate currencies must differ.", http.StatusUnprocessableEntity)
+	}
+	rateValue, ok := numericInput(input["rate"])
+	if !ok || rateValue <= 0 {
+		return apiError("VALIDATION_ERROR", "Exchange rate is required.", http.StatusUnprocessableEntity)
+	}
+	rateDate := dateString(firstValue(input, "rateDate", "rate_date"))
+	if rateDate == "" {
+		rateDate = todayDate()
+	}
+	if text := stringValue(firstValue(input, "note", "sourceNote", "source_note")); len(text) > 500 {
+		return apiError("VALIDATION_ERROR", "Exchange rate note must be 500 characters or less.", http.StatusUnprocessableEntity)
+	}
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE budget_exchange_rates
+SET from_currency_id = ?, to_currency_id = ?, rate = ?, rate_date = ?, source_note = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?`, from, to, rateValue, rateDate, nullableStringValue(firstValue(input, "note", "sourceNote", "source_note")), id); err != nil {
+		return err
+	}
+	rate, err := a.budgetExchangeRateByID(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{"rate": rate}, http.StatusOK)
+	return nil
+}
+
+func (a *App) budgetExchangeRateDelete(w http.ResponseWriter, r *http.Request) error {
+	s, input, err := a.sessionInput(r)
+	if err != nil {
+		return err
+	}
+	id := int64Value(input["id"])
+	if id <= 0 {
+		return apiError("VALIDATION_ERROR", "Budget exchange rate id is required.", http.StatusUnprocessableEntity)
+	}
+	budgetID, err := a.budgetExchangeRateBudgetID(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	if err := a.requireBudgetWrite(r, budgetID, s.UserID); err != nil {
+		return err
+	}
+	if _, err := a.db.ExecContext(r.Context(), "DELETE FROM budget_exchange_rates WHERE id = ?", id); err != nil {
+		return err
+	}
+	rates, err := a.budgetExchangeRates(r.Context(), budgetID)
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{"rates": rates}, http.StatusOK)
 	return nil
 }
 
@@ -291,7 +545,7 @@ func (a *App) exchangeRateConvert(w http.ResponseWriter, r *http.Request) error 
 		return apiError("VALIDATION_ERROR", "Amount is required.", http.StatusUnprocessableEntity)
 	}
 	rateDate := dateString(firstValue(input, "rateDate", "rate_date"))
-	conversion, err := a.resolveExchangeRate(r.Context(), workspaceID, fromID, toID, rateDate)
+	conversion, err := a.resolveExchangeRate(r.Context(), s.UserID, workspaceID, fromID, toID, rateDate)
 	if err != nil {
 		return err
 	}

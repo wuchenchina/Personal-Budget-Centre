@@ -1,5 +1,6 @@
 import { Form, InputNumber, Radio } from 'antd';
 import type { RefObject } from 'react';
+import { useEffect } from 'react';
 import { useI18n } from '../../i18n';
 import type { Currency, CurrencyCode } from '../../types/budget';
 import type { BudgetItemFormValues } from '../../types/forms';
@@ -52,7 +53,30 @@ export function MoneyLegCard({
   }) => Promise<boolean>;
 }) {
   const { t } = useI18n();
+  const form = Form.useFormInstance<BudgetItemFormValues>();
   const preview = previewBaseAmount(amount, rate);
+  const targetBaseAmount = Form.useWatch('budgetTargetBaseAmount', form);
+
+  useEffect(() => {
+    if (amountName !== 'budgetAmount') {
+      return;
+    }
+    if (
+      typeof amount !== 'number'
+      || !Number.isFinite(amount)
+      || amount <= 0
+      || typeof targetBaseAmount !== 'number'
+      || !Number.isFinite(targetBaseAmount)
+      || targetBaseAmount < 0
+    ) {
+      return;
+    }
+
+    const nextRate = Number((targetBaseAmount / amount).toFixed(6));
+    if (nextRate > 0 && form.getFieldValue(rateName) !== nextRate) {
+      form.setFieldValue(rateName, nextRate);
+    }
+  }, [amount, amountName, form, rateName, targetBaseAmount]);
 
   return (
     <div
@@ -101,6 +125,21 @@ export function MoneyLegCard({
       >
         <InputNumber className="form-full-width" precision={6} step={0.01} />
       </Form.Item>
+      {amountName === 'budgetAmount' ? (
+        <Form.Item
+          label={t('targetBaseAmount', { currency: baseCurrency })}
+          name="budgetTargetBaseAmount"
+          extra={t('targetBaseAmountHelp')}
+          rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+        >
+          <InputNumber
+            addonBefore={baseCurrency}
+            className="form-full-width"
+            precision={2}
+            step={100}
+          />
+        </Form.Item>
+      ) : null}
       <Form.Item
         label={t('rateSaveScope')}
         name="rateScope"

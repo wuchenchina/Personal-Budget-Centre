@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"budgetcentre/backend/internal/httpx"
@@ -23,6 +24,19 @@ type exchangeRateConversion struct {
 	RateDate       string
 	Source         string
 	ConversionPath string
+}
+
+type bochkRateBoardRow struct {
+	CurrencyCode      string
+	CurrencyName      string
+	CurrencySymbol    string
+	CustomerSellRate  float64
+	CustomerBuyRate   float64
+	RateDate          string
+	ProviderUpdatedAt string
+	FetchedAt         string
+	SourceName        string
+	SourceURL         string
 }
 
 type budgetExchangeRateInput struct {
@@ -111,6 +125,38 @@ func (a *App) exchangeRateByID(ctx context.Context, id int64) (map[string]any, e
 	return rate, nil
 }
 
+func (a *App) accountExchangeRates(ctx context.Context, userID int64) ([]map[string]any, error) {
+	rows, err := a.db.QueryContext(ctx, exchangeRateSelectSQL(`WHERE er.source = 'manual'
+  AND er.workspace_id IS NULL
+  AND er.user_id = ?
+ORDER BY er.rate_date DESC, er.created_at DESC, er.id DESC`), userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	rates := []map[string]any{}
+	for rows.Next() {
+		rate, err := scanExchangeRate(rows)
+		if err != nil {
+			return nil, err
+		}
+		rates = append(rates, rate)
+	}
+	return rates, rows.Err()
+}
+
+func (a *App) requireAccountExchangeRateOwner(ctx context.Context, id, userID int64) error {
+	var exists int
+	err := a.db.QueryRowContext(ctx, `SELECT 1
+FROM exchange_rates
+WHERE id = ? AND user_id = ? AND workspace_id IS NULL AND source = 'manual'
+LIMIT 1`, id, userID).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return apiError("EXCHANGE_RATE_NOT_FOUND", "Exchange rate was not found.", http.StatusNotFound)
+	}
+	return err
+}
+
 func scanExchangeRate(row rowScanner) (map[string]any, error) {
 	var id int64
 	var ws sql.NullInt64
@@ -151,6 +197,110 @@ JOIN currencies t ON t.id = er.to_currency_id ` + clause
 
 func validExchangeRateSource(source string) bool {
 	return source == "manual" || source == "budget_default" || source == "bochk"
+}
+
+func bochkCurrencyCodes() []string {
+	codes := make([]string, 0, len(bochkCurrencyMetaByCode))
+	for code := range bochkCurrencyMetaByCode {
+		if code == "HKD" {
+			continue
+		}
+		codes = append(codes, code)
+	}
+	return codes
+}
+
+func isBochkSupportedCurrency(code string) bool {
+	_, ok := bochkCurrencyMetaByCode[strings.ToUpper(strings.TrimSpace(code))]
+	return ok
+}
+
+func (a *App) bochkRateBoard(ctx context.Context, onDate string) ([]bochkRateBoardRow, error) {
+	hkdID, err := a.requiredSeedCurrencyID(ctx, "HKD")
+	if err != nil {
+		return nil, err
+	}
+	codes := bochkCurrencyCodes()
+	if len(codes) == 0 {
+		return []bochkRateBoardRow{}, nil
+	}
+	args := []any{hkdID}
+	for _, code := range codes {
+		args = append(args, code)
+	}
+	dateFilter := ""
+	if onDate != "" {
+		dateFilter = " AND er.rate_date <= ?"
+	}
+	query := `SELECT c.code, c.name, c.symbol,
+  MAX(CASE WHEN er.provider_rate_type = 'customer_buy' THEN er.provider_buy_rate END) AS customer_buy,
+  MAX(CASE WHEN er.provider_rate_type = 'customer_sell' THEN er.provider_sell_rate END) AS customer_sell,
+  MAX(er.rate_date) AS rate_date,
+  MAX(er.provider_updated_at) AS provider_updated_at,
+  MAX(er.fetched_at) AS fetched_at,
+  MAX(er.source_name) AS source_name,
+  MAX(er.source_url) AS source_url
+FROM exchange_rates er
+JOIN currencies c ON c.id = CASE
+  WHEN er.from_currency_id = ? THEN er.to_currency_id
+  ELSE er.from_currency_id
+END
+WHERE er.source = 'bochk'
+  AND er.workspace_id IS NULL
+  AND c.code IN (` + placeholders(len(codes)) + `)
+  AND ((er.to_currency_id = ? AND er.provider_rate_type = 'customer_buy')
+    OR (er.from_currency_id = ? AND er.provider_rate_type = 'customer_sell'))` + dateFilter + `
+GROUP BY c.code, c.name, c.symbol
+HAVING customer_buy IS NOT NULL OR customer_sell IS NOT NULL
+ORDER BY c.code`
+	args = append(args, hkdID, hkdID)
+	if onDate != "" {
+		args = append(args, onDate)
+	}
+	rows, err := a.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []bochkRateBoardRow{}
+	for rows.Next() {
+		var row bochkRateBoardRow
+		var buy, sell, updated, fetched, sourceName, sourceURL sql.NullString
+		if err := rows.Scan(
+			&row.CurrencyCode,
+			&row.CurrencyName,
+			&row.CurrencySymbol,
+			&buy,
+			&sell,
+			&row.RateDate,
+			&updated,
+			&fetched,
+			&sourceName,
+			&sourceURL,
+		); err != nil {
+			return nil, err
+		}
+		if value, ok := nullStringFloat(buy); ok {
+			row.CustomerBuyRate = value
+		}
+		if value, ok := nullStringFloat(sell); ok {
+			row.CustomerSellRate = value
+		}
+		row.ProviderUpdatedAt = nullableStringToString(updated)
+		row.FetchedAt = nullableStringToString(fetched)
+		row.SourceName = nullableStringToString(sourceName)
+		row.SourceURL = nullableStringToString(sourceURL)
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
+func nullStringFloat(raw sql.NullString) (float64, bool) {
+	if !raw.Valid || strings.TrimSpace(raw.String) == "" {
+		return 0, false
+	}
+	value, err := strconv.ParseFloat(raw.String, 64)
+	return value, err == nil
 }
 
 func (a *App) saveCurrentExchangeRate(ctx context.Context, input currentExchangeRateInput) (int64, error) {
@@ -220,20 +370,21 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 func deleteCurrentExchangeRatesTx(ctx context.Context, tx *sql.Tx, input currentExchangeRateInput) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM exchange_rates
 WHERE (workspace_id <=> ?)
+  AND (workspace_id IS NOT NULL OR user_id <=> ?)
   AND from_currency_id = ?
   AND to_currency_id = ?
   AND source = ?
   AND provider_rate_type = ?`,
-		nullableInt(input.WorkspaceID), input.FromCurrencyID, input.ToCurrencyID, input.Source, input.ProviderRateType,
+		nullableInt(input.WorkspaceID), nullableInt(input.UserID), input.FromCurrencyID, input.ToCurrencyID, input.Source, input.ProviderRateType,
 	)
 	return err
 }
 
-func (a *App) resolveExchangeRate(ctx context.Context, workspaceID, fromCurrencyID, toCurrencyID int64, onDate string) (exchangeRateConversion, error) {
-	return a.resolveExchangeRateForBudget(ctx, 0, workspaceID, fromCurrencyID, toCurrencyID, onDate)
+func (a *App) resolveExchangeRate(ctx context.Context, userID, workspaceID, fromCurrencyID, toCurrencyID int64, onDate string) (exchangeRateConversion, error) {
+	return a.resolveExchangeRateForBudget(ctx, 0, userID, workspaceID, fromCurrencyID, toCurrencyID, onDate)
 }
 
-func (a *App) resolveExchangeRateForBudget(ctx context.Context, budgetID, workspaceID, fromCurrencyID, toCurrencyID int64, onDate string) (exchangeRateConversion, error) {
+func (a *App) resolveExchangeRateForBudget(ctx context.Context, budgetID, userID, workspaceID, fromCurrencyID, toCurrencyID int64, onDate string) (exchangeRateConversion, error) {
 	if fromCurrencyID <= 0 || toCurrencyID <= 0 {
 		return exchangeRateConversion{}, apiError("CURRENCY_NOT_FOUND", "Currency is not available.", http.StatusUnprocessableEntity)
 	}
@@ -259,32 +410,49 @@ func (a *App) resolveExchangeRateForBudget(ctx context.Context, budgetID, worksp
 			return *inverse, nil
 		}
 	}
-	direct, err := a.latestExchangeRate(ctx, workspaceID, fromCurrencyID, toCurrencyID, onDate)
+	direct, err := a.latestBochkExchangeRate(ctx, fromCurrencyID, toCurrencyID, onDate)
 	if err != nil {
 		return exchangeRateConversion{}, err
 	}
 	if direct != nil {
-		direct.ConversionPath = "direct"
+		direct.ConversionPath = "bochk_direct"
 		return *direct, nil
 	}
-	inverse, err := a.latestExchangeRate(ctx, workspaceID, toCurrencyID, fromCurrencyID, onDate)
+	inverse, err := a.latestBochkExchangeRate(ctx, toCurrencyID, fromCurrencyID, onDate)
 	if err != nil {
 		return exchangeRateConversion{}, err
 	}
 	if inverse != nil && inverse.Rate > 0 {
 		inverse.Rate = 1 / inverse.Rate
-		inverse.ConversionPath = "inverse"
+		inverse.ConversionPath = "bochk_inverse"
+		return *inverse, nil
+	}
+	direct, err = a.latestAccountExchangeRate(ctx, userID, fromCurrencyID, toCurrencyID, onDate)
+	if err != nil {
+		return exchangeRateConversion{}, err
+	}
+	if direct != nil {
+		direct.ConversionPath = "account_direct"
+		return *direct, nil
+	}
+	inverse, err = a.latestAccountExchangeRate(ctx, userID, toCurrencyID, fromCurrencyID, onDate)
+	if err != nil {
+		return exchangeRateConversion{}, err
+	}
+	if inverse != nil && inverse.Rate > 0 {
+		inverse.Rate = 1 / inverse.Rate
+		inverse.ConversionPath = "account_inverse"
 		return *inverse, nil
 	}
 	hkdID, err := a.requiredSeedCurrencyID(ctx, "HKD")
 	if err != nil {
 		return exchangeRateConversion{}, err
 	}
-	fromHKD, err := a.rateForPair(ctx, workspaceID, fromCurrencyID, hkdID, onDate)
+	fromHKD, err := a.rateForPair(ctx, userID, workspaceID, fromCurrencyID, hkdID, onDate)
 	if err != nil {
 		return exchangeRateConversion{}, err
 	}
-	hkdToTarget, err := a.rateForPair(ctx, workspaceID, hkdID, toCurrencyID, onDate)
+	hkdToTarget, err := a.rateForPair(ctx, userID, workspaceID, hkdID, toCurrencyID, onDate)
 	if err != nil {
 		return exchangeRateConversion{}, err
 	}
@@ -428,6 +596,15 @@ func (a *App) budgetExchangeRateByID(ctx context.Context, id int64) (map[string]
 	return scanBudgetExchangeRate(a.db.QueryRowContext(ctx, budgetExchangeRateSelectSQL("WHERE ber.id = ? LIMIT 1"), id))
 }
 
+func (a *App) budgetExchangeRateBudgetID(ctx context.Context, id int64) (int64, error) {
+	var budgetID int64
+	err := a.db.QueryRowContext(ctx, "SELECT budget_id FROM budget_exchange_rates WHERE id = ? LIMIT 1", id).Scan(&budgetID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, apiError("EXCHANGE_RATE_NOT_FOUND", "Budget exchange rate was not found.", http.StatusNotFound)
+	}
+	return budgetID, err
+}
+
 func budgetExchangeRateSelectSQL(clause string) string {
 	return `SELECT ber.id, ber.budget_id, f.code, t.code, ber.rate, ber.rate_date, ber.source_note, ber.updated_at
 FROM budget_exchange_rates ber
@@ -481,23 +658,95 @@ ON DUPLICATE KEY UPDATE
 	row := a.db.QueryRowContext(ctx, `SELECT id FROM budget_exchange_rates
 WHERE budget_id = ? AND from_currency_id = ? AND to_currency_id = ?
 LIMIT 1`, input.BudgetID, input.FromCurrencyID, input.ToCurrencyID)
-	return id, row.Scan(&id)
+	var existingID int64
+	if err := row.Scan(&existingID); err != nil {
+		return 0, err
+	}
+	return existingID, nil
 }
 
-func (a *App) rateForPair(ctx context.Context, workspaceID, fromCurrencyID, toCurrencyID int64, onDate string) (*exchangeRateConversion, error) {
+func (a *App) rateForPair(ctx context.Context, userID, workspaceID, fromCurrencyID, toCurrencyID int64, onDate string) (*exchangeRateConversion, error) {
 	if fromCurrencyID == toCurrencyID {
 		return &exchangeRateConversion{Rate: 1, RateDate: onDate, Source: "identity"}, nil
 	}
-	direct, err := a.latestExchangeRate(ctx, workspaceID, fromCurrencyID, toCurrencyID, onDate)
+	direct, err := a.latestBochkExchangeRate(ctx, fromCurrencyID, toCurrencyID, onDate)
 	if err != nil || direct != nil {
 		return direct, err
 	}
-	inverse, err := a.latestExchangeRate(ctx, workspaceID, toCurrencyID, fromCurrencyID, onDate)
+	inverse, err := a.latestBochkExchangeRate(ctx, toCurrencyID, fromCurrencyID, onDate)
+	if err != nil {
+		return nil, err
+	}
+	if inverse != nil && inverse.Rate > 0 {
+		inverse.Rate = 1 / inverse.Rate
+		return inverse, nil
+	}
+	direct, err = a.latestAccountExchangeRate(ctx, userID, fromCurrencyID, toCurrencyID, onDate)
+	if err != nil || direct != nil {
+		return direct, err
+	}
+	inverse, err = a.latestAccountExchangeRate(ctx, userID, toCurrencyID, fromCurrencyID, onDate)
 	if err != nil || inverse == nil || inverse.Rate <= 0 {
 		return nil, err
 	}
 	inverse.Rate = 1 / inverse.Rate
 	return inverse, nil
+}
+
+func (a *App) latestBochkExchangeRate(ctx context.Context, fromCurrencyID, toCurrencyID int64, onDate string) (*exchangeRateConversion, error) {
+	dateFilter := ""
+	args := []any{fromCurrencyID, toCurrencyID}
+	if onDate != "" {
+		dateFilter = " AND er.rate_date <= ?"
+		args = append(args, onDate)
+	}
+	row := a.db.QueryRowContext(ctx, `SELECT er.rate, er.rate_date, er.source
+FROM exchange_rates er
+WHERE er.source = 'bochk'
+  AND er.workspace_id IS NULL
+  AND er.from_currency_id = ?
+  AND er.to_currency_id = ?
+  AND er.provider_rate_type IN ('customer_sell', 'customer_buy')`+dateFilter+`
+ORDER BY er.rate_date DESC, er.created_at DESC, er.id DESC
+LIMIT 1`, args...)
+	var conversion exchangeRateConversion
+	if err := row.Scan(&conversion.Rate, &conversion.RateDate, &conversion.Source); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &conversion, nil
+}
+
+func (a *App) latestAccountExchangeRate(ctx context.Context, userID, fromCurrencyID, toCurrencyID int64, onDate string) (*exchangeRateConversion, error) {
+	if userID <= 0 {
+		return nil, nil
+	}
+	dateFilter := ""
+	args := []any{userID, fromCurrencyID, toCurrencyID}
+	if onDate != "" {
+		dateFilter = " AND er.rate_date <= ?"
+		args = append(args, onDate)
+	}
+	row := a.db.QueryRowContext(ctx, `SELECT er.rate, er.rate_date, er.source
+FROM exchange_rates er
+WHERE er.source = 'manual'
+  AND er.workspace_id IS NULL
+  AND er.user_id = ?
+  AND er.from_currency_id = ?
+  AND er.to_currency_id = ?`+dateFilter+`
+ORDER BY er.rate_date DESC, er.created_at DESC, er.id DESC
+LIMIT 1`, args...)
+	var conversion exchangeRateConversion
+	if err := row.Scan(&conversion.Rate, &conversion.RateDate, &conversion.Source); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	conversion.Source = "account_manual"
+	return &conversion, nil
 }
 
 func (a *App) latestExchangeRate(ctx context.Context, workspaceID, fromCurrencyID, toCurrencyID int64, onDate string) (*exchangeRateConversion, error) {

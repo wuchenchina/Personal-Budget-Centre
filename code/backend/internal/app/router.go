@@ -160,12 +160,26 @@ func (a *App) route(method, path string) handlerFunc {
 		return a.exchangeRateCreate
 	case method == http.MethodPost && path == "/api/exchange-rates/convert":
 		return a.exchangeRateConvert
+	case method == http.MethodGet && path == "/api/exchange-rates/bochk/board":
+		return a.bochkRateBoardList
 	case method == http.MethodPost && path == "/api/exchange-rates/bochk/refresh":
 		return a.bochkRefresh
+	case method == http.MethodGet && path == "/api/account-exchange-rates":
+		return a.accountExchangeRateList
+	case method == http.MethodPost && path == "/api/account-exchange-rates":
+		return a.accountExchangeRateCreate
+	case method == http.MethodPatch && path == "/api/account-exchange-rates":
+		return a.accountExchangeRateUpdate
+	case method == http.MethodDelete && path == "/api/account-exchange-rates":
+		return a.accountExchangeRateDelete
 	case method == http.MethodGet && path == "/api/budget-exchange-rates":
 		return a.budgetExchangeRateList
 	case method == http.MethodPost && path == "/api/budget-exchange-rates":
 		return a.budgetExchangeRateCreate
+	case method == http.MethodPatch && path == "/api/budget-exchange-rates":
+		return a.budgetExchangeRateUpdate
+	case method == http.MethodDelete && path == "/api/budget-exchange-rates":
+		return a.budgetExchangeRateDelete
 	case method == http.MethodPost && path == "/api/budget-exchange-rates/sync-global":
 		return a.budgetExchangeRateSyncGlobal
 	case method == http.MethodGet && path == "/api/budget-categories":

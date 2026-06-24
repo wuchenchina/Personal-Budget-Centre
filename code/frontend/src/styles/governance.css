@@ -267,12 +267,154 @@
   flex-wrap: wrap;
 }
 
-.exchange-rate-section .ant-table-wrapper {
-  margin-top: 10px;
-}
-
 .exchange-rate-title-actions {
   justify-content: flex-end;
+}
+
+.exchange-rate-workbench {
+  display: grid;
+  gap: 12px;
+}
+
+.exchange-rate-workbench .ant-tabs-nav {
+  margin-bottom: 10px;
+}
+
+.rate-workbench-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.rate-calculator-panel,
+.rate-board-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid var(--bc-border);
+}
+
+.rate-panel-heading,
+.rate-board-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rate-panel-heading > div,
+.rate-board-toolbar > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rate-panel-heading strong,
+.rate-board-toolbar strong {
+  color: var(--bc-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.rate-panel-heading span,
+.rate-board-toolbar span {
+  color: var(--bc-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.rate-calculator-grid {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(140px, 1fr) minmax(150px, 1fr) minmax(180px, 1.1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.rate-calculator-result {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-height: 42px;
+  padding: 8px 10px;
+  background: #f7f7f7;
+  border: 1px solid var(--bc-border-soft);
+}
+
+.rate-calculator-result span,
+.rate-calculator-result small {
+  color: var(--bc-text-muted);
+  font-size: 11px;
+}
+
+.rate-calculator-result strong {
+  color: var(--bc-text);
+  font-family: var(--font-mono), monospace;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.featured-rate-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.featured-rate-card {
+  display: grid;
+  gap: 10px;
+  min-height: 116px;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid var(--bc-border);
+}
+
+.featured-rate-card > div:first-child,
+.rate-board-currency {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.featured-rate-card strong,
+.rate-board-currency strong {
+  color: var(--bc-text);
+  font-weight: 750;
+}
+
+.featured-rate-card span,
+.rate-board-currency small,
+.featured-rate-card small {
+  color: var(--bc-text-muted);
+  font-size: 12px;
+}
+
+.featured-rate-values {
+  display: grid;
+  gap: 4px;
+}
+
+.featured-rate-values span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.featured-rate-values strong {
+  font-family: var(--font-mono), monospace;
+}
+
+.rate-board-search {
+  width: min(260px, 100%);
+}
+
+.rate-board-panel .ant-table-wrapper {
+  margin-top: 0;
+}
+
+.rate-board-panel .ant-table-cell,
+.exchange-rate-workbench .ant-descriptions-item-content {
+  font-variant-numeric: tabular-nums;
 }
 
 .exchange-rate-actions,
@@ -348,6 +490,20 @@
   .currency-reserve-row .ant-btn,
   .currency-create-row .ant-input-number,
   .currency-create-row .ant-btn {
+    width: 100%;
+  }
+
+  .rate-panel-heading,
+  .rate-board-toolbar {
+    display: grid;
+  }
+
+  .rate-calculator-grid,
+  .featured-rate-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rate-board-search {
     width: 100%;
   }
 }

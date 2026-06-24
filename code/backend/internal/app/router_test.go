@@ -15,12 +15,19 @@ func TestGoRoutesCoverPHPLegacyRoutes(t *testing.T) {
 	extraAllowed := map[string]bool{
 		"DELETE /api/currencies":                      true,
 		"GET /api/admin/database":                     true,
+		"GET /api/account-exchange-rates":             true,
 		"GET /api/budget-exchange-rates":              true,
 		"GET /api/currency-presets":                   true,
+		"GET /api/exchange-rates/bochk/board":         true,
 		"POST /api/admin/database/migrate":            true,
+		"POST /api/account-exchange-rates":            true,
 		"POST /api/budget-exchange-rates":             true,
 		"POST /api/budget-exchange-rates/sync-global": true,
 		"POST /api/currencies":                        true,
+		"PATCH /api/account-exchange-rates":           true,
+		"PATCH /api/budget-exchange-rates":            true,
+		"DELETE /api/account-exchange-rates":          true,
+		"DELETE /api/budget-exchange-rates":           true,
 	}
 
 	for _, route := range phpRoutes {
@@ -86,6 +93,57 @@ func TestLatestExchangeRateKeepsBochkGlobalAndCustomRatesScoped(t *testing.T) {
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("latest exchange-rate lookup must keep provider/global and custom/workspace scopes separate, missing %q", want)
+		}
+	}
+}
+
+func TestBochkBoardUsesBuySellProviderColumns(t *testing.T) {
+	content, err := os.ReadFile("exchange_rates.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func (a *App) bochkRateBoard")
+	end := strings.Index(source, "func nullStringFloat")
+	if start < 0 || end < start {
+		t.Fatal("could not locate bochkRateBoard function")
+	}
+	body := source[start:end]
+	for _, want := range []string{
+		"provider_rate_type = 'customer_buy'",
+		"provider_rate_type = 'customer_sell'",
+		"provider_buy_rate",
+		"provider_sell_rate",
+		"GROUP BY c.code",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("BOCHK board must aggregate official buy/sell quote rows, missing %q", want)
+		}
+	}
+	if strings.Contains(body, "1 /") {
+		t.Fatal("BOCHK board must not create reciprocal display rates")
+	}
+}
+
+func TestAccountExchangeRatesStayUserScoped(t *testing.T) {
+	content, err := os.ReadFile("exchange_rates.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func (a *App) latestAccountExchangeRate")
+	end := strings.Index(source, "func (a *App) latestExchangeRate")
+	if start < 0 || end < start {
+		t.Fatal("could not locate latestAccountExchangeRate function")
+	}
+	body := source[start:end]
+	for _, want := range []string{
+		"er.workspace_id IS NULL",
+		"er.user_id = ?",
+		"er.source = 'manual'",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("account exchange rates must stay private and account-scoped, missing %q", want)
 		}
 	}
 }

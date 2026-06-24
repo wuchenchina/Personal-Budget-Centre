@@ -1,5 +1,6 @@
 import { Alert, DatePicker, Form, Input, InputNumber, Modal, Radio, Select } from 'antd';
 import type { FormInstance } from 'antd';
+import { useEffect } from 'react';
 import { useI18n } from '../../i18n';
 import type { BookkeepingRecord, Currency, CurrencyCode, TransactionType } from '../../types/budget';
 import type { BookkeepingRecordFormValues } from '../../types/forms';
@@ -50,6 +51,7 @@ export function BookkeepingRecordModal({
   const currency = Form.useWatch('currency', form) ?? baseCurrency;
   const amount = Form.useWatch('amount', form);
   const rate = Form.useWatch('rate', form);
+  const targetBaseAmount = Form.useWatch('targetBaseAmount', form);
   const destinationCurrency = Form.useWatch('destinationCurrency', form);
   const destinationAmount = Form.useWatch('destinationAmount', form);
   const showDestinationFields =
@@ -64,6 +66,25 @@ export function BookkeepingRecordModal({
     typeof destinationAmount === 'number' && Number.isFinite(destinationAmount) && destinationCurrency
       ? `${destinationCurrency} ${destinationAmount.toFixed(2)}`
       : null;
+
+  useEffect(() => {
+    if (
+      !open
+      || typeof amount !== 'number'
+      || !Number.isFinite(amount)
+      || amount <= 0
+      || typeof targetBaseAmount !== 'number'
+      || !Number.isFinite(targetBaseAmount)
+      || targetBaseAmount < 0
+    ) {
+      return;
+    }
+
+    const nextRate = Number((targetBaseAmount / amount).toFixed(6));
+    if (nextRate > 0 && form.getFieldValue('rate') !== nextRate) {
+      form.setFieldValue('rate', nextRate);
+    }
+  }, [amount, form, open, targetBaseAmount]);
 
   return (
     <Modal
@@ -192,6 +213,19 @@ export function BookkeepingRecordModal({
               rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
             >
               <InputNumber className="form-full-width" precision={6} step={0.01} />
+            </Form.Item>
+            <Form.Item
+              label={t('targetBaseAmount', { currency: baseCurrency })}
+              name="targetBaseAmount"
+              extra={t('targetBaseAmountHelp')}
+              rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+            >
+              <InputNumber
+                addonBefore={baseCurrency}
+                className="form-full-width"
+                precision={2}
+                step={100}
+              />
             </Form.Item>
             <Form.Item label={t('rateSaveScope')} name="rateScope" initialValue="item">
               <Radio.Group

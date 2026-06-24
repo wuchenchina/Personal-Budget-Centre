@@ -74,6 +74,7 @@ export function TransactionModal({
   const selectedCategoryId = Form.useWatch('categoryId', form);
   const amount = Form.useWatch('amount', form);
   const rate = Form.useWatch('rate', form);
+  const targetBaseAmount = Form.useWatch('targetBaseAmount', form);
   const referenceCurrency = Form.useWatch('referenceCurrency', form);
   const referenceAmount = Form.useWatch('referenceAmount', form);
   const pricingUnitPrice = Form.useWatch(['pricingConfig', 'unitPrice'], form);
@@ -157,6 +158,25 @@ export function TransactionModal({
       form.setFieldValue('amount', nextAmount);
     }
   }, [form, open, pricingEnabled, pricingTotal]);
+
+  useEffect(() => {
+    if (
+      !open
+      || typeof amount !== 'number'
+      || !Number.isFinite(amount)
+      || amount <= 0
+      || typeof targetBaseAmount !== 'number'
+      || !Number.isFinite(targetBaseAmount)
+      || targetBaseAmount < 0
+    ) {
+      return;
+    }
+
+    const nextRate = Number((targetBaseAmount / amount).toFixed(6));
+    if (nextRate > 0 && form.getFieldValue('rate') !== nextRate) {
+      form.setFieldValue('rate', nextRate);
+    }
+  }, [amount, form, open, targetBaseAmount]);
 
   const defaultPaidByParticipantId =
     selectedItem?.split?.paidByParticipantId ?? participants[0]?.id ?? null;
@@ -404,6 +424,19 @@ export function TransactionModal({
               rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
             >
               <InputNumber className="form-full-width" precision={6} step={0.01} />
+            </Form.Item>
+            <Form.Item
+              label={t('targetBaseAmount', { currency: baseCurrency })}
+              name="targetBaseAmount"
+              extra={t('targetBaseAmountHelp')}
+              rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+            >
+              <InputNumber
+                addonBefore={baseCurrency}
+                className="form-full-width"
+                precision={2}
+                step={100}
+              />
             </Form.Item>
             <Form.Item label={t('rateSaveScope')} name="rateScope" initialValue="item">
               <Radio.Group

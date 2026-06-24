@@ -224,7 +224,6 @@ function AuthenticatedApp({
       workspace={workspace}
       operations={operations}
       currentUserId={currentUserId}
-      isSystemAdmin={session.user.isAdmin}
       canManageWorkspaceMembers={canManageWorkspaceMembers}
       canManageExchangeRates={canManageExchangeRates}
     />
@@ -259,6 +258,7 @@ function AuthenticatedApp({
         defaultPdfTheme={session.user.defaultPdfTheme}
         exportingPdf={operations.creatingExportFormat === 'pdf'}
         pdfExportSettings={session.user.pdfExportSettings}
+        currencyOptions={operations.currencyOptions}
         onBackToProjects={() => navigateToPath('/budgets')}
         onOpenEditor={openBudgetProjectInNewTab}
         onExportPdf={(exportOptions) => operations.createExport('pdf', {

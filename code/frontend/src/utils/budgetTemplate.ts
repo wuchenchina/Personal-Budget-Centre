@@ -36,7 +36,8 @@ export function budgetItemAmountMultiplier(item: BudgetItem): number {
     return 1;
   }
 
-  const includedCount = item.split.participants.filter((participant) => participant.isIncluded).length;
+  const includedCount = (item.split.participants ?? [])
+    .filter((participant) => participant.isIncluded).length;
 
   return Math.max(1, includedCount);
 }

@@ -972,11 +972,14 @@ function createInstallmentItemPeriodRows(
     const periodCount = Math.max(1, Math.ceil(periodCountFromMonths(durationMonths, budget.installmentPeriodUnit)));
     const defaultPeriodAmount = target.original / periodCount;
     const startDate = installmentStartDate(item, budget);
+    const itemPeriodAmounts = item.installmentConfig.periodAmounts ?? [];
+    const itemPeriodProgress = item.installmentConfig.periodProgress ?? [];
+    const itemPeriodRemarks = item.installmentConfig.periodRemarks ?? [];
     const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
-      item.installmentConfig.periodAmounts[index] ?? defaultPeriodAmount,
+      itemPeriodAmounts[index] ?? defaultPeriodAmount,
     );
     const periodProgress = Array.from({ length: periodCount }, (_, index) =>
-      item.installmentConfig.periodProgress[index] === true,
+      itemPeriodProgress[index] === true,
     );
     let assignedAmount = 0;
 
@@ -984,7 +987,7 @@ function createInstallmentItemPeriodRows(
       const periodAmount = periodAmounts[index] ?? 0;
       assignedAmount = roundMoney(assignedAmount + periodAmount);
       const progressChecked = periodProgress[index] === true;
-      const remarkText = item.installmentConfig.periodRemarks[index] ?? '';
+      const remarkText = itemPeriodRemarks[index] ?? '';
       const targetProgress = installmentTargetProgressText(
         item.budget.currency,
         Math.max(0, target.original - assignedAmount),
@@ -1028,14 +1031,18 @@ function createOverallInstallmentPeriodRows(
   const periodCount = Math.max(1, Math.ceil(periodCountFromMonths(durationMonths, budget.installmentPeriodUnit)));
   const budgetStartDate = budget.startDate === null ? null : dayjs(budget.startDate);
   const defaultPeriodAmounts = splitMoneyAcrossPeriods(targetTotal, periodCount);
+  const overallPlan = budget.overallInstallmentPlan;
+  const overallPeriodAmounts = overallPlan.periodAmounts ?? [];
+  const overallPeriodProgress = overallPlan.periodProgress ?? [];
+  const overallPeriodRemarks = overallPlan.periodRemarks ?? [];
   const periodAmounts = Array.from({ length: periodCount }, (_, index) =>
-    budget.overallInstallmentPlan.periodAmounts[index] ?? defaultPeriodAmounts[index] ?? 0,
+    overallPeriodAmounts[index] ?? defaultPeriodAmounts[index] ?? 0,
   );
   const periodProgress = Array.from({ length: periodCount }, (_, index) =>
-    budget.overallInstallmentPlan.periodProgress[index] === true,
+    overallPeriodProgress[index] === true,
   );
   const periodRemarks = Array.from({ length: periodCount }, (_, index) =>
-    budget.overallInstallmentPlan.periodRemarks[index] ?? '',
+    overallPeriodRemarks[index] ?? '',
   );
   let assignedAmount = 0;
 
@@ -2229,10 +2236,11 @@ function appendTransactionPaymentColumn(
 
 function transactionPaymentCell(transaction: Transaction, participants: BudgetParticipant[]) {
   const participantName = new Map(participants.map((participant) => [participant.id, participant.name]));
-  if (transaction.payments.length > 0) {
+  const payments = transaction.payments ?? [];
+  if (payments.length > 0) {
     return (
       <div className="budget-money-stack">
-        {transaction.payments.map((payment) => (
+        {payments.map((payment) => (
           <span key={payment.participantId} className="budget-money-secondary">
             {participantName.get(payment.participantId) ?? ''}
             {': '}

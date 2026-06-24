@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Alert, Avatar, Button, Checkbox, Form, Input, Modal, Radio, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
+import { Alert, Avatar, Button, Checkbox, Form, Input, Modal, Radio, Select, Space, Switch, Tabs, Tag, Typography, message } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 import { FileText, KeyRound, Link2, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import {
@@ -21,11 +21,31 @@ import type { AuthSession, SsoBinding } from '../../types/auth';
 import type { BudgetSignatureLabelMode } from '../../types/budget';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
 import { normalizePdfExportSettings, normalizePdfLanguages, normalizeSignatureLabelMode } from '../../utils/pdfExportSettings';
-import { CurrencySelectWithQuickAdd } from '../budget/CurrencySelectWithQuickAdd';
+import { currencySearchLabel, renderCurrencyOption } from '../../utils/currencyOptions';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
 import styles from './ProfilePage.module.css';
 
 const { Text, Title } = Typography;
+const bochkProfileCurrencyCodes = new Set([
+  'AUD',
+  'BND',
+  'CAD',
+  'CHF',
+  'CNH',
+  'CNY',
+  'DKK',
+  'EUR',
+  'GBP',
+  'HKD',
+  'JPY',
+  'NOK',
+  'NZD',
+  'SEK',
+  'SGD',
+  'THB',
+  'USD',
+  'ZAR',
+]);
 
 interface ProfilePageProps {
   session: AuthSession;
@@ -72,6 +92,13 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     watchedSignatureLabelLanguages ?? previewSettings.signatureLabelLanguages,
   );
   const previewWorkspaceName = session.workspace?.name ?? t('noWorkspaceSelected');
+  const profileCurrencyOptions = operations.currencyPresets
+    .filter((currency) => bochkProfileCurrencyCodes.has(currency.code))
+    .map((currency) => ({
+      label: currencySearchLabel(currency),
+      value: currency.code,
+      currency,
+    }));
   useEffect(() => {
     const profileValues = {
       defaultCurrency: session.user.defaultCurrency,
@@ -360,13 +387,13 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                           name="defaultCurrency"
                           extra={t('primaryCurrencyHelp')}
                         >
-                          <CurrencySelectWithQuickAdd
+                          <Select
                             allowClear
-                            currencies={operations.currencies}
-                            currencyPresets={operations.currencyPresets}
-                            options={operations.currencyOptions}
+                            showSearch
+                            optionFilterProp="label"
+                            optionRender={renderCurrencyOption}
+                            options={profileCurrencyOptions}
                             placeholder={t('defaultCurrencyPlaceholder')}
-                            onSaveCurrency={operations.saveCurrency}
                           />
                         </Form.Item>
                         <Button type="primary" htmlType="submit" loading={isProfileSaving}>

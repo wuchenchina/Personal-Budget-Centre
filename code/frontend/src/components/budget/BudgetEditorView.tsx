@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { BudgetExchangeRateManager } from './BudgetExchangeRateManager';
 import { BudgetMetrics } from './BudgetMetrics';
 import { GroupBudgetSummaryPanel } from './GroupBudgetSummaryPanel';
 import type { BudgetController } from '../../hooks/useBudgetController';
@@ -70,6 +71,18 @@ export function BudgetEditorView({
         selectedBudget={budget.selectedBudget}
         baseCurrency={baseCurrency}
       />
+      <div className="budget-rate-entry-strip">
+        <div>
+          <strong>{t('budgetExchangeRates')}</strong>
+          <span>{t('budgetExchangeRateEntryHint')}</span>
+        </div>
+        <BudgetExchangeRateManager
+          budgetId={budget.selectedBudget?.id ?? null}
+          baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
+          canWriteBudgets={canWriteBudgets}
+          currencyOptions={operations.currencyOptions}
+        />
+      </div>
       <Suspense fallback={<div className="empty-line">{t('loadingBudget')}</div>}>
         <BudgetDocumentPreview
           selectedBudget={budget.selectedBudget}

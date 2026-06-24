@@ -292,7 +292,7 @@ func (a *App) itemPayload(ctx context.Context, input map[string]any, budgetID, u
 	}
 	rateDate := dateString(firstValue(input, "rateDate", "rate_date"))
 	explicitBudgetRate, hasExplicitBudgetRate, budgetRateErr := rateInput(input, []string{"rate", "budgetRate", "budget_rate"}, "Budget rate")
-	budgetRate, err := a.rateToBase(ctx, basics.WorkspaceID, budgetCurrencyID, basics, rateDate, explicitBudgetRate, hasExplicitBudgetRate, budgetRateErr)
+	budgetRate, err := a.rateToBase(ctx, userID, basics.WorkspaceID, budgetCurrencyID, basics, rateDate, explicitBudgetRate, hasExplicitBudgetRate, budgetRateErr)
 	if err != nil {
 		return budgetItemPayload{}, err
 	}
@@ -310,7 +310,7 @@ func (a *App) itemPayload(ctx context.Context, input map[string]any, budgetID, u
 		}
 	}
 	explicitEstimatedRate, hasExplicitEstimatedRate, estimatedRateErr := rateInput(input, []string{"rate", "estimatedRate", "estimated_rate"}, "Estimated rate")
-	estimatedRate, err := a.rateToBase(ctx, basics.WorkspaceID, estimatedCurrencyID, basics, rateDate, explicitEstimatedRate, hasExplicitEstimatedRate, estimatedRateErr)
+	estimatedRate, err := a.rateToBase(ctx, userID, basics.WorkspaceID, estimatedCurrencyID, basics, rateDate, explicitEstimatedRate, hasExplicitEstimatedRate, estimatedRateErr)
 	if err != nil {
 		return budgetItemPayload{}, err
 	}
@@ -412,7 +412,7 @@ func (a *App) transactionPayload(ctx context.Context, input map[string]any, budg
 		rateDate = transactionDate
 	}
 	explicitRate, hasExplicitRate, rateErr := rateInput(input, []string{"rate"}, "Transaction rate")
-	rate, err := a.rateToBase(ctx, basics.WorkspaceID, currencyID, basics, rateDate, explicitRate, hasExplicitRate, rateErr)
+	rate, err := a.rateToBase(ctx, userID, basics.WorkspaceID, currencyID, basics, rateDate, explicitRate, hasExplicitRate, rateErr)
 	if err != nil {
 		return budgetTransactionPayload{}, err
 	}
@@ -545,7 +545,7 @@ func (a *App) participantIDSetCtx(ctx context.Context, budgetID int64) (map[int6
 	return out, rows.Err()
 }
 
-func (a *App) rateToBase(ctx context.Context, workspaceID, currencyID int64, basics budgetBasics, rateDate string, explicitRate float64, hasExplicitRate bool, rateErr error) (float64, error) {
+func (a *App) rateToBase(ctx context.Context, userID, workspaceID, currencyID int64, basics budgetBasics, rateDate string, explicitRate float64, hasExplicitRate bool, rateErr error) (float64, error) {
 	if rateErr != nil {
 		return 0, rateErr
 	}
@@ -555,7 +555,7 @@ func (a *App) rateToBase(ctx context.Context, workspaceID, currencyID int64, bas
 	if hasExplicitRate {
 		return explicitRate, nil
 	}
-	conversion, err := a.resolveExchangeRateForBudget(ctx, basics.ID, workspaceID, currencyID, basics.BaseCurrencyID, rateDate)
+	conversion, err := a.resolveExchangeRateForBudget(ctx, basics.ID, userID, workspaceID, currencyID, basics.BaseCurrencyID, rateDate)
 	if err != nil {
 		return 0, err
 	}

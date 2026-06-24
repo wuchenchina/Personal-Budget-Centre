@@ -163,22 +163,21 @@ func (a *App) bookkeepingRecordValues(ctx context.Context, input map[string]any,
 	if !amountOK || amount < 0 {
 		return bookkeepingRecordValues{}, apiError("VALIDATION_ERROR", "Amount is required and cannot be less than 0.", http.StatusUnprocessableEntity)
 	}
-	rate, rateOK := numericInput(input["rate"])
-	if !rateOK {
-		rate = 1
-	}
-	if rate <= 0 {
-		return bookkeepingRecordValues{}, apiError("VALIDATION_ERROR", "Rate must be greater than 0.", http.StatusUnprocessableEntity)
-	}
 	currencyID, err := a.requiredCurrencyID(ctx, input["currency"])
 	if err != nil {
 		return bookkeepingRecordValues{}, err
 	}
+	basics, err := a.budgetBasics(ctx, budgetID)
+	if err != nil {
+		return bookkeepingRecordValues{}, err
+	}
+	rateDate := dateString(firstValue(input, "rateDate", "recordDate", "record_date"))
+	explicitRate, hasExplicitRate, rateErr := rateInput(input, []string{"rate"}, "Rate")
+	rate, err := a.rateToBase(ctx, userID, basics.WorkspaceID, currencyID, basics, rateDate, explicitRate, hasExplicitRate, rateErr)
+	if err != nil {
+		return bookkeepingRecordValues{}, err
+	}
 	if shouldSaveBudgetRate(input, []string{"rateScope"}) {
-		basics, err := a.budgetBasics(ctx, budgetID)
-		if err != nil {
-			return bookkeepingRecordValues{}, err
-		}
 		if currencyID != basics.BaseCurrencyID {
 			if _, err := a.saveBudgetExchangeRate(ctx, budgetExchangeRateInput{
 				BudgetID:       budgetID,
@@ -186,7 +185,7 @@ func (a *App) bookkeepingRecordValues(ctx context.Context, input map[string]any,
 				FromCurrencyID: currencyID,
 				ToCurrencyID:   basics.BaseCurrencyID,
 				Rate:           rate,
-				RateDate:       todayDate(),
+				RateDate:       dateStringOrToday(rateDate),
 				Note:           "Saved from bookkeeping record.",
 			}); err != nil {
 				return bookkeepingRecordValues{}, err

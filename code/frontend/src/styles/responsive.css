@@ -173,8 +173,25 @@
 
   .project-page-header,
   .project-list-card,
-  .project-panel {
+  .project-panel,
+  .budget-rate-entry-strip {
     padding: 16px;
+  }
+
+  .budget-rate-entry-strip,
+  .budget-rate-panel-heading,
+  .budget-rate-manager-grid {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .budget-rate-entry-strip,
+  .budget-rate-panel-heading {
+    flex-direction: column;
+  }
+
+  .budget-rate-entry-strip .ant-btn {
+    width: 100%;
   }
 
   .project-page-header h1 {

@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './http';
+import { apiDelete, apiGet, apiPatch, apiPost } from './http';
 import type { BudgetExchangeRate, CurrencyCode, CurrencyRate } from '../types/budget';
 
 interface ExchangeRateListResponse {
@@ -7,6 +7,35 @@ interface ExchangeRateListResponse {
 
 interface ExchangeRateResponse {
   rate: CurrencyRate;
+}
+
+export interface BochkRateBoardRow {
+  currency: CurrencyCode;
+  currencyName: string;
+  currencySymbol: string;
+  baseCurrency: 'HKD';
+  customerSellRate: number;
+  customerBuyRate: number;
+  rateDate: string;
+  providerUpdatedAt: string | null;
+  fetchedAt: string | null;
+  sourceName: string | null;
+  sourceUrl: string | null;
+}
+
+interface BochkRateBoardResponse {
+  board: {
+    baseCurrency: 'HKD';
+    source: 'bochk';
+    sourceName: string;
+    sourceUrl: string;
+    rates: BochkRateBoardRow[];
+  };
+}
+
+interface AccountExchangeRateListResponse {
+  rates: CurrencyRate[];
+  bochkSupportedCodes: CurrencyCode[];
 }
 
 interface BudgetExchangeRateListResponse {
@@ -65,6 +94,7 @@ export interface CreateManualExchangeRatePayload {
 }
 
 export interface CreateBudgetExchangeRatePayload {
+  id?: number;
   budgetId: number;
   fromCurrency: CurrencyCode;
   toCurrency: CurrencyCode;
@@ -80,6 +110,15 @@ export interface SyncBudgetExchangeRatesPayload {
     toCurrency: CurrencyCode;
     rateDate?: string;
   }>;
+}
+
+export interface AccountExchangeRatePayload {
+  id?: number;
+  fromCurrency: CurrencyCode;
+  toCurrency: CurrencyCode;
+  rate: number;
+  rateDate?: string;
+  note?: string | null;
 }
 
 export interface ConvertCurrencyPayload {
@@ -104,6 +143,43 @@ export function createManualExchangeRate(
   );
 }
 
+export function listBochkRateBoard(params: { workspaceId?: number | null; rateDate?: string } = {}) {
+  const search = new URLSearchParams();
+  if (params.workspaceId !== undefined && params.workspaceId !== null) {
+    search.set('workspaceId', String(params.workspaceId));
+  }
+  if (params.rateDate !== undefined) {
+    search.set('rateDate', params.rateDate);
+  }
+  const suffix = search.size > 0 ? `?${search.toString()}` : '';
+
+  return apiGet<BochkRateBoardResponse>(`/api/exchange-rates/bochk/board${suffix}`).then(
+    (response) => response.board,
+  );
+}
+
+export function listAccountExchangeRates(): Promise<AccountExchangeRateListResponse> {
+  return apiGet<AccountExchangeRateListResponse>('/api/account-exchange-rates');
+}
+
+export function createAccountExchangeRate(payload: AccountExchangeRatePayload): Promise<CurrencyRate> {
+  return apiPost<ExchangeRateResponse>('/api/account-exchange-rates', payload).then(
+    (response) => response.rate,
+  );
+}
+
+export function updateAccountExchangeRate(payload: AccountExchangeRatePayload): Promise<CurrencyRate> {
+  return apiPatch<ExchangeRateResponse>('/api/account-exchange-rates', payload).then(
+    (response) => response.rate,
+  );
+}
+
+export function deleteAccountExchangeRate(id: number): Promise<CurrencyRate[]> {
+  return apiDelete<ExchangeRateListResponse>('/api/account-exchange-rates', { id }).then(
+    (response) => response.rates,
+  );
+}
+
 export function listBudgetExchangeRates(budgetId: number): Promise<BudgetExchangeRate[]> {
   return apiGet<BudgetExchangeRateListResponse>(`/api/budget-exchange-rates?budgetId=${budgetId}`).then(
     (response) => response.rates,
@@ -115,6 +191,20 @@ export function createBudgetExchangeRate(
 ): Promise<BudgetExchangeRate> {
   return apiPost<BudgetExchangeRateResponse>('/api/budget-exchange-rates', payload).then(
     (response) => response.rate,
+  );
+}
+
+export function updateBudgetExchangeRate(
+  payload: CreateBudgetExchangeRatePayload,
+): Promise<BudgetExchangeRate> {
+  return apiPatch<BudgetExchangeRateResponse>('/api/budget-exchange-rates', payload).then(
+    (response) => response.rate,
+  );
+}
+
+export function deleteBudgetExchangeRate(id: number): Promise<BudgetExchangeRate[]> {
+  return apiDelete<BudgetExchangeRateListResponse>('/api/budget-exchange-rates', { id }).then(
+    (response) => response.rates,
   );
 }
 
