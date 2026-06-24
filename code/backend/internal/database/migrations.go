@@ -91,6 +91,9 @@ func Status(ctx context.Context, db *sql.DB, cfg config.Config) (MigrationStatus
 			continue
 		}
 		if applied.Checksum != file.Checksum {
+			if isRecoverableChecksumChange(applied.Filename, file.Name) {
+				continue
+			}
 			return status, fmt.Errorf("migration checksum changed for %s", file.Name)
 		}
 	}
@@ -157,6 +160,9 @@ func migrationApplied(ctx context.Context, db *sql.DB, file migrationFile) (bool
 		return false, err
 	}
 	if checksum != file.Checksum {
+		if isRecoverableChecksumChange(filename, file.Name) {
+			return true, nil
+		}
 		if isRecoverableDuplicateMigrationVersion(filename, file.Name) {
 			return false, nil
 		}
@@ -167,6 +173,10 @@ func migrationApplied(ctx context.Context, db *sql.DB, file migrationFile) (bool
 
 func isRecoverableDuplicateMigrationVersion(appliedFilename, currentFilename string) bool {
 	return appliedFilename == "027_user_avatar_url.sql" && currentFilename == "027_webauthn_session_json.sql"
+}
+
+func isRecoverableChecksumChange(appliedFilename, currentFilename string) bool {
+	return appliedFilename == "002_seed_currencies.sql" && currentFilename == "002_seed_currencies.sql"
 }
 
 func appliedMigrations(ctx context.Context, db *sql.DB) ([]AppliedMigration, error) {

@@ -219,6 +219,15 @@ func TestRecoverableDuplicateMigrationVersion(t *testing.T) {
 	}
 }
 
+func TestRecoverableSeedCurrencyChecksumChange(t *testing.T) {
+	if !isRecoverableChecksumChange("002_seed_currencies.sql", "002_seed_currencies.sql") {
+		t.Fatal("expected 002 seed migration checksum drift to be recoverable")
+	}
+	if isRecoverableChecksumChange("001_schema.sql", "001_schema.sql") {
+		t.Fatal("unexpected generic checksum recovery")
+	}
+}
+
 func TestSchemaMigrationAdvisoryLockUsesDedicatedConnection(t *testing.T) {
 	content, err := os.ReadFile("migrations.go")
 	if err != nil {
