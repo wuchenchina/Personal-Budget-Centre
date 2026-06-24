@@ -36,12 +36,15 @@ func migrationFiles(dir string) ([]migrationFile, error) {
 	files := make([]migrationFile, 0, len(paths))
 	seenVersions := map[string]string{}
 	for _, path := range paths {
+		name := filepath.Base(path)
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
 		contentBytes, err := os.ReadFile(path)
 		if err != nil {
 			return nil, err
 		}
 		content := string(contentBytes)
-		name := filepath.Base(path)
 		if err := validateSQLSafety(content, name); err != nil {
 			return nil, err
 		}

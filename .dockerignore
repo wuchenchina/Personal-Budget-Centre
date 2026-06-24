@@ -1,4 +1,5 @@
 .git
+._*
 code/frontend/node_modules
 code/frontend/dist
 code/backend-php-legacy/vendor

@@ -179,11 +179,21 @@ func isRecoverableDuplicateMigrationVersion(appliedFilename, currentFilename str
 }
 
 func isRecoverableChecksumChange(appliedFilename, appliedChecksum string, current migrationFile) bool {
-	return appliedFilename == "002_seed_currencies.sql" &&
+	if appliedFilename == "002_seed_currencies.sql" &&
 		current.Version == "002" &&
 		current.Name == "002_seed_currencies.sql" &&
 		current.Checksum == "a0826bd11ba4546bf7b2ec82a458048bf41cc956b054a6c0da5e44b5c62b1130" &&
-		appliedChecksum != ""
+		appliedChecksum != "" {
+		return true
+	}
+	if appliedFilename == "036_currency_catalog_current_rates.sql" &&
+		current.Version == "036" &&
+		current.Name == "036_currency_catalog_current_rates.sql" &&
+		current.Checksum == "e902e2dd1f46c0b8db09fd522a43c5e83f2aa6b739784214d7e00ee6a697374f" &&
+		appliedChecksum == "03449023b021420e523a3d663957b3a0e2160daa1654fc3f5ce4985ef068a310" {
+		return true
+	}
+	return false
 }
 
 func reconcileRecoverableMigration(ctx context.Context, db *sql.DB, file migrationFile) error {

@@ -13,6 +13,7 @@ interface CurrencySelectWithQuickAddProps {
   currencies: Currency[];
   currencyPresets: Currency[];
   options: CurrencySelectOption[];
+  id?: string;
   value?: CurrencyCode;
   allowClear?: boolean;
   disabled?: boolean;
@@ -32,6 +33,7 @@ export function CurrencySelectWithQuickAdd({
   currencies,
   currencyPresets,
   disabled,
+  id,
   onChange,
   onSaveCurrency,
   options,
@@ -120,6 +122,7 @@ export function CurrencySelectWithQuickAdd({
       <Select
         allowClear={allowClear}
         disabled={disabled}
+        id={id}
         notFoundContent={t('noCurrencies')}
         optionFilterProp="label"
         optionLabelProp="value"

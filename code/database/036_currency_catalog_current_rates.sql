@@ -2,13 +2,27 @@ SET NAMES utf8mb4;
 
 DELETE FROM exchange_rate_history;
 
-UPDATE currencies
-SET provider_source = NULL,
-    is_api_managed = 0,
-    provider_last_seen_at = NULL
-WHERE provider_source IS NOT NULL
-   OR is_api_managed <> 0
-   OR provider_last_seen_at IS NOT NULL;
+SET @currency_provider_columns_exist := (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'currencies'
+    AND column_name IN ('provider_source', 'is_api_managed', 'provider_last_seen_at')
+);
+SET @sql := IF(
+  @currency_provider_columns_exist = 3,
+  'UPDATE currencies
+   SET provider_source = NULL,
+       is_api_managed = 0,
+       provider_last_seen_at = NULL
+   WHERE provider_source IS NOT NULL
+      OR is_api_managed <> 0
+      OR provider_last_seen_at IS NOT NULL',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 DELETE FROM exchange_rates
 WHERE from_currency_id NOT IN (SELECT id FROM currencies)

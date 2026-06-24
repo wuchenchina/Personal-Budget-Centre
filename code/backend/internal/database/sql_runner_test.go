@@ -161,6 +161,8 @@ func TestCurrencyCatalogCurrentRatesMigrationDisablesHistoryAndKeepsLocalCatalog
 	sql := string(content)
 	for _, want := range []string{
 		"DELETE FROM exchange_rate_history",
+		"information_schema.columns",
+		"@currency_provider_columns_exist = 3",
 		"SET provider_source = NULL",
 		"is_api_managed = 0",
 		"provider_last_seen_at = NULL",
@@ -210,6 +212,23 @@ func TestMigrationFilesRejectDuplicateVersions(t *testing.T) {
 	}
 }
 
+func TestMigrationFilesIgnoreHiddenSQLFiles(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "001_first.sql"), []byte("SELECT 1;"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "._001_first.sql"), []byte("SELECT 2;"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	files, err := migrationFiles(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || files[0].Name != "001_first.sql" {
+		t.Fatalf("expected only visible migration file, got %+v", files)
+	}
+}
+
 func TestRecoverableDuplicateMigrationVersion(t *testing.T) {
 	if !isRecoverableDuplicateMigrationVersion("027_user_avatar_url.sql", "027_webauthn_session_json.sql") {
 		t.Fatal("expected old duplicate 027 avatar migration to be recoverable")
@@ -236,6 +255,20 @@ func TestRecoverableSeedCurrencyChecksumChange(t *testing.T) {
 	}
 	if isRecoverableChecksumChange("002_seed_currencies.sql", "old-checksum", migrationFile{Name: current.Name, Checksum: current.Checksum}) {
 		t.Fatal("unexpected recovery without migration version")
+	}
+}
+
+func TestRecoverableCurrencyCatalogChecksumChange(t *testing.T) {
+	current := migrationFile{
+		Version:  "036",
+		Name:     "036_currency_catalog_current_rates.sql",
+		Checksum: "e902e2dd1f46c0b8db09fd522a43c5e83f2aa6b739784214d7e00ee6a697374f",
+	}
+	if !isRecoverableChecksumChange("036_currency_catalog_current_rates.sql", "03449023b021420e523a3d663957b3a0e2160daa1654fc3f5ce4985ef068a310", current) {
+		t.Fatal("expected 036 catalog migration checksum drift to be recoverable")
+	}
+	if isRecoverableChecksumChange("036_currency_catalog_current_rates.sql", "old-checksum", current) {
+		t.Fatal("unexpected recovery for unknown 036 checksum")
 	}
 }
 
