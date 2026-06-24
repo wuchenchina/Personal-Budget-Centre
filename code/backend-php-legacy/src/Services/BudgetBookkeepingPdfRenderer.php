@@ -235,7 +235,7 @@ final readonly class BudgetBookkeepingPdfRenderer
         return array_map(
             fn (array $record): array => [
                 $this->transactionTypeText((string) ($record['transactionType'] ?? ''), $context),
-                (string) ($record['recordDate'] ?? ''),
+                $this->formatter->dateOnlyText((string) ($record['recordDate'] ?? '')),
                 (string) ($record['orderReference'] ?? ''),
                 (string) ($record['details'] ?? ''),
                 (string) ($record['categoryLabel'] ?? ''),

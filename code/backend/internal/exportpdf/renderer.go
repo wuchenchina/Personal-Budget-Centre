@@ -93,7 +93,7 @@ func (r *pdfRenderer) renderBookkeeping(budget map[string]any, records []map[str
 	for _, record := range records {
 		rows = append(rows, []string{
 			transactionTypeText(stringValue(record["transactionType"]), ctx),
-			stringValue(record["recordDate"]),
+			formatPDFDateOnly(stringValue(record["recordDate"])),
 			wrapLongReference(stringValue(record["orderReference"])),
 			stringValue(record["details"]),
 			stringValue(record["categoryLabel"]),
@@ -687,7 +687,11 @@ func datePrefix(ctx pdfTableContext) string {
 		return "Date: "
 	}
 	if ctx.Mode == "bilingual" {
-		return "Date / " + strings.TrimRight(ctx.BudgetLabels["datePrefix"], ":： ") + ": "
+		chineseLabel := budgetLabel(ctx.ChineseLanguage, "datePrefix")
+		if ctx.Bookkeeping {
+			chineseLabel = bookkeepingLabel(ctx.ChineseLanguage, "datePrefix")
+		}
+		return "Date / " + strings.TrimRight(chineseLabel, ":： ") + ": "
 	}
 	if ctx.Bookkeeping {
 		return ctx.BookkeepingLabels["datePrefix"]
@@ -755,6 +759,10 @@ func compositeBudgetLabels(languages []string) map[string]string {
 	keys := []string{"budgetHighlightsTitle", "datePrefix", "emptyBudgetItems", "emptyGroupSplitDetails", "emptySettlementInstructions", "emptyInstallments", "emptyTransactions", "groupExpenseSummaryTitle", "groupSettlementSummaryTitle", "groupSplitDetailsTitle", "installmentsTitle", "noParticipant", "remainingLabel", "settlementInstructionsTitle", "total", "transactionBreakdownTitle"}
 	out := map[string]string{}
 	for _, key := range keys {
+		if key == "datePrefix" {
+			out[key] = joinDatePrefixLabels(languages, func(lang string) string { return budgetLabel(lang, key) })
+			continue
+		}
 		out[key] = joinLabels(languages, func(lang string) string { return budgetLabel(lang, key) })
 	}
 	return out
@@ -764,6 +772,10 @@ func compositeBookkeepingLabels(languages []string) map[string]string {
 	keys := []string{"bookkeepingLedgerSubtitle", "bookkeepingRecordsTitle", "emptyBookkeepingRecords", "bookkeepingExpenseTotal", "bookkeepingIncomeTotal", "datePrefix"}
 	out := map[string]string{}
 	for _, key := range keys {
+		if key == "datePrefix" {
+			out[key] = joinDatePrefixLabels(languages, func(lang string) string { return bookkeepingLabel(lang, key) })
+			continue
+		}
 		out[key] = joinLabels(languages, func(lang string) string { return bookkeepingLabel(lang, key) })
 	}
 	return out
@@ -817,7 +829,29 @@ func joinLabels(languages []string, label func(string) string) string {
 			out = append(out, value)
 		}
 	}
-	return strings.Join(out, " / ")
+	return strings.Join(out, "\n")
+}
+
+func joinDatePrefixLabels(languages []string, label func(string) string) string {
+	if len(languages) == 0 {
+		languages = []string{"en"}
+	}
+	out := []string{}
+	seen := map[string]bool{}
+	for _, lang := range languages {
+		value := strings.TrimRight(strings.TrimSpace(label(lang)), ":： ")
+		if value == "" {
+			value = strings.TrimRight(strings.TrimSpace(label("en")), ":： ")
+		}
+		if value != "" && !seen[value] {
+			seen[value] = true
+			out = append(out, value)
+		}
+	}
+	if len(out) == 0 {
+		return "Date: "
+	}
+	return strings.Join(out, " / ") + ": "
 }
 
 func budgetLabel(lang, key string) string {
@@ -905,10 +939,44 @@ func formatPDFDate(value string) string {
 	if value == "" {
 		return ""
 	}
-	if parsed, err := time.Parse("2006-01-02", value); err == nil {
+	if parsed, ok := parsePDFDate(value); ok {
 		return parsed.Format("2 January, 2006")
 	}
 	return value
+}
+
+func formatPDFDateOnly(value string) string {
+	if value == "" {
+		return ""
+	}
+	if parsed, ok := parsePDFDate(value); ok {
+		return parsed.Format("2006-01-02")
+	}
+	return value
+}
+
+func parsePDFDate(value string) (time.Time, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, false
+	}
+	for _, layout := range []string{
+		"2006-01-02",
+		"2006-01-02 15:04:05",
+		time.RFC3339,
+		"2006-01-02T15:04:05Z0700",
+		"2006-01-02T15:04:05",
+	} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed, true
+		}
+	}
+	if len(value) >= len("2006-01-02") {
+		if parsed, err := time.Parse("2006-01-02", value[:len("2006-01-02")]); err == nil {
+			return parsed, true
+		}
+	}
+	return time.Time{}, false
 }
 
 func itemLabel(item map[string]any) string {

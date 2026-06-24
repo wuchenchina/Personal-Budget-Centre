@@ -43,6 +43,24 @@ func TestRenderBudgetHTMLUsesLegacyPDFThemeStructure(t *testing.T) {
 	if strings.Contains(html, "signature-grid") {
 		t.Fatal("budget HTML must not use the removed HTML-grid signature renderer")
 	}
+	for _, unwanted := range []string{
+		"Budget Summary / 預算摘要",
+		"Date: 2026-01-01T00:00:00Z",
+		"to 2026-01-31T00:00:00Z",
+	} {
+		if strings.Contains(html, unwanted) {
+			t.Fatalf("budget HTML contains unwanted text %q\n%s", unwanted, html)
+		}
+	}
+	for _, want := range []string{
+		"Budget Summary",
+		"預算摘要",
+		"Date / 日期: 1 January, 2026 to 31 January, 2026",
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("budget HTML missing %q\n%s", want, html)
+		}
+	}
 }
 
 func TestRenderBookkeepingHTMLUsesDedicatedLegacyTableStructure(t *testing.T) {
@@ -51,7 +69,7 @@ func TestRenderBookkeepingHTMLUsesDedicatedLegacyTableStructure(t *testing.T) {
 			return []map[string]any{
 				{
 					"transactionType":           "expense",
-					"recordDate":                "2026-01-02",
+					"recordDate":                "2026-01-02T00:00:00Z",
 					"orderReference":            "THISISALONGREFERENCEWITHOUTSPACES",
 					"details":                   "Office supplies",
 					"categoryLabel":             "Office",
@@ -90,6 +108,70 @@ func TestRenderBookkeepingHTMLUsesDedicatedLegacyTableStructure(t *testing.T) {
 	}
 	if strings.Contains(html, "summary-table") {
 		t.Fatal("bookkeeping HTML must not fall back to the budget summary table")
+	}
+	if strings.Contains(html, "Bookkeeping Ledger / 記帳流水") {
+		t.Fatalf("bookkeeping subtitle must follow PHP newline composite labels\n%s", html)
+	}
+	if strings.Contains(html, "2026-01-02T00:00:00Z") {
+		t.Fatalf("bookkeeping record date must not render the raw ISO timestamp\n%s", html)
+	}
+	for _, want := range []string{
+		"Bookkeeping Ledger",
+		"記帳流水",
+		"2026-01-02",
+		"Date / 日期: 1 January, 2026 to 31 January, 2026",
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("bookkeeping HTML missing %q\n%s", want, html)
+		}
+	}
+}
+
+func TestRenderHTMLKeepsAllPDFThemesAvailable(t *testing.T) {
+	service := Service{
+		LoadBudgetTemplate: func(context.Context, map[string]any) (Template, error) {
+			return DefaultTemplate(), nil
+		},
+		LoadBookkeeping: func(context.Context, int64) ([]map[string]any, error) {
+			return samplePDFBookkeepingRecords(), nil
+		},
+	}
+	cases := []struct {
+		theme           string
+		wantBudget      string
+		wantBookkeeping string
+	}{
+		{"classic", "template-section", "bookkeeping-section"},
+		{"hsbc", "hsbc-header", "hsbc-header"},
+		{"uswds", "uswds-header", "uswds-header"},
+	}
+	for _, tt := range cases {
+		t.Run(tt.theme+"/budget", func(t *testing.T) {
+			html, err := service.RenderHTML(context.Background(), samplePDFBudget(), "budget", Options{
+				PDFTheme:             tt.theme,
+				PDFLanguages:         []string{"en", "tc"},
+				PDFLanguagesExplicit: true,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(html, tt.wantBudget) {
+				t.Fatalf("budget HTML for theme %s missing %q\n%s", tt.theme, tt.wantBudget, html)
+			}
+		})
+		t.Run(tt.theme+"/bookkeeping", func(t *testing.T) {
+			html, err := service.RenderHTML(context.Background(), samplePDFBudget(), "bookkeeping", Options{
+				PDFTheme:             tt.theme,
+				PDFLanguages:         []string{"en", "tc"},
+				PDFLanguagesExplicit: true,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(html, tt.wantBookkeeping) {
+				t.Fatalf("bookkeeping HTML for theme %s missing %q\n%s", tt.theme, tt.wantBookkeeping, html)
+			}
+		})
 	}
 }
 
@@ -192,8 +274,8 @@ func samplePDFBudget() map[string]any {
 		"title":          "Demo Budget",
 		"ownerName":      "Budget Owner",
 		"workspaceName":  "Main Workspace",
-		"startDate":      "2026-01-01",
-		"endDate":        "2026-01-31",
+		"startDate":      "2026-01-01T00:00:00Z",
+		"endDate":        "2026-01-31T00:00:00Z",
 		"baseCurrency":   "HKD",
 		"budgetType":     "regular",
 		"pricingEnabled": true,

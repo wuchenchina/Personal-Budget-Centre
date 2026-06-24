@@ -45,15 +45,24 @@ final readonly class BudgetPdfFormatter
 
     public function periodText(array $budget): string
     {
-        $start = $this->parseDate((string) $budget['startDate']);
-        $end = $this->parseDate((string) $budget['endDate']);
+        $rawStart = (string) $budget['startDate'];
+        $rawEnd = (string) $budget['endDate'];
+        $start = $this->parseDate($rawStart);
+        $end = $this->parseDate($rawEnd);
         if ($start === null && $end === null) {
             return '';
         }
 
-        return ($start === null ? (string) $budget['startDate'] : $this->periodDate($start))
+        return ($start === null ? $rawStart : $this->periodDate($start))
             . ' to '
-            . ($end === null ? (string) $budget['endDate'] : $this->periodDate($end));
+            . ($end === null ? $rawEnd : $this->periodDate($end));
+    }
+
+    public function dateOnlyText(string $value): string
+    {
+        $date = $this->parseDate($value);
+
+        return $date === null ? trim($value) : $date->format('Y-m-d');
     }
 
     public function templateMoney(string $currency, float $amount, bool $trimWhole = false): string
@@ -528,8 +537,25 @@ final readonly class BudgetPdfFormatter
 
     private function parseDate(string $date): ?DateTimeImmutable
     {
-        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        $date = trim($date);
+        if ($date === '') {
+            return null;
+        }
 
-        return $parsed === false ? null : $parsed;
+        foreach (['!Y-m-d', '!Y-m-d H:i:s', DATE_ATOM, '!Y-m-d\TH:i:s\Z', '!Y-m-d\TH:i:s'] as $format) {
+            $parsed = DateTimeImmutable::createFromFormat($format, $date);
+            if ($parsed !== false) {
+                return $parsed;
+            }
+        }
+
+        if (strlen($date) >= 10) {
+            $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', substr($date, 0, 10));
+            if ($parsed !== false) {
+                return $parsed;
+            }
+        }
+
+        return null;
     }
 }
