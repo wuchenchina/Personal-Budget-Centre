@@ -143,6 +143,7 @@ export interface BookkeepingRecordFormValues {
 
 export interface ProfileFormValues {
   displayName: string;
+  defaultCurrency?: CurrencyCode | null;
   defaultPdfTheme: PdfThemeKey;
   pdfExportSettings: PdfExportSettings;
 }

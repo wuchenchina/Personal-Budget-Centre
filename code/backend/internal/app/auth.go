@@ -55,6 +55,11 @@ VALUES (?, ?, ?, ?, ?, 'pending', ?, NULL)`, email, username, string(passwordHas
 		return err
 	}
 	userID, _ := res.LastInsertId()
+	if currencyID.Valid {
+		if err := ensureUserCurrencyByIDTx(r.Context(), tx, userID, currencyID.Int64, "catalog"); err != nil {
+			return err
+		}
+	}
 	workspaceID, err := a.createWorkspaceTx(r.Context(), tx, userID, displayName+"'s Workspace", "personal", currencyID)
 	if err != nil {
 		return err
@@ -158,6 +163,14 @@ func (a *App) authProfile(w http.ResponseWriter, r *http.Request) error {
 		return apiError("EMAIL_ALREADY_EXISTS", "Email is already registered.", http.StatusConflict)
 	}
 	emailChanged := strings.ToLower(s.Email) != email
+	hasDefaultCurrency := hasAnyKey(input, "defaultCurrency", "default_currency")
+	var defaultCurrencyID sql.NullInt64
+	if hasDefaultCurrency {
+		defaultCurrencyID, err = a.optionalCurrencyID(r.Context(), firstValue(input, "defaultCurrency", "default_currency"))
+		if err != nil {
+			return err
+		}
+	}
 	defaultTheme := exportpdf.NormalizeTheme(firstValue(input, "defaultPdfTheme", "default_pdf_theme", s.DefaultPDFTheme))
 	settingsJSON, err := exportpdf.SettingsJSON(firstValue(input, "pdfExportSettings", "pdf_export_settings"), nullableString(s.PDFExportSettings))
 	if err != nil {
@@ -182,6 +195,16 @@ WHERE id = ?`, email, displayName, defaultTheme, settingsJSON, s.UserID)
 	}
 	if err != nil {
 		return err
+	}
+	if hasDefaultCurrency {
+		if _, err := tx.ExecContext(r.Context(), "UPDATE users SET default_currency_id = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?", nullableInt(defaultCurrencyID), s.UserID); err != nil {
+			return err
+		}
+		if defaultCurrencyID.Valid {
+			if err := ensureUserCurrencyByIDTx(r.Context(), tx, s.UserID, defaultCurrencyID.Int64, "catalog"); err != nil {
+				return err
+			}
+		}
 	}
 	var verificationToken string
 	if emailChanged {

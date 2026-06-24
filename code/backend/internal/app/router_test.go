@@ -16,6 +16,7 @@ func TestGoRoutesCoverPHPLegacyRoutes(t *testing.T) {
 		"DELETE /api/currencies":                      true,
 		"GET /api/admin/database":                     true,
 		"GET /api/budget-exchange-rates":              true,
+		"GET /api/currency-presets":                   true,
 		"POST /api/admin/database/migrate":            true,
 		"POST /api/budget-exchange-rates":             true,
 		"POST /api/budget-exchange-rates/sync-global": true,

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Form } from 'antd';
 import { completeSsoMerge, getCurrentSession, login, logout, register } from '../api/auth';
-import { listCurrencies } from '../api/referenceData';
+import { listCurrencyPresets } from '../api/referenceData';
 import { consumePendingSsoMergeToken, hasPendingSsoMergeToken } from '../config/ssoMerge';
 import type { AuthSession } from '../types/auth';
-import type { CurrencyCode } from '../types/budget';
 import type { AuthFormValues, AuthMode } from '../types/forms';
 import { translateCurrent } from '../i18n';
 import { toOptionalCurrencyCode } from '../utils/currencyCode';
+import { buildCurrencyOptions, type CurrencySelectOption } from '../utils/currencyOptions';
 
 interface UseAuthControllerOptions {
   initialSession?: AuthSession | null;
@@ -25,23 +25,18 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
   const [session, setSession] = useState<AuthSession | null>(options.initialSession ?? null);
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [isSessionLoading, setIsSessionLoading] = useState(options.loadSession !== false);
-  const [currencyOptions, setCurrencyOptions] = useState<Array<{ label: string; value: CurrencyCode }>>(
-    [],
-  );
+  const [currencyOptions, setCurrencyOptions] = useState<CurrencySelectOption[]>([]);
   const watchedPassword = Form.useWatch('password', authForm);
 
   useEffect(() => {
     let isMounted = true;
 
-    listCurrencies()
+    listCurrencyPresets()
       .then((currencies) => {
         if (!isMounted) {
           return;
         }
-        setCurrencyOptions(currencies.map((currency) => ({
-          label: `${currency.code} ${currency.name}`,
-          value: currency.code,
-        })));
+        setCurrencyOptions(buildCurrencyOptions(currencies));
       })
       .catch(() => {
         if (isMounted) {

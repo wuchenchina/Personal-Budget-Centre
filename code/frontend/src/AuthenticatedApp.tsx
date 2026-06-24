@@ -99,7 +99,7 @@ function AuthenticatedApp({
   };
   const workspace = useWorkspaceController(session, setSession);
   const template = useTemplateController(session);
-  const baseCurrency = session.workspace?.defaultCurrency ?? 'CNY';
+  const baseCurrency = session.workspace?.defaultCurrency ?? session.user.defaultCurrency ?? 'HKD';
   const budget = useBudgetController({
     activeWorkspaceId: workspace.activeWorkspaceId,
     baseCurrency,

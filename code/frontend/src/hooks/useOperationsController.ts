@@ -16,7 +16,12 @@ import {
 } from '../api/budgetShares';
 import { createBudgetExport, exportDownloadUrl } from '../api/exports';
 import { refreshBochkRates } from '../api/exchangeRates';
-import { createCurrency, deleteCurrency, listCurrencies } from '../api/referenceData';
+import {
+  createCurrency,
+  deleteCurrency,
+  listCurrencies,
+  listCurrencyPresets,
+} from '../api/referenceData';
 import type { AuthSession, PasskeyCredential } from '../types/auth';
 import type {
   BudgetCategory,
@@ -30,6 +35,7 @@ import type {
   CurrencyCode,
 } from '../types/budget';
 import { translateCurrent } from '../i18n';
+import { buildCurrencyOptions } from '../utils/currencyOptions';
 import { normalizePdfExportSettings } from '../utils/pdfExportSettings';
 
 interface UseOperationsControllerOptions {
@@ -52,6 +58,7 @@ function triggerExportDownload(url: string): void {
 
 export function useOperationsController(options: UseOperationsControllerOptions) {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [currencyPresets, setCurrencyPresets] = useState<Currency[]>([]);
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [shares, setShares] = useState<BudgetShare[]>([]);
   const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
@@ -79,6 +86,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         }
 
         setCurrencies([]);
+        setCurrencyPresets([]);
         setPasskeys([]);
         setOperationsError(null);
         setIsReferenceLoading(false);
@@ -114,6 +122,18 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         .finally(() => {
           if (isMounted) {
             setIsReferenceLoading(false);
+          }
+        });
+
+      listCurrencyPresets()
+        .then((nextPresets) => {
+          if (isMounted) {
+            setCurrencyPresets(nextPresets);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setCurrencyPresets([]);
           }
         });
 
@@ -262,11 +282,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   );
 
   const currencyOptions = useMemo(
-    () =>
-      currencies.map((currency) => ({
-        label: `${currency.code} ${currency.name}`,
-        value: currency.code,
-      })),
+    () => buildCurrencyOptions(currencies),
     [currencies],
   );
 
@@ -275,6 +291,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     name: string;
     symbol?: string;
     decimalPlaces: number;
+    source?: 'catalog' | 'manual';
   }): Promise<boolean> => {
     setIsCurrencySaving(true);
     setOperationsError(null);
@@ -285,6 +302,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         name: input.name.trim(),
         symbol: input.symbol?.trim() || undefined,
         decimalPlaces: input.decimalPlaces,
+        source: input.source,
       });
       setCurrencies((current) =>
         [...current.filter((currency) => currency.id !== created.id), created]
@@ -447,7 +465,10 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
     try {
       await refreshBochkRates(activeWorkspaceId);
-      setCurrencies(await listCurrencies());
+      setCurrencies(await listCurrencies({
+        workspaceId: activeWorkspaceId,
+        budgetId: selectedBudget?.id ?? null,
+      }));
     } catch (error: unknown) {
       setOperationsError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
     } finally {
@@ -562,6 +583,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
   return {
     currencies,
+    currencyPresets,
     categories,
     categoryOptions,
     currencyOptions,

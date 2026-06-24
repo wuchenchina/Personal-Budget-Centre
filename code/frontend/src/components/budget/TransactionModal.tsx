@@ -13,6 +13,7 @@ import type {
   Transaction,
 } from '../../types/budget';
 import type { TransactionFormValues } from '../../types/forms';
+import type { CurrencySelectOption } from '../../utils/currencyOptions';
 import { CurrencySelectWithQuickAdd } from './CurrencySelectWithQuickAdd';
 
 interface TransactionModalProps {
@@ -22,7 +23,8 @@ interface TransactionModalProps {
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
   currencies: Currency[];
-  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
+  currencyPresets: Currency[];
+  currencyOptions: CurrencySelectOption[];
   baseCurrency: CurrencyCode;
   pricingEnabled: boolean;
   participantMode: BudgetParticipantMode;
@@ -39,6 +41,7 @@ interface TransactionModalProps {
     name: string;
     symbol?: string;
     decimalPlaces: number;
+    source?: 'catalog' | 'manual';
   }) => Promise<boolean>;
   onValuesChange: () => void;
 }
@@ -50,6 +53,7 @@ export function TransactionModal({
   error,
   categoryOptions,
   currencies,
+  currencyPresets,
   currencyOptions,
   baseCurrency,
   pricingEnabled,
@@ -340,6 +344,7 @@ export function TransactionModal({
             >
               <CurrencySelectWithQuickAdd
                 currencies={currencies}
+                currencyPresets={currencyPresets}
                 options={currencyOptions}
                 onSaveCurrency={onSaveCurrency}
               />
@@ -429,6 +434,7 @@ export function TransactionModal({
               <CurrencySelectWithQuickAdd
                 allowClear
                 currencies={currencies}
+                currencyPresets={currencyPresets}
                 options={currencyOptions}
                 onSaveCurrency={onSaveCurrency}
               />

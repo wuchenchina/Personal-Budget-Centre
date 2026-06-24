@@ -410,6 +410,26 @@
   width: 100%;
 }
 
+.currency-option-two-line {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.currency-option-code {
+  color: var(--bc-text);
+  font-weight: 650;
+}
+
+.currency-option-two-line small {
+  overflow: hidden;
+  color: var(--bc-text-faint);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .currency-quick-add-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

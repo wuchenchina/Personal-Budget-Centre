@@ -5,9 +5,10 @@ import {
   useI18n,
   visibilityLabelsByLanguage,
 } from '../../i18n';
-import type { CurrencyCode, Visibility } from '../../types/budget';
+import type { Visibility } from '../../types/budget';
 import type { BudgetFormValues } from '../../types/forms';
 import { defaultBudgetTitle } from '../../utils/budgetTitle';
+import { renderCurrencyOption, type CurrencySelectOption } from '../../utils/currencyOptions';
 
 const { RangePicker } = DatePicker;
 
@@ -17,7 +18,7 @@ interface BudgetCreateModalProps {
   isEditing: boolean;
   error: string | null;
   workspaceOptions: Array<{ label: string; value: number }>;
-  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
+  currencyOptions: CurrencySelectOption[];
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
@@ -124,14 +125,28 @@ export function BudgetCreateModal({
             name="baseCurrency"
             rules={[{ required: true, message: t('selectBaseCurrency') }]}
           >
-            <Select notFoundContent={t('noCurrencies')} options={currencyOptions} />
+            <Select
+              notFoundContent={t('noCurrencies')}
+              optionFilterProp="label"
+              optionLabelProp="value"
+              optionRender={renderCurrencyOption}
+              options={currencyOptions}
+              showSearch
+            />
           </Form.Item>
           <Form.Item
             label={t('displayCurrency')}
             name="displayCurrency"
             rules={[{ required: true, message: t('selectDisplayCurrency') }]}
           >
-            <Select notFoundContent={t('noCurrencies')} options={currencyOptions} />
+            <Select
+              notFoundContent={t('noCurrencies')}
+              optionFilterProp="label"
+              optionLabelProp="value"
+              optionRender={renderCurrencyOption}
+              options={currencyOptions}
+              showSearch
+            />
           </Form.Item>
           <Form.Item
             label={t('visibility')}

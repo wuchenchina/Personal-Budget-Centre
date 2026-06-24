@@ -11,6 +11,7 @@ export interface AuthUser {
   avatarUrl: string | null;
   timezone: string | null;
   locale: string | null;
+  defaultCurrency: CurrencyCode | null;
   defaultPdfTheme: PdfThemeKey;
   pdfExportSettings: PdfExportSettings;
   status: UserStatus;
@@ -83,7 +84,7 @@ export interface RegisterPayload extends LoginPayload {
   username: string;
   email: string;
   displayName: string;
-  defaultCurrency?: CurrencyCode;
+  defaultCurrency?: CurrencyCode | null;
 }
 
 export interface EmailVerificationRequired {

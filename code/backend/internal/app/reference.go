@@ -58,6 +58,15 @@ func (a *App) currencyList(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func (a *App) currencyPresetList(w http.ResponseWriter, r *http.Request) error {
+	currencies, err := a.currencies(r.Context())
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{"currencies": currenciesToResponse(currencies)}, http.StatusOK)
+	return nil
+}
+
 func (a *App) exchangeRateList(w http.ResponseWriter, r *http.Request) error {
 	s, err := a.currentSession(r)
 	if err != nil {

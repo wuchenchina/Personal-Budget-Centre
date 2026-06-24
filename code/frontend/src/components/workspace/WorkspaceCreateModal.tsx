@@ -3,6 +3,7 @@ import type { FormInstance } from 'antd';
 import { useI18n, workspaceTypeLabelsByLanguage } from '../../i18n';
 import type { CurrencyCode } from '../../types/budget';
 import type { WorkspaceFormValues } from '../../types/forms';
+import { renderCurrencyOption, type CurrencySelectOption } from '../../utils/currencyOptions';
 
 type WorkspaceType = WorkspaceFormValues['type'];
 
@@ -16,7 +17,7 @@ interface WorkspaceCreateModalProps {
   form: FormInstance<WorkspaceFormValues>;
   open: boolean;
   baseCurrency: CurrencyCode;
-  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
+  currencyOptions: CurrencySelectOption[];
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
@@ -120,6 +121,8 @@ export function WorkspaceCreateModal({
             notFoundContent={t('noCurrencies')}
             showSearch
             optionFilterProp="label"
+            optionLabelProp="value"
+            optionRender={renderCurrencyOption}
             options={currencyOptions}
             placeholder={t('defaultCurrencyPlaceholder')}
           />

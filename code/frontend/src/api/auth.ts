@@ -7,6 +7,7 @@ import type {
   RegisterResult,
   SsoBinding,
 } from '../types/auth';
+import type { CurrencyCode } from '../types/budget';
 
 interface CurrentSessionResult {
   session: AuthSession | null;
@@ -22,6 +23,7 @@ export interface EmailVerificationResult {
 export interface UpdateProfilePayload {
   displayName: string;
   email: string;
+  defaultCurrency?: CurrencyCode | null;
   defaultPdfTheme?: AuthSession['user']['defaultPdfTheme'];
   pdfExportSettings?: PdfExportSettings;
 }

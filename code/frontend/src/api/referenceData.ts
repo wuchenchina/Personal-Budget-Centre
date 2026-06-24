@@ -14,6 +14,7 @@ export interface CreateCurrencyPayload {
   name: string;
   symbol?: string;
   decimalPlaces: number;
+  source?: 'catalog' | 'manual';
 }
 
 export interface ListCurrenciesParams {
@@ -32,6 +33,12 @@ export function listCurrencies(params: ListCurrenciesParams = {}): Promise<Curre
   const suffix = search.size > 0 ? `?${search.toString()}` : '';
 
   return apiGet<CurrencyListResponse>(`/api/currencies${suffix}`).then(
+    (payload) => payload.currencies,
+  );
+}
+
+export function listCurrencyPresets(): Promise<Currency[]> {
+  return apiGet<CurrencyListResponse>('/api/currency-presets').then(
     (payload) => payload.currencies,
   );
 }

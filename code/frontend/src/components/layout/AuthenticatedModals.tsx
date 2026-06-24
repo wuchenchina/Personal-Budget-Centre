@@ -126,6 +126,7 @@ export function AuthenticatedModals({
             error={budgetEntry.entryError}
             categoryOptions={budgetItemPresetCategoryOptions}
             currencies={operations.currencies}
+            currencyPresets={operations.currencyPresets}
             currencyOptions={operations.currencyOptions}
             baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
             focus={budgetEntry.budgetItemModalFocus}
@@ -149,6 +150,7 @@ export function AuthenticatedModals({
             error={budgetEntry.entryError}
             categoryOptions={transactionCategoryOptions}
             currencies={operations.currencies}
+            currencyPresets={operations.currencyPresets}
             currencyOptions={operations.currencyOptions}
             baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
             pricingEnabled={budget.selectedBudget?.pricingEnabled ?? false}
@@ -172,6 +174,7 @@ export function AuthenticatedModals({
           error={bookkeeping.error}
           categoryOptions={bookkeepingCategoryOptions}
           currencies={operations.currencies}
+          currencyPresets={operations.currencyPresets}
           currencyOptions={operations.currencyOptions}
           baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
           confirmLoading={bookkeeping.saving}

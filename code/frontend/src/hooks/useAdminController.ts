@@ -11,7 +11,7 @@ import {
   updateAdminUser,
   type AdminUserListParams,
 } from '../api/admin';
-import { listCurrencies } from '../api/referenceData';
+import { listCurrencyPresets } from '../api/referenceData';
 import type {
   AdminEnvironmentCheck,
   AdminDatabaseStatus,
@@ -20,9 +20,9 @@ import type {
   AdminUserCreatePayload,
   AdminUserUpdatePayload,
 } from '../types/admin';
-import type { CurrencyCode } from '../types/budget';
 import type { UserStatus } from '../types/auth';
 import { translateCurrent } from '../i18n';
+import { buildCurrencyOptions, type CurrencySelectOption } from '../utils/currencyOptions';
 
 export function useAdminController(enabled: boolean) {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -42,9 +42,7 @@ export function useAdminController(enabled: boolean) {
   const [isExportCacheCleaning, setIsExportCacheCleaning] = useState(false);
   const [databaseStatus, setDatabaseStatus] = useState<AdminDatabaseStatus | null>(null);
   const [isDatabaseLoading, setIsDatabaseLoading] = useState(false);
-  const [currencyOptions, setCurrencyOptions] = useState<Array<{ label: string; value: CurrencyCode }>>(
-    [],
-  );
+  const [currencyOptions, setCurrencyOptions] = useState<CurrencySelectOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -60,15 +58,12 @@ export function useAdminController(enabled: boolean) {
         return;
       }
 
-      listCurrencies()
+      listCurrencyPresets()
         .then((currencies) => {
           if (!isMounted) {
             return;
           }
-          setCurrencyOptions(currencies.map((currency) => ({
-            label: `${currency.code} ${currency.name}`,
-            value: currency.code,
-          })));
+          setCurrencyOptions(buildCurrencyOptions(currencies));
         })
         .catch(() => {
           if (isMounted) {

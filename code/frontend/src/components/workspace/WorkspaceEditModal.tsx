@@ -2,15 +2,15 @@ import { Alert, Form, Input, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import { useI18n, workspaceTypeLabelsByLanguage } from '../../i18n';
 import type { AuthWorkspace } from '../../types/auth';
-import type { CurrencyCode } from '../../types/budget';
 import type { WorkspaceEditFormValues } from '../../types/forms';
+import { renderCurrencyOption, type CurrencySelectOption } from '../../utils/currencyOptions';
 
 interface WorkspaceEditModalProps {
   form: FormInstance<WorkspaceEditFormValues>;
   workspace: AuthWorkspace | null;
   open: boolean;
   error: string | null;
-  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
+  currencyOptions: CurrencySelectOption[];
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
@@ -92,6 +92,8 @@ export function WorkspaceEditModal({
             notFoundContent={t('noCurrencies')}
             showSearch
             optionFilterProp="label"
+            optionLabelProp="value"
+            optionRender={renderCurrencyOption}
             options={currencyOptions}
             placeholder={t('defaultCurrencyPlaceholder')}
           />

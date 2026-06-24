@@ -43,32 +43,56 @@ func (a *App) currencyCreate(w http.ResponseWriter, r *http.Request) error {
 	if !currencyCodePattern.MatchString(code) {
 		return apiError("VALIDATION_ERROR", "Currency code must be a three-letter ISO-style code.", http.StatusUnprocessableEntity)
 	}
-	name, err := requiredLimitedString(input["name"], 120, "Currency name")
-	if err != nil {
-		return err
+	source := stringDefault(stringValue(input["source"]), "manual")
+	if source != "catalog" {
+		source = "manual"
 	}
-	symbol := stringValue(input["symbol"])
-	if symbol == "" {
-		symbol = code
-	}
-	if len(symbol) > 16 {
-		return apiError("VALIDATION_ERROR", "Currency symbol must be 16 characters or less.", http.StatusUnprocessableEntity)
-	}
-	decimals := int64Value(firstValue(input, "decimalPlaces", "decimal_places"))
-	if !validCurrencyDecimalSet[decimals] {
-		return apiError("VALIDATION_ERROR", "Currency decimal places must be between 0 and 6.", http.StatusUnprocessableEntity)
+	var name string
+	var symbol string
+	var decimals int64
+	if source == "manual" {
+		name, err = requiredLimitedString(input["name"], 120, "Currency name")
+		if err != nil {
+			return err
+		}
+		symbol = stringValue(input["symbol"])
+		if symbol == "" {
+			symbol = code
+		}
+		if len(symbol) > 16 {
+			return apiError("VALIDATION_ERROR", "Currency symbol must be 16 characters or less.", http.StatusUnprocessableEntity)
+		}
+		decimals = int64Value(firstValue(input, "decimalPlaces", "decimal_places"))
+		if !validCurrencyDecimalSet[decimals] {
+			return apiError("VALIDATION_ERROR", "Currency decimal places must be between 0 and 6.", http.StatusUnprocessableEntity)
+		}
 	}
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	currencyID, err := ensureCurrencyTx(r.Context(), tx, code, name, symbol, decimals)
-	if err != nil {
-		return err
-	}
-	if err := ensureUserCurrencyTx(r.Context(), tx, s.UserID, currencyID, "manual", name, symbol, decimals); err != nil {
-		return err
+	var currencyID int64
+	if source == "catalog" {
+		currency, err := currencyByCodeTx(r.Context(), tx, code)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return apiError("CURRENCY_NOT_FOUND", "Currency preset is not available.", http.StatusUnprocessableEntity)
+			}
+			return err
+		}
+		currencyID = currency.ID
+		if err := ensureUserCurrencyByIDTx(r.Context(), tx, s.UserID, currencyID, source); err != nil {
+			return err
+		}
+	} else {
+		currencyID, err = ensureCurrencyTx(r.Context(), tx, code, name, symbol, decimals)
+		if err != nil {
+			return err
+		}
+		if err := ensureUserCurrencyTx(r.Context(), tx, s.UserID, currencyID, source, name, symbol, decimals); err != nil {
+			return err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return err
@@ -78,7 +102,7 @@ func (a *App) currencyCreate(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	currency.IsPersonal = true
-	currency.Source = "manual"
+	currency.Source = source
 	httpx.WriteOK(w, map[string]any{"currency": currencyToResponse(currency)}, http.StatusCreated)
 	return nil
 }
@@ -95,6 +119,21 @@ func (a *App) currencyDelete(w http.ResponseWriter, r *http.Request) error {
 	currency, err := a.currencyByInput(r.Context(), input)
 	if err != nil {
 		return err
+	}
+	isDefault, err := a.isUserDefaultCurrency(r.Context(), s.UserID, currency.ID)
+	if err != nil {
+		return err
+	}
+	if isDefault {
+		return httpx.APIError{
+			Code:    "CURRENCY_IN_USE",
+			Message: "Currency is your primary currency. Change or clear it before removing.",
+			Status:  http.StatusConflict,
+			Meta: map[string]any{
+				"currency": currency.Code,
+				"usage":    "defaultCurrency",
+			},
+		}
 	}
 	usage, err := a.userVisibleCurrencyUsageCount(r.Context(), s.UserID, currency.ID)
 	if err != nil {
@@ -351,19 +390,53 @@ VALUES (?, ?, ?, ?, 1)`, code, name, symbol, decimals)
 	return res.LastInsertId()
 }
 
+func currencyByCodeTx(ctx context.Context, tx *sql.Tx, code string) (currencyRecord, error) {
+	return scanCurrency(tx.QueryRowContext(ctx, `SELECT id, code, name, symbol, decimal_places, is_enabled
+FROM currencies
+WHERE code = ? AND is_enabled = 1
+LIMIT 1`, code))
+}
+
 func ensureUserCurrencyTx(ctx context.Context, tx *sql.Tx, userID, currencyID int64, source, name, symbol string, decimals int64) error {
+	var displayDecimals any
+	if decimals >= 0 {
+		displayDecimals = decimals
+	}
 	_, err := tx.ExecContext(ctx, `INSERT INTO user_currencies
 (user_id, currency_id, source, display_name, display_symbol, display_decimal_places, is_active)
 VALUES (?, ?, ?, ?, ?, ?, 1)
 ON DUPLICATE KEY UPDATE
   source = VALUES(source),
-  display_name = VALUES(display_name),
-  display_symbol = VALUES(display_symbol),
-  display_decimal_places = VALUES(display_decimal_places),
+  display_name = COALESCE(VALUES(display_name), display_name),
+  display_symbol = COALESCE(VALUES(display_symbol), display_symbol),
+  display_decimal_places = COALESCE(VALUES(display_decimal_places), display_decimal_places),
   is_active = 1`,
-		userID, currencyID, source, nullableStringValue(name), nullableStringValue(symbol), decimals,
+		userID, currencyID, source, nullableStringValue(name), nullableStringValue(symbol), displayDecimals,
 	)
 	return err
+}
+
+func ensureUserCurrencyByIDTx(ctx context.Context, tx *sql.Tx, userID, currencyID int64, source string) error {
+	currency, err := scanCurrency(tx.QueryRowContext(ctx, `SELECT id, code, name, symbol, decimal_places, is_enabled
+FROM currencies
+WHERE id = ?
+LIMIT 1`, currencyID))
+	if err != nil {
+		return err
+	}
+	return ensureUserCurrencyTx(ctx, tx, userID, currency.ID, source, "", "", -1)
+}
+
+func (a *App) isUserDefaultCurrency(ctx context.Context, userID, currencyID int64) (bool, error) {
+	var exists int
+	err := a.db.QueryRowContext(ctx, `SELECT 1
+FROM users
+WHERE id = ? AND default_currency_id = ?
+LIMIT 1`, userID, currencyID).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 func (a *App) currencyUsageCount(ctx context.Context, currencyID int64) (int64, error) {

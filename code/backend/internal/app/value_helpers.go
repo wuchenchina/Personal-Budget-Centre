@@ -24,6 +24,15 @@ func nonEmptyString(values ...any) string {
 	return ""
 }
 
+func hasAnyKey(input map[string]any, keys ...string) bool {
+	for _, key := range keys {
+		if _, ok := input[key]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 func nonEmptyDefault(value any, fallback string) string {
 	if text := nonEmptyString(value); text != "" {
 		return text
@@ -168,15 +177,6 @@ func enumString(value string, allowed []string, fallback string) string {
 		}
 	}
 	return fallback
-}
-
-func hasAnyKey(input map[string]any, keys ...string) bool {
-	for _, key := range keys {
-		if _, ok := input[key]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 func nullableDate(value any) any {

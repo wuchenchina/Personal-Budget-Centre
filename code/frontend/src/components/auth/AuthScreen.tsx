@@ -4,8 +4,8 @@ import { KeyRound, LockKeyhole, UserRound } from 'lucide-react';
 import { startCasdoorSignin } from '../../config/casdoor';
 import type { AppLanguage } from '../../i18n';
 import { languageOptions, useI18n } from '../../i18n';
-import type { CurrencyCode } from '../../types/budget';
 import type { AuthFormValues, AuthMode } from '../../types/forms';
+import { renderCurrencyOption, type CurrencySelectOption } from '../../utils/currencyOptions';
 import { passwordProgressStatus, passwordStrengthFor } from '../../utils/password';
 import styles from './AuthScreen.module.css';
 
@@ -16,7 +16,7 @@ interface AuthScreenProps {
   notice: string | null;
   isSubmitting: boolean;
   language: AppLanguage;
-  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
+  currencyOptions: CurrencySelectOption[];
   watchedPassword: string | undefined;
   onFinish: (values: AuthFormValues) => Promise<void>;
   onLanguageChange: (language: AppLanguage) => void;
@@ -214,8 +214,12 @@ export function AuthScreen({
                 <Select
                   allowClear
                   notFoundContent={t('noCurrencies')}
+                  optionFilterProp="label"
+                  optionLabelProp="value"
+                  optionRender={renderCurrencyOption}
                   options={currencyOptions}
                   placeholder={t('defaultCurrencyPlaceholder')}
+                  showSearch
                   size="large"
                 />
               </Form.Item>

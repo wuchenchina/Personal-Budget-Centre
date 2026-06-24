@@ -2,13 +2,13 @@ import { Form, Input, Modal, Select, Switch } from 'antd';
 import type { FormInstance } from 'antd';
 import { useI18n } from '../../i18n';
 import type { AdminUserCreatePayload } from '../../types/admin';
-import type { CurrencyCode } from '../../types/budget';
+import { renderCurrencyOption, type CurrencySelectOption } from '../../utils/currencyOptions';
 
 interface AdminCreateUserModalProps {
   form: FormInstance<AdminUserCreatePayload>;
   open: boolean;
   confirmLoading: boolean;
-  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
+  currencyOptions: CurrencySelectOption[];
   onCancel: () => void;
   onOk: () => void;
 }
@@ -96,6 +96,8 @@ export function AdminCreateUserModal({
             notFoundContent={t('noCurrencies')}
             showSearch
             optionFilterProp="label"
+            optionLabelProp="value"
+            optionRender={renderCurrencyOption}
             options={currencyOptions}
             placeholder={t('defaultCurrencyPlaceholder')}
           />

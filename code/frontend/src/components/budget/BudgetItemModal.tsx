@@ -14,6 +14,7 @@ import type {
 } from '../../types/budget';
 import type { BudgetItemFormValues } from '../../types/forms';
 import type { BudgetItemModalFocus } from '../../hooks/useBudgetEntryController';
+import type { CurrencySelectOption } from '../../utils/currencyOptions';
 import {
   effectiveBudgetItemAmounts,
   formatBudgetMoney,
@@ -36,7 +37,8 @@ interface BudgetItemModalProps {
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
   currencies: Currency[];
-  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
+  currencyPresets: Currency[];
+  currencyOptions: CurrencySelectOption[];
   baseCurrency: CurrencyCode;
   focus: BudgetItemModalFocus;
   pricingEnabled: boolean;
@@ -53,6 +55,7 @@ interface BudgetItemModalProps {
     name: string;
     symbol?: string;
     decimalPlaces: number;
+    source?: 'catalog' | 'manual';
   }) => Promise<boolean>;
 }
 
@@ -63,6 +66,7 @@ export function BudgetItemModal({
   error,
   categoryOptions,
   currencies,
+  currencyPresets,
   currencyOptions,
   baseCurrency,
   focus,
@@ -422,6 +426,7 @@ export function BudgetItemModal({
               amountName="budgetAmount"
               currencyName="budgetCurrency"
               currencyOptions={currencyOptions}
+              currencyPresets={currencyPresets}
               currencies={currencies}
               rateName="budgetRate"
               amount={budgetAmount}

@@ -148,6 +148,8 @@ func (a *App) route(method, path string) handlerFunc {
 		return a.installmentPlanUpdate
 	case method == http.MethodGet && path == "/api/currencies":
 		return a.currencyList
+	case method == http.MethodGet && path == "/api/currency-presets":
+		return a.currencyPresetList
 	case method == http.MethodPost && path == "/api/currencies":
 		return a.currencyCreate
 	case method == http.MethodDelete && path == "/api/currencies":

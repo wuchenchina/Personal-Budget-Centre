@@ -1,13 +1,18 @@
 import { Button, Input, InputNumber, Select } from 'antd';
 import { Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { localCurrencyCatalog } from '../../config/currencyCatalog';
+import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../i18n';
 import type { Currency, CurrencyCode } from '../../types/budget';
+import {
+  buildCurrencyOptions,
+  renderCurrencyOption,
+  type CurrencySelectOption,
+} from '../../utils/currencyOptions';
 
 interface CurrencySelectWithQuickAddProps {
   currencies: Currency[];
-  options: Array<{ label: string; value: CurrencyCode }>;
+  currencyPresets: Currency[];
+  options: CurrencySelectOption[];
   value?: CurrencyCode;
   allowClear?: boolean;
   disabled?: boolean;
@@ -18,12 +23,14 @@ interface CurrencySelectWithQuickAddProps {
     name: string;
     symbol?: string;
     decimalPlaces: number;
+    source?: 'catalog' | 'manual';
   }) => Promise<boolean>;
 }
 
 export function CurrencySelectWithQuickAdd({
   allowClear,
   currencies,
+  currencyPresets,
   disabled,
   onChange,
   onSaveCurrency,
@@ -37,9 +44,10 @@ export function CurrencySelectWithQuickAdd({
     [currencies],
   );
   const catalogOptions = useMemo(
-    () => localCurrencyCatalog.filter((currency) => !existingCodes.has(currency.code)),
-    [existingCodes],
+    () => currencyPresets.filter((currency) => !existingCodes.has(currency.code)),
+    [currencyPresets, existingCodes],
   );
+  const catalogSelectOptions = useMemo(() => buildCurrencyOptions(catalogOptions), [catalogOptions]);
   const [selectedCatalogCode, setSelectedCatalogCode] = useState<string | undefined>(catalogOptions[0]?.code);
   const [customCode, setCustomCode] = useState('');
   const [customName, setCustomName] = useState('');
@@ -53,11 +61,18 @@ export function CurrencySelectWithQuickAdd({
     && customDecimalPlaces >= 0
     && customDecimalPlaces <= 6;
 
+  useEffect(() => {
+    if (selectedCatalogCode === undefined || existingCodes.has(selectedCatalogCode)) {
+      setSelectedCatalogCode(catalogOptions[0]?.code);
+    }
+  }, [catalogOptions, existingCodes, selectedCatalogCode]);
+
   const saveAndSelect = async (input: {
     code: string;
     name: string;
     symbol?: string;
     decimalPlaces: number;
+    source?: 'catalog' | 'manual';
   }) => {
     setSaving(true);
     try {
@@ -75,7 +90,7 @@ export function CurrencySelectWithQuickAdd({
     if (selectedCatalogCurrency === undefined) {
       return;
     }
-    const saved = await saveAndSelect(selectedCatalogCurrency);
+    const saved = await saveAndSelect({ ...selectedCatalogCurrency, source: 'catalog' });
     if (saved) {
       setSelectedCatalogCode(catalogOptions.find((currency) => currency.code !== selectedCatalogCurrency.code)?.code);
     }
@@ -90,6 +105,7 @@ export function CurrencySelectWithQuickAdd({
       name: customName.trim(),
       symbol: customSymbol.trim() || customCode,
       decimalPlaces: customDecimalPlaces,
+      source: 'manual',
     });
     if (saved) {
       setCustomCode('');
@@ -106,6 +122,8 @@ export function CurrencySelectWithQuickAdd({
         disabled={disabled}
         notFoundContent={t('noCurrencies')}
         optionFilterProp="label"
+        optionLabelProp="value"
+        optionRender={renderCurrencyOption}
         options={options}
         placeholder={placeholder}
         showSearch
@@ -116,10 +134,9 @@ export function CurrencySelectWithQuickAdd({
         <Select
           disabled={catalogOptions.length === 0}
           optionFilterProp="label"
-          options={catalogOptions.map((currency) => ({
-            label: `${currency.code} ${currency.name}`,
-            value: currency.code,
-          }))}
+          optionLabelProp="value"
+          optionRender={renderCurrencyOption}
+          options={catalogSelectOptions}
           placeholder={t('currencyReservePlaceholder')}
           showSearch
           size="small"

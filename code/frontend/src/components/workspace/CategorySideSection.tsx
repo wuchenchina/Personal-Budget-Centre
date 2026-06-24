@@ -5,6 +5,7 @@ import { Check, Pencil, Plus, Tags, Trash2, X } from 'lucide-react';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { useI18n } from '../../i18n';
 import type { BudgetCategory, CurrencyCode } from '../../types/budget';
+import { renderCurrencyOption } from '../../utils/currencyOptions';
 
 interface CategorySideSectionProps {
   operations: OperationsController;
@@ -20,10 +21,7 @@ export function CategorySideSection({ operations }: CategorySideSectionProps) {
   const [aliasDrafts, setAliasDrafts] = useState<Record<number, string>>({});
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
 
-  const currencyOptions = operations.currencies.map((currency) => ({
-    label: `${currency.code} ${currency.name}`,
-    value: currency.code,
-  }));
+  const currencyOptions = operations.currencyOptions;
 
   const beginEdit = (category: BudgetCategory) => {
     setEditingId(category.id);
@@ -115,7 +113,11 @@ export function CategorySideSection({ operations }: CategorySideSectionProps) {
             allowClear
             className="form-full-width"
             options={currencyOptions}
+            optionFilterProp="label"
+            optionLabelProp="value"
+            optionRender={renderCurrencyOption}
             placeholder={t('noDefaultCurrency')}
+            showSearch
             value={editingCurrency ?? undefined}
             onChange={(value) => setEditingCurrency(value ?? null)}
           />
@@ -228,7 +230,11 @@ export function CategorySideSection({ operations }: CategorySideSectionProps) {
             <Select<CurrencyCode>
               allowClear
               options={currencyOptions}
+              optionFilterProp="label"
+              optionLabelProp="value"
+              optionRender={renderCurrencyOption}
               placeholder={t('noDefaultCurrency')}
+              showSearch
               value={draftCurrency ?? undefined}
               onChange={(value) => setDraftCurrency(value ?? null)}
             />

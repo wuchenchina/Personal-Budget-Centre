@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Input, InputNumber, Popconfirm, Select, Space, Tag } from 'antd';
 import { Coins, Plus, Trash2 } from 'lucide-react';
-import { localCurrencyCatalog } from '../../config/currencyCatalog';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { useI18n } from '../../i18n';
+import { buildCurrencyOptions, renderCurrencyOption } from '../../utils/currencyOptions';
 
 interface CurrencySideSectionProps {
   isSystemAdmin: boolean;
@@ -17,13 +17,17 @@ export function CurrencySideSection({ isSystemAdmin, operations }: CurrencySideS
     [operations.currencies],
   );
   const availableCatalog = useMemo(
-    () => localCurrencyCatalog.filter((currency) => !existingCodes.has(currency.code)),
-    [existingCodes],
+    () => operations.currencyPresets.filter((currency) => !existingCodes.has(currency.code)),
+    [existingCodes, operations.currencyPresets],
+  );
+  const availableCatalogOptions = useMemo(
+    () => buildCurrencyOptions(availableCatalog),
+    [availableCatalog],
   );
   const [selectedCode, setSelectedCode] = useState<string | undefined>(
     availableCatalog[0]?.code,
   );
-  const selectedCatalogCurrency = localCurrencyCatalog.find((currency) => currency.code === selectedCode);
+  const selectedCatalogCurrency = availableCatalog.find((currency) => currency.code === selectedCode);
   const [customCode, setCustomCode] = useState('');
   const [customName, setCustomName] = useState('');
   const [customSymbol, setCustomSymbol] = useState('');
@@ -39,7 +43,7 @@ export function CurrencySideSection({ isSystemAdmin, operations }: CurrencySideS
     if (selectedCatalogCurrency === undefined) {
       return;
     }
-    const saved = await operations.saveCurrency(selectedCatalogCurrency);
+    const saved = await operations.saveCurrency({ ...selectedCatalogCurrency, source: 'catalog' });
     if (saved) {
       const nextCode = availableCatalog.find((currency) => currency.code !== selectedCatalogCurrency.code)?.code;
       setSelectedCode(nextCode);
@@ -62,6 +66,7 @@ export function CurrencySideSection({ isSystemAdmin, operations }: CurrencySideS
       name: customName,
       symbol: customSymbol || customCode,
       decimalPlaces: customDecimalPlaces,
+      source: 'manual',
     });
     if (saved) {
       setCustomCode('');
@@ -117,10 +122,9 @@ export function CurrencySideSection({ isSystemAdmin, operations }: CurrencySideS
               className="currency-reserve-select"
               disabled={availableCatalog.length === 0}
               optionFilterProp="label"
-              options={availableCatalog.map((currency) => ({
-                label: `${currency.code} ${currency.name}`,
-                value: currency.code,
-              }))}
+              optionLabelProp="value"
+              optionRender={renderCurrencyOption}
+              options={availableCatalogOptions}
               placeholder={t('currencyReservePlaceholder')}
               showSearch
               size="small"

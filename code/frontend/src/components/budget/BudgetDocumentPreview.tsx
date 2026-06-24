@@ -65,6 +65,7 @@ import {
 } from '../../utils/budgetTemplate';
 import { formatBudgetPeriodEnglish } from '../../utils/budgetPeriod';
 import { installmentSummary } from '../../utils/budgetInstallments';
+import { renderCurrencyOption, type CurrencySelectOption } from '../../utils/currencyOptions';
 import {
   signatureInfoLanguage,
   signatureLabelForConfig,
@@ -1761,7 +1762,7 @@ function InlineMoneyCell({
   onCommit,
 }: {
   currency: CurrencyCode;
-  currencyOptions?: Array<{ label: string; value: CurrencyCode }>;
+  currencyOptions?: CurrencySelectOption[];
   disabled: boolean;
   editable: boolean;
   secondaryText?: string | null;
@@ -1809,7 +1810,11 @@ function InlineMoneyCell({
           <Select<CurrencyCode>
             className="budget-inline-currency-select"
             disabled={disabled}
+            optionFilterProp="label"
+            optionLabelProp="value"
+            optionRender={renderCurrencyOption}
             options={currencyOptions}
+            showSearch
             size="small"
             value={currency}
             variant="borderless"
@@ -2053,7 +2058,7 @@ function appendTransactionQuickEditors(
   canWriteBudgets: boolean,
   entry: BudgetEntryController,
   categoryOptions: Array<{ label: string; value: number }>,
-  currencyOptions: Array<{ label: string; value: CurrencyCode }>,
+  currencyOptions: CurrencySelectOption[],
   baseCurrency: CurrencyCode,
   referenceLabel: string,
   pricingEnabled: boolean,

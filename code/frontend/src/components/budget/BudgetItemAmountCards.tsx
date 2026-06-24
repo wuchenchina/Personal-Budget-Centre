@@ -3,6 +3,7 @@ import type { RefObject } from 'react';
 import { useI18n } from '../../i18n';
 import type { Currency, CurrencyCode } from '../../types/budget';
 import type { BudgetItemFormValues } from '../../types/forms';
+import type { CurrencySelectOption } from '../../utils/currencyOptions';
 import {
   formatBudgetMoney,
   type TransactionCurrencyTotal,
@@ -17,6 +18,7 @@ export function MoneyLegCard({
   currency,
   currencyName,
   currencyOptions,
+  currencyPresets,
   currencies,
   help,
   focused,
@@ -32,7 +34,8 @@ export function MoneyLegCard({
   baseCurrency: CurrencyCode;
   currency: CurrencyCode;
   currencyName: keyof BudgetItemFormValues;
-  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
+  currencyOptions: CurrencySelectOption[];
+  currencyPresets: Currency[];
   currencies: Currency[];
   focused: boolean;
   help: string;
@@ -45,6 +48,7 @@ export function MoneyLegCard({
     name: string;
     symbol?: string;
     decimalPlaces: number;
+    source?: 'catalog' | 'manual';
   }) => Promise<boolean>;
 }) {
   const { t } = useI18n();
@@ -67,6 +71,7 @@ export function MoneyLegCard({
         >
           <CurrencySelectWithQuickAdd
             currencies={currencies}
+            currencyPresets={currencyPresets}
             options={currencyOptions}
             onSaveCurrency={onSaveCurrency}
           />

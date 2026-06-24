@@ -291,7 +291,7 @@ func (a *App) resolveExchangeRateForBudget(ctx context.Context, budgetID, worksp
 	if fromHKD == nil || hkdToTarget == nil {
 		fromCode, _ := a.currencyCodeByID(ctx, fromCurrencyID)
 		toCode, _ := a.currencyCodeByID(ctx, toCurrencyID)
-		return exchangeRateConversion{}, httpx.APIError{Code: "EXCHANGE_RATE_NOT_FOUND", Message: "Exchange rate is missing. Refresh BOCHK rates or add a manual rate.", Status: http.StatusUnprocessableEntity, Meta: map[string]any{
+		return exchangeRateConversion{}, httpx.APIError{Code: "EXCHANGE_RATE_NOT_FOUND", Message: "Exchange rate is missing. Enter a manual rate; Mastercard can be used as an external reference.", Status: http.StatusUnprocessableEntity, Meta: map[string]any{
 			"fromCurrency": nullableText(fromCode),
 			"toCurrency":   nullableText(toCode),
 			"rateDate":     nullableText(onDate),

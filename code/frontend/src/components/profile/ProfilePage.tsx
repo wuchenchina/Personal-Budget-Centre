@@ -21,6 +21,7 @@ import type { AuthSession, SsoBinding } from '../../types/auth';
 import type { BudgetSignatureLabelMode } from '../../types/budget';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
 import { normalizePdfExportSettings, normalizePdfLanguages, normalizeSignatureLabelMode } from '../../utils/pdfExportSettings';
+import { CurrencySelectWithQuickAdd } from '../budget/CurrencySelectWithQuickAdd';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
 import styles from './ProfilePage.module.css';
 
@@ -73,6 +74,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const previewWorkspaceName = session.workspace?.name ?? t('noWorkspaceSelected');
   useEffect(() => {
     const profileValues = {
+      defaultCurrency: session.user.defaultCurrency,
       defaultPdfTheme: normalizePdfTheme(session.user.defaultPdfTheme),
       displayName: session.user.displayName,
       pdfExportSettings: normalizePdfExportSettings(session.user.pdfExportSettings),
@@ -83,6 +85,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   }, [
     accountForm,
     exportForm,
+    session.user.defaultCurrency,
     session.user.defaultPdfTheme,
     session.user.displayName,
     session.user.pdfExportSettings,
@@ -113,13 +116,14 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     };
   }, [t]);
 
-  const handleProfileSave = async (values: ProfileFormValues) => {
+  const handleProfileSave = async (values: ProfileFormValues, includeDefaultCurrency = false) => {
     setIsProfileSaving(true);
     setProfileError(null);
     setProfileNotice(null);
 
     try {
       const result = await updateProfile({
+        ...(includeDefaultCurrency ? { defaultCurrency: values.defaultCurrency ?? null } : {}),
         defaultPdfTheme: normalizePdfTheme(values.defaultPdfTheme),
         displayName: values.displayName.trim(),
         email: session.user.email,
@@ -144,6 +148,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
       const values = await emailChangeForm.validateFields();
       const nextEmail = values.email.trim();
       const result = await updateProfile({
+        defaultCurrency: session.user.defaultCurrency,
         defaultPdfTheme: session.user.defaultPdfTheme,
         displayName: session.user.displayName,
         email: nextEmail,
@@ -335,7 +340,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         layout="vertical"
                         name="budget-centre-profile"
                         requiredMark={false}
-                        onFinish={handleProfileSave}
+                        onFinish={(values) => void handleProfileSave(values, true)}
                       >
                         <Form.Item
                           label={t('nickname')}
@@ -349,6 +354,20 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         </Form.Item>
                         <Form.Item hidden name="defaultPdfTheme">
                           <Input />
+                        </Form.Item>
+                        <Form.Item
+                          label={t('primaryCurrency')}
+                          name="defaultCurrency"
+                          extra={t('primaryCurrencyHelp')}
+                        >
+                          <CurrencySelectWithQuickAdd
+                            allowClear
+                            currencies={operations.currencies}
+                            currencyPresets={operations.currencyPresets}
+                            options={operations.currencyOptions}
+                            placeholder={t('defaultCurrencyPlaceholder')}
+                            onSaveCurrency={operations.saveCurrency}
+                          />
                         </Form.Item>
                         <Button type="primary" htmlType="submit" loading={isProfileSaving}>
                           {t('saveProfile')}
@@ -413,7 +432,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         layout="vertical"
                         name="budget-centre-export"
                         requiredMark={false}
-                        onFinish={handleProfileSave}
+                        onFinish={(values) => void handleProfileSave(values)}
                       >
                         <div className={styles.exportConfig}>
                           <div className={styles.panelHeader}>

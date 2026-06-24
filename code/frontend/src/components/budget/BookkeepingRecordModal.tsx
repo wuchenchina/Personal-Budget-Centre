@@ -3,6 +3,7 @@ import type { FormInstance } from 'antd';
 import { useI18n } from '../../i18n';
 import type { BookkeepingRecord, Currency, CurrencyCode, TransactionType } from '../../types/budget';
 import type { BookkeepingRecordFormValues } from '../../types/forms';
+import type { CurrencySelectOption } from '../../utils/currencyOptions';
 import { CurrencySelectWithQuickAdd } from './CurrencySelectWithQuickAdd';
 
 interface BookkeepingRecordModalProps {
@@ -12,7 +13,8 @@ interface BookkeepingRecordModalProps {
   error: string | null;
   categoryOptions: Array<{ label: string; value: string }>;
   currencies: Currency[];
-  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
+  currencyPresets: Currency[];
+  currencyOptions: CurrencySelectOption[];
   baseCurrency: CurrencyCode;
   confirmLoading: boolean;
   onCancel: () => void;
@@ -22,6 +24,7 @@ interface BookkeepingRecordModalProps {
     name: string;
     symbol?: string;
     decimalPlaces: number;
+    source?: 'catalog' | 'manual';
   }) => Promise<boolean>;
   onValuesChange: () => void;
 }
@@ -33,6 +36,7 @@ export function BookkeepingRecordModal({
   error,
   categoryOptions,
   currencies,
+  currencyPresets,
   currencyOptions,
   baseCurrency,
   confirmLoading,
@@ -167,6 +171,7 @@ export function BookkeepingRecordModal({
             >
               <CurrencySelectWithQuickAdd
                 currencies={currencies}
+                currencyPresets={currencyPresets}
                 options={currencyOptions}
                 onSaveCurrency={onSaveCurrency}
               />
@@ -225,6 +230,7 @@ export function BookkeepingRecordModal({
                 <CurrencySelectWithQuickAdd
                   allowClear
                   currencies={currencies}
+                  currencyPresets={currencyPresets}
                   options={currencyOptions}
                   onSaveCurrency={onSaveCurrency}
                 />

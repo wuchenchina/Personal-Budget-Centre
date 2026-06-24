@@ -134,6 +134,11 @@ VALUES (?, ?, ?, ?, ?, ?, ?, IF(? = 'now', UTC_TIMESTAMP(), NULL))`,
 		return err
 	}
 	id, _ := res.LastInsertId()
+	if currencyID.Valid {
+		if err := ensureUserCurrencyByIDTx(r.Context(), tx, id, currencyID.Int64, "catalog"); err != nil {
+			return err
+		}
+	}
 	if _, err := a.createWorkspaceTx(r.Context(), tx, id, displayName+" Personal", "personal", currencyID); err != nil {
 		return err
 	}
