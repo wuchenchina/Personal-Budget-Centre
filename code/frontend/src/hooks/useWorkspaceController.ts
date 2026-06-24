@@ -19,7 +19,7 @@ import type {
   WorkspaceMemberFormValues,
   WorkspaceFormValues,
 } from '../types/forms';
-import { toCurrencyCode } from '../utils/currencyCode';
+import { toOptionalCurrencyCode } from '../utils/currencyCode';
 import { translateCurrent } from '../i18n';
 
 export function useWorkspaceController(
@@ -232,7 +232,7 @@ export function useWorkspaceController(
     workspaceEditForm.setFieldsValue({
       name: activeWorkspace.name,
       type: activeWorkspace.type,
-      defaultCurrency: activeWorkspace.defaultCurrency ?? 'CNY',
+      defaultCurrency: activeWorkspace.defaultCurrency ?? null,
     });
     setIsWorkspaceEditModalOpen(true);
   };
@@ -455,12 +455,12 @@ export function useWorkspaceController(
 
 export type WorkspaceController = ReturnType<typeof useWorkspaceController>;
 
-async function validatedWorkspaceCurrency(value: string | undefined): Promise<CurrencyCode> {
-  const currency = toCurrencyCode(value);
+async function validatedWorkspaceCurrency(value: string | null | undefined): Promise<CurrencyCode | null> {
+  const currency = toOptionalCurrencyCode(value);
 
   try {
     const currencies = await listCurrencies();
-    if (currencies.length > 0 && !currencies.some((item) => item.code === currency)) {
+    if (currency !== null && currencies.length > 0 && !currencies.some((item) => item.code === currency)) {
       throw new Error(translateCurrent('supportedCurrencyOnly'));
     }
   } catch (error: unknown) {

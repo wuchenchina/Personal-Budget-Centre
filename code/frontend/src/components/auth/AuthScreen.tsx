@@ -90,7 +90,6 @@ export function AuthScreen({
         <Form<AuthFormValues>
           className={styles.authForm}
           form={form}
-          initialValues={{ defaultCurrency: 'CNY' }}
           layout="vertical"
           requiredMark={false}
           scrollToFirstError={{ focus: true }}
@@ -200,17 +199,25 @@ export function AuthScreen({
                 label={t('defaultCurrency')}
                 name="defaultCurrency"
                 rules={[
-                  { required: true, message: t('selectDefaultCurrency') },
                   {
                     validator: (_, value: unknown) =>
-                      typeof value === 'string'
-                        && currencyOptions.some((option) => option.value === value)
+                      value === undefined
+                        || value === null
+                        || value === ''
+                        || (typeof value === 'string'
+                          && currencyOptions.some((option) => option.value === value))
                         ? Promise.resolve()
                         : Promise.reject(new Error(t('supportedCurrencyOnly'))),
                   },
                 ]}
               >
-                <Select options={currencyOptions} size="large" />
+                <Select
+                  allowClear
+                  notFoundContent={t('noCurrencies')}
+                  options={currencyOptions}
+                  placeholder={t('defaultCurrencyPlaceholder')}
+                  size="large"
+                />
               </Form.Item>
             </>
           ) : null}

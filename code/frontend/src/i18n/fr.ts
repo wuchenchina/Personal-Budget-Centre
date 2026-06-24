@@ -209,7 +209,6 @@ export const frApiErrorMessages = {
   BUDGET_NOT_FOUND: "Le budget n’existe pas ou a été supprimé.",
   CSRF_TOKEN_INVALID: "Votre session a expiré. Veuillez vous reconnecter.",
   CURRENCY_ALREADY_EXISTS: "Currency already exists.",
-  CURRENCY_API_MANAGED: "API-managed currencies cannot be deleted.",
   CURRENCY_IN_USE: "Currency is still referenced by existing data.",
   DATABASE_NOT_CONFIGURED: "La base de données n’a pas encore été configurée.",
   DATABASE_UNAVAILABLE: "La base de données est temporairement indisponible.",

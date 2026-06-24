@@ -93,9 +93,9 @@ func (a *App) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 	if displayName == "" || len(displayName) > 120 {
 		return apiError("VALIDATION_ERROR", "Display name is required and must be 120 characters or less.", http.StatusUnprocessableEntity)
 	}
-	currencyID, err := a.currencyID(r.Context(), stringDefault(strings.ToUpper(stringValue(firstValue(input, "defaultCurrency", "default_currency"))), "CNY"))
-	if err != nil || !currencyID.Valid {
-		return apiError("CURRENCY_NOT_FOUND", "Default currency is not available.", http.StatusUnprocessableEntity)
+	currencyID, err := a.optionalCurrencyID(r.Context(), firstValue(input, "defaultCurrency", "default_currency"))
+	if err != nil {
+		return err
 	}
 	if exists, err := a.emailExistsExcept(r.Context(), email, 0); err != nil || exists {
 		if err != nil {

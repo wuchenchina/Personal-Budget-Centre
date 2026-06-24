@@ -32,14 +32,14 @@ interface WorkspaceMemberPayload {
 export interface CreateWorkspacePayload {
   name: string;
   type: 'family' | 'team' | 'custom';
-  defaultCurrency: string;
+  defaultCurrency: string | null;
 }
 
 export interface UpdateWorkspacePayload {
   workspaceId: number;
   name: string;
   type: AuthWorkspace['type'];
-  defaultCurrency: string;
+  defaultCurrency: string | null;
 }
 
 export interface AddWorkspaceMemberPayload {

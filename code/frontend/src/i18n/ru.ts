@@ -209,7 +209,6 @@ export const ruApiErrorMessages = {
   BUDGET_NOT_FOUND: "Бюджет не существует или был удален.",
   CSRF_TOKEN_INVALID: "Срок действия сеанса истек. Войдите снова.",
   CURRENCY_ALREADY_EXISTS: "Currency already exists.",
-  CURRENCY_API_MANAGED: "API-managed currencies cannot be deleted.",
   CURRENCY_IN_USE: "Currency is still referenced by existing data.",
   DATABASE_NOT_CONFIGURED: "База данных еще не настроена.",
   DATABASE_UNAVAILABLE: "База данных временно недоступна.",

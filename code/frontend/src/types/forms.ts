@@ -52,13 +52,13 @@ export interface AuthFormValues {
 export interface WorkspaceFormValues {
   name: string;
   type: 'family' | 'team' | 'custom';
-  defaultCurrency: string;
+  defaultCurrency?: string | null;
 }
 
 export interface WorkspaceEditFormValues {
   name: string;
   type: 'personal' | 'family' | 'team' | 'custom';
-  defaultCurrency: string;
+  defaultCurrency?: string | null;
 }
 
 export interface WorkspaceMemberFormValues {

@@ -19,15 +19,12 @@ var (
 )
 
 type currencyRecord struct {
-	ID                 int64
-	Code               string
-	Name               string
-	Symbol             string
-	DecimalPlaces      int64
-	IsEnabled          bool
-	ProviderSource     sql.NullString
-	IsAPIManaged       bool
-	ProviderLastSeenAt sql.NullString
+	ID            int64
+	Code          string
+	Name          string
+	Symbol        string
+	DecimalPlaces int64
+	IsEnabled     bool
 }
 
 func (a *App) currencyCreate(w http.ResponseWriter, r *http.Request) error {
@@ -64,8 +61,8 @@ func (a *App) currencyCreate(w http.ResponseWriter, r *http.Request) error {
 		return apiError("CURRENCY_ALREADY_EXISTS", "Currency already exists.", http.StatusConflict)
 	}
 	res, err := a.db.ExecContext(r.Context(), `INSERT INTO currencies
-(code, name, symbol, decimal_places, is_enabled, provider_source, is_api_managed, provider_last_seen_at)
-VALUES (?, ?, ?, ?, 1, NULL, 0, NULL)`, code, name, symbol, decimals)
+(code, name, symbol, decimal_places, is_enabled)
+VALUES (?, ?, ?, ?, 1)`, code, name, symbol, decimals)
 	if err != nil {
 		return err
 	}
@@ -89,9 +86,6 @@ func (a *App) currencyDelete(w http.ResponseWriter, r *http.Request) error {
 	currency, err := a.currencyByInput(r.Context(), input)
 	if err != nil {
 		return err
-	}
-	if currency.IsAPIManaged {
-		return apiError("CURRENCY_API_MANAGED", "API-managed currencies cannot be deleted.", http.StatusUnprocessableEntity)
 	}
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -140,9 +134,9 @@ func (a *App) currencyExists(ctx context.Context, code string) (bool, error) {
 }
 
 func (a *App) currencies(ctx context.Context) ([]currencyRecord, error) {
-	rows, err := a.db.QueryContext(ctx, `SELECT id, code, name, symbol, decimal_places, is_enabled,
-provider_source, is_api_managed, provider_last_seen_at
+	rows, err := a.db.QueryContext(ctx, `SELECT id, code, name, symbol, decimal_places, is_enabled
 FROM currencies
+WHERE is_enabled = 1
 ORDER BY code`)
 	if err != nil {
 		return nil, err
@@ -160,8 +154,7 @@ ORDER BY code`)
 }
 
 func (a *App) currencyByID(ctx context.Context, id int64) (currencyRecord, error) {
-	return scanCurrency(a.db.QueryRowContext(ctx, `SELECT id, code, name, symbol, decimal_places, is_enabled,
-provider_source, is_api_managed, provider_last_seen_at
+	return scanCurrency(a.db.QueryRowContext(ctx, `SELECT id, code, name, symbol, decimal_places, is_enabled
 FROM currencies
 WHERE id = ?
 LIMIT 1`, id))
@@ -183,8 +176,7 @@ func (a *App) currencyByInput(ctx context.Context, input map[string]any) (curren
 	if !currencyCodePattern.MatchString(code) {
 		return currencyRecord{}, apiError("VALIDATION_ERROR", "Currency id or code is required.", http.StatusUnprocessableEntity)
 	}
-	row := a.db.QueryRowContext(ctx, `SELECT id, code, name, symbol, decimal_places, is_enabled,
-provider_source, is_api_managed, provider_last_seen_at
+	row := a.db.QueryRowContext(ctx, `SELECT id, code, name, symbol, decimal_places, is_enabled
 FROM currencies
 WHERE code = ?
 LIMIT 1`, code)
@@ -207,9 +199,6 @@ func scanCurrency(row rowScanner) (currencyRecord, error) {
 		&currency.Symbol,
 		&currency.DecimalPlaces,
 		&currency.IsEnabled,
-		&currency.ProviderSource,
-		&currency.IsAPIManaged,
-		&currency.ProviderLastSeenAt,
 	); err != nil {
 		return currencyRecord{}, err
 	}
@@ -218,15 +207,12 @@ func scanCurrency(row rowScanner) (currencyRecord, error) {
 
 func currencyToResponse(currency currencyRecord) map[string]any {
 	return map[string]any{
-		"id":                 currency.ID,
-		"code":               currency.Code,
-		"name":               currency.Name,
-		"symbol":             currency.Symbol,
-		"decimalPlaces":      currency.DecimalPlaces,
-		"providerSource":     nullableString(currency.ProviderSource),
-		"isApiManaged":       currency.IsAPIManaged,
-		"providerLastSeenAt": nullableString(currency.ProviderLastSeenAt),
-		"canDelete":          !currency.IsAPIManaged,
+		"id":            currency.ID,
+		"code":          currency.Code,
+		"name":          currency.Name,
+		"symbol":        currency.Symbol,
+		"decimalPlaces": currency.DecimalPlaces,
+		"isEnabled":     currency.IsEnabled,
 	}
 }
 
@@ -278,6 +264,9 @@ ORDER BY table_name, column_name`)
 	}
 	var total int64
 	for _, reference := range references {
+		if reference.tableName == "exchange_rates" || reference.tableName == "exchange_rate_history" {
+			continue
+		}
 		count, err := currencyColumnUsage(ctx, db, reference.tableName, reference.columnName, currencyID)
 		if err != nil {
 			return 0, err

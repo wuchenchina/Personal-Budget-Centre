@@ -209,7 +209,6 @@ export const deApiErrorMessages = {
   BUDGET_NOT_FOUND: "Das Budget existiert nicht oder wurde gelöscht.",
   CSRF_TOKEN_INVALID: "Ihre Sitzung ist abgelaufen. Bitte erneut anmelden.",
   CURRENCY_ALREADY_EXISTS: "Currency already exists.",
-  CURRENCY_API_MANAGED: "API-managed currencies cannot be deleted.",
   CURRENCY_IN_USE: "Currency is still referenced by existing data.",
   DATABASE_NOT_CONFIGURED: "Die Datenbank wurde noch nicht konfiguriert.",
   DATABASE_UNAVAILABLE: "Die Datenbank ist vorübergehend nicht verfügbar.",

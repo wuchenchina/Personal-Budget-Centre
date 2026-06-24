@@ -86,13 +86,27 @@ func TestLatestExchangeRateKeepsBochkGlobalAndCustomRatesScoped(t *testing.T) {
 	}
 }
 
-func TestArchiveCurrentExchangeRatesDoesNotDeduplicateRuntimeHistory(t *testing.T) {
-	if strings.Contains(strings.ToUpper(archiveCurrentExchangeRatesSQL), "NOT EXISTS") {
-		t.Fatal("runtime exchange-rate archiving must capture every overwrite, including same-second updates")
+func TestSaveCurrentExchangeRateOverwritesWithoutRuntimeHistory(t *testing.T) {
+	content, err := os.ReadFile("exchange_rates.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func saveCurrentExchangeRateTx")
+	end := strings.Index(source, "func deleteCurrentExchangeRatesTx")
+	if start < 0 || end < start {
+		t.Fatal("could not locate saveCurrentExchangeRateTx function")
+	}
+	body := source[start:end]
+	if strings.Contains(body, "exchange_rate_history") {
+		t.Fatal("runtime exchange-rate saving must overwrite current rows without writing history")
+	}
+	if !strings.Contains(body, "deleteCurrentExchangeRatesTx") {
+		t.Fatal("runtime exchange-rate saving must delete the current row before insert")
 	}
 }
 
-func TestLatestExchangeRatePrefersCurrentOverHistoryOnSameDate(t *testing.T) {
+func TestLatestExchangeRateReadsCurrentRowsOnly(t *testing.T) {
 	content, err := os.ReadFile("exchange_rates.go")
 	if err != nil {
 		t.Fatal(err)
@@ -104,14 +118,12 @@ func TestLatestExchangeRatePrefersCurrentOverHistoryOnSameDate(t *testing.T) {
 		t.Fatal("could not locate latestExchangeRate function")
 	}
 	body := source[start:end]
-	for _, want := range []string{
-		"1 AS is_current",
-		"0 AS is_current",
-		"er.is_current DESC",
-		"er.created_at DESC",
-	} {
+	if strings.Contains(body, "exchange_rate_history") {
+		t.Fatal("latest exchange-rate lookup must not read archived history")
+	}
+	for _, want := range []string{"FROM exchange_rates er", "er.created_at DESC", "er.id DESC"} {
 		if !strings.Contains(body, want) {
-			t.Fatalf("latest exchange-rate lookup must prefer current rows over archived history, missing %q", want)
+			t.Fatalf("latest exchange-rate lookup must use current rows only, missing %q", want)
 		}
 	}
 }
@@ -175,19 +187,22 @@ func TestBochkRefreshWritesGlobalProviderRates(t *testing.T) {
 	}
 }
 
-func TestCurrencyResponseMarksAPIManagedCurrencyAsNotDeletable(t *testing.T) {
+func TestCurrencyResponseUsesDirectoryFieldsOnly(t *testing.T) {
 	response := currencyToResponse(currencyRecord{
-		ID:           1,
-		Code:         "HKD",
-		Name:         "Hong Kong Dollar",
-		Symbol:       "HK$",
-		IsAPIManaged: true,
+		ID:            1,
+		Code:          "HKD",
+		Name:          "Hong Kong Dollar",
+		Symbol:        "HK$",
+		DecimalPlaces: 2,
+		IsEnabled:     true,
 	})
-	if response["canDelete"] != false {
-		t.Fatalf("API-managed currency must not be deletable, got %#v", response["canDelete"])
+	for _, blocked := range []string{"canDelete", "isApiManaged", "providerSource", "providerLastSeenAt"} {
+		if _, ok := response[blocked]; ok {
+			t.Fatalf("currency response must not expose provider-managed product semantics: %s", blocked)
+		}
 	}
-	if _, ok := response["isEnabled"]; ok {
-		t.Fatal("currency response must not expose disabled-state semantics")
+	if response["isEnabled"] != true {
+		t.Fatalf("currency response must expose enabled directory state, got %#v", response["isEnabled"])
 	}
 }
 

@@ -5,7 +5,13 @@ export function isCurrencyCode(value: string): value is CurrencyCode {
 }
 
 export function toCurrencyCode(value: string | undefined): CurrencyCode {
-  const normalized = (value ?? 'CNY').trim().toUpperCase();
+  const normalized = (value ?? '').trim().toUpperCase();
 
   return isCurrencyCode(normalized) ? normalized : 'CNY';
+}
+
+export function toOptionalCurrencyCode(value: string | null | undefined): CurrencyCode | null {
+  const normalized = (value ?? '').trim().toUpperCase();
+
+  return isCurrencyCode(normalized) ? normalized : null;
 }

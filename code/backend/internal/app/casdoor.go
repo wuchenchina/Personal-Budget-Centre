@@ -147,7 +147,7 @@ func (a *App) createAndLoginWithCasdoor(w http.ResponseWriter, r *http.Request, 
 	if err != nil {
 		return err
 	}
-	currencyID, _ := a.currencyID(r.Context(), "CNY")
+	currencyID := sql.NullInt64{}
 	isFirst, err := a.noUsers(r.Context())
 	if err != nil {
 		return err

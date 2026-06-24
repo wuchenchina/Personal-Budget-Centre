@@ -175,10 +175,7 @@ func saveCurrentExchangeRateTx(ctx context.Context, tx *sql.Tx, input currentExc
 	if input.ProviderRateType == "" {
 		input.ProviderRateType = "manual"
 	}
-	if err := archiveCurrentExchangeRatesTx(ctx, tx, input); err != nil {
-		return 0, err
-	}
-	if err := deleteArchivedCurrentExchangeRatesTx(ctx, tx, input); err != nil {
+	if err := deleteCurrentExchangeRatesTx(ctx, tx, input); err != nil {
 		return 0, err
 	}
 	res, err := tx.ExecContext(ctx, `INSERT INTO exchange_rates
@@ -210,28 +207,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	return 0, nil
 }
 
-const archiveCurrentExchangeRatesSQL = `INSERT INTO exchange_rate_history
-(current_rate_id, user_id, workspace_id, from_currency_id, to_currency_id, rate, rate_date, source,
-source_name, source_url, provider_rate_type, provider_sell_rate, provider_buy_rate, provider_updated_at,
-fetched_at, note, original_created_at)
-SELECT er.id, er.user_id, er.workspace_id, er.from_currency_id, er.to_currency_id, er.rate, er.rate_date,
-er.source, er.source_name, er.source_url, er.provider_rate_type, er.provider_sell_rate, er.provider_buy_rate,
-er.provider_updated_at, er.fetched_at, er.note, er.created_at
-FROM exchange_rates er
-WHERE (er.workspace_id <=> ?)
-  AND er.from_currency_id = ?
-  AND er.to_currency_id = ?
-  AND er.source = ?
-  AND er.provider_rate_type = ?`
-
-func archiveCurrentExchangeRatesTx(ctx context.Context, tx *sql.Tx, input currentExchangeRateInput) error {
-	_, err := tx.ExecContext(ctx, archiveCurrentExchangeRatesSQL,
-		nullableInt(input.WorkspaceID), input.FromCurrencyID, input.ToCurrencyID, input.Source, input.ProviderRateType,
-	)
-	return err
-}
-
-func deleteArchivedCurrentExchangeRatesTx(ctx context.Context, tx *sql.Tx, input currentExchangeRateInput) error {
+func deleteCurrentExchangeRatesTx(ctx context.Context, tx *sql.Tx, input currentExchangeRateInput) error {
 	_, err := tx.ExecContext(ctx, `DELETE FROM exchange_rates
 WHERE (workspace_id <=> ?)
   AND from_currency_id = ?
@@ -321,13 +297,7 @@ func (a *App) latestExchangeRate(ctx context.Context, workspaceID, fromCurrencyI
 	}
 	args = append(args, workspaceID)
 	row := a.db.QueryRowContext(ctx, `SELECT er.rate, er.rate_date, er.source
-FROM (
-  SELECT id, workspace_id, from_currency_id, to_currency_id, rate, rate_date, source, provider_rate_type, created_at, 1 AS is_current
-  FROM exchange_rates
-  UNION ALL
-  SELECT id, workspace_id, from_currency_id, to_currency_id, rate, rate_date, source, provider_rate_type, original_created_at AS created_at, 0 AS is_current
-  FROM exchange_rate_history
-) er
+FROM exchange_rates er
 WHERE ((er.source = 'bochk' AND er.workspace_id IS NULL) OR (er.source <> 'bochk' AND er.workspace_id = ?))
   AND er.from_currency_id = ?
   AND er.to_currency_id = ?
@@ -342,7 +312,6 @@ ORDER BY
     WHEN 'budget_default' THEN 3
     ELSE 4
   END,
-  er.is_current DESC,
   er.created_at DESC,
   er.id DESC
 LIMIT 1`, args...)

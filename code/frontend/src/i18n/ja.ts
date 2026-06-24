@@ -209,7 +209,6 @@ export const jaApiErrorMessages = {
   BUDGET_NOT_FOUND: "予算が存在しないか、削除されています。",
   CSRF_TOKEN_INVALID: "セッションの有効期限が切れました。もう一度サインインしてください。",
   CURRENCY_ALREADY_EXISTS: "Currency already exists.",
-  CURRENCY_API_MANAGED: "API-managed currencies cannot be deleted.",
   CURRENCY_IN_USE: "Currency is still referenced by existing data.",
   DATABASE_NOT_CONFIGURED: "データベースがまだ設定されていません。",
   DATABASE_UNAVAILABLE: "データベースは一時的に利用できません。",

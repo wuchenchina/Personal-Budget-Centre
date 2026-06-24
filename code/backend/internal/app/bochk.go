@@ -225,8 +225,7 @@ func ensureBochkCurrencyTx(ctx context.Context, tx *sql.Tx, code, label string) 
 	err := tx.QueryRowContext(ctx, "SELECT id FROM currencies WHERE code = ? LIMIT 1", code).Scan(&id)
 	if err == nil {
 		_, err = tx.ExecContext(ctx, `UPDATE currencies
-SET name = ?, symbol = ?, decimal_places = ?, is_enabled = 1,
-    provider_source = 'bochk', is_api_managed = 1, provider_last_seen_at = UTC_TIMESTAMP()
+SET name = ?, symbol = ?, decimal_places = ?, is_enabled = 1
 WHERE id = ?`, meta.Name, meta.Symbol, meta.Decimals, id)
 		return id, err
 	}
@@ -234,8 +233,8 @@ WHERE id = ?`, meta.Name, meta.Symbol, meta.Decimals, id)
 		return 0, err
 	}
 	res, err := tx.ExecContext(ctx, `INSERT INTO currencies
-(code, name, symbol, decimal_places, is_enabled, provider_source, is_api_managed, provider_last_seen_at)
-VALUES (?, ?, ?, ?, 1, 'bochk', 1, UTC_TIMESTAMP())`,
+(code, name, symbol, decimal_places, is_enabled)
+VALUES (?, ?, ?, ?, 1)`,
 		code, meta.Name, meta.Symbol, meta.Decimals,
 	)
 	if err != nil {

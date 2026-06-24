@@ -1,31 +1,5 @@
 SET NAMES utf8mb4;
 
-INSERT INTO currencies (code, name, symbol, decimal_places, is_enabled)
-VALUES
-  ('CNY', 'Chinese Yuan', '¥', 2, 1),
-  ('CNH', 'Offshore Chinese Yuan', 'CNH¥', 2, 1),
-  ('HKD', 'Hong Kong Dollar', 'HK$', 2, 1),
-  ('USD', 'United States Dollar', '$', 2, 1),
-  ('EUR', 'Euro', '€', 2, 1),
-  ('GBP', 'Pound Sterling', '£', 2, 1),
-  ('JPY', 'Japanese Yen', '¥', 0, 1),
-  ('AUD', 'Australian Dollar', 'A$', 2, 1),
-  ('NZD', 'New Zealand Dollar', 'NZ$', 2, 1),
-  ('CAD', 'Canadian Dollar', 'C$', 2, 1),
-  ('CHF', 'Swiss Franc', 'CHF', 2, 1),
-  ('DKK', 'Danish Krone', 'DKK', 2, 1),
-  ('NOK', 'Norwegian Krone', 'NOK', 2, 1),
-  ('SEK', 'Swedish Krona', 'SEK', 2, 1),
-  ('SGD', 'Singapore Dollar', 'S$', 2, 1),
-  ('THB', 'Thai Baht', '฿', 2, 1),
-  ('BND', 'Brunei Dollar', 'B$', 2, 1),
-  ('ZAR', 'South African Rand', 'R', 2, 1)
-ON DUPLICATE KEY UPDATE
-  name = VALUES(name),
-  symbol = VALUES(symbol),
-  decimal_places = VALUES(decimal_places),
-  is_enabled = VALUES(is_enabled);
-
 INSERT INTO roles (role_key, name, scope, is_system)
 VALUES
   ('owner', 'Owner', 'workspace', 1),

@@ -325,13 +325,27 @@
   width: 56px;
 }
 
+.currency-reserve-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.currency-reserve-select {
+  min-width: 0;
+}
+
 @media (max-width: 560px) {
   .manual-rate-row,
-  .currency-create-row {
+  .currency-create-row,
+  .currency-reserve-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .manual-rate-row .ant-btn,
+  .currency-reserve-row .ant-btn,
   .currency-create-row .ant-input-number,
   .currency-create-row .ant-btn {
     width: 100%;

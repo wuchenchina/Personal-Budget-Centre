@@ -53,7 +53,7 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
   const openCreateModal = () => {
     createForm.resetFields();
     createForm.setFieldsValue({
-      defaultCurrency: 'CNY',
+      defaultCurrency: null,
       emailVerified: true,
       isAdmin: false,
     });

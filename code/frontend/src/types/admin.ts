@@ -36,7 +36,7 @@ export interface AdminUserCreatePayload {
   username: string;
   displayName: string;
   password: string;
-  defaultCurrency: string;
+  defaultCurrency?: string | null;
   emailVerified: boolean;
   isAdmin: boolean;
 }

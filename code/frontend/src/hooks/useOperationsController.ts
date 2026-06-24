@@ -565,6 +565,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     shares,
     passkeys,
     operationsError,
+    setOperationsError,
     isReferenceLoading,
     isCurrencySaving,
     deletingCurrencyId,

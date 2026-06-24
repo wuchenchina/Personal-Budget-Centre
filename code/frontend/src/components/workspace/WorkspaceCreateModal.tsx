@@ -68,7 +68,9 @@ export function WorkspaceCreateModal({
         requiredMark={false}
         initialValues={{
           type: 'team',
-          defaultCurrency: baseCurrency,
+          defaultCurrency: currencyOptions.some((option) => option.value === baseCurrency)
+            ? baseCurrency
+            : null,
         }}
       >
         <Form.Item
@@ -112,9 +114,10 @@ export function WorkspaceCreateModal({
         <Form.Item
           label={t('defaultCurrency')}
           name="defaultCurrency"
-          rules={[{ required: true, message: t('selectDefaultCurrency') }]}
         >
           <Select
+            allowClear
+            notFoundContent={t('noCurrencies')}
             showSearch
             optionFilterProp="label"
             options={currencyOptions}

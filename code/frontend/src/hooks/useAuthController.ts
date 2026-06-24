@@ -7,7 +7,7 @@ import type { AuthSession } from '../types/auth';
 import type { CurrencyCode } from '../types/budget';
 import type { AuthFormValues, AuthMode } from '../types/forms';
 import { translateCurrent } from '../i18n';
-import { toCurrencyCode } from '../utils/currencyCode';
+import { toOptionalCurrencyCode } from '../utils/currencyCode';
 
 interface UseAuthControllerOptions {
   initialSession?: AuthSession | null;
@@ -90,8 +90,8 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
 
     try {
       if (authMode === 'register') {
-        const defaultCurrency = toCurrencyCode(values.defaultCurrency);
-        if (!currencyOptions.some((option) => option.value === defaultCurrency)) {
+        const defaultCurrency = toOptionalCurrencyCode(values.defaultCurrency);
+        if (defaultCurrency !== null && !currencyOptions.some((option) => option.value === defaultCurrency)) {
           throw new Error(translateCurrent('supportedCurrencyOnly'));
         }
 
@@ -101,7 +101,7 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
           displayName: values.displayName?.trim() ?? '',
           email: values.email?.trim() ?? '',
           password: values.password,
-          defaultCurrency,
+          defaultCurrency: defaultCurrency ?? undefined,
         });
 
         if ('requiresEmailVerification' in result) {
@@ -188,7 +188,6 @@ export function useAuthController(options: UseAuthControllerOptions = {}) {
     setAuthError(null);
     setAuthNotice(null);
     authForm.resetFields();
-    authForm.setFieldValue('defaultCurrency', 'CNY');
   };
 
   return {

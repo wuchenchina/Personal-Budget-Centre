@@ -86,9 +86,10 @@ export function WorkspaceEditModal({
         <Form.Item
           label={t('defaultCurrency')}
           name="defaultCurrency"
-          rules={[{ required: true, message: t('selectDefaultCurrency') }]}
         >
           <Select
+            allowClear
+            notFoundContent={t('noCurrencies')}
             showSearch
             optionFilterProp="label"
             options={currencyOptions}

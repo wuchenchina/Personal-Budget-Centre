@@ -210,6 +210,13 @@ function AuthenticatedApp({
 
     window.open(url, '_blank', 'noopener,noreferrer');
   };
+  const openBudgetModalWhenCurrencyReady = () => {
+    if (operations.currencyOptions.length === 0) {
+      operations.setOperationsError(t('currencyRequiredBeforeBudget'));
+      return;
+    }
+    budget.openBudgetModal();
+  };
   const governancePanel = (
     <GovernancePanel
       activeKey={activeKey}
@@ -292,7 +299,7 @@ function AuthenticatedApp({
           canWriteBudgets={canWriteBudgets}
           loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
           onNavigate={handleNavigate}
-          onNewProject={budget.openBudgetModal}
+          onNewProject={openBudgetModalWhenCurrencyReady}
           onOpenBookkeeping={openBudgetBookkeepingInNewTab}
           onOpenProject={openBudgetProjectInNewTab}
         />
@@ -318,7 +325,7 @@ function AuthenticatedApp({
           loading={budget.isBudgetLoading}
           onDeleteProject={(budgetId) => void budget.handleBudgetDelete(budgetId)}
           onEditProjectInfo={budget.openBudgetEditModal}
-          onNewProject={budget.openBudgetModal}
+          onNewProject={openBudgetModalWhenCurrencyReady}
           onOpenBookkeeping={openBudgetBookkeepingInNewTab}
           onOpenProject={openBudgetProjectInNewTab}
           onSelectProject={(budgetId) => void budget.handleBudgetSelect(budgetId)}
@@ -369,7 +376,7 @@ function AuthenticatedApp({
         canWriteBudgets={canWriteBudgets}
         loading={budget.isBudgetLoading || budget.isBudgetDetailLoading}
         onNavigate={handleNavigate}
-        onNewProject={budget.openBudgetModal}
+        onNewProject={openBudgetModalWhenCurrencyReady}
         onOpenBookkeeping={openBudgetBookkeepingInNewTab}
         onOpenProject={openBudgetProjectInNewTab}
       />

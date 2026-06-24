@@ -124,14 +124,14 @@ export function BudgetCreateModal({
             name="baseCurrency"
             rules={[{ required: true, message: t('selectBaseCurrency') }]}
           >
-            <Select options={currencyOptions} />
+            <Select notFoundContent={t('noCurrencies')} options={currencyOptions} />
           </Form.Item>
           <Form.Item
             label={t('displayCurrency')}
             name="displayCurrency"
             rules={[{ required: true, message: t('selectDisplayCurrency') }]}
           >
-            <Select options={currencyOptions} />
+            <Select notFoundContent={t('noCurrencies')} options={currencyOptions} />
           </Form.Item>
           <Form.Item
             label={t('visibility')}

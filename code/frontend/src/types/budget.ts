@@ -294,10 +294,7 @@ export interface Currency {
   name: string;
   symbol: string;
   decimalPlaces: number;
-  providerSource: string | null;
-  isApiManaged: boolean;
-  providerLastSeenAt: string | null;
-  canDelete: boolean;
+  isEnabled: boolean;
 }
 
 export interface BudgetCategoryAlias {

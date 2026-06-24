@@ -72,14 +72,15 @@ storage/logs
   - 空 database：套用 `code/database/*.sql` 初始化。
   - 既有 database：建立/更新 `schema_migrations`，套用尚未執行的安全增量。
 - 不提供 fresh/reset/drop/truncate/清空資料功能。
-- 匯率 current/history 分離：
-  - `exchange_rates` 只保留目前最新匯率。
-  - 舊 current 會自動歸檔到 `exchange_rate_history`。
-  - legacy provider current（例如舊 Mastercard 或 BOCHK mid/card）會在升級時歸檔後移出 current 表。
+- 匯率只保留 current rows：
+  - `exchange_rates` 只保留目前最新匯率，每次手動或 BOCHK 更新都覆蓋同 scope/source/pair/type 的 current row。
+  - `exchange_rate_history` 表保留給舊庫相容，但新後端不再寫入；升級 migration 會清空既有 history 內容。
+  - legacy provider current（例如舊 Mastercard 或 BOCHK mid/card）會在升級時移出 current 表。
   - BOCHK 匯率由 Go API 啟動後檢查，之後每 4 小時刷新一次；管理介面仍可人工刷新。
-- 幣種以資料庫目前存在資料為準，不再提供停用狀態。
-  - BOCHK 實際取得的幣種會標記為 API-managed，不可刪除。
-  - 手動新增幣種可刪除；若已有任何資料引用，後端會拒絕刪除。
+- 幣種是獨立目錄：
+  - 空庫不預置貨幣；管理端可從前端本地儲備加入常用貨幣，也可新增 BOCHK 不支援的貨幣。
+  - BOCHK refresh 會自動補齊 HKD 與 feed 支援貨幣，但不再標記為供應商託管，也不阻止刪除。
+  - 刪除貨幣前會清掉純匯率引用；若已有預算、交易、帳戶等真正業務資料引用，後端仍會拒絕刪除。
   - 舊資料庫若殘留 TWD/MOP，可先執行 `scripts/legacy_currency_audit.sql` 檢查引用，再視結果執行 `scripts/legacy_currency_cleanup.sql` 做安全刪除。
 
 第一個成功註冊的使用者會自動成為 admin。既有資料庫若沒有 admin，可手動更新 `users.is_admin = 1`。

@@ -39,7 +39,7 @@ export function AdminCreateUserModal({
         name="budget-centre-admin-create-user"
         requiredMark={false}
         initialValues={{
-          defaultCurrency: 'CNY',
+          defaultCurrency: null,
           emailVerified: true,
           isAdmin: false,
         }}
@@ -90,9 +90,10 @@ export function AdminCreateUserModal({
         <Form.Item
           label={t('defaultCurrency')}
           name="defaultCurrency"
-          rules={[{ required: true, message: t('selectDefaultCurrency') }]}
         >
           <Select
+            allowClear
+            notFoundContent={t('noCurrencies')}
             showSearch
             optionFilterProp="label"
             options={currencyOptions}

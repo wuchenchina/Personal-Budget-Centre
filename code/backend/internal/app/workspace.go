@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
-	"strings"
 
 	"budgetcentre/backend/internal/httpx"
 )
@@ -117,9 +116,9 @@ func (a *App) workspaceCreate(w http.ResponseWriter, r *http.Request) error {
 	if !roleAllowed(typ, "family", "team", "custom") {
 		return apiError("VALIDATION_ERROR", "Workspace type must be family, team, or custom.", http.StatusUnprocessableEntity)
 	}
-	currencyID, err := a.currencyID(r.Context(), stringDefault(strings.ToUpper(stringValue(firstValue(input, "defaultCurrency", "default_currency"))), "CNY"))
-	if err != nil || !currencyID.Valid {
-		return apiError("CURRENCY_NOT_FOUND", "Default currency is not available.", http.StatusUnprocessableEntity)
+	currencyID, err := a.optionalCurrencyID(r.Context(), firstValue(input, "defaultCurrency", "default_currency"))
+	if err != nil {
+		return err
 	}
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -189,9 +188,9 @@ func (a *App) workspaceUpdate(w http.ResponseWriter, r *http.Request) error {
 	if currentType == "personal" && current["role"] != "owner" {
 		return apiError("FORBIDDEN", "Only the owner can update a personal workspace.", http.StatusForbidden)
 	}
-	currencyID, err := a.currencyID(r.Context(), stringDefault(strings.ToUpper(stringValue(firstValue(input, "defaultCurrency", "default_currency"))), "CNY"))
-	if err != nil || !currencyID.Valid {
-		return apiError("CURRENCY_NOT_FOUND", "Default currency is not available.", http.StatusUnprocessableEntity)
+	currencyID, err := a.optionalCurrencyID(r.Context(), firstValue(input, "defaultCurrency", "default_currency"))
+	if err != nil {
+		return err
 	}
 	_, err = a.db.ExecContext(r.Context(), "UPDATE workspaces SET name = ?, type = ?, default_currency_id = ? WHERE id = ?", name, typ, nullableInt(currencyID), id)
 	if err != nil {

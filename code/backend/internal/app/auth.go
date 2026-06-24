@@ -35,7 +35,10 @@ func (a *App) authRegister(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	currencyID, _ := a.currencyID(r.Context(), stringDefault(stringValue(input["defaultCurrency"]), "CNY"))
+	currencyID, err := a.optionalCurrencyID(r.Context(), input["defaultCurrency"])
+	if err != nil {
+		return err
+	}
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err

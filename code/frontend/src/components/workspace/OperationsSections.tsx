@@ -2,6 +2,7 @@ import { Alert } from 'antd';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import type { BudgetDetail } from '../../types/budget';
 import { CategorySideSection } from './CategorySideSection';
+import { CurrencySideSection } from './CurrencySideSection';
 import { ExchangeRateSideSection } from './ExchangeRateSideSection';
 import { ShareSideSection } from './ShareSideSection';
 
@@ -43,10 +44,15 @@ export function OperationsSections({
         />
       ) : null}
       {showCategories ? <CategorySideSection operations={operations} /> : null}
+      {showCategories || showRates ? (
+        <CurrencySideSection
+          isSystemAdmin={isSystemAdmin}
+          operations={operations}
+        />
+      ) : null}
       {showRates ? (
         <ExchangeRateSideSection
           activeWorkspaceId={activeWorkspaceId}
-          isSystemAdmin={isSystemAdmin}
           canManageExchangeRates={canManageExchangeRates}
           operations={operations}
         />

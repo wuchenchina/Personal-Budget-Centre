@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Input, InputNumber, Popconfirm, Select, Space, Table, Tag } from 'antd';
+import { Alert, Button, Input, InputNumber, Select, Space, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { Plus, RefreshCcw, Trash2 } from 'lucide-react';
+import { Plus, RefreshCcw } from 'lucide-react';
 import { createManualExchangeRate, listExchangeRates } from '../../api/exchangeRates';
 import { currencyRateSourceColors } from '../../config/appConfig';
 import type { OperationsController } from '../../hooks/useOperationsController';
@@ -10,14 +10,12 @@ import type { CurrencyCode, CurrencyRate } from '../../types/budget';
 
 interface ExchangeRateSideSectionProps {
   activeWorkspaceId: number | null;
-  isSystemAdmin: boolean;
   canManageExchangeRates: boolean;
   operations: OperationsController;
 }
 
 export function ExchangeRateSideSection({
   activeWorkspaceId,
-  isSystemAdmin,
   canManageExchangeRates,
   operations,
 }: ExchangeRateSideSectionProps) {
@@ -25,10 +23,6 @@ export function ExchangeRateSideSection({
   const [rates, setRates] = useState<CurrencyRate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currencyCode, setCurrencyCode] = useState('');
-  const [currencyName, setCurrencyName] = useState('');
-  const [currencySymbol, setCurrencySymbol] = useState('');
-  const [decimalPlaces, setDecimalPlaces] = useState(2);
   const [manualFromCurrency, setManualFromCurrency] = useState<CurrencyCode | undefined>();
   const [manualToCurrency, setManualToCurrency] = useState<CurrencyCode | undefined>();
   const [manualRate, setManualRate] = useState<number | null>(null);
@@ -138,32 +132,6 @@ export function ExchangeRateSideSection({
     }
   };
 
-  const canCreateCurrency =
-    /^[A-Z]{3}$/.test(currencyCode)
-    && currencyName.trim() !== ''
-    && decimalPlaces >= 0
-    && decimalPlaces <= 6;
-
-  const handleCreateCurrency = async () => {
-    if (!canCreateCurrency) {
-      return;
-    }
-
-    const saved = await operations.saveCurrency({
-      code: currencyCode,
-      name: currencyName,
-      symbol: currencySymbol,
-      decimalPlaces,
-    });
-
-    if (saved) {
-      setCurrencyCode('');
-      setCurrencyName('');
-      setCurrencySymbol('');
-      setDecimalPlaces(2);
-    }
-  };
-
   return (
     <div className="side-section exchange-rate-section">
       <div className="side-title side-title-row">
@@ -200,6 +168,7 @@ export function ExchangeRateSideSection({
           <Select
             aria-label={t('fromCurrency')}
             options={operations.currencyOptions}
+            notFoundContent={t('noCurrencies')}
             optionFilterProp="label"
             placeholder={t('fromCurrency')}
             showSearch
@@ -210,6 +179,7 @@ export function ExchangeRateSideSection({
           <Select
             aria-label={t('toCurrency')}
             options={operations.currencyOptions}
+            notFoundContent={t('noCurrencies')}
             optionFilterProp="label"
             placeholder={t('toCurrency')}
             showSearch
@@ -253,86 +223,6 @@ export function ExchangeRateSideSection({
             onClick={() => void handleCreateManualRate()}
           >
             {t('saveManualRate')}
-          </Button>
-        </div>
-      ) : null}
-
-      <Space className="currency-chip-row" size={4} wrap>
-        {operations.currencies.map((currency) => (
-          <span className="currency-chip" key={currency.code}>
-            <Tag color={currency.isApiManaged ? 'blue' : undefined}>
-              {currency.code}
-              {currency.isApiManaged ? <small>{t('apiManagedCurrency')}</small> : null}
-            </Tag>
-            {isSystemAdmin && currency.canDelete ? (
-              <Popconfirm
-                title={t('deleteCurrency')}
-                description={t('deleteCurrencyDescription')}
-                okText={t('delete')}
-                cancelText={t('cancel')}
-                okButtonProps={{ danger: true }}
-                onConfirm={() => void operations.removeCurrency(currency.id)}
-              >
-                <Button
-                  aria-label={`${t('deleteCurrency')} ${currency.code}`}
-                  danger
-                  icon={<Trash2 size={12} />}
-                  loading={operations.deletingCurrencyId === currency.id}
-                  size="small"
-                  type="text"
-                />
-              </Popconfirm>
-            ) : null}
-          </span>
-        ))}
-      </Space>
-
-      {isSystemAdmin ? (
-        <div className="currency-create-row">
-          <Input
-            aria-label={t('currencyCode')}
-            maxLength={3}
-            placeholder={t('currencyCode')}
-            size="small"
-            value={currencyCode}
-            onChange={(event) => setCurrencyCode(event.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
-            onPressEnter={() => void handleCreateCurrency()}
-          />
-          <Input
-            aria-label={t('currencyName')}
-            maxLength={120}
-            placeholder={t('currencyName')}
-            size="small"
-            value={currencyName}
-            onChange={(event) => setCurrencyName(event.target.value)}
-            onPressEnter={() => void handleCreateCurrency()}
-          />
-          <Input
-            aria-label={t('currencySymbol')}
-            maxLength={16}
-            placeholder={t('currencySymbol')}
-            size="small"
-            value={currencySymbol}
-            onChange={(event) => setCurrencySymbol(event.target.value)}
-            onPressEnter={() => void handleCreateCurrency()}
-          />
-          <InputNumber
-            aria-label={t('decimalPlaces')}
-            max={6}
-            min={0}
-            precision={0}
-            size="small"
-            value={decimalPlaces}
-            onChange={(value) => setDecimalPlaces(typeof value === 'number' ? value : 2)}
-          />
-          <Button
-            disabled={!canCreateCurrency}
-            icon={<Plus size={13} />}
-            loading={operations.isCurrencySaving}
-            size="small"
-            onClick={() => void handleCreateCurrency()}
-          >
-            {t('addCurrency')}
           </Button>
         </div>
       ) : null}

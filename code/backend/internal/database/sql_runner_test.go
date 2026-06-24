@@ -71,21 +71,15 @@ func TestExchangeRateHistoryMigrationsCoerceLegacySources(t *testing.T) {
 	}
 }
 
-func TestSeedCurrenciesOnlyIncludesAvailableProviderCurrencies(t *testing.T) {
+func TestSeedCurrenciesDoesNotPreloadCurrencyCatalog(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join("..", "..", "..", "database", "002_seed_currencies.sql"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	sql := string(content)
-	want := []string{"AUD", "BND", "CAD", "CHF", "CNH", "CNY", "DKK", "EUR", "GBP", "HKD", "JPY", "NOK", "NZD", "SEK", "SGD", "THB", "USD", "ZAR"}
 	codes := currencyCodesFromSeedSQL(sql)
-	if len(codes) != len(want) {
-		t.Fatalf("seed currency count = %d, want %d: got=%v want=%v", len(codes), len(want), codes, want)
-	}
-	for i := range want {
-		if codes[i] != want[i] {
-			t.Fatalf("seed currencies = %v, want %v", codes, want)
-		}
+	if len(codes) != 0 {
+		t.Fatalf("seed migration must not preload currencies, got=%v", codes)
 	}
 }
 
@@ -155,6 +149,31 @@ func TestGlobalBochkCurrentMigrationRemovesWorkspaceScopedProviderRows(t *testin
 	} {
 		if !strings.Contains(sql, want) {
 			t.Fatalf("global BOCHK migration missing %q", want)
+		}
+	}
+}
+
+func TestCurrencyCatalogCurrentRatesMigrationDisablesHistoryAndKeepsLocalCatalog(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("..", "..", "..", "database", "036_currency_catalog_current_rates.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := string(content)
+	for _, want := range []string{
+		"DELETE FROM exchange_rate_history",
+		"SET provider_source = NULL",
+		"is_api_managed = 0",
+		"provider_last_seen_at = NULL",
+		"DELETE FROM exchange_rates",
+		"code NOT IN ('TWD', 'MOP')",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Fatalf("currency catalog migration missing %q", want)
+		}
+	}
+	for _, blocked := range []string{"DROP TABLE", "TRUNCATE", "DROP DATABASE", "CREATE DATABASE"} {
+		if strings.Contains(strings.ToUpper(sql), blocked) {
+			t.Fatalf("currency catalog migration must not use unsafe SQL, found %q", blocked)
 		}
 	}
 }
