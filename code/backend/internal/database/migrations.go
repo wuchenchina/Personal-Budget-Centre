@@ -91,7 +91,7 @@ func Status(ctx context.Context, db *sql.DB, cfg config.Config) (MigrationStatus
 			continue
 		}
 		if applied.Checksum != file.Checksum {
-			if isRecoverableChecksumChange(applied.Filename, file.Name) {
+			if isRecoverableChecksumChange(applied.Filename, applied.Checksum, file) {
 				continue
 			}
 			return status, fmt.Errorf("migration checksum changed for %s", file.Name)
@@ -160,7 +160,10 @@ func migrationApplied(ctx context.Context, db *sql.DB, file migrationFile) (bool
 		return false, err
 	}
 	if checksum != file.Checksum {
-		if isRecoverableChecksumChange(filename, file.Name) {
+		if isRecoverableChecksumChange(filename, checksum, file) {
+			if err := reconcileRecoverableMigration(ctx, db, file); err != nil {
+				return false, err
+			}
 			return true, nil
 		}
 		if isRecoverableDuplicateMigrationVersion(filename, file.Name) {
@@ -175,8 +178,22 @@ func isRecoverableDuplicateMigrationVersion(appliedFilename, currentFilename str
 	return appliedFilename == "027_user_avatar_url.sql" && currentFilename == "027_webauthn_session_json.sql"
 }
 
-func isRecoverableChecksumChange(appliedFilename, currentFilename string) bool {
-	return appliedFilename == "002_seed_currencies.sql" && currentFilename == "002_seed_currencies.sql"
+func isRecoverableChecksumChange(appliedFilename, appliedChecksum string, current migrationFile) bool {
+	return appliedFilename == "002_seed_currencies.sql" &&
+		current.Version == "002" &&
+		current.Name == "002_seed_currencies.sql" &&
+		current.Checksum == "a0826bd11ba4546bf7b2ec82a458048bf41cc956b054a6c0da5e44b5c62b1130" &&
+		appliedChecksum != ""
+}
+
+func reconcileRecoverableMigration(ctx context.Context, db *sql.DB, file migrationFile) error {
+	_, err := db.ExecContext(ctx, `
+UPDATE schema_migrations
+SET filename = ?, checksum = ?
+WHERE version = ?`,
+		file.Name, file.Checksum, file.Version,
+	)
+	return err
 }
 
 func appliedMigrations(ctx context.Context, db *sql.DB) ([]AppliedMigration, error) {

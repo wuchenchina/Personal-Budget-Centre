@@ -224,10 +224,22 @@ func (a *App) budgetDetailPayload(r *http.Request, id, userID int64) (map[string
 	if err := a.requireBudgetRead(r, id, userID); err != nil {
 		return nil, err
 	}
-	participants, _ := a.participants(r, id)
-	items, _ := a.items(r, id)
-	transactions, _ := a.transactions(r, id)
-	plan, _ := a.overallInstallmentPlan(r, id)
+	participants, err := a.participants(r, id)
+	if err != nil {
+		return nil, err
+	}
+	items, err := a.items(r, id)
+	if err != nil {
+		return nil, err
+	}
+	transactions, err := a.transactions(r, id)
+	if err != nil {
+		return nil, err
+	}
+	plan, err := a.overallInstallmentPlan(r, id)
+	if err != nil {
+		return nil, err
+	}
 	budget["participants"] = participants
 	budget["items"] = items
 	budget["transactions"] = transactions

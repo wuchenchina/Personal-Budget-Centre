@@ -220,11 +220,22 @@ func TestRecoverableDuplicateMigrationVersion(t *testing.T) {
 }
 
 func TestRecoverableSeedCurrencyChecksumChange(t *testing.T) {
-	if !isRecoverableChecksumChange("002_seed_currencies.sql", "002_seed_currencies.sql") {
+	current := migrationFile{
+		Version:  "002",
+		Name:     "002_seed_currencies.sql",
+		Checksum: "a0826bd11ba4546bf7b2ec82a458048bf41cc956b054a6c0da5e44b5c62b1130",
+	}
+	if !isRecoverableChecksumChange("002_seed_currencies.sql", "old-checksum", current) {
 		t.Fatal("expected 002 seed migration checksum drift to be recoverable")
 	}
-	if isRecoverableChecksumChange("001_schema.sql", "001_schema.sql") {
+	if isRecoverableChecksumChange("001_schema.sql", "old-checksum", migrationFile{Name: "001_schema.sql", Checksum: current.Checksum}) {
 		t.Fatal("unexpected generic checksum recovery")
+	}
+	if isRecoverableChecksumChange("002_seed_currencies.sql", "old-checksum", migrationFile{Name: "002_seed_currencies.sql", Checksum: "changed"}) {
+		t.Fatal("unexpected recovery for unknown 002 checksum")
+	}
+	if isRecoverableChecksumChange("002_seed_currencies.sql", "old-checksum", migrationFile{Name: current.Name, Checksum: current.Checksum}) {
+		t.Fatal("unexpected recovery without migration version")
 	}
 }
 
