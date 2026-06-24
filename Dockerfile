@@ -1,5 +1,14 @@
 FROM node:26-alpine AS frontend
 WORKDIR /src/code/frontend
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG ALL_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG all_proxy
+ARG no_proxy
+RUN (corepack enable && corepack prepare yarn@1.22.22 --activate) || npm install -g yarn@1.22.22
 COPY code/frontend/package.json code/frontend/yarn.lock ./
 RUN yarn install --frozen-lockfile
 COPY code/frontend ./
@@ -7,6 +16,14 @@ RUN yarn build
 
 FROM golang:1.26-alpine AS backend
 WORKDIR /src/code/backend
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG ALL_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG all_proxy
+ARG no_proxy
 COPY code/backend/go.mod code/backend/go.sum ./
 RUN go mod download
 COPY code/backend ./
@@ -17,6 +34,14 @@ COPY code/deploy/docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=frontend /src/code/frontend/dist /usr/share/nginx/html
 
 FROM alpine:3.22 AS api
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG ALL_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG all_proxy
+ARG no_proxy
 RUN apk add --no-cache ca-certificates chromium fontconfig tzdata
 WORKDIR /app
 COPY --from=backend /out/budgetcentre-api /app/budgetcentre-api

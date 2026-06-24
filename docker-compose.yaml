@@ -3,6 +3,15 @@ services:
     build:
       context: .
       target: web
+      args:
+        HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
+        HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
+        ALL_PROXY: ${BUILD_ALL_PROXY:-}
+        NO_PROXY: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1}
+        http_proxy: ${BUILD_HTTP_PROXY:-}
+        https_proxy: ${BUILD_HTTPS_PROXY:-}
+        all_proxy: ${BUILD_ALL_PROXY:-}
+        no_proxy: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1}
     ports:
       - "${WEB_BIND:-127.0.0.1:18080}:80"
     depends_on:
@@ -13,6 +22,15 @@ services:
     build:
       context: .
       target: api
+      args:
+        HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
+        HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
+        ALL_PROXY: ${BUILD_ALL_PROXY:-}
+        NO_PROXY: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1}
+        http_proxy: ${BUILD_HTTP_PROXY:-}
+        https_proxy: ${BUILD_HTTPS_PROXY:-}
+        all_proxy: ${BUILD_ALL_PROXY:-}
+        no_proxy: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1}
     env_file:
       - .env
     environment:

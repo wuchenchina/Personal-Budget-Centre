@@ -40,6 +40,11 @@ MAIL_FROM="${MAIL_FROM:-${SMTP_USERNAME}}"
 MAIL_FROM_NAME="${MAIL_FROM_NAME:-BudgetCentre}"
 WEB_BIND="${WEB_BIND:-127.0.0.1:18080}"
 APP_STORAGE_ROOT="${APP_STORAGE_ROOT:-./storage}"
+BUILD_PROXY="${BUILD_PROXY:-}"
+BUILD_HTTP_PROXY="${BUILD_HTTP_PROXY:-}"
+BUILD_HTTPS_PROXY="${BUILD_HTTPS_PROXY:-}"
+BUILD_ALL_PROXY="${BUILD_ALL_PROXY:-}"
+BUILD_NO_PROXY="${BUILD_NO_PROXY:-localhost,127.0.0.1,::1}"
 DEPLOY_TMP_ENV=""
 
 DEPLOY_ROOT_FILES=(
@@ -108,6 +113,7 @@ require_command() {
 
 write_env() {
   local target="$1"
+  prepare_build_proxy_env
   {
     env_line APP_ENV "${APP_ENV}"
     env_line APP_KEY "${APP_KEY}"
@@ -135,6 +141,10 @@ write_env() {
     env_line MAIL_FROM_NAME "${MAIL_FROM_NAME}"
     env_line WEB_BIND "${WEB_BIND}"
     env_line APP_STORAGE_ROOT "${APP_STORAGE_ROOT}"
+    env_line BUILD_HTTP_PROXY "${BUILD_HTTP_PROXY}"
+    env_line BUILD_HTTPS_PROXY "${BUILD_HTTPS_PROXY}"
+    env_line BUILD_ALL_PROXY "${BUILD_ALL_PROXY}"
+    env_line BUILD_NO_PROXY "${BUILD_NO_PROXY}"
   } >"${target}"
 }
 
@@ -150,6 +160,35 @@ env_line() {
 cleanup_tmp_env() {
   if [[ -n "${DEPLOY_TMP_ENV:-}" && -f "${DEPLOY_TMP_ENV}" ]]; then
     rm -f "${DEPLOY_TMP_ENV}"
+  fi
+}
+
+normalize_proxy_url() {
+  local proxy="$1"
+  if [[ -z "${proxy}" ]]; then
+    printf ''
+    return
+  fi
+  if [[ "${proxy}" == sock5://* ]]; then
+    proxy="socks5://${proxy#sock5://}"
+  fi
+  if [[ "${proxy}" != *"://"* ]]; then
+    proxy="http://${proxy}"
+  fi
+  printf '%s' "${proxy}"
+}
+
+prepare_build_proxy_env() {
+  local proxy
+  proxy="$(normalize_proxy_url "${BUILD_PROXY}")"
+  if [[ -n "${proxy}" ]]; then
+    BUILD_HTTP_PROXY="${BUILD_HTTP_PROXY:-${proxy}}"
+    BUILD_HTTPS_PROXY="${BUILD_HTTPS_PROXY:-${proxy}}"
+    BUILD_ALL_PROXY="${BUILD_ALL_PROXY:-${proxy}}"
+  else
+    BUILD_HTTP_PROXY="$(normalize_proxy_url "${BUILD_HTTP_PROXY}")"
+    BUILD_HTTPS_PROXY="$(normalize_proxy_url "${BUILD_HTTPS_PROXY}")"
+    BUILD_ALL_PROXY="$(normalize_proxy_url "${BUILD_ALL_PROXY}")"
   fi
 }
 
