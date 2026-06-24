@@ -76,7 +76,7 @@ func (a *App) bochkRefresh(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	saved, skipped, err := a.saveBochkRates(r.Context(), sql.NullInt64{Int64: s.UserID, Valid: true}, feed)
+	saved, skipped, err := a.saveBochkRates(r.Context(), feed)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func (a *App) bochkRefresh(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (a *App) saveBochkRates(ctx context.Context, userID sql.NullInt64, feed bochkFeed) (int, []string, error) {
+func (a *App) saveBochkRates(ctx context.Context, feed bochkFeed) (int, []string, error) {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, nil, err
@@ -118,7 +118,7 @@ func (a *App) saveBochkRates(ctx context.Context, userID sql.NullInt64, feed boc
 			continue
 		}
 		if _, err := saveCurrentExchangeRateTx(ctx, tx, currentExchangeRateInput{
-			UserID:            userID,
+			UserID:            sql.NullInt64{},
 			WorkspaceID:       sql.NullInt64{},
 			FromCurrencyID:    currencyID,
 			ToCurrencyID:      hkdID,
@@ -142,7 +142,7 @@ func (a *App) saveBochkRates(ctx context.Context, userID sql.NullInt64, feed boc
 			continue
 		}
 		if _, err := saveCurrentExchangeRateTx(ctx, tx, currentExchangeRateInput{
-			UserID:            userID,
+			UserID:            sql.NullInt64{},
 			WorkspaceID:       sql.NullInt64{},
 			FromCurrencyID:    hkdID,
 			ToCurrencyID:      currencyID,
@@ -259,7 +259,7 @@ func (a *App) refreshBochkIfStale(ctx context.Context, maxAge time.Duration) err
 	if err != nil {
 		return err
 	}
-	saved, skipped, err := a.saveBochkRates(ctx, sql.NullInt64{}, feed)
+	saved, skipped, err := a.saveBochkRates(ctx, feed)
 	if err != nil {
 		return err
 	}

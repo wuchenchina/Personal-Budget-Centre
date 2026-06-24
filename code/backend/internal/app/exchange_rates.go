@@ -69,7 +69,7 @@ func exchangeRateListClause(workspaceID int64, filter exchangeRateFilter) (strin
 		return "", nil, apiError("VALIDATION_ERROR", "Exchange rate source is invalid.", http.StatusUnprocessableEntity)
 	}
 	where := []string{
-		"(er.workspace_id = ? OR er.workspace_id IS NULL)",
+		"((er.source = 'bochk' AND er.workspace_id IS NULL) OR (er.source <> 'bochk' AND er.workspace_id = ?))",
 		"er.source <> 'mastercard'",
 		"NOT (er.source = 'bochk' AND er.provider_rate_type = 'mid')",
 	}
@@ -328,7 +328,7 @@ FROM (
   SELECT id, workspace_id, from_currency_id, to_currency_id, rate, rate_date, source, provider_rate_type, original_created_at AS created_at, 0 AS is_current
   FROM exchange_rate_history
 ) er
-WHERE (er.workspace_id = ? OR er.workspace_id IS NULL)
+WHERE ((er.source = 'bochk' AND er.workspace_id IS NULL) OR (er.source <> 'bochk' AND er.workspace_id = ?))
   AND er.from_currency_id = ?
   AND er.to_currency_id = ?
   AND er.source <> 'mastercard'

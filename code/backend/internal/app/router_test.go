@@ -47,6 +47,12 @@ func TestExchangeRateListClauseMatchesCurrentRateContract(t *testing.T) {
 	if !strings.Contains(where, "er.source <> 'mastercard'") {
 		t.Fatalf("exchange-rate list must hide legacy Mastercard rates: %s", where)
 	}
+	if !strings.Contains(where, "er.source = 'bochk' AND er.workspace_id IS NULL") {
+		t.Fatalf("BOCHK provider rates must be global current rows: %s", where)
+	}
+	if !strings.Contains(where, "er.source <> 'bochk' AND er.workspace_id = ?") {
+		t.Fatalf("custom exchange rates must stay scoped to the current workspace: %s", where)
+	}
 	wantArgs := []any{int64(42), "USD", "HKD", "2026-01-02", "bochk"}
 	if len(args) != len(wantArgs) {
 		t.Fatalf("args length = %d, want %d: %#v", len(args), len(wantArgs), args)
@@ -54,6 +60,28 @@ func TestExchangeRateListClauseMatchesCurrentRateContract(t *testing.T) {
 	for i, want := range wantArgs {
 		if args[i] != want {
 			t.Fatalf("arg %d = %#v, want %#v", i, args[i], want)
+		}
+	}
+}
+
+func TestLatestExchangeRateKeepsBochkGlobalAndCustomRatesScoped(t *testing.T) {
+	content, err := os.ReadFile("exchange_rates.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func (a *App) latestExchangeRate")
+	end := strings.Index(source, "func (a *App) currencyCodeByID")
+	if start < 0 || end < start {
+		t.Fatal("could not locate latestExchangeRate function")
+	}
+	body := source[start:end]
+	for _, want := range []string{
+		"er.source = 'bochk' AND er.workspace_id IS NULL",
+		"er.source <> 'bochk' AND er.workspace_id = ?",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("latest exchange-rate lookup must keep provider/global and custom/workspace scopes separate, missing %q", want)
 		}
 	}
 }
@@ -121,6 +149,29 @@ func TestManualBochkRefreshUsesSharedNamedLock(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("manual BOCHK refresh must share the refresh lock, missing %q", want)
 		}
+	}
+}
+
+func TestBochkRefreshWritesGlobalProviderRates(t *testing.T) {
+	content, err := os.ReadFile("bochk.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func (a *App) saveBochkRates")
+	end := strings.Index(source, "func fetchBochkFeed")
+	if start < 0 || end < start {
+		t.Fatal("could not locate saveBochkRates function")
+	}
+	body := source[start:end]
+	if strings.Contains(body, "userID") || strings.Contains(body, "Int64: s.UserID") {
+		t.Fatal("BOCHK provider rates must not be owned by the refresh-triggering user")
+	}
+	if strings.Count(body, "WorkspaceID:       sql.NullInt64{}") < 2 {
+		t.Fatal("BOCHK buy/sell current rates must be stored as global workspace-null rates")
+	}
+	if strings.Count(body, "UserID:            sql.NullInt64{}") < 2 {
+		t.Fatal("BOCHK buy/sell current rates must not store user_id")
 	}
 }
 

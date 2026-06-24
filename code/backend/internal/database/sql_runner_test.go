@@ -138,6 +138,27 @@ func TestCurrentExchangeRateMigrationDoesNotRequireGeneratedUniqueIndex(t *testi
 	}
 }
 
+func TestGlobalBochkCurrentMigrationRemovesWorkspaceScopedProviderRows(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("..", "..", "..", "database", "035_global_bochk_current_rates.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := string(content)
+	for _, want := range []string{
+		"WHERE er.source = 'bochk'",
+		"AND er.workspace_id IS NOT NULL",
+		"DELETE FROM exchange_rates",
+		"WHERE source = 'bochk'",
+		"AND workspace_id IS NOT NULL",
+		"SET user_id = NULL",
+		"AND workspace_id IS NULL",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Fatalf("global BOCHK migration missing %q", want)
+		}
+	}
+}
+
 func TestLegacyCurrencyAuditReportsLegacyProviderCurrentRows(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "scripts", "legacy_currency_audit.sql"))
 	if err != nil {
