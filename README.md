@@ -40,7 +40,8 @@ go run ./cmd/api
 Compose 同時提供前端靜態站與 Go API：
 
 ```bash
-docker compose up -d --build
+docker compose build --no-cache
+docker compose up -d
 ```
 
 預設 Web 入口綁定：
@@ -95,7 +96,8 @@ storage/logs
 
 ```bash
 cd /www/wwwroot/bc.tool.axchen.top
-docker compose up -d --build
+docker compose build --no-cache
+docker compose up -d
 ```
 
 Go API 仍維持既有 `/api/*` JSON envelope、HttpOnly session cookie 與 CSRF 合約。

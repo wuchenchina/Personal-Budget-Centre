@@ -276,7 +276,8 @@ No Docker or database management was performed.
 
 On the server, run manually when ready:
   cd ${REMOTE_PATH}
-  docker compose up -d --build
+  docker compose build --no-cache
+  docker compose up -d
 
 BaoTa reverse proxy target:
   http://${WEB_BIND}

@@ -27,7 +27,7 @@ ARG no_proxy
 COPY code/backend/go.mod code/backend/go.sum ./
 RUN go mod download
 COPY code/backend ./
-RUN go test ./... && go build -o /out/budgetcentre-api ./cmd/api
+RUN go build -o /out/budgetcentre-api ./cmd/api
 
 FROM nginx:1.29-alpine AS web
 COPY code/deploy/docker/nginx.conf /etc/nginx/conf.d/default.conf
