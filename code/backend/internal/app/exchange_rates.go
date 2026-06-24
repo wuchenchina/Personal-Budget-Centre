@@ -210,6 +210,14 @@ func bochkCurrencyCodes() []string {
 	return codes
 }
 
+func bochkReferenceCurrencyCodes() []string {
+	codes := make([]string, 0, len(bochkCurrencyMetaByCode))
+	for code := range bochkCurrencyMetaByCode {
+		codes = append(codes, code)
+	}
+	return codes
+}
+
 func isBochkSupportedCurrency(code string) bool {
 	_, ok := bochkCurrencyMetaByCode[strings.ToUpper(strings.TrimSpace(code))]
 	return ok

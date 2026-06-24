@@ -12,7 +12,6 @@ import {
   Space,
   Table,
   Tabs,
-  Tag,
 } from 'antd';
 import type { DescriptionsProps, TableColumnsType } from 'antd';
 import {
@@ -340,16 +339,6 @@ export function ExchangeRateSideSection({
   const boardMetaItems: DescriptionsProps['items'] = [
     { key: 'base', label: t('baseCurrency'), children: 'HKD' },
     { key: 'date', label: t('date'), children: boardRows[0]?.rateDate ?? '--' },
-    { key: 'updated', label: t('providerUpdatedAt'), children: boardRows[0]?.providerUpdatedAt ?? '--' },
-    {
-      key: 'source',
-      label: t('source'),
-      children: boardRows[0]?.sourceUrl ? (
-        <a href={boardRows[0].sourceUrl} rel="noreferrer" target="_blank">
-          {boardRows[0].sourceName ?? 'BOCHK'}
-        </a>
-      ) : 'BOCHK',
-    },
   ];
 
   return (
@@ -399,7 +388,6 @@ export function ExchangeRateSideSection({
                       <strong>{t('exchangeRateCalculator')}</strong>
                       <span>{t('bochkQuoteUnitHint')}</span>
                     </div>
-                    <Tag color="red">BOCHK</Tag>
                   </div>
                   <div className="rate-calculator-grid">
                     <InputNumber

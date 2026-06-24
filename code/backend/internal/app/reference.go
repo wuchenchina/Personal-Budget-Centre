@@ -197,9 +197,9 @@ func (a *App) accountExchangeRateList(w http.ResponseWriter, r *http.Request) er
 	}
 	httpx.WriteOK(w, map[string]any{
 		"rates":               rates,
-		"bochkSupportedCodes": bochkCurrencyCodes(),
-		"baseCurrencyHint":    "BOCHK supported currency",
-		"counterCurrencyHint": "Non-BOCHK currency from currency presets",
+		"bochkSupportedCodes": bochkReferenceCurrencyCodes(),
+		"baseCurrencyHint":    "Reference-rate supported currency",
+		"counterCurrencyHint": "Non-reference currency from currency presets",
 	}, http.StatusOK)
 	return nil
 }

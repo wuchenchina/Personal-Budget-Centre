@@ -288,8 +288,8 @@
 .rate-calculator-panel,
 .rate-board-panel {
   display: grid;
-  gap: 12px;
-  padding: 14px;
+  gap: 10px;
+  padding: 12px;
   background: #ffffff;
   border: 1px solid var(--bc-border);
 }
@@ -327,15 +327,34 @@
   display: grid;
   grid-template-columns: minmax(120px, 0.8fr) minmax(140px, 1fr) minmax(150px, 1fr) minmax(180px, 1.1fr);
   gap: 10px;
-  align-items: stretch;
+  align-items: center;
+}
+
+.rate-calculator-grid .ant-input-number,
+.rate-calculator-grid .ant-select,
+.rate-calculator-grid .ant-select-selector {
+  min-height: 44px !important;
+  height: 44px !important;
+}
+
+.rate-calculator-grid .ant-input-number-input {
+  height: 42px !important;
+  padding-block: 0 !important;
+  font-size: 13px;
+}
+
+.rate-calculator-grid .ant-select-selection-item,
+.rate-calculator-grid .ant-select-selection-placeholder {
+  line-height: 42px !important;
+  font-size: 13px;
 }
 
 .rate-calculator-result {
   display: grid;
   align-content: center;
   gap: 2px;
-  min-height: 42px;
-  padding: 8px 10px;
+  min-height: 44px;
+  padding: 6px 10px;
   background: #f7f7f7;
   border: 1px solid var(--bc-border-soft);
 }
@@ -349,8 +368,14 @@
 .rate-calculator-result strong {
   color: var(--bc-text);
   font-family: var(--font-mono), monospace;
-  font-size: 16px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
+}
+
+.exchange-rate-workbench .ant-btn-primary,
+.exchange-rate-workbench .ant-btn-primary .ant-btn-icon,
+.exchange-rate-workbench .ant-btn-primary span {
+  color: #ffffff !important;
 }
 
 .featured-rate-grid {
