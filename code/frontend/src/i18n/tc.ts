@@ -585,6 +585,7 @@ export const tcDictionary = {
     customerSellRate: '客戶賣出價',
     deleteBudgetExchangeRateTitle: '刪除這筆預算匯率？',
     editBudgetExchangeRate: '編輯預算匯率',
+    estimatedConvertedAmount: '預估換算金額',
     estimatedHkdPayable: '預估應付港元',
     estimatedHkdReceivable: '預估可收港元',
     exchangeRateCurrenciesMustDiffer: '匯率貨幣必須不同。',

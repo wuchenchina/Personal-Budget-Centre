@@ -601,6 +601,7 @@ export const enDictionary = {
     customerSellRate: 'Customer sell',
     deleteBudgetExchangeRateTitle: 'Delete this budget exchange rate?',
     editBudgetExchangeRate: 'Edit budget rate',
+    estimatedConvertedAmount: 'Estimated converted amount',
     estimatedHkdPayable: 'Estimated HKD payable',
     estimatedHkdReceivable: 'Estimated HKD receivable',
     exchangeRateCurrenciesMustDiffer: 'Exchange-rate currencies must differ.',

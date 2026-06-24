@@ -585,6 +585,7 @@ export const scDictionary = {
     customerSellRate: '客户卖出价',
     deleteBudgetExchangeRateTitle: '删除这笔预算汇率？',
     editBudgetExchangeRate: '编辑预算汇率',
+    estimatedConvertedAmount: '预估换算金额',
     estimatedHkdPayable: '预估应付港元',
     estimatedHkdReceivable: '预估可收港元',
     exchangeRateCurrenciesMustDiffer: '汇率货币必须不同。',

@@ -53,6 +53,19 @@ interface PrivateRateFormValues {
 }
 
 const priorityCurrencies = ['USD', 'CNY', 'CNH', 'EUR', 'GBP', 'JPY'];
+const hkdCurrency: BochkRateBoardRow = {
+  currency: 'HKD',
+  currencyName: 'Hong Kong Dollar',
+  currencySymbol: 'HKD',
+  baseCurrency: 'HKD',
+  customerSellRate: 1,
+  customerBuyRate: 1,
+  rateDate: '',
+  providerUpdatedAt: null,
+  fetchedAt: null,
+  sourceName: null,
+  sourceUrl: null,
+};
 
 export function ExchangeRateSideSection({
   activeWorkspaceId,
@@ -71,7 +84,7 @@ export function ExchangeRateSideSection({
   const [searchText, setSearchText] = useState('');
   const [calculatorAmount, setCalculatorAmount] = useState<number | null>(1000);
   const [calculatorCurrency, setCalculatorCurrency] = useState<CurrencyCode>('USD');
-  const [calculatorMode, setCalculatorMode] = useState<'sell_foreign' | 'buy_foreign'>('sell_foreign');
+  const [calculatorTargetCurrency, setCalculatorTargetCurrency] = useState<CurrencyCode>('HKD');
   const [editingPrivateRate, setEditingPrivateRate] = useState<CurrencyRate | null>(null);
   const [privateRateModalOpen, setPrivateRateModalOpen] = useState(false);
   const [privateRateForm] = Form.useForm<PrivateRateFormValues>();
@@ -83,15 +96,25 @@ export function ExchangeRateSideSection({
     try {
       const board = await listBochkRateBoard({ workspaceId: activeWorkspaceId });
       setBoardRows(board.rates);
-      if (board.rates.length > 0 && !board.rates.some((rate) => rate.currency === calculatorCurrency)) {
+      if (
+        board.rates.length > 0
+        && calculatorCurrency !== 'HKD'
+        && !board.rates.some((rate) => rate.currency === calculatorCurrency)
+      ) {
         setCalculatorCurrency(board.rates[0].currency);
+      }
+      if (
+        calculatorTargetCurrency !== 'HKD'
+        && !board.rates.some((rate) => rate.currency === calculatorTargetCurrency)
+      ) {
+        setCalculatorTargetCurrency('HKD');
       }
     } catch (nextError: unknown) {
       setError(nextError instanceof Error ? nextError.message : t('loadingExchangeRatesFailed'));
     } finally {
       setIsLoadingBoard(false);
     }
-  }, [activeWorkspaceId, calculatorCurrency, t]);
+  }, [activeWorkspaceId, calculatorCurrency, calculatorTargetCurrency, t]);
 
   const loadPrivateRates = useCallback(async () => {
     setIsLoadingPrivateRates(true);
@@ -140,19 +163,22 @@ export function ExchangeRateSideSection({
     return featured.length > 0 ? featured : boardRows.slice(0, 6);
   }, [boardRows]);
 
-  const calculatorRow = boardRows.find((row) => row.currency === calculatorCurrency) ?? null;
-  const calculatorRate = calculatorMode === 'sell_foreign'
-    ? calculatorRow?.customerBuyRate
-    : calculatorRow?.customerSellRate;
+  const boardRowsWithHkd = useMemo(() => [hkdCurrency, ...boardRows], [boardRows]);
+  const boardRowByCurrency = useMemo(() => new Map(boardRowsWithHkd.map((row) => [row.currency, row])), [boardRowsWithHkd]);
+  const calculatorQuote = calculateReferenceQuote(
+    boardRowByCurrency,
+    calculatorCurrency,
+    calculatorTargetCurrency,
+  );
   const calculatorResult =
     typeof calculatorAmount === 'number'
     && Number.isFinite(calculatorAmount)
     && calculatorAmount >= 0
-    && calculatorRate !== undefined
-      ? calculatorAmount * calculatorRate
+    && calculatorQuote !== null
+      ? calculatorAmount * calculatorQuote.rate
       : null;
 
-  const bochkCurrencyOptions = boardRows.map((row) => ({
+  const bochkCurrencyOptions = boardRowsWithHkd.map((row) => ({
     label: `${row.currency} ${row.currencyName}`,
     value: row.currency,
   }));
@@ -406,17 +432,24 @@ export function ExchangeRateSideSection({
                       onChange={setCalculatorCurrency}
                     />
                     <Select
-                      options={[
-                        { label: t('sellForeignCurrency'), value: 'sell_foreign' },
-                        { label: t('buyForeignCurrency'), value: 'buy_foreign' },
-                      ]}
-                      value={calculatorMode}
-                      onChange={setCalculatorMode}
+                      showSearch
+                      optionFilterProp="label"
+                      options={bochkCurrencyOptions}
+                      value={calculatorTargetCurrency}
+                      onChange={setCalculatorTargetCurrency}
                     />
-                    <div className="rate-calculator-result">
-                      <span>{calculatorMode === 'sell_foreign' ? t('estimatedHkdReceivable') : t('estimatedHkdPayable')}</span>
-                      <strong>{calculatorResult === null ? 'HKD --' : `HKD ${formatMoney(calculatorResult)}`}</strong>
-                      <small>{calculatorRate === undefined ? '--' : `${t('appliedRate')}: ${formatRate(calculatorRate)}`}</small>
+                    <div className="rate-calculator-result" title={calculatorQuote?.path}>
+                      <span>{t('estimatedConvertedAmount')}</span>
+                      <strong>
+                        {calculatorResult === null
+                          ? `${calculatorTargetCurrency} --`
+                          : `${calculatorTargetCurrency} ${formatMoney(calculatorResult)}`}
+                      </strong>
+                      <small>
+                        {calculatorQuote === null
+                          ? '--'
+                          : `${t('appliedRate')}: ${formatRate(calculatorQuote.rate)}`}
+                      </small>
                     </div>
                   </div>
                 </section>
@@ -586,6 +619,51 @@ function formatMoney(value: number): string {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
   });
+}
+
+function calculateReferenceQuote(
+  rows: Map<CurrencyCode, BochkRateBoardRow>,
+  fromCurrency: CurrencyCode,
+  toCurrency: CurrencyCode,
+): { rate: number; path: string } | null {
+  if (fromCurrency === toCurrency) {
+    return { rate: 1, path: `${fromCurrency} → ${toCurrency}` };
+  }
+
+  const hkdFromRate = rateToHkd(rows, fromCurrency);
+  const hkdToTargetRate = rateFromHkd(rows, toCurrency);
+  if (hkdFromRate === null || hkdToTargetRate === null) {
+    return null;
+  }
+
+  return {
+    rate: hkdFromRate * hkdToTargetRate,
+    path: fromCurrency === 'HKD' || toCurrency === 'HKD'
+      ? `${fromCurrency} → ${toCurrency}`
+      : `${fromCurrency} → HKD → ${toCurrency}`,
+  };
+}
+
+function rateToHkd(rows: Map<CurrencyCode, BochkRateBoardRow>, currency: CurrencyCode): number | null {
+  if (currency === 'HKD') {
+    return 1;
+  }
+  const row = rows.get(currency);
+  if (row === undefined || row.customerBuyRate <= 0) {
+    return null;
+  }
+  return row.customerBuyRate;
+}
+
+function rateFromHkd(rows: Map<CurrencyCode, BochkRateBoardRow>, currency: CurrencyCode): number | null {
+  if (currency === 'HKD') {
+    return 1;
+  }
+  const row = rows.get(currency);
+  if (row === undefined || row.customerSellRate <= 0) {
+    return null;
+  }
+  return 1 / row.customerSellRate;
 }
 
 function todayInputDate(): string {
