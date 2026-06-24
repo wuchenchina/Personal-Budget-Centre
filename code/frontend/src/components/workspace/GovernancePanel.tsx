@@ -21,7 +21,9 @@ interface GovernancePanelProps {
   workspace: WorkspaceController;
   operations: OperationsController;
   currentUserId: number | null;
+  isSystemAdmin: boolean;
   canManageWorkspaceMembers: boolean;
+  canManageExchangeRates: boolean;
 }
 
 export function GovernancePanel({
@@ -30,7 +32,9 @@ export function GovernancePanel({
   workspace,
   operations,
   currentUserId,
+  isSystemAdmin,
   canManageWorkspaceMembers,
+  canManageExchangeRates,
 }: GovernancePanelProps) {
   const showBudgetCollaboration = activeKey === 'budget-editor';
   const showOperations = ['categories', 'rates'].includes(activeKey);
@@ -54,6 +58,8 @@ export function GovernancePanel({
           operations={operations}
           selectedBudget={budget.selectedBudget}
           activeWorkspaceId={workspace.activeWorkspaceId}
+          isSystemAdmin={isSystemAdmin}
+          canManageExchangeRates={canManageExchangeRates}
           canManageBudgetShares={canManageWorkspaceMembers}
         />
       ) : null}

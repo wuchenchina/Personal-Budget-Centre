@@ -11,13 +11,14 @@ import {
   updateWorkspace,
   updateWorkspaceMember,
 } from '../api/workspaces';
+import { listCurrencies } from '../api/referenceData';
 import type { AuthSession, AuthWorkspace, WorkspaceMember } from '../types/auth';
+import type { CurrencyCode, WorkspaceRole } from '../types/budget';
 import type {
   WorkspaceEditFormValues,
   WorkspaceMemberFormValues,
   WorkspaceFormValues,
 } from '../types/forms';
-import type { WorkspaceRole } from '../types/budget';
 import { toCurrencyCode } from '../utils/currencyCode';
 import { translateCurrent } from '../i18n';
 
@@ -164,11 +165,12 @@ export function useWorkspaceController(
       const values = await workspaceForm.validateFields();
       setIsWorkspaceCreating(true);
       setWorkspaceError(null);
+      const defaultCurrency = await validatedWorkspaceCurrency(values.defaultCurrency);
 
       const nextWorkspace = await createWorkspace({
         name: values.name.trim(),
         type: values.type,
-        defaultCurrency: toCurrencyCode(values.defaultCurrency),
+        defaultCurrency,
       });
 
       setWorkspaces((currentWorkspaces) => [...currentWorkspaces, nextWorkspace]);
@@ -246,12 +248,13 @@ export function useWorkspaceController(
       const values = await workspaceEditForm.validateFields();
       setIsWorkspaceUpdating(true);
       setWorkspaceError(null);
+      const defaultCurrency = await validatedWorkspaceCurrency(values.defaultCurrency);
 
       const updatedWorkspace = await updateWorkspace({
         workspaceId: activeWorkspaceId,
         name: values.name.trim(),
         type: activeWorkspace.type === 'personal' ? 'personal' : values.type,
-        defaultCurrency: toCurrencyCode(values.defaultCurrency),
+        defaultCurrency,
       });
 
       setWorkspaces((currentWorkspaces) =>
@@ -451,3 +454,20 @@ export function useWorkspaceController(
 }
 
 export type WorkspaceController = ReturnType<typeof useWorkspaceController>;
+
+async function validatedWorkspaceCurrency(value: string | undefined): Promise<CurrencyCode> {
+  const currency = toCurrencyCode(value);
+
+  try {
+    const currencies = await listCurrencies();
+    if (currencies.length > 0 && !currencies.some((item) => item.code === currency)) {
+      throw new Error(translateCurrent('supportedCurrencyOnly'));
+    }
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === translateCurrent('supportedCurrencyOnly')) {
+      throw error;
+    }
+  }
+
+  return currency;
+}

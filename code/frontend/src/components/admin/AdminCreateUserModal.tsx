@@ -1,13 +1,14 @@
 import { Form, Input, Modal, Select, Switch } from 'antd';
 import type { FormInstance } from 'antd';
-import { currencyOptions } from '../../config/currencies';
 import { useI18n } from '../../i18n';
 import type { AdminUserCreatePayload } from '../../types/admin';
+import type { CurrencyCode } from '../../types/budget';
 
 interface AdminCreateUserModalProps {
   form: FormInstance<AdminUserCreatePayload>;
   open: boolean;
   confirmLoading: boolean;
+  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
   onCancel: () => void;
   onOk: () => void;
 }
@@ -16,6 +17,7 @@ export function AdminCreateUserModal({
   form,
   open,
   confirmLoading,
+  currencyOptions,
   onCancel,
   onOk,
 }: AdminCreateUserModalProps) {

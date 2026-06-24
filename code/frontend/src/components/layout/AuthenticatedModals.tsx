@@ -86,6 +86,7 @@ export function AuthenticatedModals({
             isEditing={budget.editingBudgetId !== null}
             error={budget.budgetError}
             workspaceOptions={workspace.workspaceOptions}
+            currencyOptions={operations.currencyOptions}
             confirmLoading={budget.isBudgetSaving}
             onCancel={() => budget.setIsBudgetModalOpen(false)}
             onOk={budget.handleBudgetSave}
@@ -124,6 +125,7 @@ export function AuthenticatedModals({
             open={budgetEntry.isBudgetItemModalOpen}
             error={budgetEntry.entryError}
             categoryOptions={budgetItemPresetCategoryOptions}
+            currencyOptions={operations.currencyOptions}
             baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
             focus={budgetEntry.budgetItemModalFocus}
             pricingEnabled={budget.selectedBudget?.pricingEnabled ?? false}
@@ -143,6 +145,7 @@ export function AuthenticatedModals({
             open={budgetEntry.isTransactionModalOpen}
             error={budgetEntry.entryError}
             categoryOptions={transactionCategoryOptions}
+            currencyOptions={operations.currencyOptions}
             baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
             pricingEnabled={budget.selectedBudget?.pricingEnabled ?? false}
             participantMode={budget.selectedBudget?.participantMode ?? 'solo'}
@@ -163,6 +166,7 @@ export function AuthenticatedModals({
           open={bookkeeping.modalOpen}
           error={bookkeeping.error}
           categoryOptions={bookkeepingCategoryOptions}
+          currencyOptions={operations.currencyOptions}
           baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
           confirmLoading={bookkeeping.saving}
           onValuesChange={() => undefined}
@@ -174,6 +178,7 @@ export function AuthenticatedModals({
             form={workspace.workspaceForm}
             open={workspace.isWorkspaceModalOpen}
             baseCurrency={baseCurrency}
+            currencyOptions={operations.currencyOptions}
             confirmLoading={workspace.isWorkspaceCreating}
             onCancel={() => {
               workspace.setIsWorkspaceModalOpen(false);
@@ -201,6 +206,7 @@ export function AuthenticatedModals({
             workspace={workspace.activeWorkspace}
             open={workspace.isWorkspaceEditModalOpen}
             error={workspace.workspaceError}
+            currencyOptions={operations.currencyOptions}
             confirmLoading={workspace.isWorkspaceUpdating}
             onCancel={() => {
               workspace.setIsWorkspaceEditModalOpen(false);

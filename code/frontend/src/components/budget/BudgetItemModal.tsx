@@ -34,6 +34,7 @@ interface BudgetItemModalProps {
   open: boolean;
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
+  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
   baseCurrency: CurrencyCode;
   focus: BudgetItemModalFocus;
   pricingEnabled: boolean;
@@ -52,6 +53,7 @@ export function BudgetItemModal({
   open,
   error,
   categoryOptions,
+  currencyOptions,
   baseCurrency,
   focus,
   pricingEnabled,
@@ -400,6 +402,7 @@ export function BudgetItemModal({
               allowNegative
               amountName="budgetAmount"
               currencyName="budgetCurrency"
+              currencyOptions={currencyOptions}
               rateName="budgetRate"
               amount={budgetAmount}
               baseCurrency={baseCurrency}

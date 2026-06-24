@@ -39,6 +39,7 @@ SMTP_PASSWORD="${SMTP_PASSWORD:-7EgOfbbYtMuNxoOD}"
 MAIL_FROM="${MAIL_FROM:-${SMTP_USERNAME}}"
 MAIL_FROM_NAME="${MAIL_FROM_NAME:-BudgetCentre}"
 WEB_BIND="${WEB_BIND:-127.0.0.1:18080}"
+APP_STORAGE_ROOT="${APP_STORAGE_ROOT:-./storage}"
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -49,33 +50,43 @@ require_command() {
 
 write_env() {
   local target="$1"
-  cat >"${target}" <<EOF
-APP_ENV=${APP_ENV}
-APP_KEY=${APP_KEY}
-APP_URL=${APP_URL}
-API_URL=${API_URL}
-DB_HOST=${DB_HOST}
-DB_PORT=${DB_PORT}
-DB_NAME=${DB_NAME}
-DB_USER=${DB_USER}
-DB_PASSWORD=${DB_PASSWORD}
-SESSION_COOKIE=${SESSION_COOKIE}
-CSRF_COOKIE=${CSRF_COOKIE}
-WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID}
-WEBAUTHN_RP_NAME=${WEBAUTHN_RP_NAME}
-WEBAUTHN_ORIGIN=${WEBAUTHN_ORIGIN}
-CASDOOR_SERVER_URL=${CASDOOR_SERVER_URL}
-CASDOOR_CLIENT_ID=${CASDOOR_CLIENT_ID}
-CASDOOR_REDIRECT_URI=${CASDOOR_REDIRECT_URI}
-CASDOOR_CLIENT_SECRET=${CASDOOR_CLIENT_SECRET}
-SMTP_HOST=${SMTP_HOST}
-SMTP_PORT=${SMTP_PORT}
-SMTP_USERNAME=${SMTP_USERNAME}
-SMTP_PASSWORD=${SMTP_PASSWORD}
-MAIL_FROM=${MAIL_FROM}
-MAIL_FROM_NAME=${MAIL_FROM_NAME}
-WEB_BIND=${WEB_BIND}
-EOF
+  {
+    env_line APP_ENV "${APP_ENV}"
+    env_line APP_KEY "${APP_KEY}"
+    env_line APP_URL "${APP_URL}"
+    env_line API_URL "${API_URL}"
+    env_line DB_HOST "${DB_HOST}"
+    env_line DB_PORT "${DB_PORT}"
+    env_line DB_NAME "${DB_NAME}"
+    env_line DB_USER "${DB_USER}"
+    env_line DB_PASSWORD "${DB_PASSWORD}"
+    env_line SESSION_COOKIE "${SESSION_COOKIE}"
+    env_line CSRF_COOKIE "${CSRF_COOKIE}"
+    env_line WEBAUTHN_RP_ID "${WEBAUTHN_RP_ID}"
+    env_line WEBAUTHN_RP_NAME "${WEBAUTHN_RP_NAME}"
+    env_line WEBAUTHN_ORIGIN "${WEBAUTHN_ORIGIN}"
+    env_line CASDOOR_SERVER_URL "${CASDOOR_SERVER_URL}"
+    env_line CASDOOR_CLIENT_ID "${CASDOOR_CLIENT_ID}"
+    env_line CASDOOR_REDIRECT_URI "${CASDOOR_REDIRECT_URI}"
+    env_line CASDOOR_CLIENT_SECRET "${CASDOOR_CLIENT_SECRET}"
+    env_line SMTP_HOST "${SMTP_HOST}"
+    env_line SMTP_PORT "${SMTP_PORT}"
+    env_line SMTP_USERNAME "${SMTP_USERNAME}"
+    env_line SMTP_PASSWORD "${SMTP_PASSWORD}"
+    env_line MAIL_FROM "${MAIL_FROM}"
+    env_line MAIL_FROM_NAME "${MAIL_FROM_NAME}"
+    env_line WEB_BIND "${WEB_BIND}"
+    env_line APP_STORAGE_ROOT "${APP_STORAGE_ROOT}"
+  } >"${target}"
+}
+
+env_line() {
+  local key="$1"
+  local value="$2"
+  value="${value//$'\n'/}"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  printf '%s="%s"\n' "${key}" "${value}"
 }
 
 main() {
@@ -99,12 +110,15 @@ main() {
   ssh "${SSH_OPTS[@]}" "${REMOTE}" "mkdir -p '${REMOTE_PATH}'"
   rsync -az --delete \
     --exclude '.git' \
+    --exclude '.env' \
+    --exclude 'storage/' \
     --exclude 'code/frontend/node_modules' \
     --exclude 'code/frontend/dist' \
     --exclude 'code/backend-php-legacy/vendor' \
     -e "${RSYNC_SSH}" \
     "${PROJECT_ROOT}/" "${REMOTE}:${REMOTE_PATH}/"
   rsync -az -e "${RSYNC_SSH}" "${tmp_env}" "${REMOTE}:${REMOTE_PATH}/.env"
+  ssh "${SSH_OPTS[@]}" "${REMOTE}" "mkdir -p '${REMOTE_PATH}/storage/exports' '${REMOTE_PATH}/storage/tmp' '${REMOTE_PATH}/storage/logs' && chmod 600 '${REMOTE_PATH}/.env'"
 
   cat <<EOF
 

@@ -1,26 +1,6 @@
 import type { AppLanguage } from '../i18n/types';
 
-export type CurrencyCode =
-  | 'CNY'
-  | 'CNH'
-  | 'HKD'
-  | 'USD'
-  | 'EUR'
-  | 'GBP'
-  | 'JPY'
-  | 'TWD'
-  | 'MOP'
-  | 'AUD'
-  | 'NZD'
-  | 'CAD'
-  | 'CHF'
-  | 'DKK'
-  | 'NOK'
-  | 'SEK'
-  | 'SGD'
-  | 'THB'
-  | 'BND'
-  | 'ZAR';
+export type CurrencyCode = string;
 
 export type BudgetStatus = 'draft' | 'active' | 'closed' | 'archived';
 
@@ -298,7 +278,7 @@ export interface CurrencyRate {
   source: 'manual' | 'budget_default' | 'bochk';
   sourceName: string | null;
   sourceUrl: string | null;
-  providerRateType: 'manual' | 'mid' | 'customer_sell' | 'customer_buy';
+  providerRateType: 'manual' | 'mid' | 'card' | 'customer_sell' | 'customer_buy';
   providerSellRate: number | null;
   providerBuyRate: number | null;
   providerUpdatedAt: string | null;
@@ -314,7 +294,10 @@ export interface Currency {
   name: string;
   symbol: string;
   decimalPlaces: number;
-  isEnabled: boolean;
+  providerSource: string | null;
+  isApiManaged: boolean;
+  providerLastSeenAt: string | null;
+  canDelete: boolean;
 }
 
 export interface BudgetCategoryAlias {

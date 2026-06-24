@@ -16,7 +16,7 @@ import {
 } from '../api/budgetShares';
 import { createBudgetExport, exportDownloadUrl } from '../api/exports';
 import { refreshBochkRates } from '../api/exchangeRates';
-import { listCurrencies } from '../api/referenceData';
+import { createCurrency, deleteCurrency, listCurrencies } from '../api/referenceData';
 import type { AuthSession, PasskeyCredential } from '../types/auth';
 import type {
   BudgetCategory,
@@ -57,6 +57,8 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   const [passkeys, setPasskeys] = useState<PasskeyCredential[]>([]);
   const [operationsError, setOperationsError] = useState<string | null>(null);
   const [isReferenceLoading, setIsReferenceLoading] = useState(false);
+  const [isCurrencySaving, setIsCurrencySaving] = useState(false);
+  const [deletingCurrencyId, setDeletingCurrencyId] = useState<number | null>(null);
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [isCategorySaving, setIsCategorySaving] = useState(false);
   const [isShareLoading, setIsShareLoading] = useState(false);
@@ -265,6 +267,50 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     [currencies],
   );
 
+  const saveCurrency = async (input: {
+    code: string;
+    name: string;
+    symbol?: string;
+    decimalPlaces: number;
+  }): Promise<boolean> => {
+    setIsCurrencySaving(true);
+    setOperationsError(null);
+
+    try {
+      const created = await createCurrency({
+        code: input.code.trim().toUpperCase(),
+        name: input.name.trim(),
+        symbol: input.symbol?.trim() || undefined,
+        decimalPlaces: input.decimalPlaces,
+      });
+      setCurrencies((current) =>
+        [...current.filter((currency) => currency.id !== created.id), created]
+          .sort((left, right) => left.code.localeCompare(right.code)),
+      );
+      return true;
+    } catch (error: unknown) {
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('saveCurrencyFailed'));
+      return false;
+    } finally {
+      setIsCurrencySaving(false);
+    }
+  };
+
+  const removeCurrency = async (id: number): Promise<boolean> => {
+    setDeletingCurrencyId(id);
+    setOperationsError(null);
+
+    try {
+      setCurrencies(await deleteCurrency(id));
+      return true;
+    } catch (error: unknown) {
+      setOperationsError(error instanceof Error ? error.message : translateCurrent('deleteCurrencyFailed'));
+      return false;
+    } finally {
+      setDeletingCurrencyId(null);
+    }
+  };
+
   const saveCategory = async (input: {
     id?: number;
     name: string;
@@ -398,6 +444,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
     try {
       await refreshBochkRates(activeWorkspaceId);
+      setCurrencies(await listCurrencies());
     } catch (error: unknown) {
       setOperationsError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
     } finally {
@@ -519,6 +566,8 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     passkeys,
     operationsError,
     isReferenceLoading,
+    isCurrencySaving,
+    deletingCurrencyId,
     isCategoryLoading,
     isCategorySaving,
     isShareLoading,
@@ -528,6 +577,8 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     isPasskeyLoading,
     isPasskeyRegistering,
     saveCategory,
+    saveCurrency,
+    removeCurrency,
     removeCategory,
     removeCategories,
     saveAlias,

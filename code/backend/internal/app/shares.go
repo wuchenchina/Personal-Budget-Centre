@@ -139,17 +139,6 @@ func (a *App) writeShareList(w http.ResponseWriter, r *http.Request, budgetID in
 	return nil
 }
 
-func (a *App) requireBudgetManage(r *http.Request, budgetID, userID int64) (int64, error) {
-	basics, err := a.budgetBasics(r, budgetID)
-	if err != nil {
-		return 0, apiError("BUDGET_NOT_FOUND", "Budget was not found.", http.StatusNotFound)
-	}
-	if err := a.requireWorkspaceRole(r.Context(), basics.WorkspaceID, userID, "owner", "admin"); err != nil {
-		return 0, err
-	}
-	return basics.WorkspaceID, nil
-}
-
 func (a *App) validSharePrincipalID(ctx context.Context, principalType string, workspaceID int64, input map[string]any) (int64, error) {
 	principalID := int64Value(input["principalId"])
 	switch principalType {

@@ -283,6 +283,61 @@
   margin-bottom: 8px;
 }
 
+.manual-rate-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) minmax(96px, 1fr) 92px 128px minmax(112px, 1fr) auto;
+  gap: 6px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.manual-rate-row .ant-input-number {
+  width: 100%;
+}
+
+.currency-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 24px;
+}
+
+.currency-chip .ant-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-end: 0;
+}
+
+.currency-chip small {
+  font-size: 10px;
+}
+
+.currency-create-row {
+  display: grid;
+  grid-template-columns: 64px minmax(108px, 1fr) 64px 56px auto;
+  gap: 6px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.currency-create-row .ant-input-number {
+  width: 56px;
+}
+
+@media (max-width: 560px) {
+  .manual-rate-row,
+  .currency-create-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manual-rate-row .ant-btn,
+  .currency-create-row .ant-input-number,
+  .currency-create-row .ant-btn {
+    width: 100%;
+  }
+}
+
 .passkey-register-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

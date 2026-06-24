@@ -33,6 +33,7 @@ coverage/
 *.local
 
 # Go backend runtime
+code/backend/api
 code/backend/storage/
 
 # Legacy PHP backend runtime

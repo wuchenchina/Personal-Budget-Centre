@@ -1,12 +1,11 @@
 import { Alert, Button, Checkbox, DatePicker, Form, Input, Modal, Radio, Select, Space } from 'antd';
 import type { FormInstance } from 'antd';
 import { Plus, Trash2 } from 'lucide-react';
-import { currencyOptions } from '../../config/currencies';
 import {
   useI18n,
   visibilityLabelsByLanguage,
 } from '../../i18n';
-import type { Visibility } from '../../types/budget';
+import type { CurrencyCode, Visibility } from '../../types/budget';
 import type { BudgetFormValues } from '../../types/forms';
 import { defaultBudgetTitle } from '../../utils/budgetTitle';
 
@@ -18,6 +17,7 @@ interface BudgetCreateModalProps {
   isEditing: boolean;
   error: string | null;
   workspaceOptions: Array<{ label: string; value: number }>;
+  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
@@ -29,6 +29,7 @@ export function BudgetCreateModal({
   isEditing,
   error,
   workspaceOptions,
+  currencyOptions,
   confirmLoading,
   onCancel,
   onOk,

@@ -11,6 +11,7 @@ import {
   updateAdminUser,
   type AdminUserListParams,
 } from '../api/admin';
+import { listCurrencies } from '../api/referenceData';
 import type {
   AdminEnvironmentCheck,
   AdminDatabaseStatus,
@@ -19,6 +20,7 @@ import type {
   AdminUserCreatePayload,
   AdminUserUpdatePayload,
 } from '../types/admin';
+import type { CurrencyCode } from '../types/budget';
 import type { UserStatus } from '../types/auth';
 import { translateCurrent } from '../i18n';
 
@@ -40,8 +42,45 @@ export function useAdminController(enabled: boolean) {
   const [isExportCacheCleaning, setIsExportCacheCleaning] = useState(false);
   const [databaseStatus, setDatabaseStatus] = useState<AdminDatabaseStatus | null>(null);
   const [isDatabaseLoading, setIsDatabaseLoading] = useState(false);
+  const [currencyOptions, setCurrencyOptions] = useState<Array<{ label: string; value: CurrencyCode }>>(
+    [],
+  );
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    let isMounted = true;
+
+    queueMicrotask(() => {
+      if (!isMounted) {
+        return;
+      }
+
+      listCurrencies()
+        .then((currencies) => {
+          if (!isMounted) {
+            return;
+          }
+          setCurrencyOptions(currencies.map((currency) => ({
+            label: `${currency.code} ${currency.name}`,
+            value: currency.code,
+          })));
+        })
+        .catch(() => {
+          if (isMounted) {
+            setCurrencyOptions([]);
+          }
+        });
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) {
@@ -257,9 +296,9 @@ export function useAdminController(enabled: boolean) {
     try {
       const result = await getAdminDatabaseStatus();
       setDatabaseStatus(result);
-      setNotice(`資料庫狀態已更新：${result.pending.length} 個待套用 migration`);
+      setNotice(translateCurrent('databaseStatusUpdated', { count: result.pending.length }));
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : '資料庫狀態讀取失敗');
+      setError(caught instanceof Error ? caught.message : translateCurrent('databaseStatusLoadFailed'));
     } finally {
       setIsDatabaseLoading(false);
     }
@@ -272,9 +311,9 @@ export function useAdminController(enabled: boolean) {
 
     try {
       const result = await runAdminDatabaseMigration(true);
-      setNotice(`Dry-run 完成：${result.pending?.length ?? 0} 個待套用 migration`);
+      setNotice(translateCurrent('databaseDryRunDone', { count: result.pending?.length ?? 0 }));
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : 'Migration dry-run 失敗');
+      setError(caught instanceof Error ? caught.message : translateCurrent('databaseDryRunFailed'));
     } finally {
       setIsDatabaseLoading(false);
     }
@@ -290,9 +329,9 @@ export function useAdminController(enabled: boolean) {
       if (result.database) {
         setDatabaseStatus(result.database);
       }
-      setNotice('Migration 已重試完成');
+      setNotice(translateCurrent('databaseMigrationRetryDone'));
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : 'Migration 重試失敗');
+      setError(caught instanceof Error ? caught.message : translateCurrent('databaseMigrationRetryFailed'));
     } finally {
       setIsDatabaseLoading(false);
     }
@@ -316,6 +355,7 @@ export function useAdminController(enabled: boolean) {
     isExportCacheCleaning,
     databaseStatus,
     isDatabaseLoading,
+    currencyOptions,
     error,
     notice,
     applySearch,

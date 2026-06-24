@@ -2,7 +2,6 @@ import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Select } fr
 import type { FormInstance } from 'antd';
 import { Calculator, RefreshCcw } from 'lucide-react';
 import { useEffect } from 'react';
-import { currencyOptions } from '../../config/currencies';
 import { useI18n } from '../../i18n';
 import type {
   BudgetItem,
@@ -20,6 +19,7 @@ interface TransactionModalProps {
   open: boolean;
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
+  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
   baseCurrency: CurrencyCode;
   pricingEnabled: boolean;
   participantMode: BudgetParticipantMode;
@@ -40,6 +40,7 @@ export function TransactionModal({
   open,
   error,
   categoryOptions,
+  currencyOptions,
   baseCurrency,
   pricingEnabled,
   participantMode,

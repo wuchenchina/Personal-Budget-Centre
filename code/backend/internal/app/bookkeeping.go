@@ -264,14 +264,6 @@ func (a *App) bookkeepingBudgetIDForRecord(ctx context.Context, id int64) (int64
 	return budgetID, nil
 }
 
-func (a *App) requireBudgetRead(r *http.Request, budgetID, userID int64) error {
-	basics, err := a.budgetBasics(r, budgetID)
-	if err != nil {
-		return apiError("BUDGET_NOT_FOUND", "Budget was not found.", http.StatusNotFound)
-	}
-	return a.requireWorkspaceRole(r.Context(), basics.WorkspaceID, userID, "owner", "admin", "editor", "viewer", "auditor")
-}
-
 func (a *App) requiredCurrencyID(ctx context.Context, value any) (int64, error) {
 	id, err := a.optionalCurrencyID(ctx, value)
 	if err != nil || !id.Valid {

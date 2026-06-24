@@ -1,6 +1,5 @@
 import { Form, InputNumber, Select } from 'antd';
 import type { RefObject } from 'react';
-import { currencyOptions } from '../../config/currencies';
 import { useI18n } from '../../i18n';
 import type { CurrencyCode } from '../../types/budget';
 import type { BudgetItemFormValues } from '../../types/forms';
@@ -16,6 +15,7 @@ export function MoneyLegCard({
   baseCurrency,
   currency,
   currencyName,
+  currencyOptions,
   help,
   focused,
   rate,
@@ -29,6 +29,7 @@ export function MoneyLegCard({
   baseCurrency: CurrencyCode;
   currency: CurrencyCode;
   currencyName: keyof BudgetItemFormValues;
+  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
   focused: boolean;
   help: string;
   rate?: number;

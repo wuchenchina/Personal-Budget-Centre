@@ -32,7 +32,6 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { currencyOptions } from '../../config/currencies';
 import type { BudgetEntryController } from '../../hooks/useBudgetEntryController';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import {
@@ -384,6 +383,7 @@ export function BudgetDocumentPreview({
             canWriteBudgets,
             entry,
             transactionCategoryOptions,
+            operations.currencyOptions,
             selectedBudget?.baseCurrency ?? baseCurrency,
             t('referenceShort'),
             selectedBudget?.pricingEnabled ?? false,
@@ -426,6 +426,7 @@ export function BudgetDocumentPreview({
       tableLanguageMode,
       columnLabelStyle,
       localizedTransactionBreakdown,
+      operations.currencyOptions,
       transactionCategoryOptions,
     ],
   );
@@ -2052,6 +2053,7 @@ function appendTransactionQuickEditors(
   canWriteBudgets: boolean,
   entry: BudgetEntryController,
   categoryOptions: Array<{ label: string; value: number }>,
+  currencyOptions: Array<{ label: string; value: CurrencyCode }>,
   baseCurrency: CurrencyCode,
   referenceLabel: string,
   pricingEnabled: boolean,

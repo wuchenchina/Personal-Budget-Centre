@@ -119,6 +119,8 @@ function AuthenticatedApp({
   });
   const workspaceRole = workspace.workspaceRole;
   const canManageWorkspaceMembers = workspaceRole === 'owner' || workspaceRole === 'admin';
+  const canManageExchangeRates =
+    workspaceRole === 'owner' || workspaceRole === 'admin' || workspaceRole === 'editor';
   const canWriteBudgets =
     workspaceRole === 'owner' || workspaceRole === 'admin' || workspaceRole === 'editor';
   const operations = useOperationsController({
@@ -215,7 +217,9 @@ function AuthenticatedApp({
       workspace={workspace}
       operations={operations}
       currentUserId={currentUserId}
+      isSystemAdmin={session.user.isAdmin}
       canManageWorkspaceMembers={canManageWorkspaceMembers}
+      canManageExchangeRates={canManageExchangeRates}
     />
   );
   const budgetEditorContent = (

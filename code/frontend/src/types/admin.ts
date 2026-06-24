@@ -42,7 +42,8 @@ export interface AdminUserCreatePayload {
 }
 
 export interface AdminEnvironmentCheck {
-  phpVersion: string;
+  runtime: string;
+  runtimeVersion: string;
   ok: boolean;
   extensions: Array<{
     name: string;

@@ -152,6 +152,15 @@ func queryInt(r *http.Request, key string) int64 {
 	return out
 }
 
+func firstQuery(r *http.Request, keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(r.URL.Query().Get(key)); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func enumString(value string, allowed []string, fallback string) string {
 	for _, item := range allowed {
 		if value == item {
@@ -161,15 +170,43 @@ func enumString(value string, allowed []string, fallback string) string {
 	return fallback
 }
 
+func hasAnyKey(input map[string]any, keys ...string) bool {
+	for _, key := range keys {
+		if _, ok := input[key]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 func nullableDate(value any) any {
-	text := stringValue(value)
+	text := dateString(value)
 	if text == "" {
 		return nil
 	}
+	return text
+}
+
+func dateString(value any) string {
+	text := stringValue(value)
+	if text == "" {
+		return ""
+	}
 	if _, err := time.Parse("2006-01-02", text); err != nil {
-		return nil
+		return ""
 	}
 	return text
+}
+
+func todayDate() string {
+	return time.Now().Format("2006-01-02")
+}
+
+func nullableText(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
 }
 
 func requiredLimitedString(value any, maxLength int, label string) (string, error) {

@@ -36,17 +36,17 @@ func (a *App) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.validateCSRF(r); err != nil {
-		a.writeError(w, err)
+		a.writeError(w, r, err)
 		return
 	}
 
 	handler := a.route(r.Method, r.URL.Path)
 	if handler == nil {
-		a.writeError(w, apiError("NOT_FOUND", "API route not found.", http.StatusNotFound))
+		a.writeError(w, r, apiError("NOT_FOUND", "API route not found.", http.StatusNotFound))
 		return
 	}
 	if err := handler(w, r); err != nil {
-		a.writeError(w, err)
+		a.writeError(w, r, err)
 	}
 }
 
@@ -67,9 +67,9 @@ func (a *App) route(method, path string) handlerFunc {
 	case method == http.MethodPatch && path == "/api/auth/password":
 		return a.authPassword
 	case method == http.MethodGet && path == "/api/auth/email/verify":
-		return ok(map[string]any{"verified": true})
+		return a.authEmailVerify
 	case method == http.MethodPost && path == "/api/auth/email/resend":
-		return ok(map[string]any{"sent": true, "email": ""})
+		return a.authEmailResend
 	case method == http.MethodGet && path == "/api/auth/sso-binding":
 		return a.ssoBinding
 	case method == http.MethodDelete && path == "/api/auth/sso-binding":
@@ -148,6 +148,10 @@ func (a *App) route(method, path string) handlerFunc {
 		return a.installmentPlanUpdate
 	case method == http.MethodGet && path == "/api/currencies":
 		return a.currencyList
+	case method == http.MethodPost && path == "/api/currencies":
+		return a.currencyCreate
+	case method == http.MethodDelete && path == "/api/currencies":
+		return a.currencyDelete
 	case method == http.MethodGet && path == "/api/exchange-rates":
 		return a.exchangeRateList
 	case method == http.MethodPost && path == "/api/exchange-rates":
@@ -185,7 +189,7 @@ func (a *App) route(method, path string) handlerFunc {
 	case method == http.MethodDelete && path == "/api/bookkeeping-records":
 		return a.bookkeepingDelete
 	case method == http.MethodGet && path == "/api/budget-reconciliation":
-		return ok(map[string]any{"reconciliation": map[string]any{}})
+		return a.reconciliation
 	case method == http.MethodGet && path == "/api/exports":
 		return a.exportList
 	case method == http.MethodPost && path == "/api/exports":
@@ -199,7 +203,7 @@ func (a *App) route(method, path string) handlerFunc {
 	case method == http.MethodPatch && path == "/api/admin/users":
 		return a.adminUserUpdate
 	case method == http.MethodPost && path == "/api/admin/users/email-verification":
-		return ok(map[string]any{"sent": true, "email": "", "alreadyVerified": false})
+		return a.adminUserEmailVerification
 	case method == http.MethodGet && path == "/api/admin/environment":
 		return a.adminEnvironment
 	case method == http.MethodGet && path == "/api/admin/database":
@@ -207,7 +211,7 @@ func (a *App) route(method, path string) handlerFunc {
 	case method == http.MethodPost && path == "/api/admin/database/migrate":
 		return a.adminDatabaseMigrate
 	case method == http.MethodGet && path == "/api/admin/logs":
-		return ok(map[string]any{"logs": map[string]any{"path": "", "entries": []any{}}})
+		return a.adminLogs
 	case method == http.MethodPost && path == "/api/admin/export-cache/cleanup":
 		return a.adminExportCleanup
 	case method == http.MethodGet && path == "/api/templates/personal-living-budget":
@@ -224,7 +228,8 @@ func (a *App) applyCORS(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 }
 
-func (a *App) writeError(w http.ResponseWriter, err error) {
+func (a *App) writeError(w http.ResponseWriter, r *http.Request, err error) {
+	a.appendAppLog(r, err)
 	var apiErr httpx.APIError
 	if errors.As(err, &apiErr) {
 		httpx.WriteError(w, apiErr.Code, apiErr.Message, apiErr.Status, apiErr.Meta)

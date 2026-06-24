@@ -141,19 +141,19 @@ function requestFailedMessage(status: number): string {
 function nonJsonResponseMessage(status: number, detail: string): string {
   switch (currentLanguage()) {
     case 'en':
-      return `The server returned a non-JSON response. Check PHP warnings, extensions, or directory permissions${detail || `: ${status}`}`;
+      return `The server returned a non-JSON response. Check the Go API logs, reverse proxy, or storage permissions${detail || `: ${status}`}`;
     case 'sc':
-      return `服务器返回了非 JSON 响应，请检查 PHP warning、扩展或目录权限${detail || `：${status}`}`;
+      return `服务器返回了非 JSON 响应，请检查 Go API 日志、反向代理或目录权限${detail || `：${status}`}`;
     case 'tc':
-      return `伺服器返回了非 JSON 回應，請檢查 PHP warning、擴充或目錄權限${detail || `：${status}`}`;
+      return `伺服器返回了非 JSON 回應，請檢查 Go API 日誌、反向代理或目錄權限${detail || `：${status}`}`;
     case 'ja':
-      return `サーバーが JSON 以外の応答を返しました。PHP warning、拡張機能、またはディレクトリ権限を確認してください${detail || `：${status}`}`;
+      return `サーバーが JSON 以外の応答を返しました。Go API ログ、リバースプロキシ、またはディレクトリ権限を確認してください${detail || `：${status}`}`;
     case 'fr':
-      return `Le serveur a retourné une réponse non JSON. Vérifiez les warnings PHP, les extensions ou les droits du répertoire${detail || ` : ${status}`}`;
+      return `Le serveur a retourné une réponse non JSON. Vérifiez les journaux de l'API Go, le reverse proxy ou les droits du répertoire${detail || ` : ${status}`}`;
     case 'ru':
-      return `Сервер вернул ответ не в формате JSON. Проверьте предупреждения PHP, расширения или права каталога${detail || `: ${status}`}`;
+      return `Сервер вернул ответ не в формате JSON. Проверьте журналы Go API, обратный прокси или права каталога${detail || `: ${status}`}`;
     case 'de':
-      return `Der Server hat eine Nicht-JSON-Antwort zurückgegeben. Prüfen Sie PHP-Warnungen, Erweiterungen oder Verzeichnisrechte${detail || `: ${status}`}`;
+      return `Der Server hat eine Nicht-JSON-Antwort zurückgegeben. Prüfen Sie Go-API-Logs, Reverse Proxy oder Verzeichnisrechte${detail || `: ${status}`}`;
   }
 }
 

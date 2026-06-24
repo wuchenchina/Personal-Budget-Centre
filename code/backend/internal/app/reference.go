@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
-	"time"
 
 	"budgetcentre/backend/internal/httpx"
 )
@@ -30,23 +30,12 @@ func (a *App) defaultTemplateID(ctx context.Context) (sql.NullInt64, error) {
 }
 
 func (a *App) currencyList(w http.ResponseWriter, r *http.Request) error {
-	rows, err := a.db.QueryContext(r.Context(), "SELECT id, code, name, symbol, decimal_places, is_enabled FROM currencies WHERE is_enabled = 1 ORDER BY code")
+	currencies, err := a.currencies(r.Context())
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
-	out := []map[string]any{}
-	for rows.Next() {
-		var id, decimals int64
-		var code, name, symbol string
-		var enabled bool
-		if err := rows.Scan(&id, &code, &name, &symbol, &decimals, &enabled); err != nil {
-			return err
-		}
-		out = append(out, map[string]any{"id": id, "code": code, "name": name, "symbol": symbol, "decimalPlaces": decimals, "isEnabled": enabled})
-	}
-	httpx.WriteOK(w, map[string]any{"currencies": out}, http.StatusOK)
-	return rows.Err()
+	httpx.WriteOK(w, map[string]any{"currencies": currenciesToResponse(currencies)}, http.StatusOK)
+	return nil
 }
 
 func (a *App) exchangeRateList(w http.ResponseWriter, r *http.Request) error {
@@ -59,8 +48,8 @@ func (a *App) exchangeRateList(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	rates, err := a.exchangeRatesForWorkspace(r.Context(), workspaceID, exchangeRateFilter{
-		From:     r.URL.Query().Get("fromCurrency"),
-		To:       r.URL.Query().Get("toCurrency"),
+		From:     firstQuery(r, "fromCurrency", "from"),
+		To:       firstQuery(r, "toCurrency", "to"),
 		RateDate: r.URL.Query().Get("rateDate"),
 		Source:   r.URL.Query().Get("source"),
 	})
@@ -76,17 +65,47 @@ func (a *App) exchangeRateCreate(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	workspaceID := int64Value(input["workspaceId"])
+	workspaceID := int64Value(firstValue(input, "workspaceId", "workspace_id"))
 	if err := a.requireWorkspaceRole(r.Context(), workspaceID, s.UserID, "owner", "admin", "editor"); err != nil {
 		return err
 	}
-	from, _ := a.currencyID(r.Context(), stringValue(input["fromCurrency"]))
-	to, _ := a.currencyID(r.Context(), stringValue(input["toCurrency"]))
-	res, err := a.db.ExecContext(r.Context(), "INSERT INTO exchange_rates (user_id, workspace_id, from_currency_id, to_currency_id, rate, rate_date, source, note) VALUES (?, ?, ?, ?, ?, ?, 'manual', ?)", s.UserID, workspaceID, nullableInt(from), nullableInt(to), floatValue(input["rate"]), stringDefault(stringValue(input["rateDate"]), time.Now().Format("2006-01-02")), nullableStringValue(input["note"]))
+	from, err := a.requiredCurrencyID(r.Context(), firstValue(input, "fromCurrency", "from_currency"))
 	if err != nil {
 		return err
 	}
-	id, _ := res.LastInsertId()
+	to, err := a.requiredCurrencyID(r.Context(), firstValue(input, "toCurrency", "to_currency"))
+	if err != nil {
+		return err
+	}
+	if from == to {
+		return apiError("VALIDATION_ERROR", "Manual exchange rate currencies must differ.", http.StatusUnprocessableEntity)
+	}
+	rateValue, ok := numericInput(input["rate"])
+	if !ok || rateValue <= 0 {
+		return apiError("VALIDATION_ERROR", "Exchange rate is required.", http.StatusUnprocessableEntity)
+	}
+	rateDate := dateString(firstValue(input, "rateDate", "rate_date"))
+	if rateDate == "" {
+		rateDate = todayDate()
+	}
+	note := nullableStringValue(input["note"])
+	if text := stringValue(input["note"]); len(text) > 500 {
+		return apiError("VALIDATION_ERROR", "Exchange rate note must be 500 characters or less.", http.StatusUnprocessableEntity)
+	}
+	id, err := a.saveCurrentExchangeRate(r.Context(), currentExchangeRateInput{
+		UserID:           sql.NullInt64{Int64: s.UserID, Valid: true},
+		WorkspaceID:      sql.NullInt64{Int64: workspaceID, Valid: true},
+		FromCurrencyID:   from,
+		ToCurrencyID:     to,
+		Rate:             rateValue,
+		RateDate:         rateDate,
+		Source:           "manual",
+		ProviderRateType: "manual",
+		Note:             note,
+	})
+	if err != nil {
+		return err
+	}
 	rate, err := a.exchangeRateByID(r.Context(), id)
 	if err != nil {
 		return err
@@ -96,17 +115,49 @@ func (a *App) exchangeRateCreate(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *App) exchangeRateConvert(w http.ResponseWriter, r *http.Request) error {
-	input, err := readJSON(r)
+	s, input, err := a.sessionInput(r)
 	if err != nil {
 		return err
 	}
-	from, to := stringValue(input["fromCurrency"]), stringValue(input["toCurrency"])
-	amount, rate := floatValue(input["amount"]), 1.0
-	if from != to {
-		_ = a.db.QueryRowContext(r.Context(), `SELECT rate FROM exchange_rates er JOIN currencies f ON f.id = er.from_currency_id JOIN currencies t ON t.id = er.to_currency_id
-WHERE f.code = ? AND t.code = ? AND er.workspace_id <=> ? ORDER BY rate_date DESC, er.id DESC LIMIT 1`, from, to, nullableInt64Value(input["workspaceId"])).Scan(&rate)
+	workspaceID := int64Value(firstValue(input, "workspaceId", "workspace_id"))
+	if err := a.requireWorkspaceRole(r.Context(), workspaceID, s.UserID, "owner", "admin", "editor", "viewer", "auditor"); err != nil {
+		return err
 	}
-	httpx.WriteOK(w, map[string]any{"conversion": map[string]any{"from": from, "to": to, "amount": amount, "rate": rate, "convertedAmount": round4(amount * rate), "rateDate": nil, "source": "manual", "conversionPath": "direct"}}, http.StatusOK)
+	fromID, err := a.requiredCurrencyID(r.Context(), firstValue(input, "fromCurrency", "from_currency"))
+	if err != nil {
+		return err
+	}
+	toID, err := a.requiredCurrencyID(r.Context(), firstValue(input, "toCurrency", "to_currency"))
+	if err != nil {
+		return err
+	}
+	amount, ok := numericInput(input["amount"])
+	if !ok {
+		return apiError("VALIDATION_ERROR", "Amount is required.", http.StatusUnprocessableEntity)
+	}
+	rateDate := dateString(firstValue(input, "rateDate", "rate_date"))
+	conversion, err := a.resolveExchangeRate(r.Context(), workspaceID, fromID, toID, rateDate)
+	if err != nil {
+		return err
+	}
+	fromCode, err := a.currencyCodeByID(r.Context(), fromID)
+	if err != nil {
+		return err
+	}
+	toCode, err := a.currencyCodeByID(r.Context(), toID)
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{"conversion": map[string]any{
+		"from":            fromCode,
+		"to":              toCode,
+		"amount":          amount,
+		"rate":            conversion.Rate,
+		"convertedAmount": amount * conversion.Rate,
+		"rateDate":        nullableText(conversion.RateDate),
+		"source":          conversion.Source,
+		"conversionPath":  conversion.ConversionPath,
+	}}, http.StatusOK)
 	return nil
 }
 
@@ -131,11 +182,18 @@ func (a *App) templateResponse(w http.ResponseWriter, r *http.Request) error {
 	row := a.db.QueryRowContext(r.Context(), "SELECT name, template_key, style_json, structure_json FROM budget_templates WHERE template_key = 'personal_living_budget' LIMIT 1")
 	var name, key, styleRaw, structureRaw string
 	if err := row.Scan(&name, &key, &styleRaw, &structureRaw); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return apiError("TEMPLATE_NOT_FOUND", "Template is missing. Run database/003_seed_template.sql.", http.StatusNotFound)
+		}
 		return err
 	}
 	var style, structure map[string]any
-	_ = json.Unmarshal([]byte(styleRaw), &style)
-	_ = json.Unmarshal([]byte(structureRaw), &structure)
+	if err := json.Unmarshal([]byte(styleRaw), &style); err != nil {
+		return apiError("TEMPLATE_JSON_INVALID", "Template JSON in database is invalid.", http.StatusInternalServerError)
+	}
+	if err := json.Unmarshal([]byte(structureRaw), &structure); err != nil {
+		return apiError("TEMPLATE_JSON_INVALID", "Template JSON in database is invalid.", http.StatusInternalServerError)
+	}
 	httpx.WriteOK(w, map[string]any{"template": map[string]any{"key": key, "name": name, "style": style, "titleTemplate": structure["titleTemplate"], "subtitleTemplate": structure["subtitleTemplate"], "sections": structure["sections"]}}, http.StatusOK)
 	return nil
 }

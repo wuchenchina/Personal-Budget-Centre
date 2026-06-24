@@ -1,12 +1,11 @@
 import { Alert, Button, Divider, Form, Input, Progress, Select, Tabs } from 'antd';
 import type { FormInstance } from 'antd';
 import { KeyRound, LockKeyhole, UserRound } from 'lucide-react';
-import { currencyOptions } from '../../config/currencies';
 import { startCasdoorSignin } from '../../config/casdoor';
 import type { AppLanguage } from '../../i18n';
 import { languageOptions, useI18n } from '../../i18n';
+import type { CurrencyCode } from '../../types/budget';
 import type { AuthFormValues, AuthMode } from '../../types/forms';
-import { isCurrencyCode } from '../../utils/currencyCode';
 import { passwordProgressStatus, passwordStrengthFor } from '../../utils/password';
 import styles from './AuthScreen.module.css';
 
@@ -17,6 +16,7 @@ interface AuthScreenProps {
   notice: string | null;
   isSubmitting: boolean;
   language: AppLanguage;
+  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
   watchedPassword: string | undefined;
   onFinish: (values: AuthFormValues) => Promise<void>;
   onLanguageChange: (language: AppLanguage) => void;
@@ -31,6 +31,7 @@ export function AuthScreen({
   notice,
   isSubmitting,
   language,
+  currencyOptions,
   watchedPassword,
   onFinish,
   onLanguageChange,
@@ -202,7 +203,8 @@ export function AuthScreen({
                   { required: true, message: t('selectDefaultCurrency') },
                   {
                     validator: (_, value: unknown) =>
-                      typeof value === 'string' && isCurrencyCode(value)
+                      typeof value === 'string'
+                        && currencyOptions.some((option) => option.value === value)
                         ? Promise.resolve()
                         : Promise.reject(new Error(t('supportedCurrencyOnly'))),
                   },

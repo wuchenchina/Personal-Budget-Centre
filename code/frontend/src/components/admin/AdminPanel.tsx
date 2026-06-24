@@ -252,7 +252,7 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
       <section className="admin-panel">
         <div className="admin-toolbar">
           <div>
-            <h2>資料庫維護</h2>
+            <h2>{t('databaseMaintenance')}</h2>
           </div>
           <Space wrap>
             <Button
@@ -260,20 +260,20 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
               loading={controller.isDatabaseLoading}
               onClick={() => void controller.refreshDatabaseStatus()}
             >
-              讀取狀態
+              {t('databaseReadStatus')}
             </Button>
             <Button
               loading={controller.isDatabaseLoading}
               onClick={() => void controller.dryRunDatabaseMigration()}
             >
-              Dry-run
+              {t('databaseDryRun')}
             </Button>
             <Button
               icon={<RefreshCcw size={14} />}
               loading={controller.isDatabaseLoading}
               onClick={() => void controller.retryDatabaseMigration()}
             >
-              重試增量
+              {t('databaseRetryMigrations')}
             </Button>
           </Space>
         </div>
@@ -285,36 +285,40 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
             items={[
               {
                 key: 'connected',
-                label: '連線',
+                label: t('databaseConnection'),
                 children: (
                   <Tag color={controller.databaseStatus.connected ? 'green' : 'red'}>
-                    {controller.databaseStatus.connected ? '正常' : '異常'}
+                    {controller.databaseStatus.connected
+                      ? t('databaseConnected')
+                      : t('databaseDisconnected')}
                   </Tag>
                 ),
               },
               {
                 key: 'database',
-                label: '資料庫',
+                label: t('databaseName'),
                 children: controller.databaseStatus.database,
               },
               {
                 key: 'coreReady',
-                label: '核心表',
+                label: t('databaseCoreTables'),
                 children: (
                   <Tag color={controller.databaseStatus.coreReady ? 'green' : 'orange'}>
-                    {controller.databaseStatus.coreReady ? '已就緒' : '待初始化'}
+                    {controller.databaseStatus.coreReady
+                      ? t('databaseCoreReady')
+                      : t('databaseCoreWaiting')}
                   </Tag>
                 ),
               },
               {
                 key: 'pending',
-                label: '待套用',
+                label: t('databasePendingMigrations'),
                 children: controller.databaseStatus.pending.length,
               },
             ]}
           />
         ) : (
-          <Alert type="info" showIcon message="尚未讀取資料庫狀態。" />
+          <Alert type="info" showIcon message={t('databaseStatusUnread')} />
         )}
       </section>
 
@@ -372,6 +376,7 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
         form={createForm}
         open={isCreateModalOpen}
         confirmLoading={controller.isUserCreating}
+        currencyOptions={controller.currencyOptions}
         onCancel={() => setIsCreateModalOpen(false)}
         onOk={() => void handleCreateUser()}
       />

@@ -1,8 +1,8 @@
 import { Alert, Form, Input, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
-import { currencyOptions } from '../../config/currencies';
 import { useI18n, workspaceTypeLabelsByLanguage } from '../../i18n';
 import type { AuthWorkspace } from '../../types/auth';
+import type { CurrencyCode } from '../../types/budget';
 import type { WorkspaceEditFormValues } from '../../types/forms';
 
 interface WorkspaceEditModalProps {
@@ -10,6 +10,7 @@ interface WorkspaceEditModalProps {
   workspace: AuthWorkspace | null;
   open: boolean;
   error: string | null;
+  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
@@ -20,6 +21,7 @@ export function WorkspaceEditModal({
   workspace,
   open,
   error,
+  currencyOptions,
   confirmLoading,
   onCancel,
   onOk,

@@ -16,9 +16,9 @@ export function EnvironmentCheckSummary({ environment }: EnvironmentCheckSummary
   const missingExtensions = environment.extensions.filter((extension) => !extension.loaded);
   const descriptionItems = [
     {
-      key: 'php',
-      label: 'PHP',
-      children: environment.phpVersion,
+      key: 'runtime',
+      label: 'Runtime',
+      children: environment.runtimeVersion || environment.runtime,
     },
     {
       key: 'ok',

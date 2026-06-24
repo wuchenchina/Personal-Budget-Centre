@@ -59,19 +59,24 @@ func (a *App) bochkRefresh(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	workspaceID := int64Value(input["workspaceId"])
+	workspaceID := int64Value(firstValue(input, "workspaceId", "workspace_id"))
 	if err := a.requireWorkspaceRole(r.Context(), workspaceID, s.UserID, "owner", "admin", "editor"); err != nil {
 		return err
 	}
+	unlock, locked, err := a.tryNamedLock(r.Context(), "budgetcentre_bochk_refresh")
+	if err != nil {
+		return err
+	}
+	if !locked {
+		return apiError("EXCHANGE_RATE_REFRESH_IN_PROGRESS", "BOCHK exchange rates are already refreshing.", http.StatusConflict)
+	}
+	defer unlock()
+
 	feed, err := fetchBochkFeed(r.Context())
 	if err != nil {
 		return err
 	}
-	hkdID, err := a.requiredCurrencyID(r.Context(), "HKD")
-	if err != nil {
-		return err
-	}
-	saved, skipped, err := a.saveBochkRates(r.Context(), s.UserID, workspaceID, hkdID, feed)
+	saved, skipped, err := a.saveBochkRates(r.Context(), sql.NullInt64{Int64: s.UserID, Valid: true}, feed)
 	if err != nil {
 		return err
 	}
@@ -94,24 +99,41 @@ func (a *App) bochkRefresh(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (a *App) saveBochkRates(ctx context.Context, userID, workspaceID, hkdID int64, feed bochkFeed) (int, []string, error) {
+func (a *App) saveBochkRates(ctx context.Context, userID sql.NullInt64, feed bochkFeed) (int, []string, error) {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, nil, err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, "DELETE FROM exchange_rates WHERE workspace_id = ? AND source = ? AND rate_date = ?", workspaceID, bochkSource, feed.RateDate); err != nil {
+	hkdID, err := ensureBochkCurrencyTx(ctx, tx, "HKD", "Hong Kong Dollar")
+	if err != nil {
 		return 0, nil, err
 	}
 	saved := 0
 	skipped := []string{}
 	for _, rate := range feed.Rates {
-		currencyID, err := a.currencyID(ctx, rate.CurrencyCode)
-		if err != nil || !currencyID.Valid || currencyID.Int64 == hkdID {
+		currencyID, err := ensureBochkCurrencyTx(ctx, tx, rate.CurrencyCode, rate.Label)
+		if err != nil || currencyID == hkdID || rate.CustomerBuy <= 0 {
 			skipped = append(skipped, rate.CurrencyCode)
 			continue
 		}
-		if err := insertBochkRate(ctx, tx, userID, workspaceID, currencyID.Int64, hkdID, rate.CustomerBuy, "customer_buy", rate, feed, "BOCHK customer buy rate for "+rate.Label+" to HKD."); err != nil {
+		if _, err := saveCurrentExchangeRateTx(ctx, tx, currentExchangeRateInput{
+			UserID:            userID,
+			WorkspaceID:       sql.NullInt64{},
+			FromCurrencyID:    currencyID,
+			ToCurrencyID:      hkdID,
+			Rate:              rate.CustomerBuy,
+			RateDate:          feed.RateDate,
+			Source:            bochkSource,
+			SourceName:        bochkSourceName,
+			SourceURL:         bochkSourceURL,
+			ProviderRateType:  "customer_buy",
+			ProviderSellRate:  rate.CustomerSell,
+			ProviderBuyRate:   rate.CustomerBuy,
+			ProviderUpdatedAt: feed.ProviderUpdatedAt,
+			FetchedAt:         feed.FetchedAt,
+			Note:              "BOCHK customer buy rate for " + rate.Label + " to HKD.",
+		}); err != nil {
 			return 0, nil, err
 		}
 		saved++
@@ -119,23 +141,28 @@ func (a *App) saveBochkRates(ctx context.Context, userID, workspaceID, hkdID int
 			skipped = append(skipped, rate.CurrencyCode)
 			continue
 		}
-		if err := insertBochkRate(ctx, tx, userID, workspaceID, hkdID, currencyID.Int64, 1/rate.CustomerSell, "customer_sell", rate, feed, "BOCHK customer sell rate for HKD to "+rate.Label+"."); err != nil {
+		if _, err := saveCurrentExchangeRateTx(ctx, tx, currentExchangeRateInput{
+			UserID:            userID,
+			WorkspaceID:       sql.NullInt64{},
+			FromCurrencyID:    hkdID,
+			ToCurrencyID:      currencyID,
+			Rate:              1 / rate.CustomerSell,
+			RateDate:          feed.RateDate,
+			Source:            bochkSource,
+			SourceName:        bochkSourceName,
+			SourceURL:         bochkSourceURL,
+			ProviderRateType:  "customer_sell",
+			ProviderSellRate:  rate.CustomerSell,
+			ProviderBuyRate:   rate.CustomerBuy,
+			ProviderUpdatedAt: feed.ProviderUpdatedAt,
+			FetchedAt:         feed.FetchedAt,
+			Note:              "BOCHK customer sell rate for HKD to " + rate.Label + ".",
+		}); err != nil {
 			return 0, nil, err
 		}
 		saved++
 	}
 	return saved, skipped, tx.Commit()
-}
-
-func insertBochkRate(ctx context.Context, tx *sql.Tx, userID, workspaceID, fromID, toID int64, value float64, rateType string, rate bochkRate, feed bochkFeed, note string) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO exchange_rates
-(user_id, workspace_id, from_currency_id, to_currency_id, rate, rate_date, source, source_name, source_url,
-provider_rate_type, provider_sell_rate, provider_buy_rate, provider_updated_at, fetched_at, note)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		userID, workspaceID, fromID, toID, value, feed.RateDate, bochkSource, bochkSourceName, bochkSourceURL,
-		rateType, rate.CustomerSell, rate.CustomerBuy, feed.ProviderUpdatedAt, feed.FetchedAt, note,
-	)
-	return err
 }
 
 func fetchBochkFeed(ctx context.Context) (bochkFeed, error) {
@@ -159,6 +186,117 @@ func fetchBochkFeed(ctx context.Context) (bochkFeed, error) {
 		return bochkFeed{}, err
 	}
 	return parseBochkHTML(string(body))
+}
+
+type bochkCurrencyMeta struct {
+	Name     string
+	Symbol   string
+	Decimals int
+}
+
+var bochkCurrencyMetaByCode = map[string]bochkCurrencyMeta{
+	"AUD": {Name: "Australian Dollar", Symbol: "A$", Decimals: 2},
+	"BND": {Name: "Brunei Dollar", Symbol: "B$", Decimals: 2},
+	"CAD": {Name: "Canadian Dollar", Symbol: "C$", Decimals: 2},
+	"CHF": {Name: "Swiss Franc", Symbol: "CHF", Decimals: 2},
+	"CNH": {Name: "Offshore Chinese Yuan", Symbol: "CNH¥", Decimals: 2},
+	"CNY": {Name: "Chinese Yuan", Symbol: "¥", Decimals: 2},
+	"DKK": {Name: "Danish Krone", Symbol: "DKK", Decimals: 2},
+	"EUR": {Name: "Euro", Symbol: "€", Decimals: 2},
+	"GBP": {Name: "Pound Sterling", Symbol: "£", Decimals: 2},
+	"HKD": {Name: "Hong Kong Dollar", Symbol: "HK$", Decimals: 2},
+	"JPY": {Name: "Japanese Yen", Symbol: "¥", Decimals: 0},
+	"NOK": {Name: "Norwegian Krone", Symbol: "NOK", Decimals: 2},
+	"NZD": {Name: "New Zealand Dollar", Symbol: "NZ$", Decimals: 2},
+	"SEK": {Name: "Swedish Krona", Symbol: "SEK", Decimals: 2},
+	"SGD": {Name: "Singapore Dollar", Symbol: "S$", Decimals: 2},
+	"THB": {Name: "Thai Baht", Symbol: "฿", Decimals: 2},
+	"USD": {Name: "United States Dollar", Symbol: "$", Decimals: 2},
+	"ZAR": {Name: "South African Rand", Symbol: "R", Decimals: 2},
+}
+
+func ensureBochkCurrencyTx(ctx context.Context, tx *sql.Tx, code, label string) (int64, error) {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	meta := bochkCurrencyMetaByCode[code]
+	if meta.Name == "" {
+		meta = bochkCurrencyMeta{Name: label, Symbol: code, Decimals: 2}
+	}
+	var id int64
+	err := tx.QueryRowContext(ctx, "SELECT id FROM currencies WHERE code = ? LIMIT 1", code).Scan(&id)
+	if err == nil {
+		_, err = tx.ExecContext(ctx, `UPDATE currencies
+SET name = ?, symbol = ?, decimal_places = ?, is_enabled = 1,
+    provider_source = 'bochk', is_api_managed = 1, provider_last_seen_at = UTC_TIMESTAMP()
+WHERE id = ?`, meta.Name, meta.Symbol, meta.Decimals, id)
+		return id, err
+	}
+	if err != sql.ErrNoRows {
+		return 0, err
+	}
+	res, err := tx.ExecContext(ctx, `INSERT INTO currencies
+(code, name, symbol, decimal_places, is_enabled, provider_source, is_api_managed, provider_last_seen_at)
+VALUES (?, ?, ?, ?, 1, 'bochk', 1, UTC_TIMESTAMP())`,
+		code, meta.Name, meta.Symbol, meta.Decimals,
+	)
+	if err != nil {
+		return 0, err
+	}
+	id, _ = res.LastInsertId()
+	return id, nil
+}
+
+func (a *App) refreshBochkIfStale(ctx context.Context, maxAge time.Duration) error {
+	unlock, locked, err := a.tryNamedLock(ctx, "budgetcentre_bochk_refresh")
+	if err != nil || !locked {
+		return err
+	}
+	defer unlock()
+	due, err := a.bochkRefreshDue(ctx, maxAge)
+	if err != nil || !due {
+		return err
+	}
+	feed, err := fetchBochkFeed(ctx)
+	if err != nil {
+		return err
+	}
+	saved, skipped, err := a.saveBochkRates(ctx, sql.NullInt64{}, feed)
+	if err != nil {
+		return err
+	}
+	a.logger.Info("bochk rates refreshed", "saved", saved, "skipped", skipped, "rateDate", feed.RateDate, "providerUpdatedAt", feed.ProviderUpdatedAt)
+	return nil
+}
+
+func (a *App) bochkRefreshDue(ctx context.Context, maxAge time.Duration) (bool, error) {
+	var latest sql.NullTime
+	err := a.db.QueryRowContext(ctx, "SELECT MAX(fetched_at) FROM exchange_rates WHERE source = 'bochk' AND workspace_id IS NULL").Scan(&latest)
+	if err != nil {
+		return false, err
+	}
+	if !latest.Valid {
+		return true, nil
+	}
+	return time.Since(latest.Time.UTC()) >= maxAge, nil
+}
+
+func (a *App) tryNamedLock(ctx context.Context, name string) (func(), bool, error) {
+	conn, err := a.db.Conn(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	var acquired int
+	if err := conn.QueryRowContext(ctx, "SELECT GET_LOCK(?, 1)", name).Scan(&acquired); err != nil {
+		_ = conn.Close()
+		return nil, false, err
+	}
+	if acquired != 1 {
+		_ = conn.Close()
+		return func() {}, false, nil
+	}
+	return func() {
+		_, _ = conn.ExecContext(context.Background(), "SELECT RELEASE_LOCK(?)", name)
+		_ = conn.Close()
+	}, true, nil
 }
 
 func parseBochkHTML(raw string) (bochkFeed, error) {

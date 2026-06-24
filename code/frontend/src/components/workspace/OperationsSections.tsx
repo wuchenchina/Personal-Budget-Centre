@@ -10,6 +10,8 @@ interface OperationsSectionsProps {
   operations: OperationsController;
   selectedBudget: BudgetDetail | null;
   activeWorkspaceId: number | null;
+  isSystemAdmin: boolean;
+  canManageExchangeRates: boolean;
   canManageBudgetShares: boolean;
 }
 
@@ -18,6 +20,8 @@ export function OperationsSections({
   operations,
   selectedBudget,
   activeWorkspaceId,
+  isSystemAdmin,
+  canManageExchangeRates,
   canManageBudgetShares,
 }: OperationsSectionsProps) {
   const showCategories = activeKey === 'categories';
@@ -42,6 +46,8 @@ export function OperationsSections({
       {showRates ? (
         <ExchangeRateSideSection
           activeWorkspaceId={activeWorkspaceId}
+          isSystemAdmin={isSystemAdmin}
+          canManageExchangeRates={canManageExchangeRates}
           operations={operations}
         />
       ) : null}

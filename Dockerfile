@@ -22,11 +22,13 @@ WORKDIR /app
 COPY --from=backend /out/budgetcentre-api /app/budgetcentre-api
 COPY code/database /app/database
 COPY code/font /app/font
-RUN mkdir -p /app/storage/exports
+RUN mkdir -p /app/storage/exports /app/storage/tmp/pdf /app/storage/logs
 ENV LISTEN_ADDR=:8080 \
     DATABASE_DIR=/app/database \
     FONT_DIR=/app/font \
     EXPORT_STORAGE_DIR=/app/storage/exports \
+    EXPORT_TEMP_DIR=/app/storage/tmp/pdf \
+    APP_LOG_FILE=/app/storage/logs/app.log \
     CHROME_BIN=/usr/bin/chromium-browser
 EXPOSE 8080
 CMD ["/app/budgetcentre-api"]

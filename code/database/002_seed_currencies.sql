@@ -9,8 +9,6 @@ VALUES
   ('EUR', 'Euro', '€', 2, 1),
   ('GBP', 'Pound Sterling', '£', 2, 1),
   ('JPY', 'Japanese Yen', '¥', 0, 1),
-  ('TWD', 'New Taiwan Dollar', 'NT$', 2, 1),
-  ('MOP', 'Macanese Pataca', 'MOP$', 2, 1),
   ('AUD', 'Australian Dollar', 'A$', 2, 1),
   ('NZD', 'New Zealand Dollar', 'NZ$', 2, 1),
   ('CAD', 'Canadian Dollar', 'C$', 2, 1),

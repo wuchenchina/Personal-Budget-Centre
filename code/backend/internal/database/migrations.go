@@ -81,12 +81,17 @@ func Status(ctx context.Context, db *sql.DB, cfg config.Config) (MigrationStatus
 		appliedByVersion[row.Version] = row
 	}
 	for _, file := range files {
-		if _, ok := appliedByVersion[file.Version]; !ok {
+		applied, ok := appliedByVersion[file.Version]
+		if !ok || isRecoverableDuplicateMigrationVersion(applied.Filename, file.Name) {
 			status.Pending = append(status.Pending, PendingMigration{
 				Version:  file.Version,
 				Filename: file.Name,
 				Checksum: file.Checksum,
 			})
+			continue
+		}
+		if applied.Checksum != file.Checksum {
+			return status, fmt.Errorf("migration checksum changed for %s", file.Name)
 		}
 	}
 	return status, nil
@@ -101,15 +106,22 @@ func DryRun(ctx context.Context, db *sql.DB, cfg config.Config) ([]PendingMigrat
 }
 
 func advisoryLock(ctx context.Context, db *sql.DB) (func(), error) {
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var acquired int
-	if err := db.QueryRowContext(ctx, "SELECT GET_LOCK('budgetcentre_schema_migration', 30)").Scan(&acquired); err != nil {
+	if err := conn.QueryRowContext(ctx, "SELECT GET_LOCK('budgetcentre_schema_migration', 30)").Scan(&acquired); err != nil {
+		_ = conn.Close()
 		return nil, err
 	}
 	if acquired != 1 {
+		_ = conn.Close()
 		return nil, errors.New("could not acquire schema migration lock")
 	}
 	return func() {
-		_, _ = db.ExecContext(context.Background(), "SELECT RELEASE_LOCK('budgetcentre_schema_migration')")
+		_, _ = conn.ExecContext(context.Background(), "SELECT RELEASE_LOCK('budgetcentre_schema_migration')")
+		_ = conn.Close()
 	}, nil
 }
 
@@ -135,8 +147,9 @@ WHERE table_schema = DATABASE()
 }
 
 func migrationApplied(ctx context.Context, db *sql.DB, file migrationFile) (bool, error) {
+	var filename string
 	var checksum string
-	err := db.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE version = ?", file.Version).Scan(&checksum)
+	err := db.QueryRowContext(ctx, "SELECT filename, checksum FROM schema_migrations WHERE version = ?", file.Version).Scan(&filename, &checksum)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -144,9 +157,16 @@ func migrationApplied(ctx context.Context, db *sql.DB, file migrationFile) (bool
 		return false, err
 	}
 	if checksum != file.Checksum {
+		if isRecoverableDuplicateMigrationVersion(filename, file.Name) {
+			return false, nil
+		}
 		return false, fmt.Errorf("migration checksum changed for %s", file.Name)
 	}
 	return true, nil
+}
+
+func isRecoverableDuplicateMigrationVersion(appliedFilename, currentFilename string) bool {
+	return appliedFilename == "027_user_avatar_url.sql" && currentFilename == "027_webauthn_session_json.sql"
 }
 
 func appliedMigrations(ctx context.Context, db *sql.DB) ([]AppliedMigration, error) {

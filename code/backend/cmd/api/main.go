@@ -30,9 +30,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	api := app.New(db, cfg, logger)
+	backgroundCtx, stopBackground := context.WithCancel(context.Background())
+	defer stopBackground()
+	api.StartBackgroundJobs(backgroundCtx)
+
 	server := &http.Server{
 		Addr:              cfg.ListenAddr,
-		Handler:           app.New(db, cfg, logger).Routes(),
+		Handler:           api.Routes(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -50,5 +55,6 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	stopBackground()
 	_ = server.Shutdown(ctx)
 }

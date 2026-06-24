@@ -2,8 +2,6 @@ import type { ThemeConfig } from 'antd';
 import type { BudgetStatus, CurrencyRate, TransactionType, WorkspaceRole } from '../types/budget';
 import type { UserStatus } from '../types/auth';
 
-export { currencyOptions, supportedCurrencyCodes } from './currencies';
-
 export const iconSize = 16;
 
 export const roleColors: Record<WorkspaceRole, string> = {

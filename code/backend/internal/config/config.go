@@ -17,6 +17,10 @@ type Config struct {
 	DatabaseDir   string
 	FontDir       string
 	ExportDir     string
+	ExportTempDir string
+	ExportKeep    int
+	ChromeBin     string
+	AppLogFile    string
 	SessionCookie string
 
 	DBHost     string
@@ -56,6 +60,10 @@ func Load() Config {
 		DatabaseDir:   env("DATABASE_DIR", "/app/database"),
 		FontDir:       env("FONT_DIR", "/app/font"),
 		ExportDir:     env("EXPORT_STORAGE_DIR", "/app/storage/exports"),
+		ExportTempDir: env("EXPORT_TEMP_DIR", env("PDF_TEMP_DIR", "/app/storage/tmp/pdf")),
+		ExportKeep:    envInt("EXPORT_RETENTION_PER_BUDGET", 3),
+		ChromeBin:     env("CHROME_BIN", "chromium"),
+		AppLogFile:    env("APP_LOG_FILE", "/app/storage/logs/app.log"),
 		SessionCookie: env("SESSION_COOKIE", "budgetcentre_session"),
 
 		DBHost:     env("DB_HOST", "172.17.0.1"),

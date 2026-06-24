@@ -51,6 +51,18 @@ docker compose up -d --build
 
 寶塔只需把正式域名反向代理到該入口。
 
+Compose 模板不保存資料庫密碼、APP_KEY、SMTP 密碼、Casdoor secret 等敏感值；正式值由 `deploy.sh` 在伺服器目錄寫入 `.env`。容器只透過 `env_file: .env` 讀取。
+
+API 產生的匯出檔、暫存檔與日誌會持久化到專案目錄下：
+
+```text
+storage/exports
+storage/tmp
+storage/logs
+```
+
+`deploy.sh` 同步時會排除 `.env` 和 `storage/`，避免部署時覆蓋配置或刪除持久化資料。
+
 ## 資料庫
 
 - MySQL 由宿主機提供，不容器化。
@@ -59,6 +71,15 @@ docker compose up -d --build
   - 空 database：套用 `code/database/*.sql` 初始化。
   - 既有 database：建立/更新 `schema_migrations`，套用尚未執行的安全增量。
 - 不提供 fresh/reset/drop/truncate/清空資料功能。
+- 匯率 current/history 分離：
+  - `exchange_rates` 只保留目前最新匯率。
+  - 舊 current 會自動歸檔到 `exchange_rate_history`。
+  - legacy provider current（例如舊 Mastercard 或 BOCHK mid/card）會在升級時歸檔後移出 current 表。
+  - BOCHK 匯率由 Go API 啟動後檢查，之後每 4 小時刷新一次；管理介面仍可人工刷新。
+- 幣種以資料庫目前存在資料為準，不再提供停用狀態。
+  - BOCHK 實際取得的幣種會標記為 API-managed，不可刪除。
+  - 手動新增幣種可刪除；若已有任何資料引用，後端會拒絕刪除。
+  - 舊資料庫若殘留 TWD/MOP，可先執行 `scripts/legacy_currency_audit.sql` 檢查引用，再視結果執行 `scripts/legacy_currency_cleanup.sql` 做安全刪除。
 
 第一個成功註冊的使用者會自動成為 admin。既有資料庫若沒有 admin，可手動更新 `users.is_admin = 1`。
 

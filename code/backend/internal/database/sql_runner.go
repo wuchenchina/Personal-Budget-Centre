@@ -34,6 +34,7 @@ func migrationFiles(dir string) ([]migrationFile, error) {
 	}
 	sort.Strings(paths)
 	files := make([]migrationFile, 0, len(paths))
+	seenVersions := map[string]string{}
 	for _, path := range paths {
 		contentBytes, err := os.ReadFile(path)
 		if err != nil {
@@ -48,6 +49,10 @@ func migrationFiles(dir string) ([]migrationFile, error) {
 		if idx := strings.Index(name, "_"); idx > 0 {
 			version = name[:idx]
 		}
+		if existing, ok := seenVersions[version]; ok {
+			return nil, fmt.Errorf("duplicate migration version %s: %s and %s", version, existing, name)
+		}
+		seenVersions[version] = name
 		sum := sha256.Sum256(contentBytes)
 		files = append(files, migrationFile{
 			Version:  version,

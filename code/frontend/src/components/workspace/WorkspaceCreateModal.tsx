@@ -1,6 +1,5 @@
 import { Form, Input, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
-import { currencyOptions } from '../../config/currencies';
 import { useI18n, workspaceTypeLabelsByLanguage } from '../../i18n';
 import type { CurrencyCode } from '../../types/budget';
 import type { WorkspaceFormValues } from '../../types/forms';
@@ -17,6 +16,7 @@ interface WorkspaceCreateModalProps {
   form: FormInstance<WorkspaceFormValues>;
   open: boolean;
   baseCurrency: CurrencyCode;
+  currencyOptions: Array<{ label: string; value: CurrencyCode }>;
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
@@ -26,6 +26,7 @@ export function WorkspaceCreateModal({
   form,
   open,
   baseCurrency,
+  currencyOptions,
   confirmLoading,
   onCancel,
   onOk,

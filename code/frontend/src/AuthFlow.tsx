@@ -37,6 +37,7 @@ function AuthFlow({
       notice={auth.authNotice}
       isSubmitting={auth.isAuthSubmitting}
       language={language}
+      currencyOptions={auth.currencyOptions}
       watchedPassword={auth.watchedPassword}
       onFinish={auth.handleAuthFinish}
       onLanguageChange={onLanguageChange}
