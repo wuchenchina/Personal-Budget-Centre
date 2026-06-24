@@ -7,6 +7,7 @@ import type { BudgetSignatureLabelMode, PdfThemeKey } from '../../types/budget';
 import type { BudgetPdfExportSettingsValue } from '../../utils/budgetPdfExportSettingsValue';
 import {
   alignPdfChineseLanguages,
+  newlySelectedPdfChineseLanguage,
   normalizePdfLanguages,
   normalizeSignatureLabelMode,
   selectedPdfChineseLanguage,
@@ -54,15 +55,17 @@ export function BudgetPdfExportSettingsModal({
     changedField: 'pdfLanguages' | 'signatureLabelLanguages',
     checkedValues: AppLanguage[],
   ) => {
+    const previousChangedLanguages = normalizePdfLanguages(form.getFieldValue(changedField));
     const nextPdfLanguages = changedField === 'pdfLanguages'
       ? normalizePdfLanguages(checkedValues)
       : normalizePdfLanguages(form.getFieldValue('pdfLanguages'));
     const nextSignatureLabelLanguages = changedField === 'signatureLabelLanguages'
       ? normalizePdfLanguages(checkedValues)
       : normalizePdfLanguages(form.getFieldValue('signatureLabelLanguages'));
-    const preferredChineseLanguage = selectedPdfChineseLanguage(
-      changedField === 'pdfLanguages' ? nextPdfLanguages : nextSignatureLabelLanguages,
-    );
+    const nextChangedLanguages = changedField === 'pdfLanguages' ? nextPdfLanguages : nextSignatureLabelLanguages;
+    const preferredChineseLanguage =
+      newlySelectedPdfChineseLanguage(previousChangedLanguages, checkedValues)
+      ?? selectedPdfChineseLanguage(nextChangedLanguages);
     const alignedLanguages = alignPdfChineseLanguages(
       nextPdfLanguages,
       nextSignatureLabelLanguages,

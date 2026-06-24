@@ -37,6 +37,17 @@ export function selectedPdfChineseLanguage(languages: AppLanguage[]): 'sc' | 'tc
   return lastChineseLanguage(languages);
 }
 
+export function newlySelectedPdfChineseLanguage(
+  previousLanguages: AppLanguage[],
+  nextLanguages: AppLanguage[],
+): 'sc' | 'tc' | null {
+  const previousChineseLanguages = new Set(previousLanguages.filter(isChinesePdfLanguage));
+
+  return nextLanguages.find((language): language is 'sc' | 'tc' => (
+    isChinesePdfLanguage(language) && !previousChineseLanguages.has(language)
+  )) ?? null;
+}
+
 export function alignPdfChineseLanguages(
   pdfLanguages: AppLanguage[],
   signatureLabelLanguages: AppLanguage[],
@@ -57,7 +68,11 @@ export function alignPdfChineseLanguages(
 function lastChineseLanguage(languages: AppLanguage[]): 'sc' | 'tc' | null {
   return [...languages]
     .reverse()
-    .find((language): language is 'sc' | 'tc' => language === 'sc' || language === 'tc') ?? null;
+    .find(isChinesePdfLanguage) ?? null;
+}
+
+function isChinesePdfLanguage(language: AppLanguage): language is 'sc' | 'tc' {
+  return language === 'sc' || language === 'tc';
 }
 
 function applyChineseLanguage(languages: AppLanguage[], chineseLanguage: 'sc' | 'tc' | null): AppLanguage[] {
@@ -65,12 +80,12 @@ function applyChineseLanguage(languages: AppLanguage[], chineseLanguage: 'sc' | 
     return languages;
   }
 
-  const firstChineseIndex = languages.findIndex((language) => language === 'sc' || language === 'tc');
+  const firstChineseIndex = languages.findIndex(isChinesePdfLanguage);
   if (firstChineseIndex < 0) {
     return languages;
   }
 
-  const withoutChineseLanguages = languages.filter((language) => language !== 'sc' && language !== 'tc');
+  const withoutChineseLanguages = languages.filter((language) => !isChinesePdfLanguage(language));
 
   return [
     ...withoutChineseLanguages.slice(0, firstChineseIndex),

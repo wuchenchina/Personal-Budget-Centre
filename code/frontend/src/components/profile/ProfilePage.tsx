@@ -22,6 +22,7 @@ import type { BudgetSignatureLabelMode } from '../../types/budget';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
 import {
   alignPdfChineseLanguages,
+  newlySelectedPdfChineseLanguage,
   normalizePdfExportSettings,
   normalizePdfLanguages,
   normalizeSignatureLabelMode,
@@ -177,15 +178,19 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     changedField: 'pdfLanguages' | 'signatureLabelLanguages',
     checkedValues: AppLanguage[],
   ) => {
+    const previousChangedLanguages = normalizePdfLanguages(
+      exportForm.getFieldValue(['pdfExportSettings', changedField]),
+    );
     const nextPdfLanguages = changedField === 'pdfLanguages'
       ? normalizePdfLanguages(checkedValues)
       : normalizePdfLanguages(exportForm.getFieldValue(['pdfExportSettings', 'pdfLanguages']));
     const nextSignatureLabelLanguages = changedField === 'signatureLabelLanguages'
       ? normalizePdfLanguages(checkedValues)
       : normalizePdfLanguages(exportForm.getFieldValue(['pdfExportSettings', 'signatureLabelLanguages']));
-    const preferredChineseLanguage = selectedPdfChineseLanguage(
-      changedField === 'pdfLanguages' ? nextPdfLanguages : nextSignatureLabelLanguages,
-    );
+    const nextChangedLanguages = changedField === 'pdfLanguages' ? nextPdfLanguages : nextSignatureLabelLanguages;
+    const preferredChineseLanguage =
+      newlySelectedPdfChineseLanguage(previousChangedLanguages, checkedValues)
+      ?? selectedPdfChineseLanguage(nextChangedLanguages);
     const alignedLanguages = alignPdfChineseLanguages(
       nextPdfLanguages,
       nextSignatureLabelLanguages,
