@@ -1,4 +1,4 @@
-import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
+import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Radio, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import { Calculator, RefreshCcw } from 'lucide-react';
 import { useEffect } from 'react';
@@ -8,10 +8,12 @@ import type {
   BudgetItemSplitType,
   BudgetParticipant,
   BudgetParticipantMode,
+  Currency,
   CurrencyCode,
   Transaction,
 } from '../../types/budget';
 import type { TransactionFormValues } from '../../types/forms';
+import { CurrencySelectWithQuickAdd } from './CurrencySelectWithQuickAdd';
 
 interface TransactionModalProps {
   form: FormInstance<TransactionFormValues>;
@@ -19,6 +21,7 @@ interface TransactionModalProps {
   open: boolean;
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
+  currencies: Currency[];
   currencyOptions: Array<{ label: string; value: CurrencyCode }>;
   baseCurrency: CurrencyCode;
   pricingEnabled: boolean;
@@ -31,6 +34,12 @@ interface TransactionModalProps {
   onOk: () => void;
   onRefreshRates: () => void;
   onReferenceConvert: () => void;
+  onSaveCurrency: (input: {
+    code: string;
+    name: string;
+    symbol?: string;
+    decimalPlaces: number;
+  }) => Promise<boolean>;
   onValuesChange: () => void;
 }
 
@@ -40,6 +49,7 @@ export function TransactionModal({
   open,
   error,
   categoryOptions,
+  currencies,
   currencyOptions,
   baseCurrency,
   pricingEnabled,
@@ -52,6 +62,7 @@ export function TransactionModal({
   onOk,
   onRefreshRates,
   onReferenceConvert,
+  onSaveCurrency,
   onValuesChange,
 }: TransactionModalProps) {
   const { t } = useI18n();
@@ -327,7 +338,11 @@ export function TransactionModal({
               name="currency"
               rules={[{ required: true, message: t('selectCurrency') }]}
             >
-              <Select options={currencyOptions} />
+              <CurrencySelectWithQuickAdd
+                currencies={currencies}
+                options={currencyOptions}
+                onSaveCurrency={onSaveCurrency}
+              />
             </Form.Item>
             {pricingEnabled ? (
               <Form.Item
@@ -385,6 +400,17 @@ export function TransactionModal({
             >
               <InputNumber className="form-full-width" precision={6} step={0.01} />
             </Form.Item>
+            <Form.Item label={t('rateSaveScope')} name="rateScope" initialValue="item">
+              <Radio.Group
+                block
+                optionType="button"
+                options={[
+                  { label: t('rateScopeItem'), value: 'item' },
+                  { label: t('rateScopeBudget'), value: 'budget_default' },
+                ]}
+                size="small"
+              />
+            </Form.Item>
           </div>
           <div className="currency-field-preview">
             <span>{t('baseCurrencyPreview')}</span>
@@ -400,7 +426,12 @@ export function TransactionModal({
               name="referenceCurrency"
               extra={t('referenceAmountHelp')}
             >
-              <Select allowClear options={currencyOptions} />
+              <CurrencySelectWithQuickAdd
+                allowClear
+                currencies={currencies}
+                options={currencyOptions}
+                onSaveCurrency={onSaveCurrency}
+              />
             </Form.Item>
             <Form.Item
               label={t('referenceAmount')}

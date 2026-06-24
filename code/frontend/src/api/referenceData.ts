@@ -16,8 +16,22 @@ export interface CreateCurrencyPayload {
   decimalPlaces: number;
 }
 
-export function listCurrencies(): Promise<Currency[]> {
-  return apiGet<CurrencyListResponse>('/api/currencies').then(
+export interface ListCurrenciesParams {
+  workspaceId?: number | null;
+  budgetId?: number | null;
+}
+
+export function listCurrencies(params: ListCurrenciesParams = {}): Promise<Currency[]> {
+  const search = new URLSearchParams();
+  if (params.workspaceId !== undefined && params.workspaceId !== null) {
+    search.set('workspaceId', String(params.workspaceId));
+  }
+  if (params.budgetId !== undefined && params.budgetId !== null) {
+    search.set('budgetId', String(params.budgetId));
+  }
+  const suffix = search.size > 0 ? `?${search.toString()}` : '';
+
+  return apiGet<CurrencyListResponse>(`/api/currencies${suffix}`).then(
     (payload) => payload.currencies,
   );
 }

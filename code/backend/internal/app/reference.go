@@ -30,7 +30,27 @@ func (a *App) defaultTemplateID(ctx context.Context) (sql.NullInt64, error) {
 }
 
 func (a *App) currencyList(w http.ResponseWriter, r *http.Request) error {
-	currencies, err := a.currencies(r.Context())
+	s, err := a.currentSession(r)
+	if err != nil {
+		return err
+	}
+	workspaceID := queryInt(r, "workspaceId")
+	budgetID := queryInt(r, "budgetId")
+	if budgetID > 0 {
+		basics, err := a.budgetBasics(r.Context(), budgetID)
+		if err != nil {
+			return err
+		}
+		if err := a.requireBudgetRead(r, budgetID, s.UserID); err != nil {
+			return err
+		}
+		workspaceID = basics.WorkspaceID
+	} else if workspaceID > 0 {
+		if err := a.requireWorkspaceRole(r.Context(), workspaceID, s.UserID, "owner", "admin", "editor", "viewer", "auditor"); err != nil {
+			return err
+		}
+	}
+	currencies, err := a.currenciesForUser(r.Context(), s.UserID, workspaceID, budgetID)
 	if err != nil {
 		return err
 	}
@@ -111,6 +131,132 @@ func (a *App) exchangeRateCreate(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	httpx.WriteOK(w, map[string]any{"rate": rate}, http.StatusOK)
+	return nil
+}
+
+func (a *App) budgetExchangeRateList(w http.ResponseWriter, r *http.Request) error {
+	s, err := a.currentSession(r)
+	if err != nil {
+		return err
+	}
+	budgetID := queryInt(r, "budgetId")
+	if err := a.requireBudgetRead(r, budgetID, s.UserID); err != nil {
+		return err
+	}
+	rates, err := a.budgetExchangeRates(r.Context(), budgetID)
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{"rates": rates}, http.StatusOK)
+	return nil
+}
+
+func (a *App) budgetExchangeRateCreate(w http.ResponseWriter, r *http.Request) error {
+	s, input, err := a.sessionInput(r)
+	if err != nil {
+		return err
+	}
+	budgetID := int64Value(firstValue(input, "budgetId", "budget_id"))
+	if err := a.requireBudgetWrite(r, budgetID, s.UserID); err != nil {
+		return err
+	}
+	from, err := a.requiredCurrencyID(r.Context(), firstValue(input, "fromCurrency", "from_currency"))
+	if err != nil {
+		return err
+	}
+	to, err := a.requiredCurrencyID(r.Context(), firstValue(input, "toCurrency", "to_currency"))
+	if err != nil {
+		return err
+	}
+	if from == to {
+		return apiError("VALIDATION_ERROR", "Budget exchange-rate currencies must differ.", http.StatusUnprocessableEntity)
+	}
+	rateValue, ok := numericInput(input["rate"])
+	if !ok || rateValue <= 0 {
+		return apiError("VALIDATION_ERROR", "Exchange rate is required.", http.StatusUnprocessableEntity)
+	}
+	rateDate := dateString(firstValue(input, "rateDate", "rate_date"))
+	if rateDate == "" {
+		rateDate = todayDate()
+	}
+	if text := stringValue(firstValue(input, "note", "sourceNote", "source_note")); len(text) > 500 {
+		return apiError("VALIDATION_ERROR", "Exchange rate note must be 500 characters or less.", http.StatusUnprocessableEntity)
+	}
+	id, err := a.saveBudgetExchangeRate(r.Context(), budgetExchangeRateInput{
+		BudgetID:       budgetID,
+		UserID:         s.UserID,
+		FromCurrencyID: from,
+		ToCurrencyID:   to,
+		Rate:           rateValue,
+		RateDate:       rateDate,
+		Note:           nullableStringValue(firstValue(input, "note", "sourceNote", "source_note")),
+	})
+	if err != nil {
+		return err
+	}
+	rate, err := a.budgetExchangeRateByID(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{"rate": rate}, http.StatusOK)
+	return nil
+}
+
+func (a *App) budgetExchangeRateSyncGlobal(w http.ResponseWriter, r *http.Request) error {
+	s, input, err := a.sessionInput(r)
+	if err != nil {
+		return err
+	}
+	budgetID := int64Value(firstValue(input, "budgetId", "budget_id"))
+	if err := a.requireBudgetWrite(r, budgetID, s.UserID); err != nil {
+		return err
+	}
+	pairs, ok := input["pairs"].([]any)
+	if !ok || len(pairs) == 0 {
+		return apiError("VALIDATION_ERROR", "At least one exchange-rate pair is required.", http.StatusUnprocessableEntity)
+	}
+	applied := []map[string]any{}
+	skipped := []map[string]any{}
+	for _, raw := range pairs {
+		pair, _ := raw.(map[string]any)
+		from, err := a.requiredCurrencyID(r.Context(), firstValue(pair, "fromCurrency", "from_currency", "from"))
+		if err != nil {
+			return err
+		}
+		to, err := a.requiredCurrencyID(r.Context(), firstValue(pair, "toCurrency", "to_currency", "to"))
+		if err != nil {
+			return err
+		}
+		rateDate := dateString(firstValue(pair, "rateDate", "rate_date"))
+		global, err := a.latestGlobalExchangeRateWithCross(r.Context(), from, to, rateDate)
+		if err != nil {
+			return err
+		}
+		fromCode, _ := a.currencyCodeByID(r.Context(), from)
+		toCode, _ := a.currencyCodeByID(r.Context(), to)
+		if global == nil {
+			skipped = append(skipped, map[string]any{"from": fromCode, "to": toCode, "reason": "GLOBAL_RATE_NOT_FOUND"})
+			continue
+		}
+		id, err := a.saveBudgetExchangeRate(r.Context(), budgetExchangeRateInput{
+			BudgetID:       budgetID,
+			UserID:         s.UserID,
+			FromCurrencyID: from,
+			ToCurrencyID:   to,
+			Rate:           global.Rate,
+			RateDate:       global.RateDate,
+			Note:           "Synced from global BOCHK rate.",
+		})
+		if err != nil {
+			return err
+		}
+		rate, err := a.budgetExchangeRateByID(r.Context(), id)
+		if err != nil {
+			return err
+		}
+		applied = append(applied, rate)
+	}
+	httpx.WriteOK(w, map[string]any{"applied": applied, "skipped": skipped}, http.StatusOK)
 	return nil
 }
 

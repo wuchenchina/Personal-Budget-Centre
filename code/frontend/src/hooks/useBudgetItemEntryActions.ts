@@ -6,7 +6,7 @@ import {
   updateBudgetItem,
   type SaveBudgetItemPayload,
 } from '../api/budgetEntries';
-import { refreshBochkRates } from '../api/exchangeRates';
+import { refreshBochkRates, syncBudgetExchangeRatesFromGlobal } from '../api/exchangeRates';
 import { translateCurrent } from '../i18n';
 import type { BudgetDetail, BudgetItem, CurrencyCode } from '../types/budget';
 import type { BudgetItemFormValues } from '../types/forms';
@@ -73,6 +73,7 @@ export function useBudgetItemEntryActions({
       budgetCurrency: budgetBaseCurrency,
       budgetAmount: undefined,
       budgetRate: undefined,
+      rateScope: 'item',
       pricingConfig: emptyPricingConfig(),
       installmentConfig: emptyInstallmentConfig(),
       split: defaultSplitFormValue(selectedBudget),
@@ -92,6 +93,7 @@ export function useBudgetItemEntryActions({
       budgetCurrency: item.budget.currency,
       budgetAmount: itemBudgetAmountFormValue(item),
       budgetRate: item.budget.rateToBase,
+      rateScope: 'item',
       pricingConfig: selectedBudget?.pricingEnabled === true
         ? item.pricingConfig
         : emptyPricingConfig(),
@@ -150,6 +152,7 @@ export function useBudgetItemEntryActions({
         budgetCurrency: values.budgetCurrency,
         budgetAmount: amounts.budgetAmount ?? undefined,
         budgetRate: amounts.budgetRate ?? values.budgetRate,
+        rateScope: values.rateScope ?? 'item',
         estimatedCurrency: selectedBudget.baseCurrency,
         estimatedAmount: 0,
         estimatedRate: 1,
@@ -197,6 +200,41 @@ export function useBudgetItemEntryActions({
 
       budgetItemForm.setFieldsValue({
         budgetRate,
+      });
+    } catch (error: unknown) {
+      setEntryError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
+    } finally {
+      setIsBudgetItemSaving(false);
+    }
+  };
+
+  const handleBudgetItemGlobalRateSync = async () => {
+    if (selectedBudget === null) {
+      setEntryError(translateCurrent('selectBudgetFirst'));
+
+      return;
+    }
+    const values = budgetItemForm.getFieldsValue();
+    if (!values.budgetCurrency || values.budgetCurrency === selectedBudget.baseCurrency) {
+      return;
+    }
+    setIsBudgetItemSaving(true);
+    setEntryError(null);
+    try {
+      const result = await syncBudgetExchangeRatesFromGlobal({
+        budgetId: selectedBudget.id,
+        pairs: [{
+          fromCurrency: values.budgetCurrency,
+          toCurrency: selectedBudget.baseCurrency,
+        }],
+      });
+      const synced = result.applied[0];
+      if (synced === undefined) {
+        throw new Error(translateCurrent('loadingExchangeRatesFailed'));
+      }
+      budgetItemForm.setFieldsValue({
+        budgetRate: synced.rate,
+        rateScope: 'budget_default',
       });
     } catch (error: unknown) {
       setEntryError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
@@ -323,6 +361,7 @@ export function useBudgetItemEntryActions({
     handleBudgetItemQuickAmountSave,
     handleBudgetItemCategoryQuickSave,
     handleBudgetItemRateRefresh,
+    handleBudgetItemGlobalRateSync,
   };
 }
 

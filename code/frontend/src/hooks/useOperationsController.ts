@@ -97,7 +97,10 @@ export function useOperationsController(options: UseOperationsControllerOptions)
 
       setIsReferenceLoading(true);
 
-      listCurrencies()
+      listCurrencies({
+        workspaceId: activeWorkspaceId,
+        budgetId: selectedBudget?.id ?? null,
+      })
         .then((nextCurrencies) => {
           if (isMounted) {
             setCurrencies(nextCurrencies);
@@ -144,7 +147,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     return () => {
       isMounted = false;
     };
-  }, [loadPasskeys, session]);
+  }, [activeWorkspaceId, loadPasskeys, selectedBudget?.id, session]);
 
   useEffect(() => {
     let isMounted = true;

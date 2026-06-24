@@ -125,6 +125,7 @@ export function AuthenticatedModals({
             open={budgetEntry.isBudgetItemModalOpen}
             error={budgetEntry.entryError}
             categoryOptions={budgetItemPresetCategoryOptions}
+            currencies={operations.currencies}
             currencyOptions={operations.currencyOptions}
             baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
             focus={budgetEntry.budgetItemModalFocus}
@@ -134,6 +135,8 @@ export function AuthenticatedModals({
             transactions={budget.selectedBudget?.transactions ?? []}
             confirmLoading={budgetEntry.isBudgetItemSaving}
             onRefreshRates={budgetEntry.handleBudgetItemRateRefresh}
+            onSyncGlobalRate={budgetEntry.handleBudgetItemGlobalRateSync}
+            onSaveCurrency={operations.saveCurrency}
             onCancel={budgetEntry.closeBudgetItemModal}
             onOk={budgetEntry.handleBudgetItemSave}
           />
@@ -145,6 +148,7 @@ export function AuthenticatedModals({
             open={budgetEntry.isTransactionModalOpen}
             error={budgetEntry.entryError}
             categoryOptions={transactionCategoryOptions}
+            currencies={operations.currencies}
             currencyOptions={operations.currencyOptions}
             baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
             pricingEnabled={budget.selectedBudget?.pricingEnabled ?? false}
@@ -155,6 +159,7 @@ export function AuthenticatedModals({
             onCategoryChange={budgetEntry.handleTransactionCategoryChange}
             onRefreshRates={budgetEntry.handleTransactionRateRefresh}
             onReferenceConvert={budgetEntry.handleTransactionReferenceConvert}
+            onSaveCurrency={operations.saveCurrency}
             onValuesChange={budgetEntry.clearEntryError}
             onCancel={budgetEntry.closeTransactionModal}
             onOk={budgetEntry.handleTransactionSave}
@@ -166,9 +171,11 @@ export function AuthenticatedModals({
           open={bookkeeping.modalOpen}
           error={bookkeeping.error}
           categoryOptions={bookkeepingCategoryOptions}
+          currencies={operations.currencies}
           currencyOptions={operations.currencyOptions}
           baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
           confirmLoading={bookkeeping.saving}
+          onSaveCurrency={operations.saveCurrency}
           onValuesChange={() => undefined}
           onCancel={bookkeeping.closeModal}
           onOk={bookkeeping.saveRecord}

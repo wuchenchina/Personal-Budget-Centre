@@ -92,6 +92,7 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
       recordDate: dayjs(),
       currency: options.selectedBudget.displayCurrency ?? options.baseCurrency,
       rate: 1,
+      rateScope: 'item',
       sortOrder: records.length + 1,
     });
     setModalOpen(true);
@@ -112,6 +113,7 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
       currency: record.currency,
       amount: record.amountOriginal,
       rate: record.rateToBase,
+      rateScope: 'item',
       destinationCurrency: record.destinationCurrency ?? undefined,
       destinationAmount: record.destinationAmountOriginal ?? undefined,
       destinationRate: record.destinationRate ?? undefined,
@@ -149,6 +151,7 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
         currency: values.currency,
         amount: values.amount,
         rate: values.rate,
+        rateScope: values.rateScope ?? 'item',
         destinationCurrency: normalizedAmount(values.destinationAmount) === null
           ? undefined
           : values.destinationCurrency,

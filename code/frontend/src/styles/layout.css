@@ -401,6 +401,29 @@
   font-size: 12px;
 }
 
+.currency-select-quick-add {
+  display: grid;
+  gap: 6px;
+}
+
+.currency-select-quick-add > .ant-select {
+  width: 100%;
+}
+
+.currency-quick-add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.currency-quick-add-custom {
+  grid-template-columns: 70px minmax(100px, 1fr) 72px 68px auto;
+}
+
+.currency-quick-add-row .ant-btn {
+  white-space: nowrap;
+}
+
 .currency-field-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

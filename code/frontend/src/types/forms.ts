@@ -93,6 +93,7 @@ export interface BudgetItemFormValues {
   budgetCurrency: CurrencyCode;
   budgetAmount?: number;
   budgetRate?: number;
+  rateScope?: 'item' | 'budget_default';
   bankFee?: number;
   pricingConfig?: BudgetItemPricingConfig;
   installmentConfig?: BudgetInstallmentFormConfig;
@@ -113,6 +114,7 @@ export interface TransactionFormValues {
   currency: CurrencyCode;
   amount: number;
   rate?: number;
+  rateScope?: 'item' | 'budget_default';
   pricingConfig?: BudgetItemPricingConfig;
   referenceCurrency?: CurrencyCode;
   referenceAmount?: number;
@@ -131,6 +133,7 @@ export interface BookkeepingRecordFormValues {
   currency: CurrencyCode;
   amount: number;
   rate?: number;
+  rateScope?: 'item' | 'budget_default';
   destinationCurrency?: CurrencyCode;
   destinationAmount?: number;
   destinationRate?: number;

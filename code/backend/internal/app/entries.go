@@ -107,7 +107,7 @@ func (a *App) saveTransaction(w http.ResponseWriter, r *http.Request, create boo
 	if err != nil {
 		return err
 	}
-	payload, err := a.transactionPayload(r.Context(), input, budgetID, basics)
+	payload, err := a.transactionPayload(r.Context(), input, budgetID, s.UserID, basics)
 	if err != nil {
 		return err
 	}
@@ -195,6 +195,7 @@ func (a *App) budgetIDFor(ctx context.Context, table string, id int64) (int64, e
 }
 
 type budgetBasics struct {
+	ID                    int64
 	WorkspaceID           int64
 	BaseCurrency          string
 	BaseCurrencyID        int64
@@ -204,8 +205,8 @@ type budgetBasics struct {
 
 func (a *App) budgetBasics(ctx context.Context, budgetID int64) (budgetBasics, error) {
 	var b budgetBasics
-	err := a.db.QueryRowContext(ctx, `SELECT b.workspace_id, b.base_currency_id, c.code, b.installment_period_unit, b.pricing_enabled
-FROM budgets b JOIN currencies c ON c.id = b.base_currency_id WHERE b.id = ?`, budgetID).Scan(&b.WorkspaceID, &b.BaseCurrencyID, &b.BaseCurrency, &b.InstallmentPeriodUnit, &b.PricingEnabled)
+	err := a.db.QueryRowContext(ctx, `SELECT b.id, b.workspace_id, b.base_currency_id, c.code, b.installment_period_unit, b.pricing_enabled
+FROM budgets b JOIN currencies c ON c.id = b.base_currency_id WHERE b.id = ?`, budgetID).Scan(&b.ID, &b.WorkspaceID, &b.BaseCurrencyID, &b.BaseCurrency, &b.InstallmentPeriodUnit, &b.PricingEnabled)
 	if errors.Is(err, sql.ErrNoRows) {
 		return budgetBasics{}, apiError("BUDGET_NOT_FOUND", "Budget was not found.", http.StatusNotFound)
 	}
@@ -295,6 +296,19 @@ func (a *App) itemPayload(ctx context.Context, input map[string]any, budgetID, u
 	if err != nil {
 		return budgetItemPayload{}, err
 	}
+	if shouldSaveBudgetRate(input, []string{"budgetRateScope", "rateScope"}) && hasExplicitBudgetRate && budgetCurrencyID != basics.BaseCurrencyID {
+		if _, err := a.saveBudgetExchangeRate(ctx, budgetExchangeRateInput{
+			BudgetID:       budgetID,
+			UserID:         userID,
+			FromCurrencyID: budgetCurrencyID,
+			ToCurrencyID:   basics.BaseCurrencyID,
+			Rate:           budgetRate,
+			RateDate:       dateStringOrToday(rateDate),
+			Note:           "Saved from budget item.",
+		}); err != nil {
+			return budgetItemPayload{}, err
+		}
+	}
 	explicitEstimatedRate, hasExplicitEstimatedRate, estimatedRateErr := rateInput(input, []string{"rate", "estimatedRate", "estimated_rate"}, "Estimated rate")
 	estimatedRate, err := a.rateToBase(ctx, basics.WorkspaceID, estimatedCurrencyID, basics, rateDate, explicitEstimatedRate, hasExplicitEstimatedRate, estimatedRateErr)
 	if err != nil {
@@ -342,7 +356,7 @@ func (a *App) itemPayload(ctx context.Context, input map[string]any, budgetID, u
 	}, nil
 }
 
-func (a *App) transactionPayload(ctx context.Context, input map[string]any, budgetID int64, basics budgetBasics) (budgetTransactionPayload, error) {
+func (a *App) transactionPayload(ctx context.Context, input map[string]any, budgetID, userID int64, basics budgetBasics) (budgetTransactionPayload, error) {
 	details, err := requiredLimitedString(input["details"], 500, "Transaction details")
 	if err != nil {
 		return budgetTransactionPayload{}, err
@@ -402,6 +416,19 @@ func (a *App) transactionPayload(ctx context.Context, input map[string]any, budg
 	if err != nil {
 		return budgetTransactionPayload{}, err
 	}
+	if shouldSaveBudgetRate(input, []string{"rateScope"}) && hasExplicitRate && currencyID != basics.BaseCurrencyID {
+		if _, err := a.saveBudgetExchangeRate(ctx, budgetExchangeRateInput{
+			BudgetID:       budgetID,
+			UserID:         userID,
+			FromCurrencyID: currencyID,
+			ToCurrencyID:   basics.BaseCurrencyID,
+			Rate:           rate,
+			RateDate:       dateStringOrToday(rateDate),
+			Note:           "Saved from transaction.",
+		}); err != nil {
+			return budgetTransactionPayload{}, err
+		}
+	}
 	categoryID, err := a.transactionCategoryID(ctx, budgetID, basics.WorkspaceID, input)
 	if err != nil {
 		return budgetTransactionPayload{}, err
@@ -421,6 +448,22 @@ func (a *App) transactionPayload(ctx context.Context, input map[string]any, budg
 		Remark:               stringValue(input["remark"]),
 		SortOrder:            positiveSort(firstValue(input, "sortOrder", "sort_order")),
 	}, nil
+}
+
+func shouldSaveBudgetRate(input map[string]any, keys []string) bool {
+	for _, key := range keys {
+		if stringValue(input[key]) == "budget_default" {
+			return true
+		}
+	}
+	return false
+}
+
+func dateStringOrToday(value string) string {
+	if value == "" {
+		return todayDate()
+	}
+	return value
 }
 
 func (a *App) budgetItemCategoryID(ctx context.Context, workspaceID, userID int64, input map[string]any, label string) (int64, error) {
@@ -512,7 +555,7 @@ func (a *App) rateToBase(ctx context.Context, workspaceID, currencyID int64, bas
 	if hasExplicitRate {
 		return explicitRate, nil
 	}
-	conversion, err := a.resolveExchangeRate(ctx, workspaceID, currencyID, basics.BaseCurrencyID, rateDate)
+	conversion, err := a.resolveExchangeRateForBudget(ctx, basics.ID, workspaceID, currencyID, basics.BaseCurrencyID, rateDate)
 	if err != nil {
 		return 0, err
 	}

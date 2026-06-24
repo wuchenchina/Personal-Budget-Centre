@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Input, InputNumber, Select, Space, Table, Tag } from 'antd';
+import { Alert, Button, Space, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { Plus, RefreshCcw } from 'lucide-react';
-import { createManualExchangeRate, listExchangeRates } from '../../api/exchangeRates';
+import { RefreshCcw } from 'lucide-react';
+import { listExchangeRates } from '../../api/exchangeRates';
 import { currencyRateSourceColors } from '../../config/appConfig';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { currencyRateSourceLabelsByLanguage, useI18n } from '../../i18n';
-import type { CurrencyCode, CurrencyRate } from '../../types/budget';
+import type { CurrencyRate } from '../../types/budget';
 
 interface ExchangeRateSideSectionProps {
   activeWorkspaceId: number | null;
@@ -23,12 +23,6 @@ export function ExchangeRateSideSection({
   const [rates, setRates] = useState<CurrencyRate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [manualFromCurrency, setManualFromCurrency] = useState<CurrencyCode | undefined>();
-  const [manualToCurrency, setManualToCurrency] = useState<CurrencyCode | undefined>();
-  const [manualRate, setManualRate] = useState<number | null>(null);
-  const [manualRateDate, setManualRateDate] = useState('');
-  const [manualNote, setManualNote] = useState('');
-  const [isManualRateSaving, setIsManualRateSaving] = useState(false);
 
   const loadRates = useCallback(async () => {
     if (activeWorkspaceId === null) {
@@ -96,42 +90,6 @@ export function ExchangeRateSideSection({
     await loadRates();
   };
 
-  const canSaveManualRate =
-    canManageExchangeRates
-    && activeWorkspaceId !== null
-    && manualFromCurrency !== undefined
-    && manualToCurrency !== undefined
-    && manualFromCurrency !== manualToCurrency
-    && manualRate !== null
-    && manualRate > 0;
-
-  const handleCreateManualRate = async () => {
-    if (!canSaveManualRate || activeWorkspaceId === null || manualRate === null) {
-      return;
-    }
-
-    setIsManualRateSaving(true);
-    setError(null);
-
-    try {
-      await createManualExchangeRate({
-        workspaceId: activeWorkspaceId,
-        fromCurrency: manualFromCurrency,
-        toCurrency: manualToCurrency,
-        rate: manualRate,
-        rateDate: manualRateDate || undefined,
-        note: manualNote.trim() === '' ? null : manualNote.trim(),
-      });
-      setManualRate(null);
-      setManualNote('');
-      await loadRates();
-    } catch (nextError: unknown) {
-      setError(nextError instanceof Error ? nextError.message : t('saveExchangeRateFailed'));
-    } finally {
-      setIsManualRateSaving(false);
-    }
-  };
-
   return (
     <div className="side-section exchange-rate-section">
       <div className="side-title side-title-row">
@@ -162,70 +120,6 @@ export function ExchangeRateSideSection({
           </Button>
         </Space>
       </div>
-
-      {canManageExchangeRates ? (
-        <div className="manual-rate-row">
-          <Select
-            aria-label={t('fromCurrency')}
-            options={operations.currencyOptions}
-            notFoundContent={t('noCurrencies')}
-            optionFilterProp="label"
-            placeholder={t('fromCurrency')}
-            showSearch
-            size="small"
-            value={manualFromCurrency}
-            onChange={(value) => setManualFromCurrency(value)}
-          />
-          <Select
-            aria-label={t('toCurrency')}
-            options={operations.currencyOptions}
-            notFoundContent={t('noCurrencies')}
-            optionFilterProp="label"
-            placeholder={t('toCurrency')}
-            showSearch
-            size="small"
-            value={manualToCurrency}
-            onChange={(value) => setManualToCurrency(value)}
-          />
-          <InputNumber
-            aria-label={t('rate')}
-            min={0}
-            placeholder={t('rate')}
-            precision={8}
-            size="small"
-            value={manualRate}
-            onChange={(value) => setManualRate(typeof value === 'number' ? value : null)}
-            onPressEnter={() => void handleCreateManualRate()}
-          />
-          <Input
-            aria-label={t('date')}
-            placeholder={t('date')}
-            size="small"
-            type="date"
-            value={manualRateDate}
-            onChange={(event) => setManualRateDate(event.target.value)}
-            onPressEnter={() => void handleCreateManualRate()}
-          />
-          <Input
-            aria-label={t('remark')}
-            maxLength={500}
-            placeholder={t('remark')}
-            size="small"
-            value={manualNote}
-            onChange={(event) => setManualNote(event.target.value)}
-            onPressEnter={() => void handleCreateManualRate()}
-          />
-          <Button
-            disabled={!canSaveManualRate}
-            icon={<Plus size={13} />}
-            loading={isManualRateSaving}
-            size="small"
-            onClick={() => void handleCreateManualRate()}
-          >
-            {t('saveManualRate')}
-          </Button>
-        </div>
-      ) : null}
 
       {error ? <Alert className="side-alert" type="error" showIcon message={error} /> : null}
 

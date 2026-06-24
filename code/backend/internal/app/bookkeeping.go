@@ -34,7 +34,7 @@ func (a *App) bookkeepingCreate(w http.ResponseWriter, r *http.Request) error {
 	if err := a.requireBudgetWrite(r, budgetID, s.UserID); err != nil {
 		return err
 	}
-	record, err := a.bookkeepingRecordValues(r.Context(), input, budgetID)
+	record, err := a.bookkeepingRecordValues(r.Context(), input, budgetID, s.UserID)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (a *App) bookkeepingUpdate(w http.ResponseWriter, r *http.Request) error {
 	if err := a.requireBudgetWrite(r, budgetID, s.UserID); err != nil {
 		return err
 	}
-	record, err := a.bookkeepingRecordValues(r.Context(), input, budgetID)
+	record, err := a.bookkeepingRecordValues(r.Context(), input, budgetID, s.UserID)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ type bookkeepingRecordValues struct {
 	sortOrder              int64
 }
 
-func (a *App) bookkeepingRecordValues(ctx context.Context, input map[string]any, budgetID int64) (bookkeepingRecordValues, error) {
+func (a *App) bookkeepingRecordValues(ctx context.Context, input map[string]any, budgetID, userID int64) (bookkeepingRecordValues, error) {
 	details, err := requiredLimitedString(input["details"], 500, "Details")
 	if err != nil {
 		return bookkeepingRecordValues{}, err
@@ -173,6 +173,25 @@ func (a *App) bookkeepingRecordValues(ctx context.Context, input map[string]any,
 	currencyID, err := a.requiredCurrencyID(ctx, input["currency"])
 	if err != nil {
 		return bookkeepingRecordValues{}, err
+	}
+	if shouldSaveBudgetRate(input, []string{"rateScope"}) {
+		basics, err := a.budgetBasics(ctx, budgetID)
+		if err != nil {
+			return bookkeepingRecordValues{}, err
+		}
+		if currencyID != basics.BaseCurrencyID {
+			if _, err := a.saveBudgetExchangeRate(ctx, budgetExchangeRateInput{
+				BudgetID:       budgetID,
+				UserID:         userID,
+				FromCurrencyID: currencyID,
+				ToCurrencyID:   basics.BaseCurrencyID,
+				Rate:           rate,
+				RateDate:       todayDate(),
+				Note:           "Saved from bookkeeping record.",
+			}); err != nil {
+				return bookkeepingRecordValues{}, err
+			}
+		}
 	}
 	destinationAmount, hasDestinationAmount := numericInput(input["destinationAmount"])
 	if hasDestinationAmount && destinationAmount < 0 {

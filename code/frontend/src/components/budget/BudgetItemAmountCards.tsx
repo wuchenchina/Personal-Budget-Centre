@@ -1,12 +1,13 @@
-import { Form, InputNumber, Select } from 'antd';
+import { Form, InputNumber, Radio } from 'antd';
 import type { RefObject } from 'react';
 import { useI18n } from '../../i18n';
-import type { CurrencyCode } from '../../types/budget';
+import type { Currency, CurrencyCode } from '../../types/budget';
 import type { BudgetItemFormValues } from '../../types/forms';
 import {
   formatBudgetMoney,
   type TransactionCurrencyTotal,
 } from '../../utils/budgetTemplate';
+import { CurrencySelectWithQuickAdd } from './CurrencySelectWithQuickAdd';
 
 export function MoneyLegCard({
   allowNegative = false,
@@ -16,12 +17,14 @@ export function MoneyLegCard({
   currency,
   currencyName,
   currencyOptions,
+  currencies,
   help,
   focused,
   rate,
   rateName,
   title,
   wrapperRef,
+  onSaveCurrency,
 }: {
   allowNegative?: boolean;
   amount?: number;
@@ -30,12 +33,19 @@ export function MoneyLegCard({
   currency: CurrencyCode;
   currencyName: keyof BudgetItemFormValues;
   currencyOptions: Array<{ label: string; value: CurrencyCode }>;
+  currencies: Currency[];
   focused: boolean;
   help: string;
   rate?: number;
   rateName: keyof BudgetItemFormValues;
   title: string;
   wrapperRef?: RefObject<HTMLDivElement | null>;
+  onSaveCurrency: (input: {
+    code: string;
+    name: string;
+    symbol?: string;
+    decimalPlaces: number;
+  }) => Promise<boolean>;
 }) {
   const { t } = useI18n();
   const preview = previewBaseAmount(amount, rate);
@@ -55,7 +65,11 @@ export function MoneyLegCard({
           name={currencyName}
           rules={[{ required: true, message: t('selectCurrency') }]}
         >
-          <Select options={currencyOptions} />
+          <CurrencySelectWithQuickAdd
+            currencies={currencies}
+            options={currencyOptions}
+            onSaveCurrency={onSaveCurrency}
+          />
         </Form.Item>
         <Form.Item
           label={t('amount')}
@@ -81,6 +95,21 @@ export function MoneyLegCard({
         rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
       >
         <InputNumber className="form-full-width" precision={6} step={0.01} />
+      </Form.Item>
+      <Form.Item
+        label={t('rateSaveScope')}
+        name="rateScope"
+        initialValue="item"
+      >
+        <Radio.Group
+          block
+          optionType="button"
+          options={[
+            { label: t('rateScopeItem'), value: 'item' },
+            { label: t('rateScopeBudget'), value: 'budget_default' },
+          ]}
+          size="small"
+        />
       </Form.Item>
       <div className="currency-field-preview">
         <span>{t('baseCurrencyPreview')}</span>

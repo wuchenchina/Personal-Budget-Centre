@@ -160,6 +160,12 @@ func (a *App) route(method, path string) handlerFunc {
 		return a.exchangeRateConvert
 	case method == http.MethodPost && path == "/api/exchange-rates/bochk/refresh":
 		return a.bochkRefresh
+	case method == http.MethodGet && path == "/api/budget-exchange-rates":
+		return a.budgetExchangeRateList
+	case method == http.MethodPost && path == "/api/budget-exchange-rates":
+		return a.budgetExchangeRateCreate
+	case method == http.MethodPost && path == "/api/budget-exchange-rates/sync-global":
+		return a.budgetExchangeRateSyncGlobal
 	case method == http.MethodGet && path == "/api/budget-categories":
 		return a.categoryList
 	case method == http.MethodPost && path == "/api/budget-categories":

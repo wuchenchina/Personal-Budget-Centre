@@ -16,6 +16,7 @@ export interface SaveBookkeepingRecordPayload {
   currency: CurrencyCode;
   amount: number;
   rate?: number;
+  rateScope?: 'item' | 'budget_default';
   destinationCurrency?: CurrencyCode;
   destinationAmount?: number | null;
   destinationRate?: number;

@@ -1,5 +1,5 @@
 import { apiGet, apiPost } from './http';
-import type { CurrencyCode, CurrencyRate } from '../types/budget';
+import type { BudgetExchangeRate, CurrencyCode, CurrencyRate } from '../types/budget';
 
 interface ExchangeRateListResponse {
   rates: CurrencyRate[];
@@ -7,6 +7,19 @@ interface ExchangeRateListResponse {
 
 interface ExchangeRateResponse {
   rate: CurrencyRate;
+}
+
+interface BudgetExchangeRateListResponse {
+  rates: BudgetExchangeRate[];
+}
+
+interface BudgetExchangeRateResponse {
+  rate: BudgetExchangeRate;
+}
+
+interface BudgetExchangeRateSyncResponse {
+  applied: BudgetExchangeRate[];
+  skipped: Array<{ from: CurrencyCode; to: CurrencyCode; reason: string }>;
 }
 
 interface ConversionResponse {
@@ -51,6 +64,24 @@ export interface CreateManualExchangeRatePayload {
   note?: string | null;
 }
 
+export interface CreateBudgetExchangeRatePayload {
+  budgetId: number;
+  fromCurrency: CurrencyCode;
+  toCurrency: CurrencyCode;
+  rate: number;
+  rateDate?: string;
+  note?: string | null;
+}
+
+export interface SyncBudgetExchangeRatesPayload {
+  budgetId: number;
+  pairs: Array<{
+    fromCurrency: CurrencyCode;
+    toCurrency: CurrencyCode;
+    rateDate?: string;
+  }>;
+}
+
 export interface ConvertCurrencyPayload {
   workspaceId: number;
   fromCurrency: CurrencyCode;
@@ -71,6 +102,26 @@ export function createManualExchangeRate(
   return apiPost<ExchangeRateResponse>('/api/exchange-rates', payload).then(
     (response) => response.rate,
   );
+}
+
+export function listBudgetExchangeRates(budgetId: number): Promise<BudgetExchangeRate[]> {
+  return apiGet<BudgetExchangeRateListResponse>(`/api/budget-exchange-rates?budgetId=${budgetId}`).then(
+    (response) => response.rates,
+  );
+}
+
+export function createBudgetExchangeRate(
+  payload: CreateBudgetExchangeRatePayload,
+): Promise<BudgetExchangeRate> {
+  return apiPost<BudgetExchangeRateResponse>('/api/budget-exchange-rates', payload).then(
+    (response) => response.rate,
+  );
+}
+
+export function syncBudgetExchangeRatesFromGlobal(
+  payload: SyncBudgetExchangeRatesPayload,
+): Promise<BudgetExchangeRateSyncResponse> {
+  return apiPost<BudgetExchangeRateSyncResponse>('/api/budget-exchange-rates/sync-global', payload);
 }
 
 export function convertCurrency(payload: ConvertCurrencyPayload): Promise<ConversionResponse['conversion']> {

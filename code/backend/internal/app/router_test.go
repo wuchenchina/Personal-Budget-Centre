@@ -13,10 +13,13 @@ func TestGoRoutesCoverPHPLegacyRoutes(t *testing.T) {
 	phpRoutes := legacyPHPRoutes(t)
 	goRoutes := goRouterRoutes(t)
 	extraAllowed := map[string]bool{
-		"DELETE /api/currencies":           true,
-		"GET /api/admin/database":          true,
-		"POST /api/admin/database/migrate": true,
-		"POST /api/currencies":             true,
+		"DELETE /api/currencies":                      true,
+		"GET /api/admin/database":                     true,
+		"GET /api/budget-exchange-rates":              true,
+		"POST /api/admin/database/migrate":            true,
+		"POST /api/budget-exchange-rates":             true,
+		"POST /api/budget-exchange-rates/sync-global": true,
+		"POST /api/currencies":                        true,
 	}
 
 	for _, route := range phpRoutes {
@@ -206,7 +209,7 @@ func TestCurrencyResponseUsesDirectoryFieldsOnly(t *testing.T) {
 	}
 }
 
-func TestCurrencyDeleteClearsExchangeRateReferencesBeforeUsageCheck(t *testing.T) {
+func TestCurrencyDeleteRemovesOnlyPersonalCurrencyLink(t *testing.T) {
 	content, err := os.ReadFile("currencies.go")
 	if err != nil {
 		t.Fatal(err)
@@ -218,18 +221,14 @@ func TestCurrencyDeleteClearsExchangeRateReferencesBeforeUsageCheck(t *testing.T
 		t.Fatal("could not locate currencyDelete function")
 	}
 	body := source[start:end]
-	cleanupIndex := strings.Index(body, "deleteCurrencyExchangeRateReferences")
-	usageIndex := strings.Index(body, "currencyUsageCountTx")
-	if cleanupIndex < 0 || usageIndex < 0 || cleanupIndex > usageIndex {
-		t.Fatal("manual currency deletion must clear exchange-rate-only references before checking business usage")
+	if !strings.Contains(body, "userVisibleCurrencyUsageCount") {
+		t.Fatal("personal currency removal must check visible business usage before unlinking")
 	}
-	for _, want := range []string{
-		"DELETE FROM exchange_rates",
-		"DELETE FROM exchange_rate_history",
-	} {
-		if !strings.Contains(source, want) {
-			t.Fatalf("currency deletion must remove pure exchange-rate references, missing %q", want)
-		}
+	if !strings.Contains(body, "UPDATE user_currencies") || !strings.Contains(body, "is_active = 0") {
+		t.Fatal("personal currency removal must deactivate the user_currencies link")
+	}
+	if strings.Contains(body, "DELETE FROM currencies") || strings.Contains(body, "deleteCurrencyExchangeRateReferences") {
+		t.Fatal("personal currency removal must not delete canonical currency or exchange-rate rows")
 	}
 }
 

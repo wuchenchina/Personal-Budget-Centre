@@ -1,8 +1,9 @@
-import { Alert, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
+import { Alert, DatePicker, Form, Input, InputNumber, Modal, Radio, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import { useI18n } from '../../i18n';
-import type { BookkeepingRecord, CurrencyCode, TransactionType } from '../../types/budget';
+import type { BookkeepingRecord, Currency, CurrencyCode, TransactionType } from '../../types/budget';
 import type { BookkeepingRecordFormValues } from '../../types/forms';
+import { CurrencySelectWithQuickAdd } from './CurrencySelectWithQuickAdd';
 
 interface BookkeepingRecordModalProps {
   form: FormInstance<BookkeepingRecordFormValues>;
@@ -10,11 +11,18 @@ interface BookkeepingRecordModalProps {
   open: boolean;
   error: string | null;
   categoryOptions: Array<{ label: string; value: string }>;
+  currencies: Currency[];
   currencyOptions: Array<{ label: string; value: CurrencyCode }>;
   baseCurrency: CurrencyCode;
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
+  onSaveCurrency: (input: {
+    code: string;
+    name: string;
+    symbol?: string;
+    decimalPlaces: number;
+  }) => Promise<boolean>;
   onValuesChange: () => void;
 }
 
@@ -24,11 +32,13 @@ export function BookkeepingRecordModal({
   open,
   error,
   categoryOptions,
+  currencies,
   currencyOptions,
   baseCurrency,
   confirmLoading,
   onCancel,
   onOk,
+  onSaveCurrency,
   onValuesChange,
 }: BookkeepingRecordModalProps) {
   const { t } = useI18n();
@@ -155,7 +165,11 @@ export function BookkeepingRecordModal({
               name="currency"
               rules={[{ required: true, message: t('selectCurrency') }]}
             >
-              <Select options={currencyOptions} />
+              <CurrencySelectWithQuickAdd
+                currencies={currencies}
+                options={currencyOptions}
+                onSaveCurrency={onSaveCurrency}
+              />
             </Form.Item>
             <Form.Item
               label={t('amount')}
@@ -173,6 +187,17 @@ export function BookkeepingRecordModal({
               rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
             >
               <InputNumber className="form-full-width" precision={6} step={0.01} />
+            </Form.Item>
+            <Form.Item label={t('rateSaveScope')} name="rateScope" initialValue="item">
+              <Radio.Group
+                block
+                optionType="button"
+                options={[
+                  { label: t('rateScopeItem'), value: 'item' },
+                  { label: t('rateScopeBudget'), value: 'budget_default' },
+                ]}
+                size="small"
+              />
             </Form.Item>
           </div>
           <div className="currency-field-preview">
@@ -197,7 +222,12 @@ export function BookkeepingRecordModal({
                   }),
                 ]}
               >
-                <Select allowClear options={currencyOptions} />
+                <CurrencySelectWithQuickAdd
+                  allowClear
+                  currencies={currencies}
+                  options={currencyOptions}
+                  onSaveCurrency={onSaveCurrency}
+                />
               </Form.Item>
               <Form.Item
                 label={t('destinationAmount')}

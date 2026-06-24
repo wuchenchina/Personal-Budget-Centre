@@ -8,6 +8,7 @@ import type {
   BudgetItem,
   BudgetItemSplitType,
   BudgetParticipant,
+  Currency,
   CurrencyCode,
   Transaction,
 } from '../../types/budget';
@@ -34,6 +35,7 @@ interface BudgetItemModalProps {
   open: boolean;
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
+  currencies: Currency[];
   currencyOptions: Array<{ label: string; value: CurrencyCode }>;
   baseCurrency: CurrencyCode;
   focus: BudgetItemModalFocus;
@@ -45,6 +47,13 @@ interface BudgetItemModalProps {
   onCancel: () => void;
   onOk: () => void;
   onRefreshRates: () => void;
+  onSyncGlobalRate: () => void;
+  onSaveCurrency: (input: {
+    code: string;
+    name: string;
+    symbol?: string;
+    decimalPlaces: number;
+  }) => Promise<boolean>;
 }
 
 export function BudgetItemModal({
@@ -53,6 +62,7 @@ export function BudgetItemModal({
   open,
   error,
   categoryOptions,
+  currencies,
   currencyOptions,
   baseCurrency,
   focus,
@@ -64,6 +74,8 @@ export function BudgetItemModal({
   onCancel,
   onOk,
   onRefreshRates,
+  onSyncGlobalRate,
+  onSaveCurrency,
 }: BudgetItemModalProps) {
   const { t } = useI18n();
   const categoryRef = useRef<HTMLDivElement>(null);
@@ -396,6 +408,13 @@ export function BudgetItemModal({
             >
               {t('refreshBochkRates')}
             </Button>
+            <Button
+              loading={confirmLoading}
+              size="small"
+              onClick={onSyncGlobalRate}
+            >
+              {t('syncGlobalRateToBudget')}
+            </Button>
           </div>
           <div className="currency-field-grid">
             <MoneyLegCard
@@ -403,6 +422,7 @@ export function BudgetItemModal({
               amountName="budgetAmount"
               currencyName="budgetCurrency"
               currencyOptions={currencyOptions}
+              currencies={currencies}
               rateName="budgetRate"
               amount={budgetAmount}
               baseCurrency={baseCurrency}
@@ -412,6 +432,7 @@ export function BudgetItemModal({
               rate={budgetRate}
               title={t('budget')}
               wrapperRef={budgetRef}
+              onSaveCurrency={onSaveCurrency}
             />
             <TransactionActualsCard
               baseCurrency={baseCurrency}

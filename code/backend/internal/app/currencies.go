@@ -25,10 +25,14 @@ type currencyRecord struct {
 	Symbol        string
 	DecimalPlaces int64
 	IsEnabled     bool
+	IsPersonal    bool
+	IsReferenced  bool
+	Source        string
 }
 
 func (a *App) currencyCreate(w http.ResponseWriter, r *http.Request) error {
-	if _, err := a.requireAdmin(r); err != nil {
+	s, err := a.currentSession(r)
+	if err != nil {
 		return err
 	}
 	input, err := readJSON(r)
@@ -54,29 +58,34 @@ func (a *App) currencyCreate(w http.ResponseWriter, r *http.Request) error {
 	if !validCurrencyDecimalSet[decimals] {
 		return apiError("VALIDATION_ERROR", "Currency decimal places must be between 0 and 6.", http.StatusUnprocessableEntity)
 	}
-	if exists, err := a.currencyExists(r.Context(), code); err != nil || exists {
-		if err != nil {
-			return err
-		}
-		return apiError("CURRENCY_ALREADY_EXISTS", "Currency already exists.", http.StatusConflict)
-	}
-	res, err := a.db.ExecContext(r.Context(), `INSERT INTO currencies
-(code, name, symbol, decimal_places, is_enabled)
-VALUES (?, ?, ?, ?, 1)`, code, name, symbol, decimals)
+	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		return err
 	}
-	id, _ := res.LastInsertId()
-	currency, err := a.currencyByID(r.Context(), id)
+	defer tx.Rollback()
+	currencyID, err := ensureCurrencyTx(r.Context(), tx, code, name, symbol, decimals)
 	if err != nil {
 		return err
 	}
+	if err := ensureUserCurrencyTx(r.Context(), tx, s.UserID, currencyID, "manual", name, symbol, decimals); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	currency, err := a.currencyByID(r.Context(), currencyID)
+	if err != nil {
+		return err
+	}
+	currency.IsPersonal = true
+	currency.Source = "manual"
 	httpx.WriteOK(w, map[string]any{"currency": currencyToResponse(currency)}, http.StatusCreated)
 	return nil
 }
 
 func (a *App) currencyDelete(w http.ResponseWriter, r *http.Request) error {
-	if _, err := a.requireAdmin(r); err != nil {
+	s, err := a.currentSession(r)
+	if err != nil {
 		return err
 	}
 	input, err := readJSON(r)
@@ -87,15 +96,7 @@ func (a *App) currencyDelete(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	tx, err := a.db.BeginTx(r.Context(), nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if err := deleteCurrencyExchangeRateReferences(r.Context(), tx, currency.ID); err != nil {
-		return err
-	}
-	usage, err := a.currencyUsageCountTx(r.Context(), tx, currency.ID)
+	usage, err := a.userVisibleCurrencyUsageCount(r.Context(), s.UserID, currency.ID)
 	if err != nil {
 		return err
 	}
@@ -110,13 +111,12 @@ func (a *App) currencyDelete(w http.ResponseWriter, r *http.Request) error {
 			},
 		}
 	}
-	if _, err := tx.ExecContext(r.Context(), "DELETE FROM currencies WHERE id = ?", currency.ID); err != nil {
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE user_currencies
+SET is_active = 0
+WHERE user_id = ? AND currency_id = ?`, s.UserID, currency.ID); err != nil {
 		return err
 	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	currencies, err := a.currencies(r.Context())
+	currencies, err := a.currenciesForUser(r.Context(), s.UserID, queryInt(r, "workspaceId"), queryInt(r, "budgetId"))
 	if err != nil {
 		return err
 	}
@@ -151,6 +151,90 @@ ORDER BY code`)
 		currencies = append(currencies, currency)
 	}
 	return currencies, rows.Err()
+}
+
+func (a *App) currenciesForUser(ctx context.Context, userID, workspaceID, budgetID int64) ([]currencyRecord, error) {
+	query := `SELECT c.id, c.code,
+COALESCE(NULLIF(uc.display_name, ''), c.name) AS name,
+COALESCE(NULLIF(uc.display_symbol, ''), c.symbol) AS symbol,
+COALESCE(uc.display_decimal_places, c.decimal_places) AS decimal_places,
+c.is_enabled,
+CASE WHEN uc.id IS NULL THEN 0 ELSE 1 END AS is_personal,
+0 AS is_referenced,
+COALESCE(uc.source, '') AS source
+FROM user_currencies uc
+JOIN currencies c ON c.id = uc.currency_id
+WHERE uc.user_id = ? AND uc.is_active = 1 AND c.is_enabled = 1`
+	args := []any{userID}
+	if budgetID > 0 {
+		query += `
+UNION
+` + referencedBudgetCurrenciesSQL()
+		args = append(args, userID)
+		for i := 0; i < 11; i++ {
+			args = append(args, budgetID)
+		}
+	}
+	if workspaceID > 0 {
+		query += `
+UNION
+` + referencedWorkspaceCurrenciesSQL()
+		args = append(args, userID, workspaceID, workspaceID, workspaceID)
+	}
+	query += `
+ORDER BY code`
+	rows, err := a.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	currencies := []currencyRecord{}
+	for rows.Next() {
+		currency, err := scanCurrencyWithScope(rows)
+		if err != nil {
+			return nil, err
+		}
+		currencies = append(currencies, currency)
+	}
+	return currencies, rows.Err()
+}
+
+func referencedBudgetCurrenciesSQL() string {
+	return `SELECT DISTINCT c.id, c.code, c.name, c.symbol, c.decimal_places, c.is_enabled,
+CASE WHEN uc.id IS NULL THEN 0 ELSE 1 END AS is_personal,
+1 AS is_referenced,
+'referenced' AS source
+FROM currencies c
+LEFT JOIN user_currencies uc ON uc.currency_id = c.id AND uc.user_id = ? AND uc.is_active = 1
+WHERE c.is_enabled = 1
+  AND c.id IN (
+    SELECT base_currency_id FROM budgets WHERE id = ?
+    UNION SELECT display_currency_id FROM budgets WHERE id = ?
+    UNION SELECT budget_currency_id FROM budget_items WHERE budget_id = ?
+    UNION SELECT estimated_currency_id FROM budget_items WHERE budget_id = ?
+    UNION SELECT currency_id FROM budget_transactions WHERE budget_id = ?
+    UNION SELECT reference_currency_id FROM budget_transactions WHERE budget_id = ? AND reference_currency_id IS NOT NULL
+    UNION SELECT destination_currency_id FROM budget_transactions WHERE budget_id = ? AND destination_currency_id IS NOT NULL
+    UNION SELECT currency_id FROM budget_bookkeeping_records WHERE budget_id = ?
+    UNION SELECT destination_currency_id FROM budget_bookkeeping_records WHERE budget_id = ? AND destination_currency_id IS NOT NULL
+    UNION SELECT from_currency_id FROM budget_exchange_rates WHERE budget_id = ?
+    UNION SELECT to_currency_id FROM budget_exchange_rates WHERE budget_id = ?
+  )`
+}
+
+func referencedWorkspaceCurrenciesSQL() string {
+	return `SELECT DISTINCT c.id, c.code, c.name, c.symbol, c.decimal_places, c.is_enabled,
+CASE WHEN uc.id IS NULL THEN 0 ELSE 1 END AS is_personal,
+1 AS is_referenced,
+'referenced' AS source
+FROM currencies c
+LEFT JOIN user_currencies uc ON uc.currency_id = c.id AND uc.user_id = ? AND uc.is_active = 1
+WHERE c.is_enabled = 1
+  AND c.id IN (
+    SELECT default_currency_id FROM workspaces WHERE id = ? AND default_currency_id IS NOT NULL
+    UNION SELECT base_currency_id FROM budgets WHERE workspace_id = ?
+    UNION SELECT display_currency_id FROM budgets WHERE workspace_id = ?
+  )`
 }
 
 func (a *App) currencyByID(ctx context.Context, id int64) (currencyRecord, error) {
@@ -205,6 +289,24 @@ func scanCurrency(row rowScanner) (currencyRecord, error) {
 	return currency, nil
 }
 
+func scanCurrencyWithScope(row rowScanner) (currencyRecord, error) {
+	var currency currencyRecord
+	if err := row.Scan(
+		&currency.ID,
+		&currency.Code,
+		&currency.Name,
+		&currency.Symbol,
+		&currency.DecimalPlaces,
+		&currency.IsEnabled,
+		&currency.IsPersonal,
+		&currency.IsReferenced,
+		&currency.Source,
+	); err != nil {
+		return currencyRecord{}, err
+	}
+	return currency, nil
+}
+
 func currencyToResponse(currency currencyRecord) map[string]any {
 	return map[string]any{
 		"id":            currency.ID,
@@ -213,6 +315,9 @@ func currencyToResponse(currency currencyRecord) map[string]any {
 		"symbol":        currency.Symbol,
 		"decimalPlaces": currency.DecimalPlaces,
 		"isEnabled":     currency.IsEnabled,
+		"isPersonal":    currency.IsPersonal,
+		"isReferenced":  currency.IsReferenced,
+		"source":        currency.Source,
 	}
 }
 
@@ -228,8 +333,71 @@ func normalizedCurrencyCode(value any) string {
 	return strings.ToUpper(strings.TrimSpace(stringValue(value)))
 }
 
+func ensureCurrencyTx(ctx context.Context, tx *sql.Tx, code, name, symbol string, decimals int64) (int64, error) {
+	var id int64
+	err := tx.QueryRowContext(ctx, "SELECT id FROM currencies WHERE code = ? LIMIT 1", code).Scan(&id)
+	if err == nil {
+		return id, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return 0, err
+	}
+	res, err := tx.ExecContext(ctx, `INSERT INTO currencies
+(code, name, symbol, decimal_places, is_enabled)
+VALUES (?, ?, ?, ?, 1)`, code, name, symbol, decimals)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func ensureUserCurrencyTx(ctx context.Context, tx *sql.Tx, userID, currencyID int64, source, name, symbol string, decimals int64) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO user_currencies
+(user_id, currency_id, source, display_name, display_symbol, display_decimal_places, is_active)
+VALUES (?, ?, ?, ?, ?, ?, 1)
+ON DUPLICATE KEY UPDATE
+  source = VALUES(source),
+  display_name = VALUES(display_name),
+  display_symbol = VALUES(display_symbol),
+  display_decimal_places = VALUES(display_decimal_places),
+  is_active = 1`,
+		userID, currencyID, source, nullableStringValue(name), nullableStringValue(symbol), decimals,
+	)
+	return err
+}
+
 func (a *App) currencyUsageCount(ctx context.Context, currencyID int64) (int64, error) {
 	return a.currencyUsageCountTx(ctx, a.db, currencyID)
+}
+
+func (a *App) userVisibleCurrencyUsageCount(ctx context.Context, userID, currencyID int64) (int64, error) {
+	var total int64
+	queries := []string{
+		`SELECT COUNT(*) FROM users WHERE id = ? AND default_currency_id = ?`,
+		`SELECT COUNT(*) FROM workspaces WHERE owner_user_id = ? AND default_currency_id = ?`,
+		`SELECT COUNT(*) FROM budgets WHERE (user_id = ? OR owner_user_id = ? OR created_by_user_id = ?) AND (base_currency_id = ? OR display_currency_id = ?)`,
+		`SELECT COUNT(*) FROM budget_items bi JOIN budgets b ON b.id = bi.budget_id WHERE (b.user_id = ? OR b.owner_user_id = ? OR b.created_by_user_id = ?) AND (bi.budget_currency_id = ? OR bi.estimated_currency_id = ?)`,
+		`SELECT COUNT(*) FROM budget_transactions bt JOIN budgets b ON b.id = bt.budget_id WHERE (b.user_id = ? OR b.owner_user_id = ? OR b.created_by_user_id = ?) AND (bt.currency_id = ? OR bt.reference_currency_id = ? OR bt.destination_currency_id = ?)`,
+		`SELECT COUNT(*) FROM budget_bookkeeping_records br JOIN budgets b ON b.id = br.budget_id WHERE (b.user_id = ? OR b.owner_user_id = ? OR b.created_by_user_id = ?) AND (br.currency_id = ? OR br.destination_currency_id = ?)`,
+		`SELECT COUNT(*) FROM budget_exchange_rates ber JOIN budgets b ON b.id = ber.budget_id WHERE (b.user_id = ? OR b.owner_user_id = ? OR b.created_by_user_id = ?) AND (ber.from_currency_id = ? OR ber.to_currency_id = ?)`,
+	}
+	args := [][]any{
+		{userID, currencyID},
+		{userID, currencyID},
+		{userID, userID, userID, currencyID, currencyID},
+		{userID, userID, userID, currencyID, currencyID},
+		{userID, userID, userID, currencyID, currencyID, currencyID},
+		{userID, userID, userID, currencyID, currencyID},
+		{userID, userID, userID, currencyID, currencyID},
+	}
+	for idx, query := range queries {
+		var count int64
+		if err := a.db.QueryRowContext(ctx, query, args[idx]...).Scan(&count); err != nil {
+			return 0, err
+		}
+		total += count
+	}
+	return total, nil
 }
 
 func (a *App) currencyUsageCountTx(ctx context.Context, db queryExecer, currencyID int64) (int64, error) {

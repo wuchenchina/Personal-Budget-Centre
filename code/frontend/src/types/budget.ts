@@ -288,6 +288,18 @@ export interface CurrencyRate {
   createdAt: string;
 }
 
+export interface BudgetExchangeRate {
+  id: number;
+  budgetId: number;
+  from: CurrencyCode;
+  to: CurrencyCode;
+  rate: number;
+  source: 'budget_default';
+  note: string | null;
+  rateDate: string;
+  updatedAt: string;
+}
+
 export interface Currency {
   id: number;
   code: CurrencyCode;
@@ -295,6 +307,9 @@ export interface Currency {
   symbol: string;
   decimalPlaces: number;
   isEnabled: boolean;
+  isPersonal?: boolean;
+  isReferenced?: boolean;
+  source?: string;
 }
 
 export interface BudgetCategoryAlias {

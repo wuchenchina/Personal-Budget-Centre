@@ -18,6 +18,7 @@ export interface SaveBudgetItemPayload {
   budgetCurrency: CurrencyCode;
   budgetAmount?: number;
   budgetRate?: number;
+  rateScope?: 'item' | 'budget_default';
   estimatedCurrency: CurrencyCode;
   estimatedAmount?: number;
   estimatedRate?: number;
@@ -48,6 +49,7 @@ export interface SaveTransactionPayload {
   currency: CurrencyCode;
   amount: number;
   rate?: number;
+  rateScope?: 'item' | 'budget_default';
   referenceCurrency?: CurrencyCode;
   referenceAmount?: number | null;
   pricingConfig?: BudgetItemPricingConfig;

@@ -44,7 +44,7 @@ export function OperationsSections({
         />
       ) : null}
       {showCategories ? <CategorySideSection operations={operations} /> : null}
-      {showCategories || showRates ? (
+      {showCategories ? (
         <CurrencySideSection
           isSystemAdmin={isSystemAdmin}
           operations={operations}
