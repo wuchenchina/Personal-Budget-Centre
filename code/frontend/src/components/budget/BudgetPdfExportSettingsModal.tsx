@@ -7,10 +7,9 @@ import type { BudgetSignatureLabelMode, PdfThemeKey } from '../../types/budget';
 import type { BudgetPdfExportSettingsValue } from '../../utils/budgetPdfExportSettingsValue';
 import {
   alignPdfChineseLanguages,
-  newlySelectedPdfChineseLanguage,
   normalizePdfLanguages,
+  normalizePdfLanguagesForChange,
   normalizeSignatureLabelMode,
-  selectedPdfChineseLanguage,
 } from '../../utils/pdfExportSettings';
 
 interface BudgetPdfExportSettingsModalProps {
@@ -52,24 +51,18 @@ export function BudgetPdfExportSettingsModal({
   };
 
   const syncChineseLanguages = (
-    changedField: 'pdfLanguages' | 'signatureLabelLanguages',
-    checkedValues: AppLanguage[],
+    changedValues: Partial<Pick<BudgetPdfExportSettingsValue, 'pdfLanguages' | 'signatureLabelLanguages'>>,
+    values: BudgetPdfExportSettingsValue,
   ) => {
-    const previousChangedLanguages = normalizePdfLanguages(form.getFieldValue(changedField));
-    const nextPdfLanguages = changedField === 'pdfLanguages'
-      ? normalizePdfLanguages(checkedValues)
-      : normalizePdfLanguages(form.getFieldValue('pdfLanguages'));
-    const nextSignatureLabelLanguages = changedField === 'signatureLabelLanguages'
-      ? normalizePdfLanguages(checkedValues)
-      : normalizePdfLanguages(form.getFieldValue('signatureLabelLanguages'));
-    const nextChangedLanguages = changedField === 'pdfLanguages' ? nextPdfLanguages : nextSignatureLabelLanguages;
-    const preferredChineseLanguage =
-      newlySelectedPdfChineseLanguage(previousChangedLanguages, checkedValues)
-      ?? selectedPdfChineseLanguage(nextChangedLanguages);
+    const changedLanguages = changedValues.pdfLanguages ?? changedValues.signatureLabelLanguages;
+    if (!changedLanguages) {
+      return;
+    }
+
     const alignedLanguages = alignPdfChineseLanguages(
-      nextPdfLanguages,
-      nextSignatureLabelLanguages,
-      preferredChineseLanguage,
+      normalizePdfLanguages(values.pdfLanguages),
+      normalizePdfLanguages(values.signatureLabelLanguages),
+      changedLanguages.find((language) => language === 'sc' || language === 'tc') ?? null,
     );
 
     form.setFieldsValue(alignedLanguages);
@@ -91,6 +84,7 @@ export function BudgetPdfExportSettingsModal({
         initialValues={value}
         layout="vertical"
         preserve={false}
+        onValuesChange={syncChineseLanguages}
       >
         <Form.Item
           label={t('pdfTheme')}
@@ -108,6 +102,7 @@ export function BudgetPdfExportSettingsModal({
           extra={t('pdfExportLanguagesDescription')}
           label={t('pdfExportLanguages')}
           name="pdfLanguages"
+          normalize={normalizePdfLanguagesForChange}
           rules={[
             {
               validator: async (_, selected: AppLanguage[] | undefined) => {
@@ -120,12 +115,7 @@ export function BudgetPdfExportSettingsModal({
             },
           ]}
         >
-          <Checkbox.Group
-            options={languageOptions}
-            onChange={(checkedValues) => {
-              syncChineseLanguages('pdfLanguages', checkedValues as AppLanguage[]);
-            }}
-          />
+          <Checkbox.Group options={languageOptions} />
         </Form.Item>
         <Form.Item
           extra={t('pdfExportShowWorkspaceDescription')}
@@ -147,6 +137,7 @@ export function BudgetPdfExportSettingsModal({
           extra={t('pdfExportSignatureLabelLanguagesDescription')}
           label={t('pdfExportSignatureLabelLanguages')}
           name="signatureLabelLanguages"
+          normalize={normalizePdfLanguagesForChange}
           rules={[
             {
               validator: async (_, selected: AppLanguage[] | undefined) => {
@@ -159,12 +150,7 @@ export function BudgetPdfExportSettingsModal({
             },
           ]}
         >
-          <Checkbox.Group
-            options={languageOptions}
-            onChange={(checkedValues) => {
-              syncChineseLanguages('signatureLabelLanguages', checkedValues as AppLanguage[]);
-            }}
-          />
+          <Checkbox.Group options={languageOptions} />
         </Form.Item>
       </Form>
     </Modal>

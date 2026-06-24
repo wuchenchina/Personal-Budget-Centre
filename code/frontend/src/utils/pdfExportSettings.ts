@@ -17,16 +17,7 @@ export function isAppLanguage(value: unknown): value is AppLanguage {
 }
 
 export function normalizePdfLanguages(value: unknown): AppLanguage[] {
-  if (!Array.isArray(value)) {
-    return [...defaultPdfExportSettings.pdfLanguages];
-  }
-
-  const languages = value.filter(isAppLanguage);
-  const uniqueLanguages = Array.from(new Set(languages));
-
-  return resolveExclusiveChineseLanguages(
-    uniqueLanguages.length > 0 ? uniqueLanguages : [...defaultPdfExportSettings.pdfLanguages],
-  );
+  return resolveExclusiveChineseLanguages(uniquePdfLanguages(value));
 }
 
 export function resolveExclusiveChineseLanguages(languages: AppLanguage[]): AppLanguage[] {
@@ -48,6 +39,16 @@ export function newlySelectedPdfChineseLanguage(
   )) ?? null;
 }
 
+export function normalizePdfLanguagesForChange(value: unknown, previousValue: unknown): AppLanguage[] {
+  const previousLanguages = uniquePdfLanguages(previousValue);
+  const nextLanguages = uniquePdfLanguages(value);
+  const preferredChineseLanguage =
+    newlySelectedPdfChineseLanguage(previousLanguages, nextLanguages)
+    ?? selectedPdfChineseLanguage(nextLanguages);
+
+  return applyChineseLanguage(nextLanguages, preferredChineseLanguage);
+}
+
 export function alignPdfChineseLanguages(
   pdfLanguages: AppLanguage[],
   signatureLabelLanguages: AppLanguage[],
@@ -63,6 +64,17 @@ export function alignPdfChineseLanguages(
     pdfLanguages: applyChineseLanguage(pdfLanguages, chineseLanguage),
     signatureLabelLanguages: applyChineseLanguage(signatureLabelLanguages, chineseLanguage),
   };
+}
+
+function uniquePdfLanguages(value: unknown): AppLanguage[] {
+  if (!Array.isArray(value)) {
+    return [...defaultPdfExportSettings.pdfLanguages];
+  }
+
+  const languages = value.filter(isAppLanguage);
+  const uniqueLanguages = Array.from(new Set(languages));
+
+  return uniqueLanguages.length > 0 ? uniqueLanguages : [...defaultPdfExportSettings.pdfLanguages];
 }
 
 function lastChineseLanguage(languages: AppLanguage[]): 'sc' | 'tc' | null {

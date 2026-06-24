@@ -16,17 +16,16 @@ import { setPendingSsoMergeToken } from '../../config/ssoMerge';
 import { normalizePdfTheme, pdfThemeOptions } from '../../config/pdfThemes';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { languageOptions, useI18n } from '../../i18n';
-import type { AppLanguage, I18nKey } from '../../i18n';
+import type { I18nKey } from '../../i18n';
 import type { AuthSession, SsoBinding } from '../../types/auth';
 import type { BudgetSignatureLabelMode } from '../../types/budget';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
 import {
   alignPdfChineseLanguages,
-  newlySelectedPdfChineseLanguage,
   normalizePdfExportSettings,
   normalizePdfLanguages,
+  normalizePdfLanguagesForChange,
   normalizeSignatureLabelMode,
-  selectedPdfChineseLanguage,
 } from '../../utils/pdfExportSettings';
 import { currencySearchLabel, renderCurrencyOption } from '../../utils/currencyOptions';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
@@ -175,33 +174,28 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   };
 
   const syncExportChineseLanguages = (
-    changedField: 'pdfLanguages' | 'signatureLabelLanguages',
-    checkedValues: AppLanguage[],
+    changedValues: Partial<Pick<ProfileFormValues, 'pdfExportSettings'>>,
+    values: ProfileFormValues,
   ) => {
-    const previousChangedLanguages = normalizePdfLanguages(
-      exportForm.getFieldValue(['pdfExportSettings', changedField]),
-    );
-    const nextPdfLanguages = changedField === 'pdfLanguages'
-      ? normalizePdfLanguages(checkedValues)
-      : normalizePdfLanguages(exportForm.getFieldValue(['pdfExportSettings', 'pdfLanguages']));
-    const nextSignatureLabelLanguages = changedField === 'signatureLabelLanguages'
-      ? normalizePdfLanguages(checkedValues)
-      : normalizePdfLanguages(exportForm.getFieldValue(['pdfExportSettings', 'signatureLabelLanguages']));
-    const nextChangedLanguages = changedField === 'pdfLanguages' ? nextPdfLanguages : nextSignatureLabelLanguages;
-    const preferredChineseLanguage =
-      newlySelectedPdfChineseLanguage(previousChangedLanguages, checkedValues)
-      ?? selectedPdfChineseLanguage(nextChangedLanguages);
+    const changedLanguages =
+      changedValues.pdfExportSettings?.pdfLanguages
+      ?? changedValues.pdfExportSettings?.signatureLabelLanguages;
+    if (!changedLanguages) {
+      return;
+    }
+
     const alignedLanguages = alignPdfChineseLanguages(
-      nextPdfLanguages,
-      nextSignatureLabelLanguages,
-      preferredChineseLanguage,
+      normalizePdfLanguages(values.pdfExportSettings?.pdfLanguages),
+      normalizePdfLanguages(values.pdfExportSettings?.signatureLabelLanguages),
+      changedLanguages.find((language) => language === 'sc' || language === 'tc') ?? null,
     );
+    const nextExportSettings = {
+      ...normalizePdfExportSettings(values.pdfExportSettings),
+      ...alignedLanguages,
+    };
 
     exportForm.setFieldsValue({
-      pdfExportSettings: {
-        ...exportForm.getFieldValue('pdfExportSettings'),
-        ...alignedLanguages,
-      },
+      pdfExportSettings: nextExportSettings,
     });
   };
 
@@ -499,6 +493,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         name="budget-centre-export"
                         requiredMark={false}
                         onFinish={(values) => void handleProfileSave(values)}
+                        onValuesChange={syncExportChineseLanguages}
                       >
                         <div className={styles.exportConfig}>
                           <div className={styles.panelHeader}>
@@ -557,6 +552,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                               className={styles.languageField}
                               label={t('pdfExportLanguages')}
                               name={['pdfExportSettings', 'pdfLanguages']}
+                              normalize={normalizePdfLanguagesForChange}
                               rules={[
                                 {
                                   validator: async (_, value: unknown) => {
@@ -572,9 +568,6 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                               <Checkbox.Group
                                 className={styles.languageCheckboxes}
                                 options={languageOptions}
-                                onChange={(checkedValues) => {
-                                  syncExportChineseLanguages('pdfLanguages', checkedValues as AppLanguage[]);
-                                }}
                               />
                             </Form.Item>
                             <Form.Item
@@ -609,6 +602,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                               extra={t('pdfExportSignatureLabelLanguagesDescription')}
                               label={t('pdfExportSignatureLabelLanguages')}
                               name={['pdfExportSettings', 'signatureLabelLanguages']}
+                              normalize={normalizePdfLanguagesForChange}
                               rules={[
                                 {
                                   validator: async (_, value: unknown) => {
@@ -624,9 +618,6 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                               <Checkbox.Group
                                 className={styles.languageCheckboxes}
                                 options={languageOptions}
-                                onChange={(checkedValues) => {
-                                  syncExportChineseLanguages('signatureLabelLanguages', checkedValues as AppLanguage[]);
-                                }}
                               />
                             </Form.Item>
                           </div>
