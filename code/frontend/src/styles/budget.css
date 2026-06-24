@@ -93,6 +93,14 @@
   margin-inline-end: 0;
 }
 
+.pdf-export-spin .ant-spin-text {
+  margin-top: 10px;
+  color: var(--bc-text);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
 .budget-export-label {
   gap: 6px;
   color: var(--bc-text);
@@ -136,9 +144,19 @@
   gap: 12px;
 }
 
+.budget-rate-modal .ant-modal {
+  max-width: calc(100vw - 36px);
+}
+
+.budget-rate-modal .ant-modal-body {
+  max-height: calc(100dvh - 128px);
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+
 .budget-rate-manager-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.88fr) minmax(0, 1.12fr);
+  grid-template-columns: minmax(340px, 0.86fr) minmax(520px, 1.14fr);
   gap: 12px;
 }
 
@@ -155,6 +173,18 @@
 
 .budget-rate-list-panel:only-child {
   grid-column: 1 / -1;
+}
+
+.budget-rate-list-panel .ant-table-wrapper,
+.budget-rate-list-panel .ant-table,
+.budget-rate-list-panel .ant-table-container,
+.budget-rate-list-panel .ant-table-content {
+  width: 100%;
+  max-width: 100%;
+}
+
+.budget-rate-list-panel .ant-table-cell {
+  overflow-wrap: anywhere;
 }
 
 .budget-rate-panel-heading {
@@ -194,6 +224,12 @@
   font-family: var(--font-mono), monospace;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 980px) {
+  .budget-rate-manager-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .state-panel {

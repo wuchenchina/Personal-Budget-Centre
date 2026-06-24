@@ -12,6 +12,7 @@ import {
   Segmented,
   Select,
   Space,
+  Spin,
   Table,
   Tag,
   Tooltip,
@@ -77,8 +78,8 @@ import {
 } from '../../utils/budgetSignature';
 import {
   BudgetPdfExportSettingsModal,
-  budgetPdfExportSettingsValue,
 } from './BudgetPdfExportSettingsModal';
+import { budgetPdfExportSettingsValue } from '../../utils/budgetPdfExportSettingsValue';
 
 interface BudgetDocumentPreviewProps {
   selectedBudget: BudgetDetail | null;
@@ -303,8 +304,33 @@ export function BudgetDocumentPreview({
     budgetPdfExportSettingsValue(defaultPdfTheme, pdfExportSettings),
   );
   useEffect(() => {
-    setExportSettings(budgetPdfExportSettingsValue(defaultPdfTheme, pdfExportSettings));
+    let isMounted = true;
+
+    queueMicrotask(() => {
+      if (isMounted) {
+        setExportSettings(budgetPdfExportSettingsValue(defaultPdfTheme, pdfExportSettings));
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, [defaultPdfTheme, pdfExportSettings]);
+  const exportingPdf = operations.creatingExportFormat === 'pdf';
+  useEffect(() => {
+    if (!exportingPdf) {
+      return undefined;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [exportingPdf]);
   const previewLanguage = exportSettings.pdfLanguages[0] ?? 'en';
   const tableLanguageMode: BudgetTableLanguageMode =
     previewLanguage === 'sc' || previewLanguage === 'tc' ? 'zh' : 'en';
@@ -467,6 +493,12 @@ export function BudgetDocumentPreview({
 
   return (
     <main className="document-workbench">
+      <Spin
+        className="pdf-export-spin"
+        fullscreen
+        spinning={exportingPdf}
+        tip={t('pdfExportGenerating')}
+      />
       <div className="toolbar-row">
         <Space wrap>
           <Button
@@ -519,7 +551,7 @@ export function BudgetDocumentPreview({
             {t('export')}
           </span>
           <Button
-            disabled={selectedBudget === null}
+            disabled={selectedBudget === null || exportingPdf}
             icon={<Settings2 size={13} />}
             size="small"
             onClick={() => setIsExportSettingsOpen(true)}
@@ -527,9 +559,9 @@ export function BudgetDocumentPreview({
             {t('pdfExportSettings')}
           </Button>
           <Button
-            disabled={selectedBudget === null}
+            disabled={selectedBudget === null || exportingPdf}
             icon={<Download size={13} />}
-            loading={operations.creatingExportFormat === 'pdf'}
+            loading={exportingPdf}
             size="small"
             onClick={() => operations.createExport('pdf', {
               pdfLanguages: exportSettings.pdfLanguages,
@@ -557,7 +589,7 @@ export function BudgetDocumentPreview({
         </div>
       </div>
       <BudgetPdfExportSettingsModal
-        open={isExportSettingsOpen}
+        open={isExportSettingsOpen && !exportingPdf}
         value={exportSettings}
         onApply={(nextSettings) => {
           setExportSettings(nextSettings);

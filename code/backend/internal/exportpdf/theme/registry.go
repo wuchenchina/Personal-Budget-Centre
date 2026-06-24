@@ -25,15 +25,25 @@ type HeaderOptions struct {
 	TotalPages    string
 }
 
+type FontFace struct {
+	Family string
+	File   string
+	Weight string
+	Style  string
+}
+
 type Definition interface {
 	Key() string
+	FontFaces(chineseLanguage string) []FontFace
+	FontVariableCSS(chineseLanguage string) string
 	DocumentCSS(scope Scope) string
 	TableCSS(scope Scope) string
 	SignatureCSS() string
+	SignatureFontFamily(fontRole string, containsCJK bool, chineseLanguage string) string
 	SignatureFullWidthMM() float64
 	PageMargins(scope Scope) MarginsMM
 	HeaderHTML(budget map[string]any, titleHTML, subtitleHTML string, options HeaderOptions, scope Scope) string
-	FooterTemplate(scope Scope) string
+	FooterTemplate(scope Scope, chineseLanguage string) string
 }
 
 var (

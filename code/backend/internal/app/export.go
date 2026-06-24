@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -75,25 +76,27 @@ func (a *App) exportCreate(w http.ResponseWriter, r *http.Request) error {
 
 	fileName := exportFileName(budget, format, scope)
 	path := filepath.Join(a.cfg.ExportDir, fileName)
-	if err := a.writePDFExport(r, budget, scope, options, path); err != nil {
+	exportCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Minute)
+	defer cancel()
+	if err := a.writePDFExport(exportCtx, budget, scope, options, path); err != nil {
 		return apiError("EXPORT_FAILED", "Export file could not be created. Check Chromium, fonts and export storage permissions.", http.StatusInternalServerError)
 	}
 	if info, err := os.Stat(path); err != nil || info.IsDir() || info.Size() == 0 {
 		return apiError("EXPORT_FAILED", "Export file could not be created.", http.StatusInternalServerError)
 	}
 
-	res, err := a.db.ExecContext(r.Context(), "INSERT INTO budget_exports (budget_id, user_id, format, file_name, file_path, status) VALUES (?, ?, 'pdf', ?, ?, 'completed')", budgetID, s.UserID, fileName, fileName)
+	res, err := a.db.ExecContext(exportCtx, "INSERT INTO budget_exports (budget_id, user_id, format, file_name, file_path, status) VALUES (?, ?, 'pdf', ?, ?, 'completed')", budgetID, s.UserID, fileName, fileName)
 	if err != nil {
 		_ = os.Remove(path)
 		return err
 	}
 	id, _ := res.LastInsertId()
-	row := a.db.QueryRowContext(r.Context(), "SELECT id, budget_id, user_id, format, file_name, file_path, status, error_message, created_at FROM budget_exports WHERE id = ?", id)
+	row := a.db.QueryRowContext(exportCtx, "SELECT id, budget_id, user_id, format, file_name, file_path, status, error_message, created_at FROM budget_exports WHERE id = ?", id)
 	export, err := scanExport(row)
 	if err != nil {
 		return err
 	}
-	if err := a.pruneOldExports(r, budgetID, format, id); err != nil {
+	if err := a.pruneOldExports(exportCtx, budgetID, format, id); err != nil {
 		return err
 	}
 	httpx.WriteOK(w, map[string]any{"export": export}, http.StatusCreated)
@@ -141,12 +144,12 @@ func (a *App) exportDownload(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (a *App) pruneOldExports(r *http.Request, budgetID int64, format string, currentExportID int64) error {
+func (a *App) pruneOldExports(ctx context.Context, budgetID int64, format string, currentExportID int64) error {
 	keep := a.cfg.ExportKeep
 	if keep <= 0 {
 		keep = 3
 	}
-	rows, err := a.db.QueryContext(r.Context(), fmt.Sprintf(`
+	rows, err := a.db.QueryContext(ctx, fmt.Sprintf(`
 SELECT id, file_path
 FROM budget_exports
 WHERE budget_id = ? AND format = ? AND id NOT IN (
@@ -187,7 +190,7 @@ ORDER BY created_at ASC, id ASC`, keep), budgetID, format, budgetID, format)
 				_ = os.Remove(path)
 			}
 		}
-		if _, err := a.db.ExecContext(r.Context(), "DELETE FROM budget_exports WHERE id = ?", item.ID); err != nil {
+		if _, err := a.db.ExecContext(ctx, "DELETE FROM budget_exports WHERE id = ?", item.ID); err != nil {
 			return err
 		}
 	}

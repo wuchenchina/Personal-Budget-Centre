@@ -12,6 +12,7 @@ import (
 	"budgetcentre/backend/internal/exportpdf/theme"
 
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 )
 
@@ -33,15 +34,29 @@ type pdfPrintSpec struct {
 	DisplayFooter  bool
 }
 
+type pdfBrowserSession struct {
+	timeoutCtx      context.Context
+	cancelTimeout   context.CancelFunc
+	allocatorCtx    context.Context
+	cancelAllocator context.CancelFunc
+	browserCtx      context.Context
+	cancelBrowser   context.CancelFunc
+}
+
 func (s Service) Write(ctx context.Context, budget map[string]any, scope string, options Options, outputPath string) error {
 	if err := os.MkdirAll(s.TempDir, 0o775); err != nil {
 		return err
 	}
+	session, err := s.newPDFBrowserSession(ctx)
+	if err != nil {
+		return err
+	}
+	defer session.Close()
 	workingOptions := options
 	if workingOptions.TotalPages <= 0 {
 		workingOptions.TotalPages = 1
 	}
-	firstPDF, err := s.renderPDFPass(ctx, budget, scope, workingOptions)
+	firstPDF, err := s.renderPDFPass(ctx, session, budget, scope, workingOptions)
 	if err != nil {
 		return err
 	}
@@ -54,7 +69,7 @@ func (s Service) Write(ctx context.Context, budget map[string]any, scope string,
 	finalOptions.SuppressPageFooter = pageCount <= 1
 	var finalPDF []byte
 	for attempt := 0; attempt < 3; attempt++ {
-		finalPDF, err = s.renderPDFPass(ctx, budget, scope, finalOptions)
+		finalPDF, err = s.renderPDFPass(ctx, session, budget, scope, finalOptions)
 		if err != nil {
 			return err
 		}
@@ -74,7 +89,7 @@ func (s Service) Write(ctx context.Context, budget map[string]any, scope string,
 	return os.WriteFile(outputPath, finalPDF, 0o664)
 }
 
-func (s Service) renderPDFPass(ctx context.Context, budget map[string]any, scope string, options Options) ([]byte, error) {
+func (s Service) renderPDFPass(ctx context.Context, session *pdfBrowserSession, budget map[string]any, scope string, options Options) ([]byte, error) {
 	html, err := s.RenderHTML(ctx, budget, scope, options)
 	if err != nil {
 		return nil, err
@@ -92,7 +107,7 @@ func (s Service) renderPDFPass(ctx context.Context, budget map[string]any, scope
 	if err := tmp.Close(); err != nil {
 		return nil, err
 	}
-	return s.printHTMLToPDF(ctx, htmlPath, printSpecForScope(scope, options))
+	return s.printHTMLToPDF(session, htmlPath, printSpecForScope(scope, options))
 }
 
 func (s Service) RenderHTML(ctx context.Context, budget map[string]any, scope string, options Options) (string, error) {
@@ -118,15 +133,12 @@ func (s Service) RenderHTML(ctx context.Context, budget map[string]any, scope st
 	return renderer.renderBudget(budget, template, options), nil
 }
 
-func (s Service) printHTMLToPDF(ctx context.Context, htmlPath string, spec pdfPrintSpec) ([]byte, error) {
+func (s Service) newPDFBrowserSession(ctx context.Context) (*pdfBrowserSession, error) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
-	defer cancel()
 	chrome := s.ChromeBin
 	if chrome == "" {
 		chrome = "chromium"
 	}
-	pageURL := url.URL{Scheme: "file", Path: filepath.ToSlash(htmlPath)}
-
 	allocatorOptions := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.ExecPath(chrome),
 		chromedp.Flag("headless", "new"),
@@ -138,15 +150,42 @@ func (s Service) printHTMLToPDF(ctx context.Context, htmlPath string, spec pdfPr
 		chromedp.Flag("disable-extensions", true),
 	)
 	allocatorCtx, allocatorCancel := chromedp.NewExecAllocator(timeoutCtx, allocatorOptions...)
-	defer allocatorCancel()
 	browserCtx, browserCancel := chromedp.NewContext(allocatorCtx)
-	defer browserCancel()
+	if err := chromedp.Run(browserCtx); err != nil {
+		browserCancel()
+		allocatorCancel()
+		cancel()
+		if timeoutCtx.Err() != nil {
+			return nil, fmt.Errorf("chromium pdf timed out: %w", timeoutCtx.Err())
+		}
+		return nil, fmt.Errorf("chromium pdf failed: %w", err)
+	}
+	return &pdfBrowserSession{
+		timeoutCtx:      timeoutCtx,
+		cancelTimeout:   cancel,
+		allocatorCtx:    allocatorCtx,
+		cancelAllocator: allocatorCancel,
+		browserCtx:      browserCtx,
+		cancelBrowser:   browserCancel,
+	}, nil
+}
+
+func (s *pdfBrowserSession) Close() {
+	s.cancelBrowser()
+	s.cancelAllocator()
+	s.cancelTimeout()
+}
+
+func (s Service) printHTMLToPDF(session *pdfBrowserSession, htmlPath string, spec pdfPrintSpec) ([]byte, error) {
+	pageURL := url.URL{Scheme: "file", Path: filepath.ToSlash(htmlPath)}
 
 	var data []byte
-	err := chromedp.Run(browserCtx,
+	err := chromedp.Run(session.browserCtx,
 		chromedp.Navigate(pageURL.String()),
 		chromedp.WaitReady("body", chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond),
+		chromedp.Evaluate(`document.fonts ? document.fonts.ready.then(() => true) : true`, nil, func(params *runtime.EvaluateParams) *runtime.EvaluateParams {
+			return params.WithAwaitPromise(true)
+		}),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			params := page.PrintToPDF().
 				WithPrintBackground(true).
@@ -169,8 +208,8 @@ func (s Service) printHTMLToPDF(ctx context.Context, htmlPath string, spec pdfPr
 			return err
 		}),
 	)
-	if timeoutCtx.Err() != nil {
-		return nil, fmt.Errorf("chromium pdf timed out: %w", timeoutCtx.Err())
+	if session.timeoutCtx.Err() != nil {
+		return nil, fmt.Errorf("chromium pdf timed out: %w", session.timeoutCtx.Err())
 	}
 	if err != nil {
 		return nil, fmt.Errorf("chromium pdf failed: %w", err)
@@ -184,13 +223,18 @@ func (s Service) printHTMLToPDF(ctx context.Context, htmlPath string, spec pdfPr
 func printSpecForScope(scope string, options Options) pdfPrintSpec {
 	resolvedScope := pdfScope(scope)
 	pdfTheme := theme.ForKey(options.PDFTheme)
-	footerTemplate := pdfTheme.FooterTemplate(resolvedScope)
+	footerTemplate := footerTemplateForOptions(pdfTheme, resolvedScope, options)
 	return pdfPrintSpec{
 		Landscape:      resolvedScope == theme.ScopeBookkeeping,
 		Margins:        pdfTheme.PageMargins(resolvedScope),
 		FooterTemplate: footerTemplate,
 		DisplayFooter:  !options.SuppressPageFooter && footerTemplate != "",
 	}
+}
+
+func footerTemplateForOptions(pdfTheme theme.Definition, scope theme.Scope, options Options) string {
+	fontLanguages := pdfFontLanguages(options, options.PDFLanguages, scope)
+	return pdfTheme.FooterTemplate(scope, primaryPDFChineseLanguage(fontLanguages))
 }
 
 func pdfScope(scope string) theme.Scope {

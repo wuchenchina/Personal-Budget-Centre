@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Empty, FloatButton, Input, Popconfirm, Space, Table, Tabs, Tag, Tooltip } from 'antd';
+import { Alert, Button, Empty, FloatButton, Input, Popconfirm, Space, Spin, Table, Tabs, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
 import { ArrowLeft, Download, FileText, Landmark, Pencil, Plus, Search, Settings2, Trash2 } from 'lucide-react';
 import { transactionTypeColors } from '../../config/appConfig';
@@ -17,8 +17,8 @@ import type {
 import { formatMoney } from '../../utils/currency';
 import {
   BudgetPdfExportSettingsModal,
-  budgetPdfExportSettingsValue,
 } from './BudgetPdfExportSettingsModal';
+import { budgetPdfExportSettingsValue } from '../../utils/budgetPdfExportSettingsValue';
 import { BudgetExchangeRateManager } from './BudgetExchangeRateManager';
 import type { CurrencySelectOption } from '../../utils/currencyOptions';
 
@@ -73,8 +73,32 @@ export function BudgetBookkeepingPage({
     budgetPdfExportSettingsValue(defaultPdfTheme, pdfExportSettings),
   );
   useEffect(() => {
-    setExportSettings(budgetPdfExportSettingsValue(defaultPdfTheme, pdfExportSettings));
+    let isMounted = true;
+
+    queueMicrotask(() => {
+      if (isMounted) {
+        setExportSettings(budgetPdfExportSettingsValue(defaultPdfTheme, pdfExportSettings));
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, [defaultPdfTheme, pdfExportSettings]);
+  useEffect(() => {
+    if (!exportingPdf) {
+      return undefined;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [exportingPdf]);
   const currency = selectedBudget?.baseCurrency ?? baseCurrency;
   const normalizedSearch = searchText.trim().toLowerCase();
   const filteredRecords = useMemo(
@@ -241,6 +265,12 @@ export function BudgetBookkeepingPage({
 
   return (
     <div className="bookkeeping-page">
+      <Spin
+        className="pdf-export-spin"
+        fullscreen
+        spinning={exportingPdf}
+        tip={t('pdfExportGenerating')}
+      />
       <section className="project-page-header bookkeeping-header">
         <div>
           <Tag color="red">{t('bookkeeping')}</Tag>
@@ -279,7 +309,7 @@ export function BudgetBookkeepingPage({
             {t('export')}
           </span>
           <Button
-            disabled={selectedBudget === null}
+            disabled={selectedBudget === null || exportingPdf}
             icon={<Settings2 size={13} />}
             size="small"
             onClick={() => setIsExportSettingsOpen(true)}
@@ -287,7 +317,7 @@ export function BudgetBookkeepingPage({
             {t('pdfExportSettings')}
           </Button>
           <Button
-            disabled={selectedBudget === null}
+            disabled={selectedBudget === null || exportingPdf}
             icon={<Download size={13} />}
             loading={exportingPdf}
             size="small"
@@ -317,7 +347,7 @@ export function BudgetBookkeepingPage({
         </div>
       </div>
       <BudgetPdfExportSettingsModal
-        open={isExportSettingsOpen}
+        open={isExportSettingsOpen && !exportingPdf}
         value={exportSettings}
         onApply={(nextSettings) => {
           setExportSettings(nextSettings);

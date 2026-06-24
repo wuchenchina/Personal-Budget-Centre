@@ -221,6 +221,7 @@ export function BudgetExchangeRateManager({
       {
         key: 'pair',
         title: t('currencyPair'),
+        width: 200,
         render: (_, rate) => (
           <span className="budget-rate-pair">
             <strong>{rate.from}{' -> '}{rate.to}</strong>
@@ -233,6 +234,7 @@ export function BudgetExchangeRateManager({
         key: 'rate',
         title: t('rate'),
         align: 'right',
+        width: 112,
         render: formatRate,
       },
       {
@@ -244,7 +246,7 @@ export function BudgetExchangeRateManager({
       {
         key: 'actions',
         align: 'right',
-        width: 104,
+        width: 92,
         render: (_, rate) => (
           canWriteBudgets ? (
             <Space size={4}>
@@ -297,7 +299,8 @@ export function BudgetExchangeRateManager({
         forceRender
         open={open}
         title={t('budgetExchangeRates')}
-        width={920}
+        width={1080}
+        wrapClassName="budget-rate-modal"
         onCancel={closeModal}
       >
         <div className="budget-rate-manager">
@@ -415,8 +418,9 @@ export function BudgetExchangeRateManager({
                 locale={{ emptyText: t('noExchangeRates') }}
                 pagination={{ hideOnSinglePage: true, pageSize: 8 }}
                 rowKey="id"
-                scroll={{ x: 620 }}
+                scroll={{ x: 520 }}
                 size="small"
+                tableLayout="fixed"
               />
             </section>
           </div>

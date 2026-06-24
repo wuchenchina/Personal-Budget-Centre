@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"net/http"
 
 	"budgetcentre/backend/internal/exportpdf"
 )
@@ -13,7 +12,7 @@ func (a *App) pdfExportOptions(input map[string]any, s *session) exportpdf.Optio
 	return exportpdf.OptionsFromInput(input, s.DefaultPDFTheme, nullableString(s.PDFExportSettings))
 }
 
-func (a *App) writePDFExport(r *http.Request, budget map[string]any, scope string, options exportpdf.Options, outputPath string) error {
+func (a *App) writePDFExport(ctx context.Context, budget map[string]any, scope string, options exportpdf.Options, outputPath string) error {
 	service := exportpdf.Service{
 		FontDir:            a.cfg.FontDir,
 		TempDir:            a.cfg.ExportTempDir,
@@ -21,7 +20,7 @@ func (a *App) writePDFExport(r *http.Request, budget map[string]any, scope strin
 		LoadBookkeeping:    a.bookkeepingRecordsForBudget,
 		LoadBudgetTemplate: a.templateForPDF,
 	}
-	return service.Write(r.Context(), budget, scope, options, outputPath)
+	return service.Write(ctx, budget, scope, options, outputPath)
 }
 
 func (a *App) templateForPDF(ctx context.Context, budget map[string]any) (exportpdf.Template, error) {

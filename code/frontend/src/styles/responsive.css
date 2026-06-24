@@ -185,6 +185,11 @@
     grid-template-columns: 1fr;
   }
 
+  .budget-rate-modal .ant-modal,
+  .private-rate-modal .ant-modal {
+    max-width: calc(100vw - 18px);
+  }
+
   .budget-rate-entry-strip,
   .budget-rate-panel-heading {
     flex-direction: column;

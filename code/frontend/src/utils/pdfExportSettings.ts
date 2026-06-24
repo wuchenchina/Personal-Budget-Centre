@@ -24,7 +24,59 @@ export function normalizePdfLanguages(value: unknown): AppLanguage[] {
   const languages = value.filter(isAppLanguage);
   const uniqueLanguages = Array.from(new Set(languages));
 
-  return uniqueLanguages.length > 0 ? uniqueLanguages : [...defaultPdfExportSettings.pdfLanguages];
+  return resolveExclusiveChineseLanguages(
+    uniqueLanguages.length > 0 ? uniqueLanguages : [...defaultPdfExportSettings.pdfLanguages],
+  );
+}
+
+export function resolveExclusiveChineseLanguages(languages: AppLanguage[]): AppLanguage[] {
+  return applyChineseLanguage(languages, lastChineseLanguage(languages));
+}
+
+export function selectedPdfChineseLanguage(languages: AppLanguage[]): 'sc' | 'tc' | null {
+  return lastChineseLanguage(languages);
+}
+
+export function alignPdfChineseLanguages(
+  pdfLanguages: AppLanguage[],
+  signatureLabelLanguages: AppLanguage[],
+  preferredChineseLanguage?: 'sc' | 'tc' | null,
+): Pick<PdfExportSettings, 'pdfLanguages' | 'signatureLabelLanguages'> {
+  const chineseLanguage = preferredChineseLanguage ?? lastChineseLanguage(pdfLanguages) ?? lastChineseLanguage(signatureLabelLanguages);
+
+  if (!chineseLanguage) {
+    return { pdfLanguages, signatureLabelLanguages };
+  }
+
+  return {
+    pdfLanguages: applyChineseLanguage(pdfLanguages, chineseLanguage),
+    signatureLabelLanguages: applyChineseLanguage(signatureLabelLanguages, chineseLanguage),
+  };
+}
+
+function lastChineseLanguage(languages: AppLanguage[]): 'sc' | 'tc' | null {
+  return [...languages]
+    .reverse()
+    .find((language): language is 'sc' | 'tc' => language === 'sc' || language === 'tc') ?? null;
+}
+
+function applyChineseLanguage(languages: AppLanguage[], chineseLanguage: 'sc' | 'tc' | null): AppLanguage[] {
+  if (!chineseLanguage) {
+    return languages;
+  }
+
+  const firstChineseIndex = languages.findIndex((language) => language === 'sc' || language === 'tc');
+  if (firstChineseIndex < 0) {
+    return languages;
+  }
+
+  const withoutChineseLanguages = languages.filter((language) => language !== 'sc' && language !== 'tc');
+
+  return [
+    ...withoutChineseLanguages.slice(0, firstChineseIndex),
+    chineseLanguage,
+    ...withoutChineseLanguages.slice(firstChineseIndex),
+  ];
 }
 
 export function normalizeSignatureLabelMode(value: unknown): BudgetSignatureLabelMode {
@@ -36,10 +88,14 @@ export function normalizeSignatureLabelMode(value: unknown): BudgetSignatureLabe
 export function normalizePdfExportSettings(
   settings: Partial<PdfExportSettings> | null | undefined,
 ): PdfExportSettings {
+  const pdfLanguages = normalizePdfLanguages(settings?.pdfLanguages);
+  const signatureLabelLanguages = normalizePdfLanguages(settings?.signatureLabelLanguages);
+  const alignedLanguages = alignPdfChineseLanguages(pdfLanguages, signatureLabelLanguages);
+
   return {
     showWorkspace: settings?.showWorkspace === true,
-    pdfLanguages: normalizePdfLanguages(settings?.pdfLanguages),
+    pdfLanguages: alignedLanguages.pdfLanguages,
     signatureLabelMode: normalizeSignatureLabelMode(settings?.signatureLabelMode),
-    signatureLabelLanguages: normalizePdfLanguages(settings?.signatureLabelLanguages),
+    signatureLabelLanguages: alignedLanguages.signatureLabelLanguages,
   };
 }

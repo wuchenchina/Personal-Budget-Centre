@@ -51,6 +51,11 @@ func Load() Config {
 	loadDotEnv(filepath.Join("..", ".env"))
 	loadDotEnv(filepath.Join("..", "..", ".env"))
 
+	fontDir := env("FONT_DIR", "")
+	if fontDir == "" {
+		fontDir = defaultFontDir()
+	}
+
 	return Config{
 		AppEnv:        env("APP_ENV", "production"),
 		AppKey:        env("APP_KEY", ""),
@@ -58,7 +63,7 @@ func Load() Config {
 		APIURL:        env("API_URL", "https://bc.tool.axchen.top"),
 		ListenAddr:    env("LISTEN_ADDR", ":8080"),
 		DatabaseDir:   env("DATABASE_DIR", "/app/database"),
-		FontDir:       env("FONT_DIR", "/app/font"),
+		FontDir:       fontDir,
 		ExportDir:     env("EXPORT_STORAGE_DIR", "/app/storage/exports"),
 		ExportTempDir: env("EXPORT_TEMP_DIR", env("PDF_TEMP_DIR", "/app/storage/tmp/pdf")),
 		ExportKeep:    envInt("EXPORT_RETENTION_PER_BUDGET", 3),
@@ -88,6 +93,41 @@ func Load() Config {
 		WebAuthnRPName: env("WEBAUTHN_RP_NAME", "BudgetCentre"),
 		WebAuthnOrigin: env("WEBAUTHN_ORIGIN", "https://bc.tool.axchen.top"),
 	}
+}
+
+func defaultFontDir() string {
+	candidates := []string{"/app/font"}
+	if wd, err := os.Getwd(); err == nil {
+		candidates = append(candidates,
+			filepath.Join(wd, "code", "font"),
+			filepath.Join(wd, "font"),
+			filepath.Join(wd, "..", "font"),
+			filepath.Join(wd, "..", "code", "font"),
+			filepath.Join(wd, "..", "..", "code", "font"),
+		)
+	}
+	for _, candidate := range candidates {
+		if hasPDFFonts(candidate) {
+			return candidate
+		}
+	}
+	return "/app/font"
+}
+
+func hasPDFFonts(dir string) bool {
+	for _, file := range []string{
+		"Arial.ttf",
+		"Arial Bold.ttf",
+		"PingFang.ttc",
+		"Songti.ttc",
+		"Songti-TC-Regular.ttf",
+		"Songti-TC-Bold.ttf",
+	} {
+		if info, err := os.Stat(filepath.Join(dir, file)); err != nil || info.IsDir() {
+			return false
+		}
+	}
+	return true
 }
 
 func loadDotEnv(path string) {

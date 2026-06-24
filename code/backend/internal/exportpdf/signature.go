@@ -13,7 +13,10 @@ import (
 	"budgetcentre/backend/internal/exportpdf/theme"
 )
 
-type pdfSignatureRenderer struct{}
+type pdfSignatureRenderer struct {
+	pdfTheme  theme.Definition
+	languages []string
+}
 
 type signaturePalette struct {
 	TitleFill        string
@@ -39,8 +42,11 @@ type signatureNoteItem struct {
 	HasDateTime bool
 }
 
-func newPDFSignatureRenderer() pdfSignatureRenderer {
-	return pdfSignatureRenderer{}
+func newPDFSignatureRenderer(pdfTheme theme.Definition, options Options) pdfSignatureRenderer {
+	return pdfSignatureRenderer{
+		pdfTheme:  pdfTheme,
+		languages: options.SignatureLabelLanguage,
+	}
 }
 
 func (r pdfSignatureRenderer) render(budget map[string]any, options Options, pdfTheme theme.Definition) string {
@@ -51,6 +57,9 @@ func (r pdfSignatureRenderer) render(budget map[string]any, options Options, pdf
 	config := cloneMap(source)
 	config["labelMode"] = options.SignatureLabelMode
 	config["pdfLanguages"] = stringAnyList(options.SignatureLabelLanguage)
+	if len(r.languages) == 0 {
+		r.languages = options.SignatureLabelLanguage
+	}
 	rows := signatureConfigRows(config)
 	if len(rows) == 0 {
 		return ""
@@ -66,9 +75,9 @@ func (r pdfSignatureRenderer) render(budget map[string]any, options Options, pdf
 	}
 	svg := r.svg(config, width, pdfTheme)
 	height := r.svgHeight(config, width)
-	image := `<img class="signature-svg" src="` + base64SVG(svg) +
-		`" style="display:` + display + `;width:` + signatureNumber(width) + `mm;height:` + signatureNumber(height) + `mm" alt="">`
-	return `<div class="template-section signature-section"` + wrapperStyle + `>` + image + `</div>`
+	inlineSVG := strings.Replace(svg, `<svg `, `<svg class="signature-svg" style="display:`+display+`;width:`+
+		signatureNumber(width)+`mm;height:`+signatureNumber(height)+`mm" `, 1)
+	return `<div class="template-section signature-section"` + wrapperStyle + `>` + inlineSVG + `</div>`
 }
 
 func (r pdfSignatureRenderer) svg(config map[string]any, width float64, pdfTheme theme.Definition) string {
@@ -642,8 +651,9 @@ func (r pdfSignatureRenderer) text(x, y float64, value string, size float64, col
 	if anchor != "start" {
 		anchorAttribute = ` text-anchor="` + anchor + `"`
 	}
-	return `<text x="` + signatureNumber(x) + `" y="` + signatureNumber(y) + `" font-family="` +
-		html.EscapeString(r.fontFamily(value, font)) + `" font-size="` + signatureNumber(size) + `" fill="` + color + `"` +
+	fontFamily := html.EscapeString(r.fontFamily(value, font))
+	return `<text x="` + signatureNumber(x) + `" y="` + signatureNumber(y) + `" font-family="` + fontFamily +
+		`" font-size="` + signatureNumber(size) + `" fill="` + color + `"` +
 		anchorAttribute + extraAttributes + `>` + html.EscapeString(value) + `</text>`
 }
 
@@ -717,13 +727,10 @@ func (r pdfSignatureRenderer) estimatedTextWidth(text string, fontSize float64) 
 func (r pdfSignatureRenderer) fontFamily(value string, font string) string {
 	for _, char := range value {
 		if usesCJKFont(char) {
-			return "TCSongti, Songti TC, serif"
+			return r.pdfTheme.SignatureFontFamily(font, true, primaryPDFChineseLanguage(r.languages))
 		}
 	}
-	if font == "sf-mono" {
-		return "SF-Mono, monospace"
-	}
-	return font + ", SF-Mono, monospace"
+	return r.pdfTheme.SignatureFontFamily(font, false, primaryPDFChineseLanguage(r.languages))
 }
 
 func (r pdfSignatureRenderer) signatureSectionTitle(config map[string]any) string {

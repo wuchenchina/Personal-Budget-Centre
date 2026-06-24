@@ -73,7 +73,7 @@ func TestThemeDefinitionsExposeLegacyPDFContract(t *testing.T) {
 			if got := def.PageMargins(ScopeBookkeeping); got != tc.bookkeepingMargins {
 				t.Fatalf("%s bookkeeping margins = %+v, want %+v", tc.key, got, tc.bookkeepingMargins)
 			}
-			footer := def.FooterTemplate(ScopeBudget)
+			footer := def.FooterTemplate(ScopeBudget, "tc")
 			if !strings.Contains(footer, "pageNumber") {
 				t.Fatalf("%s footer must expose pageNumber token", tc.key)
 			}

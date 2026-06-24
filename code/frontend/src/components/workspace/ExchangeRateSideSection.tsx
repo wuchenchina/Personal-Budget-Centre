@@ -546,6 +546,8 @@ export function ExchangeRateSideSection({
         okText={t('save')}
         open={privateRateModalOpen}
         title={editingPrivateRate === null ? t('addPrivateRate') : t('editPrivateRate')}
+        width={680}
+        wrapClassName="private-rate-modal"
         onCancel={() => setPrivateRateModalOpen(false)}
         onOk={() => void savePrivateRate()}
       >

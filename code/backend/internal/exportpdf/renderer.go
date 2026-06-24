@@ -63,7 +63,7 @@ func (r *pdfRenderer) renderBudget(budget map[string]any, template Template, opt
 	if stringValue(budget["budgetType"]) == "installment" {
 		body += r.renderTable(installmentSection, period, r.installmentRows(budget, ctx), r.installmentSummaryRow(budget, ctx), tableText("No installment targets", ctx.BudgetLabels["emptyInstallments"], ctx), datePrefix(ctx))
 	}
-	body += newPDFSignatureRenderer().render(budget, options, pdfTheme)
+	body += newPDFSignatureRenderer(pdfTheme, options).render(budget, options, pdfTheme)
 	return r.documentHTML(ctx, options, theme.ScopeBudget, body)
 }
 
@@ -110,40 +110,62 @@ func (r *pdfRenderer) renderBookkeeping(budget map[string]any, records []map[str
 
 func (r *pdfRenderer) documentHTML(ctx pdfTableContext, options Options, scope theme.Scope, body string) string {
 	pdfTheme := theme.ForKey(options.PDFTheme)
+	fontLanguages := pdfFontLanguages(options, ctx.Languages, scope)
 	return "<!doctype html><html lang=\"" + html.EscapeString(documentLanguage(ctx.Language)) + "\"><head><meta charset=\"utf-8\">" +
-		"<style>" + r.fontFaceCSS() + pdfTheme.DocumentCSS(scope) + pdfTheme.TableCSS(scope) + signatureCSS(pdfTheme, scope) + "</style></head><body>" +
+		"<style>" + r.fontFaceCSS(pdfTheme, fontLanguages) + pdfThemeFontCSS(pdfTheme, ctx.Languages) + pdfTheme.DocumentCSS(scope) + pdfTheme.TableCSS(scope) + signatureCSS(pdfTheme, scope) + "</style></head><body>" +
 		body + "</body></html>"
 }
 
-func (r *pdfRenderer) fontFaceCSS() string {
+func (r *pdfRenderer) fontFaceCSS(pdfTheme theme.Definition, languages []string) string {
 	if r.fontDir == "" {
 		return ""
 	}
-	fonts := []struct {
-		family string
-		file   string
-		weight string
-	}{
-		{"SF-Mono", "SF-Mono-Regular.ttf", "400"},
-		{"SF-Mono", "SF-Mono-Bold.ttf", "700"},
-		{"SF-Mono-Light", "SF-Mono-Light.ttf", "300"},
-		{"TimesNewRoman", "Times New Roman.ttf", "400"},
-		{"TimesNewRoman", "Times New Roman Bold.ttf", "700"},
-		{"TCSongti", "Songti-TC-Regular.ttf", "400"},
-		{"TCSongti", "Songti-TC-Bold.ttf", "700"},
-	}
+	fonts := pdfTheme.FontFaces(primaryPDFChineseLanguage(languages))
 	var out strings.Builder
 	for _, font := range fonts {
-		path := filepath.Join(r.fontDir, font.file)
+		path := filepath.Join(r.fontDir, font.File)
 		out.WriteString("@font-face{font-family:\"")
-		out.WriteString(font.family)
+		out.WriteString(font.Family)
 		out.WriteString("\";src:url(\"")
 		out.WriteString(fileURL(path))
 		out.WriteString("\") format(\"truetype\");font-weight:")
-		out.WriteString(font.weight)
-		out.WriteString(";font-style:normal;font-display:swap;}")
+		out.WriteString(font.Weight)
+		out.WriteString(";font-style:")
+		out.WriteString(font.Style)
+		out.WriteString(";font-display:block;}")
 	}
 	return out.String()
+}
+
+func pdfFontLanguages(options Options, languages []string, scope theme.Scope) []string {
+	out := append([]string{}, languages...)
+	if scope == theme.ScopeBudget {
+		out = append(out, options.SignatureLabelLanguage...)
+	}
+	return out
+}
+
+func pdfThemeFontCSS(pdfTheme theme.Definition, languages []string) string {
+	return pdfTheme.FontVariableCSS(primaryPDFChineseLanguage(languages))
+}
+
+func selectedPDFChineseLanguages(languages []string) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, language := range languages {
+		if (language == "sc" || language == "tc") && !seen[language] {
+			seen[language] = true
+			out = append(out, language)
+		}
+	}
+	if len(out) == 0 {
+		return []string{"tc"}
+	}
+	return out
+}
+
+func primaryPDFChineseLanguage(languages []string) string {
+	return selectedPDFChineseLanguages(languages)[0]
 }
 
 func (r *pdfRenderer) headerHTML(budget map[string]any, titleHTML, subtitleHTML string, options Options, scope theme.Scope) string {
@@ -458,7 +480,7 @@ func multilineBlockHTML(value string, lineClass string) string {
 		if line == "" {
 			continue
 		}
-		out = append(out, `<div class="`+lineClass+`">`+html.EscapeString(line)+`</div>`)
+		out = append(out, `<div class="`+html.EscapeString(lineClass)+`">`+html.EscapeString(line)+`</div>`)
 	}
 	return strings.Join(out, "")
 }

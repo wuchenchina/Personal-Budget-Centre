@@ -54,6 +54,7 @@ func OptionsFromInput(input map[string]any, defaultTheme string, rawSettings any
 	if len(signatureLanguages) == 0 {
 		signatureLanguages = []string{"en"}
 	}
+	pdfLanguages, signatureLanguages = alignPDFChineseLanguages(pdfLanguages, signatureLanguages)
 
 	showWorkspace := false
 	if hasAnyKey(input, "showWorkspace", "show_workspace") {
@@ -104,11 +105,14 @@ func SettingsJSON(raw any, currentRaw any) (string, error) {
 	if raw == nil {
 		settings = current
 	}
+	pdfLanguages := normalizePDFLanguages(firstValueMap(settings, current, "pdfLanguages", "pdf_languages"), []string{"en"})
+	signatureLanguages := normalizePDFLanguages(firstValueMap(settings, current, "signatureLabelLanguages", "signature_label_languages"), []string{"en"})
+	pdfLanguages, signatureLanguages = alignPDFChineseLanguages(pdfLanguages, signatureLanguages)
 	out := map[string]any{
 		"showWorkspace":           boolDefault(firstValueMap(settings, current, "showWorkspace", "show_workspace"), false),
-		"pdfLanguages":            normalizePDFLanguages(firstValueMap(settings, current, "pdfLanguages", "pdf_languages"), []string{"en"}),
+		"pdfLanguages":            pdfLanguages,
 		"signatureLabelMode":      SignatureLabelMode(firstValueMap(settings, current, "signatureLabelMode", "signature_label_mode")),
-		"signatureLabelLanguages": normalizePDFLanguages(firstValueMap(settings, current, "signatureLabelLanguages", "signature_label_languages"), []string{"en"}),
+		"signatureLabelLanguages": signatureLanguages,
 	}
 	encoded, err := json.Marshal(out)
 	if err != nil {
@@ -159,6 +163,55 @@ func normalizePDFLanguages(value any, fallback []string) []string {
 	}
 	if len(out) == 0 && fallback != nil {
 		return normalizePDFLanguages(fallback, nil)
+	}
+	return excludeConflictingChineseLanguage(out, selectedChineseLanguage(out))
+}
+
+func alignPDFChineseLanguages(pdfLanguages []string, signatureLanguages []string) ([]string, []string) {
+	chinese := selectedChineseLanguage(pdfLanguages)
+	if chinese == "" {
+		chinese = selectedChineseLanguage(signatureLanguages)
+	}
+	if chinese == "" {
+		return pdfLanguages, signatureLanguages
+	}
+	return excludeConflictingChineseLanguage(pdfLanguages, chinese), excludeConflictingChineseLanguage(signatureLanguages, chinese)
+}
+
+func selectedChineseLanguage(languages []string) string {
+	for _, language := range languages {
+		if language == "sc" || language == "tc" {
+			return language
+		}
+	}
+	return ""
+}
+
+func excludeConflictingChineseLanguage(languages []string, keep string) []string {
+	if keep != "sc" && keep != "tc" {
+		return languages
+	}
+	firstChineseIndex := -1
+	for index, language := range languages {
+		if language == "sc" || language == "tc" {
+			firstChineseIndex = index
+			break
+		}
+	}
+	if firstChineseIndex < 0 {
+		return languages
+	}
+	out := make([]string, 0, len(languages))
+	inserted := false
+	for index, language := range languages {
+		if language == "sc" || language == "tc" {
+			if !inserted && index == firstChineseIndex {
+				out = append(out, keep)
+				inserted = true
+			}
+			continue
+		}
+		out = append(out, language)
 	}
 	return out
 }

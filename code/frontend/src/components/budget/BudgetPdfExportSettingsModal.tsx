@@ -3,31 +3,20 @@ import { Checkbox, Form, Modal, Radio, Switch } from 'antd';
 import { normalizePdfTheme, pdfThemeOptions } from '../../config/pdfThemes';
 import { languageOptions, useI18n } from '../../i18n';
 import type { AppLanguage } from '../../i18n';
-import type { PdfExportSettings } from '../../types/auth';
 import type { BudgetSignatureLabelMode, PdfThemeKey } from '../../types/budget';
-import { normalizePdfExportSettings, normalizePdfLanguages, normalizeSignatureLabelMode } from '../../utils/pdfExportSettings';
-
-export interface BudgetPdfExportSettingsValue extends PdfExportSettings {
-  pdfTheme: PdfThemeKey;
-}
+import type { BudgetPdfExportSettingsValue } from '../../utils/budgetPdfExportSettingsValue';
+import {
+  alignPdfChineseLanguages,
+  normalizePdfLanguages,
+  normalizeSignatureLabelMode,
+  selectedPdfChineseLanguage,
+} from '../../utils/pdfExportSettings';
 
 interface BudgetPdfExportSettingsModalProps {
   open: boolean;
   value: BudgetPdfExportSettingsValue;
   onApply: (value: BudgetPdfExportSettingsValue) => void;
   onCancel: () => void;
-}
-
-export function budgetPdfExportSettingsValue(
-  pdfTheme: PdfThemeKey | string | null | undefined,
-  settings: Partial<PdfExportSettings> | null | undefined,
-): BudgetPdfExportSettingsValue {
-  const normalizedSettings = normalizePdfExportSettings(settings);
-
-  return {
-    ...normalizedSettings,
-    pdfTheme: normalizePdfTheme(pdfTheme),
-  };
 }
 
 export function BudgetPdfExportSettingsModal({
@@ -47,14 +36,40 @@ export function BudgetPdfExportSettingsModal({
 
   const handleOk = async () => {
     const values = await form.validateFields();
+    const alignedLanguages = alignPdfChineseLanguages(
+      normalizePdfLanguages(values.pdfLanguages),
+      normalizePdfLanguages(values.signatureLabelLanguages),
+    );
 
     onApply({
       pdfTheme: normalizePdfTheme(values.pdfTheme),
       showWorkspace: values.showWorkspace === true,
-      pdfLanguages: normalizePdfLanguages(values.pdfLanguages),
+      pdfLanguages: alignedLanguages.pdfLanguages,
       signatureLabelMode: normalizeSignatureLabelMode(values.signatureLabelMode),
-      signatureLabelLanguages: normalizePdfLanguages(values.signatureLabelLanguages),
+      signatureLabelLanguages: alignedLanguages.signatureLabelLanguages,
     });
+  };
+
+  const syncChineseLanguages = (
+    changedField: 'pdfLanguages' | 'signatureLabelLanguages',
+    checkedValues: AppLanguage[],
+  ) => {
+    const nextPdfLanguages = changedField === 'pdfLanguages'
+      ? normalizePdfLanguages(checkedValues)
+      : normalizePdfLanguages(form.getFieldValue('pdfLanguages'));
+    const nextSignatureLabelLanguages = changedField === 'signatureLabelLanguages'
+      ? normalizePdfLanguages(checkedValues)
+      : normalizePdfLanguages(form.getFieldValue('signatureLabelLanguages'));
+    const preferredChineseLanguage = selectedPdfChineseLanguage(
+      changedField === 'pdfLanguages' ? nextPdfLanguages : nextSignatureLabelLanguages,
+    );
+    const alignedLanguages = alignPdfChineseLanguages(
+      nextPdfLanguages,
+      nextSignatureLabelLanguages,
+      preferredChineseLanguage,
+    );
+
+    form.setFieldsValue(alignedLanguages);
   };
 
   return (
@@ -102,7 +117,12 @@ export function BudgetPdfExportSettingsModal({
             },
           ]}
         >
-          <Checkbox.Group options={languageOptions} />
+          <Checkbox.Group
+            options={languageOptions}
+            onChange={(checkedValues) => {
+              syncChineseLanguages('pdfLanguages', checkedValues as AppLanguage[]);
+            }}
+          />
         </Form.Item>
         <Form.Item
           extra={t('pdfExportShowWorkspaceDescription')}
@@ -136,7 +156,12 @@ export function BudgetPdfExportSettingsModal({
             },
           ]}
         >
-          <Checkbox.Group options={languageOptions} />
+          <Checkbox.Group
+            options={languageOptions}
+            onChange={(checkedValues) => {
+              syncChineseLanguages('signatureLabelLanguages', checkedValues as AppLanguage[]);
+            }}
+          />
         </Form.Item>
       </Form>
     </Modal>

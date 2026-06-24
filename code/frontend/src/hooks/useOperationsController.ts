@@ -426,6 +426,10 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   };
 
   const createExport = async (format: BudgetExportFormat, exportOptions: BudgetExportOptions = {}) => {
+    if (creatingExportFormat !== null) {
+      return;
+    }
+
     if (selectedBudget === null) {
       setOperationsError(translateCurrent('selectBudgetFirst'));
 

@@ -1,6 +1,7 @@
 package exportpdf
 
 import (
+	"budgetcentre/backend/internal/exportpdf/theme"
 	"context"
 	"os"
 	"path/filepath"
@@ -34,7 +35,6 @@ func TestRenderBudgetHTMLUsesLegacyPDFThemeStructure(t *testing.T) {
 		"header-left",
 		"header-middle",
 		"signature-svg",
-		"data:image/svg+xml;base64,",
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("budget HTML missing %q\n%s", want, html)
@@ -170,6 +170,187 @@ func TestRenderHTMLKeepsAllPDFThemesAvailable(t *testing.T) {
 			}
 			if !strings.Contains(html, tt.wantBookkeeping) {
 				t.Fatalf("bookkeeping HTML for theme %s missing %q\n%s", tt.theme, tt.wantBookkeeping, html)
+			}
+		})
+	}
+}
+
+func TestRenderHTMLIncludesThemePDFFontFaces(t *testing.T) {
+	service := Service{
+		FontDir: "/app/font",
+		LoadBudgetTemplate: func(context.Context, map[string]any) (Template, error) {
+			return DefaultTemplate(), nil
+		},
+	}
+	cases := []struct {
+		name       string
+		theme      string
+		languages  []string
+		want       []string
+		unexpected []string
+	}{
+		{
+			name:      "classic/traditional",
+			theme:     "classic",
+			languages: []string{"en", "tc"},
+			want: []string{
+				`font-family:"TimesNewRoman";src:url("file:///app/font/Times%20New%20Roman.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"SF-Mono";src:url("file:///app/font/SF-Mono-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"Menlo";src:url("file:///app/font/Menlo.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"TCSongti";src:url("file:///app/font/Songti-TC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"Songti TC";src:url("file:///app/font/Songti-TC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`--pdf-classic-serif-font-family:TimesNewRoman,TCSongti,"Songti TC",serif`,
+			},
+			unexpected: []string{
+				`font-family:"PingFang HK"`,
+				`font-family:"Songti SC"`,
+			},
+		},
+		{
+			name:      "classic/simplified",
+			theme:     "classic",
+			languages: []string{"en", "sc"},
+			want: []string{
+				`font-family:"Songti SC";src:url("file:///app/font/Songti.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`--pdf-classic-serif-font-family:TimesNewRoman,"Songti SC",serif`,
+			},
+			unexpected: []string{
+				`font-family:"PingFang SC"`,
+				`font-family:"TCSongti"`,
+				`font-family:"Songti TC"`,
+			},
+		},
+		{
+			name:      "hsbc/traditional",
+			theme:     "hsbc",
+			languages: []string{"en", "tc"},
+			want: []string{
+				`font-family:"Arial";src:url("file:///app/font/Arial.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"Arial";src:url("file:///app/font/Arial%20Bold.ttf") format("truetype");font-weight:700;font-style:normal;font-display:block;`,
+				`font-family:"PingFang HK";src:url("file:///app/font/PingFang.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`--pdf-sans-font-family:Arial,"PingFang HK",sans-serif`,
+			},
+			unexpected: []string{
+				`font-family:"TimesNewRoman"`,
+				`font-family:"TCSongti"`,
+				`font-family:"Songti TC"`,
+				`font-family:"Songti SC"`,
+			},
+		},
+		{
+			name:      "uswds/simplified",
+			theme:     "uswds",
+			languages: []string{"en", "sc"},
+			want: []string{
+				`font-family:"Arial";src:url("file:///app/font/Arial.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"PingFang SC";src:url("file:///app/font/PingFang.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`--pdf-sans-font-family:Arial,"PingFang SC",sans-serif`,
+			},
+			unexpected: []string{
+				`font-family:"PingFang HK"`,
+				`font-family:"TimesNewRoman"`,
+				`font-family:"TCSongti"`,
+				`font-family:"Songti TC"`,
+				`font-family:"Songti SC"`,
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			html, err := service.RenderHTML(context.Background(), samplePDFBudget(), "budget", Options{
+				PDFTheme:             tt.theme,
+				PDFLanguages:         tt.languages,
+				PDFLanguagesExplicit: true,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(html, want) {
+					t.Fatalf("budget HTML missing font-face/CSS %q\n%s", want, html)
+				}
+			}
+			for _, unexpected := range tt.unexpected {
+				if strings.Contains(html, unexpected) {
+					t.Fatalf("budget HTML contains unexpected font-face/CSS %q\n%s", unexpected, html)
+				}
+			}
+		})
+	}
+}
+
+func TestOptionsNormalizeExclusiveChineseLanguages(t *testing.T) {
+	options := OptionsFromInput(map[string]any{
+		"pdfLanguages":            []any{"en", "sc", "tc"},
+		"signatureLabelLanguages": []any{"en", "tc", "sc"},
+		"tableLanguageMode":       "bilingual",
+		"tableChineseLanguage":    "tc",
+		"signatureLabelMode":      "signature",
+		"showWorkspace":           true,
+		"pdfTheme":                "uswds",
+	}, "classic", nil)
+
+	if got, want := strings.Join(options.PDFLanguages, ","), "en,sc"; got != want {
+		t.Fatalf("PDFLanguages = %q, want %q", got, want)
+	}
+	if got, want := strings.Join(options.SignatureLabelLanguage, ","), "en,sc"; got != want {
+		t.Fatalf("SignatureLabelLanguage = %q, want %q", got, want)
+	}
+
+	settingsJSON, err := SettingsJSON(map[string]any{
+		"pdfLanguages":            []any{"en", "tc", "sc"},
+		"signatureLabelLanguages": []any{"en", "sc", "tc"},
+		"signatureLabelMode":      "confirmation",
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(settingsJSON, `"pdfLanguages":["en","tc"]`) {
+		t.Fatalf("settings JSON must keep one Chinese PDF language: %s", settingsJSON)
+	}
+	if !strings.Contains(settingsJSON, `"signatureLabelLanguages":["en","tc"]`) {
+		t.Fatalf("settings JSON must align signature Chinese language: %s", settingsJSON)
+	}
+}
+
+func TestFooterTemplatesFollowThemeChineseFontStack(t *testing.T) {
+	cases := []struct {
+		name       string
+		theme      string
+		languages  []string
+		want       string
+		unexpected string
+	}{
+		{
+			name:       "classic simplified",
+			theme:      "classic",
+			languages:  []string{"en", "sc"},
+			want:       `font-family:SF-Mono,'Songti SC',monospace`,
+			unexpected: `TCSongti`,
+		},
+		{
+			name:       "hsbc traditional",
+			theme:      "hsbc",
+			languages:  []string{"en", "tc"},
+			want:       `font-family:Arial,'PingFang HK',sans-serif`,
+			unexpected: `PingFang SC`,
+		},
+		{
+			name:       "uswds simplified",
+			theme:      "uswds",
+			languages:  []string{"en", "sc"},
+			want:       `font-family:Arial,'PingFang SC',sans-serif`,
+			unexpected: `PingFang HK`,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			footer := footerTemplateForOptions(theme.ForKey(tt.theme), theme.ScopeBudget, Options{PDFLanguages: tt.languages})
+			if !strings.Contains(footer, tt.want) {
+				t.Fatalf("footer missing %q: %s", tt.want, footer)
+			}
+			if strings.Contains(footer, tt.unexpected) {
+				t.Fatalf("footer contains unexpected %q: %s", tt.unexpected, footer)
 			}
 		})
 	}

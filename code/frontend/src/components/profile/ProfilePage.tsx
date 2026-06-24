@@ -16,11 +16,17 @@ import { setPendingSsoMergeToken } from '../../config/ssoMerge';
 import { normalizePdfTheme, pdfThemeOptions } from '../../config/pdfThemes';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { languageOptions, useI18n } from '../../i18n';
-import type { I18nKey } from '../../i18n';
+import type { AppLanguage, I18nKey } from '../../i18n';
 import type { AuthSession, SsoBinding } from '../../types/auth';
 import type { BudgetSignatureLabelMode } from '../../types/budget';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
-import { normalizePdfExportSettings, normalizePdfLanguages, normalizeSignatureLabelMode } from '../../utils/pdfExportSettings';
+import {
+  alignPdfChineseLanguages,
+  normalizePdfExportSettings,
+  normalizePdfLanguages,
+  normalizeSignatureLabelMode,
+  selectedPdfChineseLanguage,
+} from '../../utils/pdfExportSettings';
 import { currencySearchLabel, renderCurrencyOption } from '../../utils/currencyOptions';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
 import styles from './ProfilePage.module.css';
@@ -88,9 +94,10 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const previewSignatureLabelMode = normalizeSignatureLabelMode(
     watchedSignatureLabelMode ?? previewSettings.signatureLabelMode,
   );
-  const previewSignatureLabelLanguages = normalizePdfLanguages(
-    watchedSignatureLabelLanguages ?? previewSettings.signatureLabelLanguages,
-  );
+  const previewSignatureLabelLanguages = alignPdfChineseLanguages(
+    previewPdfLanguages,
+    normalizePdfLanguages(watchedSignatureLabelLanguages ?? previewSettings.signatureLabelLanguages),
+  ).signatureLabelLanguages;
   const previewWorkspaceName = session.workspace?.name ?? t('noWorkspaceSelected');
   const profileCurrencyOptions = operations.currencyPresets
     .filter((currency) => bochkProfileCurrencyCodes.has(currency.code))
@@ -164,6 +171,33 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     } finally {
       setIsProfileSaving(false);
     }
+  };
+
+  const syncExportChineseLanguages = (
+    changedField: 'pdfLanguages' | 'signatureLabelLanguages',
+    checkedValues: AppLanguage[],
+  ) => {
+    const nextPdfLanguages = changedField === 'pdfLanguages'
+      ? normalizePdfLanguages(checkedValues)
+      : normalizePdfLanguages(exportForm.getFieldValue(['pdfExportSettings', 'pdfLanguages']));
+    const nextSignatureLabelLanguages = changedField === 'signatureLabelLanguages'
+      ? normalizePdfLanguages(checkedValues)
+      : normalizePdfLanguages(exportForm.getFieldValue(['pdfExportSettings', 'signatureLabelLanguages']));
+    const preferredChineseLanguage = selectedPdfChineseLanguage(
+      changedField === 'pdfLanguages' ? nextPdfLanguages : nextSignatureLabelLanguages,
+    );
+    const alignedLanguages = alignPdfChineseLanguages(
+      nextPdfLanguages,
+      nextSignatureLabelLanguages,
+      preferredChineseLanguage,
+    );
+
+    exportForm.setFieldsValue({
+      pdfExportSettings: {
+        ...exportForm.getFieldValue('pdfExportSettings'),
+        ...alignedLanguages,
+      },
+    });
   };
 
   const handleEmailChange = async () => {
@@ -533,6 +567,9 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                               <Checkbox.Group
                                 className={styles.languageCheckboxes}
                                 options={languageOptions}
+                                onChange={(checkedValues) => {
+                                  syncExportChineseLanguages('pdfLanguages', checkedValues as AppLanguage[]);
+                                }}
                               />
                             </Form.Item>
                             <Form.Item
@@ -582,6 +619,9 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                               <Checkbox.Group
                                 className={styles.languageCheckboxes}
                                 options={languageOptions}
+                                onChange={(checkedValues) => {
+                                  syncExportChineseLanguages('signatureLabelLanguages', checkedValues as AppLanguage[]);
+                                }}
                               />
                             </Form.Item>
                           </div>

@@ -8,20 +8,37 @@ import (
 
 type staticTheme struct {
 	key                    string
+	fontFaces              func(string) []FontFace
+	fontVariableCSS        func(string) string
 	budgetDocumentCSS      string
 	budgetTableCSS         string
 	bookkeepingDocumentCSS string
 	bookkeepingTableCSS    string
 	signatureCSS           string
+	signatureFontFamily    func(string, bool, string) string
 	signatureFullWidthMM   float64
 	budgetMargins          MarginsMM
 	bookkeepingMargins     MarginsMM
 	header                 func(map[string]any, string, string, HeaderOptions, Scope) string
-	footer                 func(Scope) string
+	footer                 func(Scope, string) string
 }
 
 func (t staticTheme) Key() string {
 	return t.key
+}
+
+func (t staticTheme) FontFaces(chineseLanguage string) []FontFace {
+	if t.fontFaces == nil {
+		return classicFontFaces(chineseLanguage)
+	}
+	return t.fontFaces(chineseLanguage)
+}
+
+func (t staticTheme) FontVariableCSS(chineseLanguage string) string {
+	if t.fontVariableCSS == nil {
+		return classicFontVariableCSS(chineseLanguage)
+	}
+	return t.fontVariableCSS(chineseLanguage)
 }
 
 func (t staticTheme) DocumentCSS(scope Scope) string {
@@ -42,6 +59,13 @@ func (t staticTheme) SignatureCSS() string {
 	return t.signatureCSS
 }
 
+func (t staticTheme) SignatureFontFamily(fontRole string, containsCJK bool, chineseLanguage string) string {
+	if t.signatureFontFamily == nil {
+		return classicSignatureFontFamily(fontRole, containsCJK, chineseLanguage)
+	}
+	return t.signatureFontFamily(fontRole, containsCJK, chineseLanguage)
+}
+
 func (t staticTheme) SignatureFullWidthMM() float64 {
 	return t.signatureFullWidthMM
 }
@@ -60,11 +84,11 @@ func (t staticTheme) HeaderHTML(budget map[string]any, titleHTML, subtitleHTML s
 	return t.header(budget, titleHTML, subtitleHTML, options, scope)
 }
 
-func (t staticTheme) FooterTemplate(scope Scope) string {
+func (t staticTheme) FooterTemplate(scope Scope, chineseLanguage string) string {
 	if t.footer == nil {
-		return classicFooterTemplate(scope)
+		return classicFooterTemplate(scope, chineseLanguage)
 	}
-	return t.footer(scope)
+	return t.footer(scope, chineseLanguage)
 }
 
 func baseDocumentCSS() string {
@@ -176,18 +200,6 @@ func totalPagesText(options HeaderOptions) string {
 		return strings.TrimSpace(options.TotalPages)
 	}
 	return "{nbpg}"
-}
-
-func classicFooterTemplate(_ Scope) string {
-	return `<div style="width:100%;font-family:SF-Mono,TCSongti,monospace;font-size:7pt;color:#666;text-align:center;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>`
-}
-
-func hsbcFooterTemplate(_ Scope) string {
-	return `<div style="width:100%;font-family:Arial,TCSongti,sans-serif;font-size:7pt;color:#555;text-align:center;"><span class="pageNumber"></span></div>`
-}
-
-func uswdsFooterTemplate(_ Scope) string {
-	return `<div style="width:100%;font-family:Arial,TCSongti,sans-serif;font-size:7pt;color:#565c65;text-align:center;border-top:0.2mm solid #dfe1e2;padding-top:1.2mm;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>`
 }
 
 func firstNonEmpty(values ...any) any {
