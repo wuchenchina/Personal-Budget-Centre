@@ -191,6 +191,48 @@ func TestCurrencyResponseMarksAPIManagedCurrencyAsNotDeletable(t *testing.T) {
 	}
 }
 
+func TestCurrencyDeleteClearsExchangeRateReferencesBeforeUsageCheck(t *testing.T) {
+	content, err := os.ReadFile("currencies.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func (a *App) currencyDelete")
+	end := strings.Index(source, "func (a *App) currencyExists")
+	if start < 0 || end < start {
+		t.Fatal("could not locate currencyDelete function")
+	}
+	body := source[start:end]
+	cleanupIndex := strings.Index(body, "deleteCurrencyExchangeRateReferences")
+	usageIndex := strings.Index(body, "currencyUsageCountTx")
+	if cleanupIndex < 0 || usageIndex < 0 || cleanupIndex > usageIndex {
+		t.Fatal("manual currency deletion must clear exchange-rate-only references before checking business usage")
+	}
+	for _, want := range []string{
+		"DELETE FROM exchange_rates",
+		"DELETE FROM exchange_rate_history",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("currency deletion must remove pure exchange-rate references, missing %q", want)
+		}
+	}
+}
+
+func TestNormalizedLogEntryUsesArrayTraceAndObjectQuery(t *testing.T) {
+	entry := normalizedLogEntry(map[string]any{
+		"id":     "log-1",
+		"status": 409,
+		"trace":  nil,
+		"query":  nil,
+	}, "raw")
+	if trace, ok := entry["trace"].([]string); !ok || len(trace) != 0 {
+		t.Fatalf("trace must normalize to empty string slice, got %#v", entry["trace"])
+	}
+	if query, ok := entry["query"].(map[string]any); !ok || len(query) != 0 {
+		t.Fatalf("query must normalize to empty object, got %#v", entry["query"])
+	}
+}
+
 func legacyPHPRoutes(t *testing.T) []string {
 	t.Helper()
 	content, err := os.ReadFile(filepath.Join("..", "..", "..", "backend-php-legacy", "src", "App.php"))

@@ -313,7 +313,9 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
               {
                 key: 'pending',
                 label: t('databasePendingMigrations'),
-                children: controller.databaseStatus.pending.length,
+                children: Array.isArray(controller.databaseStatus.pending)
+                  ? controller.databaseStatus.pending.length
+                  : 0,
               },
             ]}
           />

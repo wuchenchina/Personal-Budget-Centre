@@ -140,7 +140,7 @@ export function useAdminController(enabled: boolean) {
           if (!isMounted) {
             return;
           }
-          setLogs(result.entries);
+          setLogs(normalizeAdminLogEntries(result.entries));
           setLogPath(result.path);
         })
         .catch((caught: unknown) => {
@@ -279,7 +279,7 @@ export function useAdminController(enabled: boolean) {
 
     try {
       const result = await listAdminLogs();
-      setLogs(result.entries);
+      setLogs(normalizeAdminLogEntries(result.entries));
       setLogPath(result.path);
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : translateCurrent('logsLoadFailed'));
@@ -295,8 +295,9 @@ export function useAdminController(enabled: boolean) {
 
     try {
       const result = await getAdminDatabaseStatus();
-      setDatabaseStatus(result);
-      setNotice(translateCurrent('databaseStatusUpdated', { count: result.pending.length }));
+      const status = normalizeAdminDatabaseStatus(result);
+      setDatabaseStatus(status);
+      setNotice(translateCurrent('databaseStatusUpdated', { count: status.pending.length }));
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : translateCurrent('databaseStatusLoadFailed'));
     } finally {
@@ -327,7 +328,7 @@ export function useAdminController(enabled: boolean) {
     try {
       const result = await runAdminDatabaseMigration(false);
       if (result.database) {
-        setDatabaseStatus(result.database);
+        setDatabaseStatus(normalizeAdminDatabaseStatus(result.database));
       }
       setNotice(translateCurrent('databaseMigrationRetryDone'));
     } catch (caught: unknown) {
@@ -375,3 +376,25 @@ export function useAdminController(enabled: boolean) {
 }
 
 export type AdminController = ReturnType<typeof useAdminController>;
+
+function normalizeAdminLogEntries(entries: AdminLogEntry[] | null | undefined): AdminLogEntry[] {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+  return entries.map((entry) => ({
+    ...entry,
+    trace: Array.isArray(entry.trace) ? entry.trace : [],
+    query: entry.query && typeof entry.query === 'object' ? entry.query : {},
+    file: entry.file ?? '',
+    exception: entry.exception ?? '',
+    message: entry.message ?? '',
+  }));
+}
+
+function normalizeAdminDatabaseStatus(status: AdminDatabaseStatus): AdminDatabaseStatus {
+  return {
+    ...status,
+    applied: Array.isArray(status.applied) ? status.applied : [],
+    pending: Array.isArray(status.pending) ? status.pending : [],
+  };
+}

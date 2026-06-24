@@ -106,15 +106,41 @@ func normalizedLogEntry(entry map[string]any, raw string) map[string]any {
 		"line":      entry["line"],
 		"method":    entry["method"],
 		"path":      entry["path"],
-		"query":     entry["query"],
+		"query":     normalizedLogObject(entry["query"]),
 		"ipAddress": entry["ipAddress"],
 		"userAgent": entry["userAgent"],
-		"trace":     entry["trace"],
+		"trace":     normalizedLogTrace(entry["trace"]),
 	}
 	if out["status"] == int64(0) {
 		out["status"] = http.StatusInternalServerError
 	}
 	return out
+}
+
+func normalizedLogTrace(value any) []string {
+	raw, ok := value.([]any)
+	if !ok {
+		if typed, ok := value.([]string); ok {
+			return typed
+		}
+		return []string{}
+	}
+	out := make([]string, 0, len(raw))
+	for _, item := range raw {
+		text := stringValue(item)
+		if text != "" {
+			out = append(out, text)
+		}
+	}
+	return out
+}
+
+func normalizedLogObject(value any) map[string]any {
+	raw, ok := value.(map[string]any)
+	if !ok {
+		return map[string]any{}
+	}
+	return raw
 }
 
 func redactedQuery(r *http.Request) map[string]any {

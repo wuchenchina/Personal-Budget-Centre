@@ -79,7 +79,8 @@ export function AdminLogsPanel({ controller }: AdminLogsPanelProps) {
         dataSource={controller.logs}
         expandable={{
           expandedRowRender: (record) => <LogEntryDetails entry={record} />,
-          rowExpandable: (record) => record.trace.length > 0 || record.file !== '',
+          rowExpandable: (record) =>
+            (Array.isArray(record.trace) && record.trace.length > 0) || record.file !== '',
         }}
         loading={controller.isLogsLoading}
         locale={{ emptyText: t('noLogs') }}
@@ -99,12 +100,13 @@ function LogEntryDetails({ entry }: { entry: AdminLogEntry }) {
     `${t('source')}: ${entry.file || '-'}${entry.line === null ? '' : `:${entry.line}`}`,
     `${t('ipAddress')}: ${entry.ipAddress ?? '-'}`,
     `${t('userAgent')}: ${entry.userAgent ?? '-'}`,
-    `${t('query')}: ${JSON.stringify(entry.query)}`,
+    `${t('query')}: ${JSON.stringify(entry.query ?? {})}`,
   ];
+  const trace = Array.isArray(entry.trace) ? entry.trace : [];
 
   return (
     <div className="admin-log-details">
-      <pre>{[...details, '', ...entry.trace].join('\n')}</pre>
+      <pre>{[...details, '', ...trace].join('\n')}</pre>
     </div>
   );
 }

@@ -93,7 +93,15 @@ func (a *App) currencyDelete(w http.ResponseWriter, r *http.Request) error {
 	if currency.IsAPIManaged {
 		return apiError("CURRENCY_API_MANAGED", "API-managed currencies cannot be deleted.", http.StatusUnprocessableEntity)
 	}
-	usage, err := a.currencyUsageCount(r.Context(), currency.ID)
+	tx, err := a.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := deleteCurrencyExchangeRateReferences(r.Context(), tx, currency.ID); err != nil {
+		return err
+	}
+	usage, err := a.currencyUsageCountTx(r.Context(), tx, currency.ID)
 	if err != nil {
 		return err
 	}
@@ -108,7 +116,10 @@ func (a *App) currencyDelete(w http.ResponseWriter, r *http.Request) error {
 			},
 		}
 	}
-	if _, err := a.db.ExecContext(r.Context(), "DELETE FROM currencies WHERE id = ?", currency.ID); err != nil {
+	if _, err := tx.ExecContext(r.Context(), "DELETE FROM currencies WHERE id = ?", currency.ID); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	currencies, err := a.currencies(r.Context())
@@ -232,7 +243,11 @@ func normalizedCurrencyCode(value any) string {
 }
 
 func (a *App) currencyUsageCount(ctx context.Context, currencyID int64) (int64, error) {
-	rows, err := a.db.QueryContext(ctx, `SELECT table_name, column_name
+	return a.currencyUsageCountTx(ctx, a.db, currencyID)
+}
+
+func (a *App) currencyUsageCountTx(ctx context.Context, db queryExecer, currencyID int64) (int64, error) {
+	rows, err := db.QueryContext(ctx, `SELECT table_name, column_name
 FROM information_schema.key_column_usage
 WHERE table_schema = DATABASE()
   AND referenced_table_name = 'currencies'
@@ -248,7 +263,7 @@ ORDER BY table_name, column_name`)
 		if err := rows.Scan(&tableName, &columnName); err != nil {
 			return 0, err
 		}
-		count, err := a.currencyColumnUsage(ctx, tableName, columnName, currencyID)
+		count, err := currencyColumnUsage(ctx, db, tableName, columnName, currencyID)
 		if err != nil {
 			return 0, err
 		}
@@ -257,7 +272,17 @@ ORDER BY table_name, column_name`)
 	return total, rows.Err()
 }
 
-func (a *App) currencyColumnUsage(ctx context.Context, tableName, columnName string, currencyID int64) (int64, error) {
+func deleteCurrencyExchangeRateReferences(ctx context.Context, tx *sql.Tx, currencyID int64) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM exchange_rates
+WHERE from_currency_id = ? OR to_currency_id = ?`, currencyID, currencyID); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, `DELETE FROM exchange_rate_history
+WHERE from_currency_id = ? OR to_currency_id = ?`, currencyID, currencyID)
+	return err
+}
+
+func currencyColumnUsage(ctx context.Context, db queryExecer, tableName, columnName string, currencyID int64) (int64, error) {
 	tableID, err := quoteMySQLIdentifier(tableName)
 	if err != nil {
 		return 0, err
@@ -268,10 +293,15 @@ func (a *App) currencyColumnUsage(ctx context.Context, tableName, columnName str
 	}
 	var count int64
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s = ?", tableID, columnID)
-	if err := a.db.QueryRowContext(ctx, query, currencyID).Scan(&count); err != nil {
+	if err := db.QueryRowContext(ctx, query, currencyID).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
+}
+
+type queryExecer interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
 func quoteMySQLIdentifier(value string) (string, error) {
