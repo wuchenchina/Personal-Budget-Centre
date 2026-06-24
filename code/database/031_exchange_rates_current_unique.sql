@@ -60,35 +60,3 @@ JOIN exchange_rates newer
    newer.rate_date > er.rate_date
    OR (newer.rate_date = er.rate_date AND newer.id > er.id)
  );
-
-SET @exchange_rate_scope_column_exists := (
-  SELECT COUNT(*)
-  FROM information_schema.columns
-  WHERE table_schema = DATABASE()
-    AND table_name = 'exchange_rates'
-    AND column_name = 'workspace_scope_id'
-);
-SET @sql := IF(
-  @exchange_rate_scope_column_exists = 0,
-  'ALTER TABLE exchange_rates ADD COLUMN workspace_scope_id BIGINT UNSIGNED GENERATED ALWAYS AS (COALESCE(workspace_id, 0)) STORED AFTER workspace_id',
-  'DO 0'
-);
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @exchange_rate_current_unique_exists := (
-  SELECT COUNT(*)
-  FROM information_schema.statistics
-  WHERE table_schema = DATABASE()
-    AND table_name = 'exchange_rates'
-    AND index_name = 'uq_exchange_rates_current'
-);
-SET @sql := IF(
-  @exchange_rate_current_unique_exists = 0,
-  'ALTER TABLE exchange_rates ADD UNIQUE KEY uq_exchange_rates_current (workspace_scope_id, from_currency_id, to_currency_id, source, provider_rate_type)',
-  'DO 0'
-);
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;

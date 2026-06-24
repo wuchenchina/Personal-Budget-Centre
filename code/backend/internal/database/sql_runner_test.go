@@ -120,6 +120,24 @@ func TestLegacyProviderCurrentRatesAreArchivedAndRemoved(t *testing.T) {
 	}
 }
 
+func TestCurrentExchangeRateMigrationDoesNotRequireGeneratedUniqueIndex(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("..", "..", "..", "database", "031_exchange_rates_current_unique.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := string(content)
+	for _, blocked := range []string{
+		"workspace_scope_id",
+		"GENERATED ALWAYS",
+		"uq_exchange_rates_current",
+		"ADD UNIQUE KEY",
+	} {
+		if strings.Contains(sql, blocked) {
+			t.Fatalf("031 migration must avoid generated unique index because it can rebuild legacy FK tables, found %q", blocked)
+		}
+	}
+}
+
 func TestLegacyCurrencyAuditReportsLegacyProviderCurrentRows(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "scripts", "legacy_currency_audit.sql"))
 	if err != nil {

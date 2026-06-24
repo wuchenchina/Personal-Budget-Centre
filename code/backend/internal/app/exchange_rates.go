@@ -178,23 +178,13 @@ func saveCurrentExchangeRateTx(ctx context.Context, tx *sql.Tx, input currentExc
 	if err := archiveCurrentExchangeRatesTx(ctx, tx, input); err != nil {
 		return 0, err
 	}
+	if err := deleteArchivedCurrentExchangeRatesTx(ctx, tx, input); err != nil {
+		return 0, err
+	}
 	res, err := tx.ExecContext(ctx, `INSERT INTO exchange_rates
 (user_id, workspace_id, from_currency_id, to_currency_id, rate, rate_date, source, source_name, source_url,
 provider_rate_type, provider_sell_rate, provider_buy_rate, provider_updated_at, fetched_at, note)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE
-  id = LAST_INSERT_ID(id),
-  user_id = VALUES(user_id),
-  rate = VALUES(rate),
-  rate_date = VALUES(rate_date),
-  source_name = VALUES(source_name),
-  source_url = VALUES(source_url),
-  provider_sell_rate = VALUES(provider_sell_rate),
-  provider_buy_rate = VALUES(provider_buy_rate),
-  provider_updated_at = VALUES(provider_updated_at),
-  fetched_at = VALUES(fetched_at),
-  note = VALUES(note),
-  created_at = CURRENT_TIMESTAMP`,
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		nullableInt(input.UserID),
 		nullableInt(input.WorkspaceID),
 		input.FromCurrencyID,
@@ -217,16 +207,7 @@ ON DUPLICATE KEY UPDATE
 	if id, _ := res.LastInsertId(); id > 0 {
 		return id, nil
 	}
-	var id int64
-	err = tx.QueryRowContext(ctx, `SELECT id
-FROM exchange_rates
-WHERE (workspace_id <=> ?)
-  AND from_currency_id = ?
-  AND to_currency_id = ?
-  AND source = ?
-  AND provider_rate_type = ?
-LIMIT 1`, nullableInt(input.WorkspaceID), input.FromCurrencyID, input.ToCurrencyID, input.Source, input.ProviderRateType).Scan(&id)
-	return id, err
+	return 0, nil
 }
 
 const archiveCurrentExchangeRatesSQL = `INSERT INTO exchange_rate_history
@@ -245,6 +226,18 @@ WHERE (er.workspace_id <=> ?)
 
 func archiveCurrentExchangeRatesTx(ctx context.Context, tx *sql.Tx, input currentExchangeRateInput) error {
 	_, err := tx.ExecContext(ctx, archiveCurrentExchangeRatesSQL,
+		nullableInt(input.WorkspaceID), input.FromCurrencyID, input.ToCurrencyID, input.Source, input.ProviderRateType,
+	)
+	return err
+}
+
+func deleteArchivedCurrentExchangeRatesTx(ctx context.Context, tx *sql.Tx, input currentExchangeRateInput) error {
+	_, err := tx.ExecContext(ctx, `DELETE FROM exchange_rates
+WHERE (workspace_id <=> ?)
+  AND from_currency_id = ?
+  AND to_currency_id = ?
+  AND source = ?
+  AND provider_rate_type = ?`,
 		nullableInt(input.WorkspaceID), input.FromCurrencyID, input.ToCurrencyID, input.Source, input.ProviderRateType,
 	)
 	return err
