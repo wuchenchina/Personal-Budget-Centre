@@ -256,20 +256,35 @@ ORDER BY table_name, column_name`)
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
-	var total int64
+	type currencyReferenceColumn struct {
+		tableName  string
+		columnName string
+	}
+	references := []currencyReferenceColumn{}
 	for rows.Next() {
-		var tableName, columnName string
-		if err := rows.Scan(&tableName, &columnName); err != nil {
+		var reference currencyReferenceColumn
+		if err := rows.Scan(&reference.tableName, &reference.columnName); err != nil {
+			_ = rows.Close()
 			return 0, err
 		}
-		count, err := currencyColumnUsage(ctx, db, tableName, columnName, currencyID)
+		references = append(references, reference)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return 0, err
+	}
+	if err := rows.Close(); err != nil {
+		return 0, err
+	}
+	var total int64
+	for _, reference := range references {
+		count, err := currencyColumnUsage(ctx, db, reference.tableName, reference.columnName, currencyID)
 		if err != nil {
 			return 0, err
 		}
 		total += count
 	}
-	return total, rows.Err()
+	return total, nil
 }
 
 func deleteCurrencyExchangeRateReferences(ctx context.Context, tx *sql.Tx, currencyID int64) error {

@@ -218,6 +218,25 @@ func TestCurrencyDeleteClearsExchangeRateReferencesBeforeUsageCheck(t *testing.T
 	}
 }
 
+func TestCurrencyUsageCountClosesReferenceRowsBeforeCounting(t *testing.T) {
+	content, err := os.ReadFile("currencies.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func (a *App) currencyUsageCountTx")
+	end := strings.Index(source, "func deleteCurrencyExchangeRateReferences")
+	if start < 0 || end < start {
+		t.Fatal("could not locate currencyUsageCountTx function")
+	}
+	body := source[start:end]
+	closeIndex := strings.Index(body, "rows.Close()")
+	usageIndex := strings.Index(body, "currencyColumnUsage")
+	if closeIndex < 0 || usageIndex < 0 || closeIndex > usageIndex {
+		t.Fatal("currency usage counting must close information_schema rows before issuing per-table counts")
+	}
+}
+
 func TestNormalizedLogEntryUsesArrayTraceAndObjectQuery(t *testing.T) {
 	entry := normalizedLogEntry(map[string]any{
 		"id":     "log-1",

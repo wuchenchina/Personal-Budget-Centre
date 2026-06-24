@@ -79,8 +79,7 @@ export function AdminLogsPanel({ controller }: AdminLogsPanelProps) {
         dataSource={controller.logs}
         expandable={{
           expandedRowRender: (record) => <LogEntryDetails entry={record} />,
-          rowExpandable: (record) =>
-            (Array.isArray(record.trace) && record.trace.length > 0) || record.file !== '',
+          rowExpandable: () => true,
         }}
         loading={controller.isLogsLoading}
         locale={{ emptyText: t('noLogs') }}
