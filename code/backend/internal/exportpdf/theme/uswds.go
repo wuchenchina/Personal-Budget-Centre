@@ -36,7 +36,7 @@ func uswdsFontFaces(chineseLanguage string) []FontFace {
 	}
 	for _, family := range uswdsPingFangFamilies(chineseLanguage) {
 		for _, weight := range []string{"400", "500", "600", "700"} {
-			fonts = append(fonts, FontFace{family, "PingFang.ttc", weight, "normal"})
+			fonts = append(fonts, FontFace{family, pingFangFontFile(family, weight), weight, "normal"})
 		}
 	}
 	return fonts

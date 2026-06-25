@@ -425,30 +425,6 @@ export function TransactionModal({
             >
               <InputNumber className="form-full-width" precision={6} step={0.01} />
             </Form.Item>
-            <Form.Item
-              label={t('targetBaseAmount', { currency: baseCurrency })}
-              name="targetBaseAmount"
-              extra={t('targetBaseAmountHelp')}
-              rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
-            >
-              <InputNumber
-                addonBefore={baseCurrency}
-                className="form-full-width"
-                precision={2}
-                step={100}
-              />
-            </Form.Item>
-            <Form.Item label={t('rateSaveScope')} name="rateScope" initialValue="item">
-              <Radio.Group
-                block
-                optionType="button"
-                options={[
-                  { label: t('rateScopeItem'), value: 'item' },
-                  { label: t('rateScopeBudget'), value: 'budget_default' },
-                ]}
-                size="small"
-              />
-            </Form.Item>
           </div>
           <div className="currency-field-preview">
             <span>{t('baseCurrencyPreview')}</span>
@@ -458,63 +434,92 @@ export function TransactionModal({
                 : `${baseCurrency} ${basePreview.toFixed(2)}`}
             </strong>
           </div>
-          <div className="currency-reference-grid">
-            <Form.Item
-              label={t('referenceCurrency')}
-              name="referenceCurrency"
-              extra={t('referenceAmountHelp')}
-            >
-              <CurrencySelectWithQuickAdd
-                allowClear
-                currencies={currencies}
-                currencyPresets={currencyPresets}
-                options={currencyOptions}
-                onSaveCurrency={onSaveCurrency}
-              />
-            </Form.Item>
-            <Form.Item
-              label={t('referenceAmount')}
-              name="referenceAmount"
-              rules={[
-                { type: 'number', min: 0, message: t('referenceAmountMin') },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    if (typeof value !== 'number' || !Number.isFinite(value)) {
-                      return Promise.resolve();
-                    }
-
-                    return getFieldValue('referenceCurrency')
-                      ? Promise.resolve()
-                      : Promise.reject(new Error(t('selectReferenceCurrency')));
-                  },
-                }),
-              ]}
-            >
-              <InputNumber
-                addonBefore={referenceCurrency ?? t('currency')}
-                className="form-full-width"
-                precision={2}
-                step={100}
-              />
-            </Form.Item>
-          </div>
-          <div className="currency-field-preview currency-reference-preview">
-            <span>{t('referenceAmountPreview')}</span>
-            <span className="currency-reference-preview-actions">
-              <strong>
-                {referencePreview ?? '--'}
-                {impliedReferenceRate ? <small>{impliedReferenceRate}</small> : null}
-              </strong>
-              <Button
-                icon={<Calculator size={14} />}
-                loading={confirmLoading}
-                size="small"
-                onClick={onReferenceConvert}
+          <details className="currency-advanced-fields">
+            <summary>{t('advancedCurrencySettings')}</summary>
+            <div className="currency-reference-grid">
+              <Form.Item
+                label={t('targetBaseAmount', { currency: baseCurrency })}
+                name="targetBaseAmount"
+                extra={t('targetBaseAmountHelp')}
+                rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
               >
-                {t('referenceConvert')}
-              </Button>
-            </span>
-          </div>
+                <InputNumber
+                  addonBefore={baseCurrency}
+                  className="form-full-width"
+                  precision={2}
+                  step={100}
+                />
+              </Form.Item>
+              <Form.Item label={t('rateSaveScope')} name="rateScope" initialValue="item">
+                <Radio.Group
+                  block
+                  optionType="button"
+                  options={[
+                    { label: t('rateScopeItem'), value: 'item' },
+                    { label: t('rateScopeBudget'), value: 'budget_default' },
+                  ]}
+                  size="small"
+                />
+              </Form.Item>
+            </div>
+            <div className="currency-reference-grid">
+              <Form.Item
+                label={t('referenceCurrency')}
+                name="referenceCurrency"
+                extra={t('referenceAmountHelp')}
+              >
+                <CurrencySelectWithQuickAdd
+                  allowClear
+                  currencies={currencies}
+                  currencyPresets={currencyPresets}
+                  options={currencyOptions}
+                  onSaveCurrency={onSaveCurrency}
+                />
+              </Form.Item>
+              <Form.Item
+                label={t('referenceAmount')}
+                name="referenceAmount"
+                rules={[
+                  { type: 'number', min: 0, message: t('referenceAmountMin') },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (typeof value !== 'number' || !Number.isFinite(value)) {
+                        return Promise.resolve();
+                      }
+
+                      return getFieldValue('referenceCurrency')
+                        ? Promise.resolve()
+                        : Promise.reject(new Error(t('selectReferenceCurrency')));
+                    },
+                  }),
+                ]}
+              >
+                <InputNumber
+                  addonBefore={referenceCurrency ?? t('currency')}
+                  className="form-full-width"
+                  precision={2}
+                  step={100}
+                />
+              </Form.Item>
+            </div>
+            <div className="currency-field-preview currency-reference-preview">
+              <span>{t('referenceAmountPreview')}</span>
+              <span className="currency-reference-preview-actions">
+                <strong>
+                  {referencePreview ?? '--'}
+                  {impliedReferenceRate ? <small>{impliedReferenceRate}</small> : null}
+                </strong>
+                <Button
+                  icon={<Calculator size={14} />}
+                  loading={confirmLoading}
+                  size="small"
+                  onClick={onReferenceConvert}
+                >
+                  {t('referenceConvert')}
+                </Button>
+              </span>
+            </div>
+          </details>
         </div>
 
         <div className="modal-form-grid">

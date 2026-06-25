@@ -118,8 +118,12 @@ func hasPDFFonts(dir string) bool {
 	for _, file := range []string{
 		"Arial.ttf",
 		"Arial Bold.ttf",
-		"PingFang.ttc",
-		"Songti.ttc",
+		"PingFang-HK-Regular.ttf",
+		"PingFang-SC-Regular.ttf",
+		"PingFang-HK-Semibold.ttf",
+		"PingFang-SC-Semibold.ttf",
+		"Songti-SC-Regular.ttf",
+		"Songti-SC-Bold.ttf",
 		"Songti-TC-Regular.ttf",
 		"Songti-TC-Bold.ttf",
 	} {

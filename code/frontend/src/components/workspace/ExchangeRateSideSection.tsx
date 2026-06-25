@@ -203,7 +203,7 @@ export function ExchangeRateSideSection({
     setPrivateRateModalOpen(true);
   };
 
-  const openEditPrivateRate = (rate: CurrencyRate) => {
+  const openEditPrivateRate = useCallback((rate: CurrencyRate) => {
     setEditingPrivateRate(rate);
     privateRateForm.setFieldsValue({
       id: rate.id,
@@ -214,7 +214,7 @@ export function ExchangeRateSideSection({
       note: rate.note ?? undefined,
     });
     setPrivateRateModalOpen(true);
-  };
+  }, [privateRateForm]);
 
   const savePrivateRate = async () => {
     const values = await privateRateForm.validateFields();
@@ -248,7 +248,7 @@ export function ExchangeRateSideSection({
     }
   };
 
-  const removePrivateRate = async (id: number) => {
+  const removePrivateRate = useCallback(async (id: number) => {
     setError(null);
 
     try {
@@ -256,7 +256,7 @@ export function ExchangeRateSideSection({
     } catch (nextError: unknown) {
       setError(nextError instanceof Error ? nextError.message : t('saveExchangeRateFailed'));
     }
-  };
+  }, [t]);
 
   const boardColumns = useMemo<TableColumnsType<BochkRateBoardRow>>(
     () => [
@@ -359,7 +359,7 @@ export function ExchangeRateSideSection({
         ),
       },
     ],
-    [t],
+    [openEditPrivateRate, removePrivateRate, t],
   );
 
   const boardMetaItems: DescriptionsProps['items'] = [

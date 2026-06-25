@@ -404,10 +404,40 @@
 .currency-select-quick-add {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 
-.currency-select-quick-add > .ant-select {
+.currency-select-main-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.currency-select-main-row > .ant-select {
   width: 100%;
+}
+
+.currency-select-main-row > .ant-btn {
+  padding-inline: 6px;
+  color: var(--bc-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.currency-quick-add-panel {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  background: #fafafa;
+  border: 1px solid var(--bc-border-muted);
+}
+
+.currency-quick-add-mode-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .currency-option-two-line {
@@ -465,6 +495,30 @@
   grid-template-columns: minmax(160px, 0.7fr) minmax(180px, 1fr);
   gap: 12px;
   margin-top: 12px;
+}
+
+.currency-advanced-fields {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--bc-border-muted);
+}
+
+.currency-advanced-fields summary {
+  width: fit-content;
+  color: var(--bc-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.currency-advanced-fields[open] summary {
+  margin-bottom: 10px;
+}
+
+.currency-advanced-fields .ant-form-item {
+  margin-bottom: 0;
 }
 
 .currency-field-card {

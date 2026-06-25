@@ -35,8 +35,20 @@ export function CurrencySideSection({ isSystemAdmin, operations }: CurrencySideS
 
   useEffect(() => {
     if (selectedCode === undefined || existingCodes.has(selectedCode)) {
-      setSelectedCode(availableCatalog[0]?.code);
+      let isMounted = true;
+
+      queueMicrotask(() => {
+        if (isMounted) {
+          setSelectedCode(availableCatalog[0]?.code);
+        }
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }
+
+    return undefined;
   }, [availableCatalog, existingCodes, selectedCode]);
 
   const handleAddCatalogCurrency = async () => {

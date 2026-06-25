@@ -47,6 +47,9 @@ func (s Service) Write(ctx context.Context, budget map[string]any, scope string,
 	if err := os.MkdirAll(s.TempDir, 0o775); err != nil {
 		return err
 	}
+	if err := validatePDFFontFiles(s.FontDir, theme.ForKey(options.PDFTheme), pdfFontLanguages(options, options.PDFLanguages, pdfScope(scope))); err != nil {
+		return err
+	}
 	session, err := s.newPDFBrowserSession(ctx)
 	if err != nil {
 		return err
@@ -87,6 +90,19 @@ func (s Service) Write(ctx context.Context, budget map[string]any, scope string,
 		return err
 	}
 	return os.WriteFile(outputPath, finalPDF, 0o664)
+}
+
+func validatePDFFontFiles(fontDir string, pdfTheme theme.Definition, languages []string) error {
+	if fontDir == "" {
+		return fmt.Errorf("PDF font directory is not configured")
+	}
+	for _, font := range pdfTheme.FontFaces(primaryPDFChineseLanguage(languages)) {
+		path := filepath.Join(fontDir, font.File)
+		if info, err := os.Stat(path); err != nil || info.IsDir() {
+			return fmt.Errorf("PDF font file is missing: %s", path)
+		}
+	}
+	return nil
 }
 
 func (s Service) renderPDFPass(ctx context.Context, session *pdfBrowserSession, budget map[string]any, scope string, options Options) ([]byte, error) {

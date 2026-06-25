@@ -93,8 +93,8 @@ func classicFooterTemplate(_ Scope, chineseLanguage string) string {
 
 func classicSongtiFontFaces(chineseLanguage string) []FontFace {
 	sc := []FontFace{
-		{"Songti SC", "Songti.ttc", "400", "normal"},
-		{"Songti SC", "Songti.ttc", "700", "normal"},
+		{"Songti SC", songtiSCFontFile("400"), "400", "normal"},
+		{"Songti SC", songtiSCFontFile("700"), "700", "normal"},
 	}
 	tc := []FontFace{
 		{"TCSongti", "Songti-TC-Regular.ttf", "400", "normal"},

@@ -258,7 +258,6 @@ function AuthenticatedApp({
         defaultPdfTheme={session.user.defaultPdfTheme}
         exportingPdf={operations.creatingExportFormat === 'pdf'}
         pdfExportSettings={session.user.pdfExportSettings}
-        currencyOptions={operations.currencyOptions}
         onBackToProjects={() => navigateToPath('/budgets')}
         onOpenEditor={openBudgetProjectInNewTab}
         onExportPdf={(exportOptions) => operations.createExport('pdf', {

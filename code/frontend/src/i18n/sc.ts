@@ -38,6 +38,7 @@ export const scDictionary = {
     adminTitle: '后台管理',
     adminUserCreated: '已为 {email} 创建账户。',
     adminUserManagement: '后台用户管理',
+    advancedCurrencySettings: '进阶货币设置',
     alias: '别名',
     all: '全部',
     allStatus: '全部状态',

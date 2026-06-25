@@ -386,7 +386,7 @@ func TestRenderHTMLIncludesThemePDFFontFaces(t *testing.T) {
 				`font-family:"Menlo";src:url("file:///app/font/Menlo.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`font-family:"TCSongti";src:url("file:///app/font/Songti-TC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`font-family:"Songti TC";src:url("file:///app/font/Songti-TC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
-				`font-family:"Songti SC";src:url("file:///app/font/Songti.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"Songti SC";src:url("file:///app/font/Songti-SC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`--pdf-classic-serif-font-family:TimesNewRoman,TCSongti,"Songti TC","Songti SC",serif`,
 			},
 			unexpected: []string{
@@ -398,7 +398,7 @@ func TestRenderHTMLIncludesThemePDFFontFaces(t *testing.T) {
 			theme:     "classic",
 			languages: []string{"en", "sc"},
 			want: []string{
-				`font-family:"Songti SC";src:url("file:///app/font/Songti.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"Songti SC";src:url("file:///app/font/Songti-SC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`font-family:"TCSongti";src:url("file:///app/font/Songti-TC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`--pdf-classic-serif-font-family:TimesNewRoman,"Songti SC",TCSongti,"Songti TC",serif`,
 			},
@@ -413,8 +413,8 @@ func TestRenderHTMLIncludesThemePDFFontFaces(t *testing.T) {
 			want: []string{
 				`font-family:"Arial";src:url("file:///app/font/Arial.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`font-family:"Arial";src:url("file:///app/font/Arial%20Bold.ttf") format("truetype");font-weight:700;font-style:normal;font-display:block;`,
-				`font-family:"PingFang HK";src:url("file:///app/font/PingFang.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
-				`font-family:"PingFang SC";src:url("file:///app/font/PingFang.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"PingFang HK";src:url("file:///app/font/PingFang-HK-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"PingFang SC";src:url("file:///app/font/PingFang-SC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`--pdf-sans-font-family:Arial,"PingFang HK","PingFang SC",sans-serif`,
 			},
 			unexpected: []string{
@@ -430,8 +430,8 @@ func TestRenderHTMLIncludesThemePDFFontFaces(t *testing.T) {
 			languages: []string{"en", "sc"},
 			want: []string{
 				`font-family:"Arial";src:url("file:///app/font/Arial.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
-				`font-family:"PingFang SC";src:url("file:///app/font/PingFang.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
-				`font-family:"PingFang HK";src:url("file:///app/font/PingFang.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"PingFang SC";src:url("file:///app/font/PingFang-SC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`font-family:"PingFang HK";src:url("file:///app/font/PingFang-HK-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`--pdf-sans-font-family:Arial,"PingFang SC","PingFang HK",sans-serif`,
 			},
 			unexpected: []string{

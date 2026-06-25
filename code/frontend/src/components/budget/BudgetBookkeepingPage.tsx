@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Empty, FloatButton, Input, Popconfirm, Space, Spin, Table, Tabs, Tag, Tooltip } from 'antd';
+import { Alert, Button, Empty, Input, Popconfirm, Space, Spin, Table, Tabs, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
 import { ArrowLeft, Download, FileText, Landmark, Pencil, Plus, Search, Settings2, Trash2 } from 'lucide-react';
 import { transactionTypeColors } from '../../config/appConfig';
@@ -19,8 +19,6 @@ import {
   BudgetPdfExportSettingsModal,
 } from './BudgetPdfExportSettingsModal';
 import { budgetPdfExportSettingsValue } from '../../utils/budgetPdfExportSettingsValue';
-import { BudgetExchangeRateManager } from './BudgetExchangeRateManager';
-import type { CurrencySelectOption } from '../../utils/currencyOptions';
 
 interface BudgetBookkeepingPageProps {
   selectedBudget: BudgetDetail | null;
@@ -34,7 +32,6 @@ interface BudgetBookkeepingPageProps {
   defaultPdfTheme: PdfThemeKey;
   exportingPdf: boolean;
   pdfExportSettings: PdfExportSettings;
-  currencyOptions: CurrencySelectOption[];
   onBackToProjects: () => void;
   onOpenEditor: (budgetId: number) => void;
   onExportPdf: (options: BudgetExportOptions) => void;
@@ -57,7 +54,6 @@ export function BudgetBookkeepingPage({
   defaultPdfTheme,
   exportingPdf,
   pdfExportSettings,
-  currencyOptions,
   onBackToProjects,
   onOpenEditor,
   onExportPdf,
@@ -123,10 +119,6 @@ export function BudgetBookkeepingPage({
     [activeFilter, normalizedSearch, records],
   );
   const totals = useMemo(() => ledgerTotals(records, currency), [currency, records]);
-  const visibleOrderTotals = useMemo(
-    () => orderTransactionTotals(filteredRecords, currency),
-    [currency, filteredRecords],
-  );
   const columns = useMemo<TableProps<BookkeepingRecord>['columns']>(() => [
     {
       key: 'type',
@@ -143,7 +135,7 @@ export function BudgetBookkeepingPage({
       title: t('date'),
       dataIndex: 'recordDate',
       width: 106,
-      render: (value: BookkeepingRecord['recordDate']) => value ?? '-',
+      render: (value: BookkeepingRecord['recordDate']) => formatRecordDate(value),
     },
     {
       key: 'order',
@@ -286,12 +278,6 @@ export function BudgetBookkeepingPage({
               {t('newTabEdit')}
             </Button>
           ) : null}
-          <BudgetExchangeRateManager
-            budgetId={selectedBudget?.id ?? null}
-            baseCurrency={currency}
-            canWriteBudgets={canWriteBudgets}
-            currencyOptions={currencyOptions}
-          />
           {canWriteBudgets ? (
             <Button type="primary" icon={<Plus size={16} />} onClick={onNewRecord}>
               {t('addBookkeepingRecord')}
@@ -394,49 +380,13 @@ export function BudgetBookkeepingPage({
           locale={{ emptyText: <Empty image={<Landmark size={34} />} description={t('bookkeepingRecordsEmpty')} /> }}
           pagination={{
             defaultPageSize: 12,
-            pageSizeOptions: [12, 20, 50, 100],
-            showSizeChanger: true,
+            hideOnSinglePage: true,
           }}
           rowKey="id"
           scroll={{ x: 1314 }}
           size="small"
-          summary={() => (
-            <Table.Summary fixed>
-              <Table.Summary.Row className="bookkeeping-total-row">
-                <Table.Summary.Cell index={0} colSpan={6}>
-                  {t('bookkeepingIncomeTotal')}
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={6} align="right">
-                  <strong>{formatMoney({ currency, amount: visibleOrderTotals.income })}</strong>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={7} />
-                <Table.Summary.Cell index={8} />
-                <Table.Summary.Cell index={9} />
-              </Table.Summary.Row>
-              <Table.Summary.Row className="bookkeeping-total-row">
-                <Table.Summary.Cell index={0} colSpan={6}>
-                  {t('bookkeepingExpenseTotal')}
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={6} align="right">
-                  <strong>{formatMoney({ currency, amount: visibleOrderTotals.expense })}</strong>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={7} />
-                <Table.Summary.Cell index={8} />
-                <Table.Summary.Cell index={9} />
-              </Table.Summary.Row>
-            </Table.Summary>
-          )}
         />
       </section>
-      {canWriteBudgets ? (
-        <FloatButton
-          className="bookkeeping-add-float"
-          icon={<Plus size={20} />}
-          tooltip={t('addBookkeepingRecord')}
-          type="primary"
-          onClick={onNewRecord}
-        />
-      ) : null}
     </div>
   );
 }
@@ -462,22 +412,8 @@ function ledgerTotals(records: BookkeepingRecord[], currency: CurrencyCode) {
   );
 }
 
-function orderTransactionTotals(
-  records: BookkeepingRecord[],
-  currency: CurrencyCode,
-): { income: number; expense: number } {
-  return records.reduce((totals, record) => {
-    if (!isOrderTransaction(record.transactionType)) {
-      return totals;
-    }
-
-    const amount = record.currency === currency ? record.amountOriginal : record.amountBase;
-    if (record.transactionType === 'income') {
-      return { ...totals, income: totals.income + amount };
-    }
-
-    return { ...totals, expense: totals.expense + amount };
-  }, { income: 0, expense: 0 });
+function formatRecordDate(value: BookkeepingRecord['recordDate']): string {
+  return value?.slice(0, 10) ?? '-';
 }
 
 function compareByRecordDate(left: BookkeepingRecord, right: BookkeepingRecord): number {

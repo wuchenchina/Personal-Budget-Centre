@@ -9,6 +9,7 @@ import {
   formatBudgetMoney,
   type TransactionCurrencyTotal,
 } from '../../utils/budgetTemplate';
+import { previewBaseAmount } from './budgetItemAmountMath';
 import { CurrencySelectWithQuickAdd } from './CurrencySelectWithQuickAdd';
 
 export function MoneyLegCard({
@@ -126,35 +127,38 @@ export function MoneyLegCard({
         <InputNumber className="form-full-width" precision={6} step={0.01} />
       </Form.Item>
       {amountName === 'budgetAmount' ? (
-        <Form.Item
-          label={t('targetBaseAmount', { currency: baseCurrency })}
-          name="budgetTargetBaseAmount"
-          extra={t('targetBaseAmountHelp')}
-          rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
-        >
-          <InputNumber
-            addonBefore={baseCurrency}
-            className="form-full-width"
-            precision={2}
-            step={100}
-          />
-        </Form.Item>
+        <details className="currency-advanced-fields">
+          <summary>{t('advancedCurrencySettings')}</summary>
+          <Form.Item
+            label={t('targetBaseAmount', { currency: baseCurrency })}
+            name="budgetTargetBaseAmount"
+            extra={t('targetBaseAmountHelp')}
+            rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+          >
+            <InputNumber
+              addonBefore={baseCurrency}
+              className="form-full-width"
+              precision={2}
+              step={100}
+            />
+          </Form.Item>
+          <Form.Item
+            label={t('rateSaveScope')}
+            name="rateScope"
+            initialValue="item"
+          >
+            <Radio.Group
+              block
+              optionType="button"
+              options={[
+                { label: t('rateScopeItem'), value: 'item' },
+                { label: t('rateScopeBudget'), value: 'budget_default' },
+              ]}
+              size="small"
+            />
+          </Form.Item>
+        </details>
       ) : null}
-      <Form.Item
-        label={t('rateSaveScope')}
-        name="rateScope"
-        initialValue="item"
-      >
-        <Radio.Group
-          block
-          optionType="button"
-          options={[
-            { label: t('rateScopeItem'), value: 'item' },
-            { label: t('rateScopeBudget'), value: 'budget_default' },
-          ]}
-          size="small"
-        />
-      </Form.Item>
       <div className="currency-field-preview">
         <span>{t('baseCurrencyPreview')}</span>
         <strong>
@@ -244,18 +248,4 @@ export function SettlementPreviewCard({
       <p className="currency-readonly-help">{t('varianceAutoHelp')}</p>
     </div>
   );
-}
-
-export function previewBaseAmount(amount: number | null | undefined, rate: number | null | undefined) {
-  if (typeof amount !== 'number' || !Number.isFinite(amount)) {
-    return null;
-  }
-
-  const normalizedRate = typeof rate === 'number' && Number.isFinite(rate) && rate > 0 ? rate : 1;
-
-  return roundMoney(amount * normalizedRate);
-}
-
-export function roundMoney(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
 }

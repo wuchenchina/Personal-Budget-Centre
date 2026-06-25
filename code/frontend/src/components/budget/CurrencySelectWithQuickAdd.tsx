@@ -55,6 +55,8 @@ export function CurrencySelectWithQuickAdd({
   const [customName, setCustomName] = useState('');
   const [customSymbol, setCustomSymbol] = useState('');
   const [customDecimalPlaces, setCustomDecimalPlaces] = useState(2);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddMode, setQuickAddMode] = useState<'catalog' | 'manual'>('catalog');
   const [saving, setSaving] = useState(false);
   const selectedCatalogCurrency = catalogOptions.find((currency) => currency.code === selectedCatalogCode);
   const canCreateCustomCurrency =
@@ -65,9 +67,39 @@ export function CurrencySelectWithQuickAdd({
 
   useEffect(() => {
     if (selectedCatalogCode === undefined || existingCodes.has(selectedCatalogCode)) {
-      setSelectedCatalogCode(catalogOptions[0]?.code);
+      let isMounted = true;
+
+      queueMicrotask(() => {
+        if (isMounted) {
+          setSelectedCatalogCode(catalogOptions[0]?.code);
+        }
+      });
+
+      return () => {
+        isMounted = false;
+      };
     }
+
+    return undefined;
   }, [catalogOptions, existingCodes, selectedCatalogCode]);
+
+  useEffect(() => {
+    if (catalogOptions.length === 0 && quickAddMode === 'catalog') {
+      let isMounted = true;
+
+      queueMicrotask(() => {
+        if (isMounted) {
+          setQuickAddMode('manual');
+        }
+      });
+
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    return undefined;
+  }, [catalogOptions.length, quickAddMode]);
 
   const saveAndSelect = async (input: {
     code: string;
@@ -119,83 +151,118 @@ export function CurrencySelectWithQuickAdd({
 
   return (
     <div className="currency-select-quick-add">
-      <Select
-        allowClear={allowClear}
-        disabled={disabled}
-        id={id}
-        notFoundContent={t('noCurrencies')}
-        optionFilterProp="label"
-        optionLabelProp="value"
-        optionRender={renderCurrencyOption}
-        options={options}
-        placeholder={placeholder}
-        showSearch
-        value={value}
-        onChange={onChange}
-      />
-      <div className="currency-quick-add-row">
+      <div className="currency-select-main-row">
         <Select
-          disabled={catalogOptions.length === 0}
+          allowClear={allowClear}
+          disabled={disabled}
+          id={id}
+          notFoundContent={t('noCurrencies')}
           optionFilterProp="label"
           optionLabelProp="value"
           optionRender={renderCurrencyOption}
-          options={catalogSelectOptions}
-          placeholder={t('currencyReservePlaceholder')}
+          options={options}
+          placeholder={placeholder}
           showSearch
-          size="small"
-          value={selectedCatalogCode}
-          onChange={setSelectedCatalogCode}
+          value={value}
+          onChange={onChange}
         />
         <Button
-          disabled={selectedCatalogCurrency === undefined}
+          aria-label={t('addCurrency')}
+          disabled={disabled}
           icon={<Plus size={13} />}
-          loading={saving}
           size="small"
-          onClick={() => void handleAddCatalogCurrency()}
-        >
-          {t('addCurrency')}
-        </Button>
+          title={t('addCurrency')}
+          type="text"
+          onClick={() => setQuickAddOpen((open) => !open)}
+        />
       </div>
-      <div className="currency-quick-add-row currency-quick-add-custom">
-        <Input
-          maxLength={3}
-          placeholder={t('currencyCode')}
-          size="small"
-          value={customCode}
-          onChange={(event) => setCustomCode(event.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
-        />
-        <Input
-          maxLength={120}
-          placeholder={t('currencyName')}
-          size="small"
-          value={customName}
-          onChange={(event) => setCustomName(event.target.value)}
-        />
-        <Input
-          maxLength={16}
-          placeholder={t('currencySymbol')}
-          size="small"
-          value={customSymbol}
-          onChange={(event) => setCustomSymbol(event.target.value)}
-        />
-        <InputNumber
-          max={6}
-          min={0}
-          precision={0}
-          size="small"
-          value={customDecimalPlaces}
-          onChange={(nextValue) => setCustomDecimalPlaces(typeof nextValue === 'number' ? nextValue : 2)}
-        />
-        <Button
-          disabled={!canCreateCustomCurrency}
-          icon={<Plus size={13} />}
-          loading={saving}
-          size="small"
-          onClick={() => void handleCreateCustomCurrency()}
-        >
-          {t('addCustomCurrency')}
-        </Button>
-      </div>
+      {quickAddOpen ? (
+        <div className="currency-quick-add-panel">
+          <div className="currency-quick-add-mode-row">
+            <Button
+              disabled={catalogOptions.length === 0}
+              size="small"
+              type={quickAddMode === 'catalog' ? 'primary' : 'default'}
+              onClick={() => setQuickAddMode('catalog')}
+            >
+              {t('preset')}
+            </Button>
+            <Button
+              size="small"
+              type={quickAddMode === 'manual' ? 'primary' : 'default'}
+              onClick={() => setQuickAddMode('manual')}
+            >
+              {t('addCustomCurrency')}
+            </Button>
+          </div>
+          {quickAddMode === 'catalog' ? (
+            <div className="currency-quick-add-row">
+              <Select
+                disabled={catalogOptions.length === 0}
+                optionFilterProp="label"
+                optionLabelProp="value"
+                optionRender={renderCurrencyOption}
+                options={catalogSelectOptions}
+                placeholder={t('currencyReservePlaceholder')}
+                showSearch
+                size="small"
+                value={selectedCatalogCode}
+                onChange={setSelectedCatalogCode}
+              />
+              <Button
+                disabled={selectedCatalogCurrency === undefined}
+                icon={<Plus size={13} />}
+                loading={saving}
+                size="small"
+                onClick={() => void handleAddCatalogCurrency()}
+              >
+                {t('addCurrency')}
+              </Button>
+            </div>
+          ) : (
+            <div className="currency-quick-add-row currency-quick-add-custom">
+              <Input
+                maxLength={3}
+                placeholder={t('currencyCode')}
+                size="small"
+                value={customCode}
+                onChange={(event) => setCustomCode(event.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
+              />
+              <Input
+                maxLength={120}
+                placeholder={t('currencyName')}
+                size="small"
+                value={customName}
+                onChange={(event) => setCustomName(event.target.value)}
+              />
+              <Input
+                maxLength={16}
+                placeholder={t('currencySymbol')}
+                size="small"
+                value={customSymbol}
+                onChange={(event) => setCustomSymbol(event.target.value)}
+              />
+              <InputNumber
+                max={6}
+                min={0}
+                precision={0}
+                size="small"
+                value={customDecimalPlaces}
+                onChange={(nextValue) => setCustomDecimalPlaces(typeof nextValue === 'number' ? nextValue : 2)}
+              />
+              <Button
+                disabled={!canCreateCustomCurrency}
+                icon={<Plus size={13} />}
+                loading={saving}
+                size="small"
+                onClick={() => void handleCreateCustomCurrency()}
+              >
+                {t('addCurrency')}
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

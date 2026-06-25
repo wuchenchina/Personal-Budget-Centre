@@ -38,6 +38,7 @@ export const enDictionary = {
     adminTitle: 'Admin console',
     adminUserCreated: 'Account created for {email}.',
     adminUserManagement: 'Back office user management',
+    advancedCurrencySettings: 'Advanced currency settings',
     alias: 'Aliases',
     all: 'All',
     allStatus: 'All status',

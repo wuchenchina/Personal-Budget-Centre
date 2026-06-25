@@ -38,6 +38,7 @@ export const tcDictionary = {
     adminTitle: '後台管理',
     adminUserCreated: '已為 {email} 建立帳戶。',
     adminUserManagement: '後台使用者管理',
+    advancedCurrencySettings: '進階貨幣設定',
     alias: '別名',
     all: '全部',
     allStatus: '全部狀態',

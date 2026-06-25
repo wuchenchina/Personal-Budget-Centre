@@ -63,10 +63,18 @@ FROM api-runtime AS api
 COPY --from=backend /out/budgetcentre-api /app/budgetcentre-api
 COPY code/database /app/database
 COPY code/font /app/font
+RUN test -f /app/font/PingFang-HK-Regular.ttf \
+    && test -f /app/font/PingFang-SC-Regular.ttf \
+    && test -f /app/font/Songti-SC-Regular.ttf \
+    && test -f /app/font/Songti-TC-Regular.ttf
 RUN chmod +x /app/budgetcentre-api
 
 FROM api-runtime AS api-prebuilt
 COPY build/deploy/backend/budgetcentre-api /app/budgetcentre-api
 COPY code/database /app/database
 COPY code/font /app/font
+RUN test -f /app/font/PingFang-HK-Regular.ttf \
+    && test -f /app/font/PingFang-SC-Regular.ttf \
+    && test -f /app/font/Songti-SC-Regular.ttf \
+    && test -f /app/font/Songti-TC-Regular.ttf
 RUN chmod +x /app/budgetcentre-api

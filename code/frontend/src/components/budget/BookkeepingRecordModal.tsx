@@ -214,35 +214,40 @@ export function BookkeepingRecordModal({
             >
               <InputNumber className="form-full-width" precision={6} step={0.01} />
             </Form.Item>
-            <Form.Item
-              label={t('targetBaseAmount', { currency: baseCurrency })}
-              name="targetBaseAmount"
-              extra={t('targetBaseAmountHelp')}
-              rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
-            >
-              <InputNumber
-                addonBefore={baseCurrency}
-                className="form-full-width"
-                precision={2}
-                step={100}
-              />
-            </Form.Item>
-            <Form.Item label={t('rateSaveScope')} name="rateScope" initialValue="item">
-              <Radio.Group
-                block
-                optionType="button"
-                options={[
-                  { label: t('rateScopeItem'), value: 'item' },
-                  { label: t('rateScopeBudget'), value: 'budget_default' },
-                ]}
-                size="small"
-              />
-            </Form.Item>
           </div>
           <div className="currency-field-preview">
             <span>{t('baseCurrencyPreview')}</span>
             <strong>{basePreview === null ? `${baseCurrency} --` : `${baseCurrency} ${basePreview.toFixed(2)}`}</strong>
           </div>
+          <details className="currency-advanced-fields">
+            <summary>{t('advancedCurrencySettings')}</summary>
+            <div className="currency-reference-grid">
+              <Form.Item
+                label={t('targetBaseAmount', { currency: baseCurrency })}
+                name="targetBaseAmount"
+                extra={t('targetBaseAmountHelp')}
+                rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+              >
+                <InputNumber
+                  addonBefore={baseCurrency}
+                  className="form-full-width"
+                  precision={2}
+                  step={100}
+                />
+              </Form.Item>
+              <Form.Item label={t('rateSaveScope')} name="rateScope" initialValue="item">
+                <Radio.Group
+                  block
+                  optionType="button"
+                  options={[
+                    { label: t('rateScopeItem'), value: 'item' },
+                    { label: t('rateScopeBudget'), value: 'budget_default' },
+                  ]}
+                  size="small"
+                />
+              </Form.Item>
+            </div>
+          </details>
         </div>
 
         {showDestinationFields ? (

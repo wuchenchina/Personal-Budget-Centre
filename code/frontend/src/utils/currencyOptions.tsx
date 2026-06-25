@@ -18,7 +18,15 @@ export interface CurrencySelectOption {
 }
 
 export function buildCurrencyOptions(currencies: Currency[]): CurrencySelectOption[] {
-  return currencies.map((currency) => ({
+  const dedupedCurrencies = new Map<CurrencyCode, Currency>();
+
+  currencies.forEach((currency) => {
+    if (!dedupedCurrencies.has(currency.code)) {
+      dedupedCurrencies.set(currency.code, currency);
+    }
+  });
+
+  return Array.from(dedupedCurrencies.values()).map((currency) => ({
     label: currencySearchLabel(currency),
     value: currency.code,
     currency,

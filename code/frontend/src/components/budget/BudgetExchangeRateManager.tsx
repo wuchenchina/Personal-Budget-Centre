@@ -89,10 +89,20 @@ export function BudgetExchangeRateManager({
 
   useEffect(() => {
     if (!open) {
-      return;
+      return undefined;
     }
 
-    void loadRates();
+    let isMounted = true;
+
+    queueMicrotask(() => {
+      if (isMounted) {
+        void loadRates();
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, [loadRates, open]);
 
   const openModal = () => {
@@ -109,7 +119,7 @@ export function BudgetExchangeRateManager({
     form.resetFields();
   };
 
-  const openCreateRate = () => {
+  const openCreateRate = useCallback(() => {
     setEditingRate(null);
     form.resetFields();
     form.setFieldsValue({
@@ -117,9 +127,9 @@ export function BudgetExchangeRateManager({
       toCurrency: baseCurrency,
       rateDate: todayInputDate(),
     });
-  };
+  }, [baseCurrency, defaultForeignCurrency, form]);
 
-  const openEditRate = (rate: BudgetExchangeRate) => {
+  const openEditRate = useCallback((rate: BudgetExchangeRate) => {
     setEditingRate(rate);
     form.setFieldsValue({
       id: rate.id,
@@ -129,7 +139,7 @@ export function BudgetExchangeRateManager({
       rateDate: rate.rateDate,
       note: rate.note ?? undefined,
     });
-  };
+  }, [form]);
 
   const saveRate = async () => {
     if (budgetId === null) {
@@ -172,7 +182,7 @@ export function BudgetExchangeRateManager({
     }
   };
 
-  const removeRate = async (id: number) => {
+  const removeRate = useCallback(async (id: number) => {
     setDeletingId(id);
     setError(null);
 
@@ -186,7 +196,7 @@ export function BudgetExchangeRateManager({
     } finally {
       setDeletingId(null);
     }
-  };
+  }, [editingRate, openCreateRate, t]);
 
   const syncBasePairs = async () => {
     if (budgetId === null) {
@@ -280,7 +290,7 @@ export function BudgetExchangeRateManager({
         ),
       },
     ],
-    [canWriteBudgets, deletingId, t],
+    [canWriteBudgets, deletingId, openEditRate, removeRate, t],
   );
 
   return (
@@ -337,6 +347,7 @@ export function BudgetExchangeRateManager({
                       <Select
                         showSearch
                         optionFilterProp="label"
+                        optionLabelProp="value"
                         optionRender={renderCurrencyOption}
                         options={currencyOptions}
                       />
@@ -358,6 +369,7 @@ export function BudgetExchangeRateManager({
                       <Select
                         showSearch
                         optionFilterProp="label"
+                        optionLabelProp="value"
                         optionRender={renderCurrencyOption}
                         options={currencyOptions}
                         status={fromCurrency !== undefined && fromCurrency === toCurrency ? 'error' : undefined}
