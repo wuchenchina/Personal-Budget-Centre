@@ -38,6 +38,7 @@ type Definition interface {
 	FontVariableCSS(chineseLanguage string) string
 	DocumentCSS(scope Scope) string
 	TableCSS(scope Scope) string
+	SectionBandTitleFontSizePt() float64
 	SignatureCSS() string
 	SignatureFontFamily(fontRole string, containsCJK bool, chineseLanguage string) string
 	SignatureFullWidthMM() float64

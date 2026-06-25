@@ -2,6 +2,7 @@ package theme
 
 import (
 	"html"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -14,6 +15,7 @@ type staticTheme struct {
 	budgetTableCSS         string
 	bookkeepingDocumentCSS string
 	bookkeepingTableCSS    string
+	sectionBandTitlePt    float64
 	signatureCSS           string
 	signatureFontFamily    func(string, bool, string) string
 	signatureFullWidthMM   float64
@@ -53,6 +55,13 @@ func (t staticTheme) TableCSS(scope Scope) string {
 		return t.bookkeepingTableCSS
 	}
 	return t.budgetTableCSS
+}
+
+func (t staticTheme) SectionBandTitleFontSizePt() float64 {
+	if t.sectionBandTitlePt > 0 {
+		return t.sectionBandTitlePt
+	}
+	return classicSectionBandTitleFontSizePt
 }
 
 func (t staticTheme) SignatureCSS() string {
@@ -200,6 +209,13 @@ func totalPagesText(options HeaderOptions) string {
 		return strings.TrimSpace(options.TotalPages)
 	}
 	return "{nbpg}"
+}
+
+func formatPt(value float64) string {
+	out := strconv.FormatFloat(value, 'f', 2, 64)
+	out = strings.TrimRight(out, "0")
+	out = strings.TrimRight(out, ".")
+	return out + "pt"
 }
 
 func firstNonEmpty(values ...any) any {
