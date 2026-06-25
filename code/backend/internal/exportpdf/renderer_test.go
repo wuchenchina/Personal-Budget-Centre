@@ -3,8 +3,10 @@ package exportpdf
 import (
 	"budgetcentre/backend/internal/exportpdf/theme"
 	"context"
+	"encoding/base64"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -59,6 +61,89 @@ func TestRenderBudgetHTMLUsesLegacyPDFThemeStructure(t *testing.T) {
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("budget HTML missing %q\n%s", want, html)
+		}
+	}
+}
+
+func TestRenderBudgetHTMLUsesAPIPayloadDataShape(t *testing.T) {
+	service := Service{
+		LoadBudgetTemplate: func(context.Context, map[string]any) (Template, error) {
+			return DefaultTemplate(), nil
+		},
+	}
+	budget := samplePDFBudgetWithTypedSlices()
+	html, err := service.RenderHTML(context.Background(), budget, "budget", Options{
+		PDFTheme:               "classic",
+		PDFLanguages:           []string{"en", "tc"},
+		PDFLanguagesExplicit:   true,
+		SignatureLabelMode:     "confirmation_signature",
+		SignatureLabelLanguage: []string{"en", "tc"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, unwanted := range []string{"No budget items", "No transactions"} {
+		if strings.Contains(html, unwanted) {
+			t.Fatalf("typed API payload must not render empty table text %q\n%s", unwanted, html)
+		}
+	}
+	for _, want := range []string{
+		"Office",
+		"Paper",
+		"HKD 500.00",
+		"HKD 120.50",
+		"HKD 12.05",
+		"10.00",
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("typed API payload HTML missing %q\n%s", want, html)
+		}
+	}
+	if strings.Contains(html, "Paid By") || strings.Contains(html, "付款人") {
+		t.Fatalf("solo budget export must not add the group payment column\n%s", html)
+	}
+}
+
+func TestSignatureRendererUsesLegacyBase64ImageGeometry(t *testing.T) {
+	service := Service{
+		LoadBudgetTemplate: func(context.Context, map[string]any) (Template, error) {
+			return DefaultTemplate(), nil
+		},
+	}
+	html, err := service.RenderHTML(context.Background(), samplePDFBudgetWithTypedSlices(), "budget", Options{
+		PDFTheme:               "classic",
+		PDFLanguages:           []string{"en", "tc"},
+		PDFLanguagesExplicit:   true,
+		SignatureLabelMode:     "confirmation_signature",
+		SignatureLabelLanguage: []string{"en", "tc"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(html, `<svg class="signature-svg"`) {
+		t.Fatalf("signature must use legacy base64 image wrapper, not inline SVG\n%s", html)
+	}
+	if !strings.Contains(html, `class="signature-svg"`) || !strings.Contains(html, `style="display:inline-block;width:76mm;height:72mm"`) {
+		t.Fatalf("signature image missing legacy right-aligned geometry\n%s", html)
+	}
+	matches := regexp.MustCompile(`src="data:image/svg\+xml;base64,([^"]+)"`).FindStringSubmatch(html)
+	if len(matches) != 2 {
+		t.Fatalf("signature image base64 payload not found\n%s", html)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(matches[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	svg := string(decoded)
+	for _, want := range []string{
+		`width="76mm" height="72mm" viewBox="0 0 76 72"`,
+		`<rect x="0" y="0" width="76" height="6"`,
+		`<rect x="5" y="39" width="66" height="26"`,
+		`font-size="2.55"`,
+		`Confirmation Signature`,
+	} {
+		if !strings.Contains(svg, want) {
+			t.Fatalf("signature SVG missing %q\n%s", want, svg)
 		}
 	}
 }
@@ -505,6 +590,72 @@ func samplePDFBudget() map[string]any {
 			},
 		},
 	}
+}
+
+func samplePDFBudgetWithTypedSlices() map[string]any {
+	budget := samplePDFBudget()
+	budget["participants"] = []map[string]any{
+		{"id": int64(11), "name": "Alice"},
+	}
+	budget["items"] = []map[string]any{
+		{
+			"label":      "Office",
+			"category":   "Office",
+			"categoryId": int64(1),
+			"budget": map[string]any{
+				"currency":       "HKD",
+				"amountBase":     500.0,
+				"amountOriginal": 500.0,
+				"rateToBase":     1.0,
+			},
+			"estimatedActuals": map[string]any{
+				"currency":       "HKD",
+				"amountBase":     0.0,
+				"amountOriginal": 0.0,
+				"rateToBase":     1.0,
+			},
+			"split": map[string]any{
+				"splitType":           "personal",
+				"paidByParticipantId": int64(11),
+				"participants": []map[string]any{
+					{"participantId": int64(11), "isIncluded": true},
+				},
+			},
+		},
+	}
+	budget["transactions"] = []map[string]any{
+		{
+			"details":             "Paper",
+			"category":            "Office",
+			"categoryId":          int64(1),
+			"paidByParticipantId": int64(11),
+			"currency":            "HKD",
+			"amountBase":          120.5,
+			"amountOriginal":      120.5,
+			"pricingConfig": map[string]any{
+				"enabled":   1,
+				"unitPrice": 12.05,
+				"quantity":  10.0,
+			},
+		},
+	}
+	budget["signatureConfig"] = map[string]any{
+		"enabled":            true,
+		"customTitleEnabled": false,
+		"sectionAlign":       "right",
+		"rows": []map[string]any{
+			{
+				"displayName":   "Alice",
+				"roleLabel":     "Prepared by",
+				"showName":      true,
+				"showRole":      true,
+				"showDateTime":  true,
+				"showSignature": true,
+				"signedAt":      "2026-01-02 03:04:05",
+			},
+		},
+	}
+	return budget
 }
 
 func samplePDFBookkeepingRecords() []map[string]any {

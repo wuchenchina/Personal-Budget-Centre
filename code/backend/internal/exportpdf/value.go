@@ -2,6 +2,7 @@ package exportpdf
 
 import (
 	"encoding/json"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -34,7 +35,17 @@ func boolValue(value any) bool {
 	case bool:
 		return v
 	case string:
-		return v == "true" || v == "1"
+		text := strings.ToLower(strings.TrimSpace(v))
+		return text == "true" || text == "1" || text == "yes"
+	case int:
+		return v != 0
+	case int64:
+		return v != 0
+	case float64:
+		return v != 0
+	case json.Number:
+		out, _ := v.Float64()
+		return out != 0
 	default:
 		return false
 	}
@@ -57,6 +68,11 @@ func boolDefault(value any, fallback bool) bool {
 		return v != 0
 	case int:
 		return v != 0
+	case int64:
+		return v != 0
+	case json.Number:
+		out, _ := v.Float64()
+		return out != 0
 	default:
 		return fallback
 	}
@@ -110,5 +126,39 @@ func anyList(value any) []any {
 	if items, ok := value.([]any); ok {
 		return items
 	}
-	return []any{}
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() || (rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array) {
+		return []any{}
+	}
+	out := make([]any, 0, rv.Len())
+	for index := 0; index < rv.Len(); index++ {
+		out = append(out, rv.Index(index).Interface())
+	}
+	return out
+}
+
+func cloneBudgetForRenderer(input map[string]any) map[string]any {
+	out := make(map[string]any, len(input))
+	for key, value := range input {
+		switch key {
+		case "items", "transactions", "participants":
+			out[key] = anyList(value)
+		default:
+			out[key] = value
+		}
+	}
+	if config, ok := out["signatureConfig"].(map[string]any); ok {
+		next := cloneMap(config)
+		next["rows"] = anyList(config["rows"])
+		out["signatureConfig"] = next
+	}
+	if plan, ok := out["overallInstallmentPlan"].(map[string]any); ok {
+		next := cloneMap(plan)
+		next["periodAmounts"] = anyList(plan["periodAmounts"])
+		next["periodLocked"] = anyList(plan["periodLocked"])
+		next["periodProgress"] = anyList(plan["periodProgress"])
+		next["periodRemarks"] = anyList(plan["periodRemarks"])
+		out["overallInstallmentPlan"] = next
+	}
+	return out
 }

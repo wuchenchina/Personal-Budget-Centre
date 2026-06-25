@@ -36,6 +36,7 @@ func newPDFRenderer(fontDir string) *pdfRenderer {
 }
 
 func (r *pdfRenderer) renderBudget(budget map[string]any, template Template, options Options) string {
+	budget = cloneBudgetForRenderer(budget)
 	ctx := newPDFTableContext(options, false)
 	titleHTML := multilineBlockHTML(stringValue(budget["title"]), "title-line")
 	subtitleHTML := ""
@@ -47,20 +48,24 @@ func (r *pdfRenderer) renderBudget(budget map[string]any, template Template, opt
 	budgetSection := localizedSection(sectionOrDefault(sections, "budget_highlights", DefaultTemplate().Sections[0]), ctx)
 	transactionSection := localizedSection(sectionOrDefault(sections, "transaction_breakdown", DefaultTemplate().Sections[1]), ctx)
 	installmentSection := localizedSection(sectionOrDefault(sections, "installments", DefaultTemplate().Sections[2]), ctx)
-	participants := budgetParticipants(budget)
-	if len(participants) > 0 {
+	transactionParticipants := []budgetParticipant{}
+	if stringValue(budget["participantMode"]) == "group" {
+		transactionParticipants = budgetParticipants(budget)
+	}
+	if len(transactionParticipants) > 0 {
 		transactionSection = sectionWithPaymentColumn(transactionSection, ctx)
 	}
 	if boolValue(budget["pricingEnabled"]) {
-		transactionSection = sectionWithPricingColumns(transactionSection, len(participants) > 0, ctx)
+		transactionSection = sectionWithPricingColumns(transactionSection, len(transactionParticipants) > 0, ctx)
 	}
 
 	pdfTheme := theme.ForKey(options.PDFTheme)
 	body := r.headerHTML(budget, titleHTML, subtitleHTML, options, theme.ScopeBudget)
 	body += r.renderTable(budgetSection, period, r.budgetRows(budget), r.budgetSummaryRow(budget, ctx), tableText("No budget items", ctx.BudgetLabels["emptyBudgetItems"], ctx), datePrefix(ctx))
 	body += r.groupBudgetSectionsHTML(budget, period, ctx)
-	body += r.renderTable(transactionSection, period, r.transactionRows(anyList(budget["transactions"]), transactionSection.Columns, budget, participants, ctx), nil, tableText("No transactions", ctx.BudgetLabels["emptyTransactions"], ctx), datePrefix(ctx))
+	body += r.renderTable(transactionSection, period, r.transactionRows(anyList(budget["transactions"]), transactionSection.Columns, budget, transactionParticipants, ctx), nil, tableText("No transactions", ctx.BudgetLabels["emptyTransactions"], ctx), datePrefix(ctx))
 	if stringValue(budget["budgetType"]) == "installment" {
+		installmentSection = installmentPeriodSection(installmentSection, budget, ctx)
 		body += r.renderTable(installmentSection, period, r.installmentRows(budget, ctx), r.installmentSummaryRow(budget, ctx), tableText("No installment targets", ctx.BudgetLabels["emptyInstallments"], ctx), datePrefix(ctx))
 	}
 	body += newPDFSignatureRenderer(pdfTheme, options).render(budget, options, pdfTheme)
@@ -68,6 +73,7 @@ func (r *pdfRenderer) renderBudget(budget map[string]any, template Template, opt
 }
 
 func (r *pdfRenderer) renderBookkeeping(budget map[string]any, records []map[string]any, options Options) string {
+	budget = cloneBudgetForRenderer(budget)
 	ctx := newPDFTableContext(options, true)
 	titleHTML := multilineBlockHTML(stringValue(budget["title"]), "title-line")
 	subtitle := tableText("Bookkeeping Ledger", ctx.BookkeepingLabels["bookkeepingLedgerSubtitle"], ctx)
@@ -395,12 +401,12 @@ func (r *pdfRenderer) transactionRows(transactions []any, columns []Column, budg
 }
 
 func (r *pdfRenderer) installmentRows(budget map[string]any, ctx pdfTableContext) [][]string {
-	if stringValue(budget["installmentDisplayMode"]) != "item" {
+	if !shouldShowInstallmentCategory(budget) {
 		return overallInstallmentRows(budget, ctx)
 	}
-	baseCurrency := stringValue(budget["baseCurrency"])
 	rows := [][]string{}
 	sequence := 1
+	transactions := anyList(budget["transactions"])
 	for _, raw := range anyList(budget["items"]) {
 		item, ok := raw.(map[string]any)
 		if !ok {
@@ -410,6 +416,7 @@ func (r *pdfRenderer) installmentRows(budget map[string]any, ctx pdfTableContext
 		amounts := floatList(config["periodAmounts"])
 		progress := boolList(config["periodProgress"])
 		remarks := stringList(config["periodRemarks"])
+		targetOriginal, _ := installmentTargetAmount(item, config, transactions)
 		if len(amounts) == 0 {
 			months := int64Value(config["months"])
 			if months <= 0 {
@@ -418,27 +425,29 @@ func (r *pdfRenderer) installmentRows(budget map[string]any, ctx pdfTableContext
 			if months <= 0 {
 				months = 1
 			}
-			target := floatValue(mapValue(item, "budget")["amountBase"])
 			amounts = make([]float64, months)
 			for i := range amounts {
-				amounts[i] = roundMoney(target / float64(months))
+				amounts[i] = roundMoney(targetOriginal / float64(months))
 			}
 		}
+		currency := stringDefault(stringValue(mapValue(item, "budget")["currency"]), stringValue(budget["baseCurrency"]))
+		assignedAmount := 0.0
 		for index, amount := range amounts {
 			done := ""
 			if index < len(progress) && progress[index] {
-				done = "Y"
+				done = "X"
 			}
 			remark := ""
 			if index < len(remarks) {
 				remark = remarks[index]
 			}
+			assignedAmount = roundMoney(assignedAmount + amount)
 			rows = append(rows, []string{
 				strconv.Itoa(sequence),
 				itemLabel(item),
-				periodLabel(index+1, stringValue(budget["installmentPeriodUnit"]), ctx),
-				money(baseCurrency, floatValue(mapValue(item, "budget")["amountBase"])),
-				money(baseCurrency, amount),
+				installmentPeriodLabel(budget, item, index),
+				targetWithRemaining(currency, targetOriginal, math.Max(0, targetOriginal-assignedAmount), ctx),
+				money(currency, amount),
 				done,
 				remark,
 			})
@@ -450,7 +459,10 @@ func (r *pdfRenderer) installmentRows(budget map[string]any, ctx pdfTableContext
 
 func (r *pdfRenderer) installmentSummaryRow(budget map[string]any, ctx pdfTableContext) []string {
 	baseCurrency := stringValue(budget["baseCurrency"])
-	return []string{"", tableText("Total", ctx.BudgetLabels["total"], ctx), "", money(baseCurrency, effectiveTotal(budget, "budgetBase")), "", "", ""}
+	if !shouldShowInstallmentCategory(budget) {
+		return []string{"", tableText("Total", ctx.BudgetLabels["total"], ctx), money(baseCurrency, effectiveTotal(budget, "budgetBase")), money(baseCurrency, effectiveTotal(budget, "budgetBase")), "", ""}
+	}
+	return []string{"", tableText("Total", ctx.BudgetLabels["total"], ctx), "", money(baseCurrency, effectiveTotal(budget, "budgetBase")), money(baseCurrency, effectiveTotal(budget, "budgetBase")), "", ""}
 }
 
 func (r *pdfRenderer) bookkeepingTotalRows(budget map[string]any, records []map[string]any, ctx pdfTableContext) [][]string {
@@ -531,10 +543,16 @@ func colgroupHTML(columns []Column) string {
 		if width <= 0 {
 			width = 25
 		}
-		out.WriteString(fmt.Sprintf(`<col style="width:%.3g%%">`, width))
+		out.WriteString(`<col style="width:`)
+		out.WriteString(cssNumber(width))
+		out.WriteString(`%">`)
 	}
 	out.WriteString("</colgroup>")
 	return out.String()
+}
+
+func cssNumber(value float64) string {
+	return strings.TrimRight(strings.TrimRight(strconv.FormatFloat(value, 'f', 3, 64), "0"), ".")
 }
 
 func columnClass(column Column) string {
@@ -677,6 +695,67 @@ func localizedColumnLabel(key, english string, ctx pdfTableContext) string {
 		return english + "\n" + localized
 	}
 	return localized
+}
+
+func installmentPeriodSection(section Section, budget map[string]any, ctx pdfTableContext) Section {
+	showCategory := shouldShowInstallmentCategory(budget)
+	sequenceWidth := 6.0
+	if ctx.Mode == "en" {
+		sequenceWidth = 4
+	}
+	targetWidth := 20.0
+	amountWidth := 21.0
+	remarkWidth := 33.0
+	if ctx.Mode != "en" {
+		amountWidth = 20
+		remarkWidth = 30
+	}
+	columns := []Column{}
+	if showCategory {
+		targetWidth = 17
+		amountWidth = 19
+		if ctx.Mode != "en" {
+			amountWidth = 17
+		}
+		remarkWidth = 27
+		categoryWidth := 13.0
+		periodWidth := 15.0
+		if ctx.Mode != "en" {
+			categoryWidth = 14
+			periodWidth = 14
+		}
+		columns = []Column{
+			{Key: "sequence", Label: "No.", Align: "center", WidthPercent: sequenceWidth, DataType: "text"},
+			{Key: "category", Label: "Category", Align: "left", WidthPercent: categoryWidth, DataType: "text"},
+			{Key: "period", Label: "Period", Align: "left", WidthPercent: periodWidth, DataType: "text"},
+			{Key: "target_amount", Label: "Target", Align: "right", WidthPercent: targetWidth, DataType: "money"},
+			{Key: "period_amount", Label: "Amount", Align: "right", WidthPercent: amountWidth, DataType: "money"},
+			{Key: "progress", Label: "Done", Align: "center", WidthPercent: 5, DataType: "text"},
+			{Key: "remark", Label: "Remark", Align: "left", WidthPercent: remarkWidth, DataType: "text"},
+		}
+	} else {
+		periodWidth := 17.0
+		if ctx.Mode != "en" {
+			periodWidth = 19
+		}
+		columns = []Column{
+			{Key: "sequence", Label: "No.", Align: "center", WidthPercent: sequenceWidth, DataType: "text"},
+			{Key: "period", Label: "Period", Align: "left", WidthPercent: periodWidth, DataType: "text"},
+			{Key: "target_amount", Label: "Target", Align: "right", WidthPercent: targetWidth, DataType: "money"},
+			{Key: "period_amount", Label: "Amount", Align: "right", WidthPercent: amountWidth, DataType: "money"},
+			{Key: "progress", Label: "Done", Align: "center", WidthPercent: 5, DataType: "text"},
+			{Key: "remark", Label: "Remark", Align: "left", WidthPercent: remarkWidth, DataType: "text"},
+		}
+	}
+	for index := range columns {
+		columns[index].Label = localizedColumnLabel(columns[index].Key, columns[index].Label, ctx)
+	}
+	section.Columns = columns
+	return section
+}
+
+func shouldShowInstallmentCategory(budget map[string]any) bool {
+	return stringValue(budget["installmentDisplayMode"]) != "overall"
 }
 
 func bookkeepingColumnLabel(key, english string, ctx pdfTableContext) string {
@@ -1084,6 +1163,67 @@ func roundMoney(value float64) float64 {
 		return 0
 	}
 	return math.Round(value*100) / 100
+}
+
+func installmentTargetAmount(item map[string]any, config map[string]any, transactions []any) (float64, float64) {
+	periodAmounts := floatList(config["periodAmounts"])
+	configuredTotal := 0.0
+	hasConfiguredTotal := false
+	if config["totalAmount"] != nil {
+		configuredTotal = floatValue(config["totalAmount"])
+		hasConfiguredTotal = true
+	} else if len(periodAmounts) > 0 {
+		for _, amount := range periodAmounts {
+			configuredTotal += amount
+		}
+		hasConfiguredTotal = true
+	}
+	if boolValue(config["enabled"]) && hasConfiguredTotal && configuredTotal > 0 {
+		rate := floatValue(mapValue(item, "budget")["rateToBase"])
+		if rate <= 0 {
+			rate = 1
+		}
+		return configuredTotal, configuredTotal * rate
+	}
+	effective := effectiveItemAmounts(item, transactions)
+	rate := floatValue(mapValue(item, "budget")["rateToBase"])
+	original := effective.BudgetBase
+	if rate > 0 {
+		original = roundMoney(effective.BudgetBase / rate)
+	}
+	return original, effective.BudgetBase
+}
+
+func targetWithRemaining(currency string, targetAmount, remainingAmount float64, ctx pdfTableContext) string {
+	return money(currency, targetAmount) + "\n" + tableText("Remaining", ctx.BudgetLabels["remainingLabel"], ctx) + " " + money(currency, remainingAmount)
+}
+
+func installmentPeriodLabel(budget map[string]any, item map[string]any, index int) string {
+	start := ""
+	if item != nil {
+		start = stringValue(mapValue(item, "installmentConfig")["startMonth"])
+	}
+	if start != "" && len(start) == len("2006-01") {
+		start += "-01"
+	}
+	if start == "" {
+		start = stringValue(budget["startDate"])
+	}
+	parsed, ok := parsePDFDate(start)
+	if !ok {
+		return "#" + strconv.Itoa(index+1)
+	}
+	unit := stringValue(budget["installmentPeriodUnit"])
+	switch unit {
+	case "day":
+		return parsed.AddDate(0, 0, index).Format("2 Jan 2006")
+	case "week":
+		return parsed.AddDate(0, 0, index*7).Format("2 Jan 2006")
+	case "year":
+		return parsed.AddDate(index, 0, 0).Format("2006")
+	default:
+		return parsed.AddDate(0, index, 0).Format("Jan 2006")
+	}
 }
 
 func periodLabel(index int, unit string, ctx pdfTableContext) string {

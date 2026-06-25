@@ -169,19 +169,40 @@ func transactionAmountText(tx map[string]any, baseCurrency string) string {
 }
 
 func pricingUnitPriceText(tx map[string]any, baseCurrency string) string {
-	pricing := mapValue(tx, "pricingConfig")
-	if !boolValue(pricing["enabled"]) || pricing["unitPrice"] == nil {
-		return ""
+	unitPrice := floatValue(tx["amountOriginal"])
+	if pricing := mapValue(tx, "pricingConfig"); boolValue(pricing["enabled"]) {
+		if value, ok := pricingNumber(pricing, "unitPrice", "unit_price"); ok {
+			unitPrice = value
+		}
 	}
-	return money(stringDefault(stringValue(tx["currency"]), baseCurrency), floatValue(pricing["unitPrice"]))
+	return money(stringDefault(stringValue(tx["currency"]), baseCurrency), unitPrice)
 }
 
 func pricingQuantityText(tx map[string]any) string {
-	pricing := mapValue(tx, "pricingConfig")
-	if !boolValue(pricing["enabled"]) || pricing["quantity"] == nil {
-		return ""
+	quantity := 1.0
+	if pricing := mapValue(tx, "pricingConfig"); boolValue(pricing["enabled"]) {
+		if value, ok := pricingNumber(pricing, "quantity"); ok {
+			quantity = value
+		}
 	}
-	return strconv.FormatFloat(floatValue(pricing["quantity"]), 'f', -1, 64)
+	return strconv.FormatFloat(quantity, 'f', 2, 64)
+}
+
+func pricingNumber(config map[string]any, keys ...string) (float64, bool) {
+	for _, key := range keys {
+		value, ok := config[key]
+		if !ok || value == nil {
+			continue
+		}
+		switch v := value.(type) {
+		case string:
+			if strings.TrimSpace(v) == "" {
+				continue
+			}
+		}
+		return math.Max(0, floatValue(value)), true
+	}
+	return 0, false
 }
 
 func budgetParticipants(budget map[string]any) []budgetParticipant {
@@ -681,25 +702,30 @@ func overallInstallmentRows(budget map[string]any, ctx pdfTableContext) [][]stri
 	amounts := floatList(plan["periodAmounts"])
 	progress := boolList(plan["periodProgress"])
 	remarks := stringList(plan["periodRemarks"])
+	targetTotal := effectiveTotal(budget, "budgetBase")
+	if targetTotal <= 0 {
+		return [][]string{}
+	}
 	if len(amounts) == 0 {
-		amounts = []float64{effectiveTotal(budget, "budgetBase")}
+		amounts = []float64{targetTotal}
 	}
 	baseCurrency := stringValue(budget["baseCurrency"])
 	rows := make([][]string, 0, len(amounts))
+	assignedAmount := 0.0
 	for index, amount := range amounts {
 		done := ""
 		if index < len(progress) && progress[index] {
-			done = "Y"
+			done = "X"
 		}
 		remark := ""
 		if index < len(remarks) {
 			remark = remarks[index]
 		}
+		assignedAmount = roundMoney(assignedAmount + amount)
 		rows = append(rows, []string{
 			strconv.Itoa(index + 1),
-			tableText("Overall", "Overall", ctx),
-			periodLabel(index+1, stringValue(budget["installmentPeriodUnit"]), ctx),
-			money(baseCurrency, effectiveTotal(budget, "budgetBase")),
+			installmentPeriodLabel(budget, nil, index),
+			targetWithRemaining(baseCurrency, targetTotal, math.Max(0, targetTotal-assignedAmount), ctx),
 			money(baseCurrency, amount),
 			done,
 			remark,

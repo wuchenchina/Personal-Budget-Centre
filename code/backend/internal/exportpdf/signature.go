@@ -2,6 +2,7 @@ package exportpdf
 
 import (
 	crand "crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"html"
 	"math"
@@ -75,9 +76,18 @@ func (r pdfSignatureRenderer) render(budget map[string]any, options Options, pdf
 	}
 	svg := r.svg(config, width, pdfTheme)
 	height := r.svgHeight(config, width)
-	inlineSVG := strings.Replace(svg, `<svg `, `<svg class="signature-svg" style="display:`+display+`;width:`+
-		signatureNumber(width)+`mm;height:`+signatureNumber(height)+`mm" `, 1)
-	return `<div class="template-section signature-section"` + wrapperStyle + `>` + inlineSVG + `</div>`
+	return `<div class="template-section signature-section"` + wrapperStyle + `>` +
+		signatureImageHTML(svg, width, height, display) +
+		`</div>`
+}
+
+func signatureImageHTML(svg string, width, height float64, display string) string {
+	return `<img class="signature-svg" src="data:image/svg+xml;base64,` +
+		base64.StdEncoding.EncodeToString([]byte(svg)) +
+		`" style="display:` + display +
+		`;width:` + signatureNumber(width) +
+		`mm;height:` + signatureNumber(height) +
+		`mm" alt="">`
 }
 
 func (r pdfSignatureRenderer) svg(config map[string]any, width float64, pdfTheme theme.Definition) string {

@@ -96,7 +96,7 @@ func baseDocumentCSS() string {
 }
 
 func classicSignatureCSS() string {
-	return `.signature-section{width:100%;margin-top:4mm;page-break-inside:avoid;break-inside:avoid-page;}.signature-svg{display:block;width:100%;height:auto;}`
+	return `.signature-section{width:100%;margin-top:4mm;page-break-inside:avoid;}.signature-svg{display:block;width:100%;height:auto;}`
 }
 
 func classicHeaderHTML(_ map[string]any, titleHTML, subtitleHTML string, _ HeaderOptions, _ Scope) string {
