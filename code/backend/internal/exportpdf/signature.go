@@ -44,6 +44,21 @@ type signatureNoteItem struct {
 	HasDateTime bool
 }
 
+type signatureTitleMetrics struct {
+	FontSizeMM      float64
+	LineHeightMM    float64
+	MinBandHeightMM float64
+	PaddingTopMM    float64
+}
+
+type signatureMetaMetrics struct {
+	LabelSizeMM    float64
+	ValueSizeMM    float64
+	SmallValueMM   float64
+	LineHeightMM   float64
+	FieldSpacingMM float64
+}
+
 func newPDFSignatureRenderer(pdfTheme theme.Definition, options Options, fontDir string) pdfSignatureRenderer {
 	return pdfSignatureRenderer{
 		pdfTheme:  pdfTheme,
@@ -94,8 +109,9 @@ func signatureImageHTML(svg string, width, height float64, display string) strin
 
 func (r pdfSignatureRenderer) svg(config map[string]any, width float64, pdfTheme theme.Definition) string {
 	height := r.svgHeight(config, width)
-	titleRows := r.titleRows(r.signatureSectionTitle(config), width)
-	titleBandHeight := r.titleBandHeight(titleRows)
+	titleMetrics := signatureTitleMetricsForTheme(pdfTheme)
+	titleRows := r.titleRows(r.signatureSectionTitle(config), width, titleMetrics)
+	titleBandHeight := r.titleBandHeight(titleRows, titleMetrics)
 	rows := signatureConfigRows(config)
 	signingRows := r.signingRows(rows)
 	noteRows := r.noteRows(rows)
@@ -121,7 +137,7 @@ func (r pdfSignatureRenderer) svg(config map[string]any, width float64, pdfTheme
 	svg.WriteString(`" stroke="`)
 	svg.WriteString(palette.TitleStroke)
 	svg.WriteString(`" stroke-width="0.2"/>`)
-	svg.WriteString(r.titleSVG(titleRows, palette))
+	svg.WriteString(r.titleSVG(titleRows, palette, titleMetrics))
 	svg.WriteString(`<rect x="0" y="`)
 	svg.WriteString(signatureNumber(titleBandHeight))
 	svg.WriteString(`" width="`)
@@ -181,7 +197,8 @@ func (r pdfSignatureRenderer) fontFaceSVGStyle(pdfTheme theme.Definition) string
 
 func (r pdfSignatureRenderer) svgHeight(config map[string]any, width float64) float64 {
 	rows := signatureConfigRows(config)
-	titleBandHeight := r.titleBandHeight(r.titleRows(r.signatureSectionTitle(config), width))
+	titleMetrics := signatureTitleMetricsForTheme(r.pdfTheme)
+	titleBandHeight := r.titleBandHeight(r.titleRows(r.signatureSectionTitle(config), width, titleMetrics), titleMetrics)
 	if len(rows) == 0 {
 		return titleBandHeight + 4 + r.minimumRowHeight(width)
 	}
@@ -196,16 +213,17 @@ func (r pdfSignatureRenderer) svgHeight(config map[string]any, width float64) fl
 
 func (r pdfSignatureRenderer) rowHeight(row map[string]any, config map[string]any, width float64) float64 {
 	fieldCount := maxInt(1, len(r.signatureFields(row, config)))
+	meta := signatureMetaMetricsDefault()
 	if !boolDefault(row["showSignature"], true) {
 		if width <= 80 {
-			return math.Max(14, 5.5+float64(fieldCount)*4.2)
+			return math.Max(14, 5.5+float64(fieldCount)*meta.FieldSpacingMM)
 		}
-		return math.Max(11, 5.5+float64(fieldCount)*4.2)
+		return math.Max(11, 5.5+float64(fieldCount)*meta.FieldSpacingMM)
 	}
 	if width <= 80 {
-		return math.Max(r.minimumRowHeight(width), math.Max(29, 5+float64(fieldCount)*5)+28)
+		return math.Max(r.minimumRowHeight(width), math.Max(29, 5+float64(fieldCount)*meta.FieldSpacingMM)+28)
 	}
-	return math.Max(r.minimumRowHeight(width), 10.5+float64(fieldCount)*5)
+	return math.Max(r.minimumRowHeight(width), 10.5+float64(fieldCount)*meta.FieldSpacingMM)
 }
 
 func (r pdfSignatureRenderer) minimumRowHeight(width float64) float64 {
@@ -248,6 +266,7 @@ func (r pdfSignatureRenderer) signatureFields(row map[string]any, config map[str
 }
 
 func (r pdfSignatureRenderer) metaSVG(fields [][2]string, rowTop, width float64, palette signaturePalette) string {
+	metrics := signatureMetaMetricsDefault()
 	labelX := 3.0
 	valueX := 41.0
 	valueWidth := 56.0
@@ -263,21 +282,21 @@ func (r pdfSignatureRenderer) metaSVG(fields [][2]string, rowTop, width float64,
 	}
 	for index := 0; index < limit; index++ {
 		field := fields[index]
-		y := baseline + float64(index)*5
-		labelLines := r.packedTextLines(field[0], valueX-labelX-2, 1.62, 3)
+		y := baseline + float64(index)*metrics.FieldSpacingMM
+		labelLines := r.packedTextLines(field[0], valueX-labelX-2, metrics.LabelSizeMM, 3)
 		for lineIndex, line := range labelLines {
-			svg.WriteString(r.text(labelX, y+float64(lineIndex)*1.62, line, 1.62, palette.MutedText, "sf-mono-light", "start", ""))
+			svg.WriteString(r.text(labelX, y+float64(lineIndex)*metrics.LineHeightMM, line, metrics.LabelSizeMM, palette.MutedText, "sf-mono-light", "start", ""))
 		}
 		valueLines := []string{r.fitText(field[1], valueWidth)}
 		if strings.Contains(field[1], "\n") {
-			valueLines = r.packedTextLines(field[1], valueWidth, 1.62, 3)
+			valueLines = r.packedTextLines(field[1], valueWidth, metrics.SmallValueMM, 3)
 		}
-		valueSize := 2.55
+		valueSize := metrics.ValueSizeMM
 		if len(valueLines) > 1 {
-			valueSize = 1.62
+			valueSize = metrics.SmallValueMM
 		}
 		for lineIndex, line := range valueLines {
-			svg.WriteString(r.text(valueX, y+float64(lineIndex)*1.62, line, valueSize, palette.BodyText, "sf-mono", "start", ""))
+			svg.WriteString(r.text(valueX, y+float64(lineIndex)*metrics.LineHeightMM, line, valueSize, palette.BodyText, "sf-mono", "start", ""))
 		}
 	}
 	return svg.String()
@@ -466,7 +485,7 @@ func (r pdfSignatureRenderer) noteItemHeight(item signatureNoteItem) float64 {
 	return 5.8
 }
 
-func (r pdfSignatureRenderer) titleRows(title string, width float64) [][]string {
+func (r pdfSignatureRenderer) titleRows(title string, width float64, metrics signatureTitleMetrics) [][]string {
 	parts := []string{}
 	for _, part := range strings.Split(title, "\n") {
 		part = strings.TrimSpace(part)
@@ -484,7 +503,7 @@ func (r pdfSignatureRenderer) titleRows(title string, width float64) [][]string 
 	gap := 3.0
 	for _, part := range parts {
 		part = r.fitText(part, maxWidth)
-		partWidth := r.estimatedTextWidth(part, 2.35)
+		partWidth := r.estimatedTextWidth(part, metrics.FontSizeMM)
 		candidateWidth := currentWidth + partWidth
 		if len(current) > 0 {
 			candidateWidth += gap
@@ -507,21 +526,45 @@ func (r pdfSignatureRenderer) titleRows(title string, width float64) [][]string 
 	return rows
 }
 
-func (r pdfSignatureRenderer) titleBandHeight(rows [][]string) float64 {
-	return math.Max(6, 3+float64(len(rows))*3)
+func (r pdfSignatureRenderer) titleBandHeight(rows [][]string, metrics signatureTitleMetrics) float64 {
+	return math.Max(metrics.MinBandHeightMM, metrics.PaddingTopMM*2+float64(len(rows))*metrics.LineHeightMM)
 }
 
-func (r pdfSignatureRenderer) titleSVG(rows [][]string, palette signaturePalette) string {
+func (r pdfSignatureRenderer) titleSVG(rows [][]string, palette signaturePalette, metrics signatureTitleMetrics) string {
 	var svg strings.Builder
 	for rowIndex, row := range rows {
 		x := 2.0
-		y := 3.75 + float64(rowIndex)*3
+		y := metrics.PaddingTopMM + metrics.FontSizeMM + float64(rowIndex)*metrics.LineHeightMM
 		for _, segment := range row {
-			svg.WriteString(r.text(x, y, segment, 2.35, palette.TitleText, "theme-title", "start", ""))
-			x += r.estimatedTextWidth(segment, 2.35) + 3
+			svg.WriteString(r.text(x, y, segment, metrics.FontSizeMM, palette.TitleText, "theme-title", "start", ""))
+			x += r.estimatedTextWidth(segment, metrics.FontSizeMM) + 3
 		}
 	}
 	return svg.String()
+}
+
+func signatureTitleMetricsForTheme(pdfTheme theme.Definition) signatureTitleMetrics {
+	fontSize := ptToMM(pdfTheme.SectionBandTitleFontSizePt())
+	return signatureTitleMetrics{
+		FontSizeMM:      fontSize,
+		LineHeightMM:    fontSize * 1.12,
+		MinBandHeightMM: 6,
+		PaddingTopMM:    0.8,
+	}
+}
+
+func signatureMetaMetricsDefault() signatureMetaMetrics {
+	return signatureMetaMetrics{
+		LabelSizeMM:    ptToMM(6),
+		ValueSizeMM:    ptToMM(7.2),
+		SmallValueMM:   ptToMM(6),
+		LineHeightMM:   ptToMM(7.2),
+		FieldSpacingMM: 5,
+	}
+}
+
+func ptToMM(value float64) float64 {
+	return value * 25.4 / 72
 }
 
 func (r pdfSignatureRenderer) signingRows(rows []map[string]any) []map[string]any {

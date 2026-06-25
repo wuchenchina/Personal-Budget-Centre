@@ -90,3 +90,27 @@ func TestThemeDefinitionsExposeLegacyPDFContract(t *testing.T) {
 		})
 	}
 }
+
+func TestThemeSectionBandTitleFontSizeMatchesBudgetCSS(t *testing.T) {
+	cases := []struct {
+		key  string
+		want float64
+	}{
+		{key: "classic", want: 9},
+		{key: "hsbc", want: 10.4},
+		{key: "uswds", want: 9.7},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.key, func(t *testing.T) {
+			def := ForKey(tc.key)
+			if got := def.SectionBandTitleFontSizePt(); got != tc.want {
+				t.Fatalf("%s section band title font size = %v, want %v", tc.key, got, tc.want)
+			}
+			wantCSS := `font-size:` + formatPt(tc.want)
+			if !strings.Contains(def.TableCSS(ScopeBudget), wantCSS) {
+				t.Fatalf("%s budget CSS missing %q: %s", tc.key, wantCSS, def.TableCSS(ScopeBudget))
+			}
+		})
+	}
+}

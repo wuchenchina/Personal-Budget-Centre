@@ -139,7 +139,7 @@ func TestSignatureRendererUsesLegacyBase64ImageGeometry(t *testing.T) {
 		`width="76mm" height="72mm" viewBox="0 0 76 72"`,
 		`<rect x="0" y="0" width="76" height="6"`,
 		`<rect x="5" y="39" width="66" height="26"`,
-		`font-size="2.55"`,
+		`font-size="` + signatureNumber(ptToMM(7.2)) + `"`,
 		`Confirmation Signature`,
 	} {
 		if !strings.Contains(svg, want) {
@@ -177,16 +177,76 @@ func TestSignatureSVGEmbedsThemeFontsAndUsesTitleFontStack(t *testing.T) {
 		t.Fatal(err)
 	}
 	svg := string(decoded)
+	titleSize := signatureNumber(ptToMM(theme.ForKey("classic").SectionBandTitleFontSizePt()))
+	labelSize := signatureNumber(ptToMM(6))
+	valueSize := signatureNumber(ptToMM(7.2))
 	for _, want := range []string{
 		`<style>@font-face{font-family:"Arial"`,
 		`font-family:"TCSongti"`,
 		`font-family:"Songti SC"`,
 		`font-family="&#34;SF-Mono&#34;,TCSongti,&#34;Songti TC&#34;,&#34;Songti SC&#34;,monospace"`,
+		`font-size="` + titleSize + `"`,
+		`font-size="` + labelSize + `"`,
+		`font-size="` + valueSize + `"`,
 		`Preparation &amp; Review Record`,
 	} {
 		if !strings.Contains(svg, want) {
 			t.Fatalf("signature SVG missing %q\n%s", want, svg)
 		}
+	}
+	for _, unexpected := range []string{
+		`font-size="2.35"`,
+		`font-size="1.62"`,
+	} {
+		if strings.Contains(svg, unexpected) {
+			t.Fatalf("signature SVG contains old size %q\n%s", unexpected, svg)
+		}
+	}
+}
+
+func TestSignatureSVGTitleFontSizeMatchesThemeSectionBand(t *testing.T) {
+	service := Service{
+		FontDir: "/app/font",
+		LoadBudgetTemplate: func(context.Context, map[string]any) (Template, error) {
+			return DefaultTemplate(), nil
+		},
+	}
+	for _, tt := range []struct {
+		theme     string
+		languages []string
+	}{
+		{theme: "classic", languages: []string{"en", "tc"}},
+		{theme: "hsbc", languages: []string{"en", "tc"}},
+		{theme: "uswds", languages: []string{"en", "sc"}},
+	} {
+		t.Run(tt.theme, func(t *testing.T) {
+			budget := samplePDFBudget()
+			signatureConfig := budget["signatureConfig"].(map[string]any)
+			signatureConfig["customTitleEnabled"] = true
+			signatureConfig["title"] = "Preparation & Review Record"
+			html, err := service.RenderHTML(context.Background(), budget, "budget", Options{
+				PDFTheme:               tt.theme,
+				PDFLanguages:           tt.languages,
+				PDFLanguagesExplicit:   true,
+				SignatureLabelLanguage: tt.languages,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			matches := regexp.MustCompile(`src="data:image/svg\+xml;base64,([^"]+)"`).FindStringSubmatch(html)
+			if len(matches) != 2 {
+				t.Fatalf("signature image base64 payload not found\n%s", html)
+			}
+			decoded, err := base64.StdEncoding.DecodeString(matches[1])
+			if err != nil {
+				t.Fatal(err)
+			}
+			svg := string(decoded)
+			want := `font-size="` + signatureNumber(ptToMM(theme.ForKey(tt.theme).SectionBandTitleFontSizePt())) + `"`
+			if !strings.Contains(svg, want) {
+				t.Fatalf("signature SVG title size missing %q\n%s", want, svg)
+			}
+		})
 	}
 }
 

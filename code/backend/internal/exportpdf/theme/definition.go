@@ -15,7 +15,7 @@ type staticTheme struct {
 	budgetTableCSS         string
 	bookkeepingDocumentCSS string
 	bookkeepingTableCSS    string
-	sectionBandTitlePt    float64
+	sectionBandTitlePt     float64
 	signatureCSS           string
 	signatureFontFamily    func(string, bool, string) string
 	signatureFullWidthMM   float64
