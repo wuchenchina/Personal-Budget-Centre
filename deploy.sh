@@ -6,13 +6,25 @@ SERVER_USER="${SERVER_USER:-root}"
 SERVER_IP="${SERVER_IP:-140.210.14.109}"
 SERVER_PORT="${SERVER_PORT:-22}"
 SERVER_SSH_KEY="${SERVER_SSH_KEY:-/Users/wuchen/Documents/140.210.14.109_sshkey_id_ed25519}"
+SSH_BATCH_MODE="${SSH_BATCH_MODE:-yes}"
+SSH_CONNECT_TIMEOUT="${SSH_CONNECT_TIMEOUT:-15}"
+SSH_SERVER_ALIVE_INTERVAL="${SSH_SERVER_ALIVE_INTERVAL:-30}"
+SSH_SERVER_ALIVE_COUNT_MAX="${SSH_SERVER_ALIVE_COUNT_MAX:-4}"
 REMOTE_PATH="${REMOTE_PATH:-/www/wwwroot/bc.tool.axchen.top}"
 DOMAIN="${DOMAIN:-bc.tool.axchen.top}"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REMOTE="${SERVER_USER}@${SERVER_IP}"
-SSH_OPTS=(-i "${SERVER_SSH_KEY}" -p "${SERVER_PORT}" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new)
-RSYNC_SSH="ssh -i ${SERVER_SSH_KEY} -p ${SERVER_PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+SSH_OPTS=(
+  -i "${SERVER_SSH_KEY}"
+  -p "${SERVER_PORT}"
+  -o IdentitiesOnly=yes
+  -o "BatchMode=${SSH_BATCH_MODE}"
+  -o "ConnectTimeout=${SSH_CONNECT_TIMEOUT}"
+  -o "ServerAliveInterval=${SSH_SERVER_ALIVE_INTERVAL}"
+  -o "ServerAliveCountMax=${SSH_SERVER_ALIVE_COUNT_MAX}"
+  -o StrictHostKeyChecking=accept-new
+)
 
 APP_ENV="${APP_ENV:-production}"
 APP_URL="${APP_URL:-https://${DOMAIN}}"
@@ -123,6 +135,50 @@ require_command() {
   }
 }
 
+remote_quote() {
+  local value="$1"
+  printf "'%s'" "${value//\'/\'\\\'\'}"
+}
+
+rsync_ssh_command() {
+  local command
+  command="$(printf '%q ' ssh "${SSH_OPTS[@]}")"
+  printf '%s' "${command% }"
+}
+
+run_remote() {
+  ssh "${SSH_OPTS[@]}" "${REMOTE}" "$@"
+}
+
+check_deploy_config() {
+  if [[ ! "${SERVER_PORT}" =~ ^[0-9]+$ ]]; then
+    echo "SERVER_PORT must be numeric: ${SERVER_PORT}" >&2
+    exit 1
+  fi
+
+  if [[ ! -r "${SERVER_SSH_KEY}" ]]; then
+    echo "SSH key is not readable: ${SERVER_SSH_KEY}" >&2
+    exit 1
+  fi
+}
+
+check_remote_access() {
+  local remote_path
+  remote_path="$(remote_quote "${REMOTE_PATH}")"
+
+  echo "Checking SSH access to ${REMOTE}..."
+  if ! run_remote "command -v rsync >/dev/null 2>&1 && mkdir -p ${remote_path}"; then
+    cat >&2 <<EOF
+Unable to prepare ${REMOTE}:${REMOTE_PATH}.
+The SSH session was closed before rsync could start, or rsync is missing on the server.
+
+Check manually:
+  ssh -i "${SERVER_SSH_KEY}" -p "${SERVER_PORT}" -o IdentitiesOnly=yes "${REMOTE}" "command -v rsync && mkdir -p ${remote_path}"
+EOF
+    exit 1
+  fi
+}
+
 write_env() {
   local target="$1"
   prepare_build_proxy_env
@@ -222,21 +278,31 @@ require_release_dir() {
   fi
 }
 
-sync_release_file() {
-  local rel="$1"
-  require_release_file "${rel}"
-  rsync -az --relative \
-    -e "${RSYNC_SSH}" \
-    "${PROJECT_ROOT}/./${rel}" "${REMOTE}:${REMOTE_PATH}/"
-}
+sync_release_allowlist() {
+  local rel
+  local -a sources=()
 
-sync_release_dir() {
-  local rel="$1"
-  require_release_dir "${rel}"
+  for rel in "${DEPLOY_ROOT_FILES[@]}"; do
+    require_release_file "${rel}"
+    sources+=("${PROJECT_ROOT}/./${rel}")
+  done
+  for rel in "${DEPLOY_DIRS[@]}"; do
+    require_release_dir "${rel}"
+    sources+=("${PROJECT_ROOT}/./${rel}/")
+  done
+  for rel in "${DEPLOY_MANUAL_FILES[@]}"; do
+    require_release_file "${rel}"
+    sources+=("${PROJECT_ROOT}/./${rel}")
+  done
+
   rsync -az --delete --delete-excluded --relative \
     "${RSYNC_RELEASE_EXCLUDES[@]}" \
-    -e "${RSYNC_SSH}" \
-    "${PROJECT_ROOT}/./${rel}/" "${REMOTE}:${REMOTE_PATH}/"
+    -e "$(rsync_ssh_command)" \
+    "${sources[@]}" "${REMOTE}:${REMOTE_PATH}/"
+}
+
+sync_env_file() {
+  rsync -az -e "$(rsync_ssh_command)" "${DEPLOY_TMP_ENV}" "${REMOTE}:${REMOTE_PATH}/.env"
 }
 
 prepare_local_artifacts() {
@@ -274,12 +340,14 @@ prepare_local_artifacts() {
 }
 
 prune_remote_release() {
-  local command="cd '${REMOTE_PATH}'"
+  local remote_path
+  remote_path="$(remote_quote "${REMOTE_PATH}")"
+  local command="mkdir -p ${remote_path} && cd ${remote_path}"
   local rel
   for rel in "${DEPLOY_REMOTE_PRUNE_PATHS[@]}"; do
-    command="${command} && rm -rf -- '${rel}'"
+    command="${command} && rm -rf -- $(remote_quote "${rel}")"
   done
-  ssh "${SSH_OPTS[@]}" "${REMOTE}" "${command}"
+  run_remote "${command}"
 }
 
 main() {
@@ -289,6 +357,8 @@ main() {
   require_command rsync
   require_command yarn
   require_command go
+  check_deploy_config
+  check_remote_access
 
   prepare_local_artifacts
 
@@ -296,22 +366,12 @@ main() {
   write_env "${DEPLOY_TMP_ENV}"
 
   echo "Preparing remote release directory at ${REMOTE}:${REMOTE_PATH}..."
-  ssh "${SSH_OPTS[@]}" "${REMOTE}" "mkdir -p '${REMOTE_PATH}'"
   prune_remote_release
 
   echo "Uploading release allowlist to ${REMOTE}:${REMOTE_PATH}..."
-  local rel
-  for rel in "${DEPLOY_ROOT_FILES[@]}"; do
-    sync_release_file "${rel}"
-  done
-  for rel in "${DEPLOY_DIRS[@]}"; do
-    sync_release_dir "${rel}"
-  done
-  for rel in "${DEPLOY_MANUAL_FILES[@]}"; do
-    sync_release_file "${rel}"
-  done
-  rsync -az -e "${RSYNC_SSH}" "${DEPLOY_TMP_ENV}" "${REMOTE}:${REMOTE_PATH}/.env"
-  ssh "${SSH_OPTS[@]}" "${REMOTE}" "mkdir -p '${REMOTE_PATH}/storage/exports' '${REMOTE_PATH}/storage/tmp' '${REMOTE_PATH}/storage/logs' && chmod 600 '${REMOTE_PATH}/.env'"
+  sync_release_allowlist
+  sync_env_file
+  run_remote "mkdir -p $(remote_quote "${REMOTE_PATH}/storage/exports") $(remote_quote "${REMOTE_PATH}/storage/tmp") $(remote_quote "${REMOTE_PATH}/storage/logs") && chmod 600 $(remote_quote "${REMOTE_PATH}/.env")"
 
   cat <<EOF
 
