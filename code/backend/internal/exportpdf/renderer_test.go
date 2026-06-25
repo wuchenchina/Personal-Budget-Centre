@@ -148,6 +148,48 @@ func TestSignatureRendererUsesLegacyBase64ImageGeometry(t *testing.T) {
 	}
 }
 
+func TestSignatureSVGEmbedsThemeFontsAndUsesTitleFontStack(t *testing.T) {
+	service := Service{
+		FontDir: "/app/font",
+		LoadBudgetTemplate: func(context.Context, map[string]any) (Template, error) {
+			return DefaultTemplate(), nil
+		},
+	}
+	budget := samplePDFBudget()
+	signatureConfig := budget["signatureConfig"].(map[string]any)
+	signatureConfig["customTitleEnabled"] = true
+	signatureConfig["title"] = "Preparation & Review Record"
+	html, err := service.RenderHTML(context.Background(), budget, "budget", Options{
+		PDFTheme:               "classic",
+		PDFLanguages:           []string{"en", "tc"},
+		PDFLanguagesExplicit:   true,
+		SignatureLabelLanguage: []string{"en", "tc"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	matches := regexp.MustCompile(`src="data:image/svg\+xml;base64,([^"]+)"`).FindStringSubmatch(html)
+	if len(matches) != 2 {
+		t.Fatalf("signature image base64 payload not found\n%s", html)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(matches[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	svg := string(decoded)
+	for _, want := range []string{
+		`<style>@font-face{font-family:"Arial"`,
+		`font-family:"TCSongti"`,
+		`font-family:"Songti SC"`,
+		`font-family="&#34;SF-Mono&#34;,TCSongti,&#34;Songti TC&#34;,&#34;Songti SC&#34;,monospace"`,
+		`Preparation &amp; Review Record`,
+	} {
+		if !strings.Contains(svg, want) {
+			t.Fatalf("signature SVG missing %q\n%s", want, svg)
+		}
+	}
+}
+
 func TestRenderBookkeepingHTMLUsesDedicatedLegacyTableStructure(t *testing.T) {
 	service := Service{
 		LoadBookkeeping: func(context.Context, int64) ([]map[string]any, error) {
@@ -284,11 +326,11 @@ func TestRenderHTMLIncludesThemePDFFontFaces(t *testing.T) {
 				`font-family:"Menlo";src:url("file:///app/font/Menlo.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`font-family:"TCSongti";src:url("file:///app/font/Songti-TC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`font-family:"Songti TC";src:url("file:///app/font/Songti-TC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
-				`--pdf-classic-serif-font-family:TimesNewRoman,TCSongti,"Songti TC",serif`,
+				`font-family:"Songti SC";src:url("file:///app/font/Songti.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`--pdf-classic-serif-font-family:TimesNewRoman,TCSongti,"Songti TC","Songti SC",serif`,
 			},
 			unexpected: []string{
 				`font-family:"PingFang HK"`,
-				`font-family:"Songti SC"`,
 			},
 		},
 		{
@@ -297,12 +339,11 @@ func TestRenderHTMLIncludesThemePDFFontFaces(t *testing.T) {
 			languages: []string{"en", "sc"},
 			want: []string{
 				`font-family:"Songti SC";src:url("file:///app/font/Songti.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
-				`--pdf-classic-serif-font-family:TimesNewRoman,"Songti SC",serif`,
+				`font-family:"TCSongti";src:url("file:///app/font/Songti-TC-Regular.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`--pdf-classic-serif-font-family:TimesNewRoman,"Songti SC",TCSongti,"Songti TC",serif`,
 			},
 			unexpected: []string{
 				`font-family:"PingFang SC"`,
-				`font-family:"TCSongti"`,
-				`font-family:"Songti TC"`,
 			},
 		},
 		{
@@ -313,7 +354,8 @@ func TestRenderHTMLIncludesThemePDFFontFaces(t *testing.T) {
 				`font-family:"Arial";src:url("file:///app/font/Arial.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`font-family:"Arial";src:url("file:///app/font/Arial%20Bold.ttf") format("truetype");font-weight:700;font-style:normal;font-display:block;`,
 				`font-family:"PingFang HK";src:url("file:///app/font/PingFang.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
-				`--pdf-sans-font-family:Arial,"PingFang HK",sans-serif`,
+				`font-family:"PingFang SC";src:url("file:///app/font/PingFang.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`--pdf-sans-font-family:Arial,"PingFang HK","PingFang SC",sans-serif`,
 			},
 			unexpected: []string{
 				`font-family:"TimesNewRoman"`,
@@ -329,10 +371,10 @@ func TestRenderHTMLIncludesThemePDFFontFaces(t *testing.T) {
 			want: []string{
 				`font-family:"Arial";src:url("file:///app/font/Arial.ttf") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
 				`font-family:"PingFang SC";src:url("file:///app/font/PingFang.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
-				`--pdf-sans-font-family:Arial,"PingFang SC",sans-serif`,
+				`font-family:"PingFang HK";src:url("file:///app/font/PingFang.ttc") format("truetype");font-weight:400;font-style:normal;font-display:block;`,
+				`--pdf-sans-font-family:Arial,"PingFang SC","PingFang HK",sans-serif`,
 			},
 			unexpected: []string{
-				`font-family:"PingFang HK"`,
 				`font-family:"TimesNewRoman"`,
 				`font-family:"TCSongti"`,
 				`font-family:"Songti TC"`,
@@ -410,22 +452,22 @@ func TestFooterTemplatesFollowThemeChineseFontStack(t *testing.T) {
 			name:       "classic simplified",
 			theme:      "classic",
 			languages:  []string{"en", "sc"},
-			want:       `font-family:SF-Mono,'Songti SC',monospace`,
-			unexpected: `TCSongti`,
+			want:       `font-family:SF-Mono,'Songti SC',TCSongti,'Songti TC',monospace`,
+			unexpected: `PingFang`,
 		},
 		{
 			name:       "hsbc traditional",
 			theme:      "hsbc",
 			languages:  []string{"en", "tc"},
-			want:       `font-family:Arial,'PingFang HK',sans-serif`,
-			unexpected: `PingFang SC`,
+			want:       `font-family:Arial,'PingFang HK','PingFang SC',sans-serif`,
+			unexpected: `Songti SC`,
 		},
 		{
 			name:       "uswds simplified",
 			theme:      "uswds",
 			languages:  []string{"en", "sc"},
-			want:       `font-family:Arial,'PingFang SC',sans-serif`,
-			unexpected: `PingFang HK`,
+			want:       `font-family:Arial,'PingFang SC','PingFang HK',sans-serif`,
+			unexpected: `Songti`,
 		},
 	}
 	for _, tt := range cases {

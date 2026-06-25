@@ -31,9 +31,10 @@ func uswdsFontFaces(chineseLanguage string) []FontFace {
 		{"Arial", "Arial Italic.ttf", "400", "italic"},
 		{"Arial", "Arial Bold Italic.ttf", "700", "italic"},
 	}
-	family := uswdsPingFangFamily(chineseLanguage)
-	for _, weight := range []string{"400", "500", "600", "700"} {
-		fonts = append(fonts, FontFace{family, "PingFang.ttc", weight, "normal"})
+	for _, family := range uswdsPingFangFamilies(chineseLanguage) {
+		for _, weight := range []string{"400", "500", "600", "700"} {
+			fonts = append(fonts, FontFace{family, "PingFang.ttc", weight, "normal"})
+		}
 	}
 	return fonts
 }
@@ -42,19 +43,19 @@ func uswdsFontVariableCSS(chineseLanguage string) string {
 	return `:root{--pdf-sans-font-family:` + uswdsSansFontStack(chineseLanguage) + `;}`
 }
 
-func uswdsPingFangFamily(chineseLanguage string) string {
+func uswdsPingFangFamilies(chineseLanguage string) []string {
 	if chineseLanguage == "sc" {
-		return "PingFang SC"
+		return []string{"PingFang SC", "PingFang HK"}
 	}
-	return "PingFang HK"
+	return []string{"PingFang HK", "PingFang SC"}
 }
 
 func uswdsSansFontStack(chineseLanguage string) string {
-	return `Arial,"` + uswdsPingFangFamily(chineseLanguage) + `",sans-serif`
+	return `Arial,` + uswdsQuotedPingFangStack(chineseLanguage, `"`) + `,sans-serif`
 }
 
 func uswdsSansFooterStack(chineseLanguage string) string {
-	return `Arial,'` + uswdsPingFangFamily(chineseLanguage) + `',sans-serif`
+	return `Arial,` + uswdsQuotedPingFangStack(chineseLanguage, `'`) + `,sans-serif`
 }
 
 func uswdsSignatureFontFamily(_ string, _ bool, chineseLanguage string) string {
@@ -63,4 +64,16 @@ func uswdsSignatureFontFamily(_ string, _ bool, chineseLanguage string) string {
 
 func uswdsFooterTemplate(_ Scope, chineseLanguage string) string {
 	return `<div style="width:100%;font-family:` + uswdsSansFooterStack(chineseLanguage) + `;font-size:7pt;color:#565c65;text-align:center;border-top:0.2mm solid #dfe1e2;padding-top:1.2mm;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>`
+}
+
+func uswdsQuotedPingFangStack(chineseLanguage, quote string) string {
+	families := uswdsPingFangFamilies(chineseLanguage)
+	out := ""
+	for index, family := range families {
+		if index > 0 {
+			out += ","
+		}
+		out += quote + family + quote
+	}
+	return out
 }

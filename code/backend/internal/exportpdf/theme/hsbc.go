@@ -31,9 +31,10 @@ func hsbcFontFaces(chineseLanguage string) []FontFace {
 		{"Arial", "Arial Italic.ttf", "400", "italic"},
 		{"Arial", "Arial Bold Italic.ttf", "700", "italic"},
 	}
-	family := hsbcPingFangFamily(chineseLanguage)
-	for _, weight := range []string{"400", "500", "600", "700"} {
-		fonts = append(fonts, FontFace{family, "PingFang.ttc", weight, "normal"})
+	for _, family := range hsbcPingFangFamilies(chineseLanguage) {
+		for _, weight := range []string{"400", "500", "600", "700"} {
+			fonts = append(fonts, FontFace{family, "PingFang.ttc", weight, "normal"})
+		}
 	}
 	return fonts
 }
@@ -42,19 +43,19 @@ func hsbcFontVariableCSS(chineseLanguage string) string {
 	return `:root{--pdf-sans-font-family:` + hsbcSansFontStack(chineseLanguage) + `;}`
 }
 
-func hsbcPingFangFamily(chineseLanguage string) string {
+func hsbcPingFangFamilies(chineseLanguage string) []string {
 	if chineseLanguage == "sc" {
-		return "PingFang SC"
+		return []string{"PingFang SC", "PingFang HK"}
 	}
-	return "PingFang HK"
+	return []string{"PingFang HK", "PingFang SC"}
 }
 
 func hsbcSansFontStack(chineseLanguage string) string {
-	return `Arial,"` + hsbcPingFangFamily(chineseLanguage) + `",sans-serif`
+	return `Arial,` + hsbcQuotedPingFangStack(chineseLanguage, `"`) + `,sans-serif`
 }
 
 func hsbcSansFooterStack(chineseLanguage string) string {
-	return `Arial,'` + hsbcPingFangFamily(chineseLanguage) + `',sans-serif`
+	return `Arial,` + hsbcQuotedPingFangStack(chineseLanguage, `'`) + `,sans-serif`
 }
 
 func hsbcSignatureFontFamily(_ string, _ bool, chineseLanguage string) string {
@@ -63,4 +64,16 @@ func hsbcSignatureFontFamily(_ string, _ bool, chineseLanguage string) string {
 
 func hsbcFooterTemplate(_ Scope, chineseLanguage string) string {
 	return `<div style="width:100%;font-family:` + hsbcSansFooterStack(chineseLanguage) + `;font-size:7pt;color:#555;text-align:center;"><span class="pageNumber"></span></div>`
+}
+
+func hsbcQuotedPingFangStack(chineseLanguage, quote string) string {
+	families := hsbcPingFangFamilies(chineseLanguage)
+	out := ""
+	for index, family := range families {
+		if index > 0 {
+			out += ","
+		}
+		out += quote + family + quote
+	}
+	return out
 }

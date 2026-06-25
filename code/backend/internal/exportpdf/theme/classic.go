@@ -48,18 +48,7 @@ func classicFontFaces(chineseLanguage string) []FontFace {
 		{"Times New Roman", "Times New Roman Italic.ttf", "400", "italic"},
 		{"Times New Roman", "Times New Roman Bold Italic.ttf", "700", "italic"},
 	}
-	if chineseLanguage == "sc" {
-		return append(fonts,
-			FontFace{"Songti SC", "Songti.ttc", "400", "normal"},
-			FontFace{"Songti SC", "Songti.ttc", "700", "normal"},
-		)
-	}
-	return append(fonts,
-		FontFace{"TCSongti", "Songti-TC-Regular.ttf", "400", "normal"},
-		FontFace{"TCSongti", "Songti-TC-Bold.ttf", "700", "normal"},
-		FontFace{"Songti TC", "Songti-TC-Regular.ttf", "400", "normal"},
-		FontFace{"Songti TC", "Songti-TC-Bold.ttf", "700", "normal"},
-	)
+	return append(fonts, classicSongtiFontFaces(chineseLanguage)...)
 }
 
 func classicFontVariableCSS(chineseLanguage string) string {
@@ -71,27 +60,21 @@ func classicMonoFontStack(chineseLanguage string, light bool) string {
 	if light {
 		latin = `"SF-Mono-Light"`
 	}
-	if chineseLanguage == "sc" {
-		return latin + `,"Songti SC",monospace`
-	}
-	return latin + `,TCSongti,"Songti TC",monospace`
+	return latin + `,` + classicSongtiStack(chineseLanguage, `"`) + `,monospace`
 }
 
 func classicSerifFontStack(chineseLanguage string) string {
-	if chineseLanguage == "sc" {
-		return `TimesNewRoman,"Songti SC",serif`
-	}
-	return `TimesNewRoman,TCSongti,"Songti TC",serif`
+	return `TimesNewRoman,` + classicSongtiStack(chineseLanguage, `"`) + `,serif`
 }
 
 func classicMonoFooterStack(chineseLanguage string) string {
-	if chineseLanguage == "sc" {
-		return `SF-Mono,'Songti SC',monospace`
-	}
-	return `SF-Mono,TCSongti,'Songti TC',monospace`
+	return `SF-Mono,` + classicSongtiStack(chineseLanguage, `'`) + `,monospace`
 }
 
 func classicSignatureFontFamily(fontRole string, containsCJK bool, chineseLanguage string) string {
+	if fontRole == "theme-title" {
+		return classicMonoFontStack(chineseLanguage, false)
+	}
 	if containsCJK {
 		return classicSerifFontStack(chineseLanguage)
 	}
@@ -103,4 +86,28 @@ func classicSignatureFontFamily(fontRole string, containsCJK bool, chineseLangua
 
 func classicFooterTemplate(_ Scope, chineseLanguage string) string {
 	return `<div style="width:100%;font-family:` + classicMonoFooterStack(chineseLanguage) + `;font-size:7pt;color:#666;text-align:center;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>`
+}
+
+func classicSongtiFontFaces(chineseLanguage string) []FontFace {
+	sc := []FontFace{
+		{"Songti SC", "Songti.ttc", "400", "normal"},
+		{"Songti SC", "Songti.ttc", "700", "normal"},
+	}
+	tc := []FontFace{
+		{"TCSongti", "Songti-TC-Regular.ttf", "400", "normal"},
+		{"TCSongti", "Songti-TC-Bold.ttf", "700", "normal"},
+		{"Songti TC", "Songti-TC-Regular.ttf", "400", "normal"},
+		{"Songti TC", "Songti-TC-Bold.ttf", "700", "normal"},
+	}
+	if chineseLanguage == "sc" {
+		return append(sc, tc...)
+	}
+	return append(tc, sc...)
+}
+
+func classicSongtiStack(chineseLanguage, quote string) string {
+	if chineseLanguage == "sc" {
+		return quote + "Songti SC" + quote + `,TCSongti,` + quote + "Songti TC" + quote
+	}
+	return `TCSongti,` + quote + "Songti TC" + quote + `,` + quote + "Songti SC" + quote
 }

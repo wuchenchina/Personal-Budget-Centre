@@ -17,6 +17,7 @@ import (
 type pdfSignatureRenderer struct {
 	pdfTheme  theme.Definition
 	languages []string
+	fontDir   string
 }
 
 type signaturePalette struct {
@@ -43,10 +44,11 @@ type signatureNoteItem struct {
 	HasDateTime bool
 }
 
-func newPDFSignatureRenderer(pdfTheme theme.Definition, options Options) pdfSignatureRenderer {
+func newPDFSignatureRenderer(pdfTheme theme.Definition, options Options, fontDir string) pdfSignatureRenderer {
 	return pdfSignatureRenderer{
 		pdfTheme:  pdfTheme,
 		languages: options.SignatureLabelLanguage,
+		fontDir:   fontDir,
 	}
 }
 
@@ -109,6 +111,7 @@ func (r pdfSignatureRenderer) svg(config map[string]any, width float64, pdfTheme
 	svg.WriteString(` `)
 	svg.WriteString(signatureNumber(height))
 	svg.WriteString(`">`)
+	svg.WriteString(r.fontFaceSVGStyle(pdfTheme))
 	svg.WriteString(`<rect x="0" y="0" width="`)
 	svg.WriteString(signatureNumber(width))
 	svg.WriteString(`" height="`)
@@ -166,6 +169,14 @@ func (r pdfSignatureRenderer) svg(config map[string]any, width float64, pdfTheme
 	}
 	svg.WriteString(`</svg>`)
 	return svg.String()
+}
+
+func (r pdfSignatureRenderer) fontFaceSVGStyle(pdfTheme theme.Definition) string {
+	css := fontFaceCSS(r.fontDir, pdfTheme, r.languages)
+	if css == "" {
+		return ""
+	}
+	return `<style>` + css + `</style>`
 }
 
 func (r pdfSignatureRenderer) svgHeight(config map[string]any, width float64) float64 {
@@ -506,7 +517,7 @@ func (r pdfSignatureRenderer) titleSVG(rows [][]string, palette signaturePalette
 		x := 2.0
 		y := 3.75 + float64(rowIndex)*3
 		for _, segment := range row {
-			svg.WriteString(r.text(x, y, segment, 2.35, palette.TitleText, "sf-mono", "start", ""))
+			svg.WriteString(r.text(x, y, segment, 2.35, palette.TitleText, "theme-title", "start", ""))
 			x += r.estimatedTextWidth(segment, 2.35) + 3
 		}
 	}
@@ -735,6 +746,9 @@ func (r pdfSignatureRenderer) estimatedTextWidth(text string, fontSize float64) 
 }
 
 func (r pdfSignatureRenderer) fontFamily(value string, font string) string {
+	if font == "theme-title" {
+		return r.pdfTheme.SignatureFontFamily(font, true, primaryPDFChineseLanguage(r.languages))
+	}
 	for _, char := range value {
 		if usesCJKFont(char) {
 			return r.pdfTheme.SignatureFontFamily(font, true, primaryPDFChineseLanguage(r.languages))

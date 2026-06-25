@@ -68,7 +68,7 @@ func (r *pdfRenderer) renderBudget(budget map[string]any, template Template, opt
 		installmentSection = installmentPeriodSection(installmentSection, budget, ctx)
 		body += r.renderTable(installmentSection, period, r.installmentRows(budget, ctx), r.installmentSummaryRow(budget, ctx), tableText("No installment targets", ctx.BudgetLabels["emptyInstallments"], ctx), datePrefix(ctx))
 	}
-	body += newPDFSignatureRenderer(pdfTheme, options).render(budget, options, pdfTheme)
+	body += newPDFSignatureRenderer(pdfTheme, options, r.fontDir).render(budget, options, pdfTheme)
 	return r.documentHTML(ctx, options, theme.ScopeBudget, body)
 }
 
@@ -123,13 +123,17 @@ func (r *pdfRenderer) documentHTML(ctx pdfTableContext, options Options, scope t
 }
 
 func (r *pdfRenderer) fontFaceCSS(pdfTheme theme.Definition, languages []string) string {
-	if r.fontDir == "" {
+	return fontFaceCSS(r.fontDir, pdfTheme, languages)
+}
+
+func fontFaceCSS(fontDir string, pdfTheme theme.Definition, languages []string) string {
+	if fontDir == "" {
 		return ""
 	}
 	fonts := pdfTheme.FontFaces(primaryPDFChineseLanguage(languages))
 	var out strings.Builder
 	for _, font := range fonts {
-		path := filepath.Join(r.fontDir, font.File)
+		path := filepath.Join(fontDir, font.File)
 		out.WriteString("@font-face{font-family:\"")
 		out.WriteString(font.Family)
 		out.WriteString("\";src:url(\"")
