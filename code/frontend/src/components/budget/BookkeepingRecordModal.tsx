@@ -1,11 +1,11 @@
-import { Alert, DatePicker, Form, Input, InputNumber, Modal, Radio, Select } from 'antd';
+import { Alert, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
-import { useEffect } from 'react';
 import { useI18n } from '../../i18n';
-import type { BookkeepingRecord, Currency, CurrencyCode, TransactionType } from '../../types/budget';
+import type { BookkeepingRecord, CurrencyCode, TransactionType } from '../../types/budget';
 import type { BookkeepingRecordFormValues } from '../../types/forms';
 import type { CurrencySelectOption } from '../../utils/currencyOptions';
-import { CurrencySelectWithQuickAdd } from './CurrencySelectWithQuickAdd';
+import { renderCurrencyOption } from '../../utils/currencyOptions';
+import { syncCurrencyTriad } from '../../utils/currencyTriad';
 
 interface BookkeepingRecordModalProps {
   form: FormInstance<BookkeepingRecordFormValues>;
@@ -13,20 +13,11 @@ interface BookkeepingRecordModalProps {
   open: boolean;
   error: string | null;
   categoryOptions: Array<{ label: string; value: string }>;
-  currencies: Currency[];
-  currencyPresets: Currency[];
   currencyOptions: CurrencySelectOption[];
   baseCurrency: CurrencyCode;
   confirmLoading: boolean;
   onCancel: () => void;
   onOk: () => void;
-  onSaveCurrency: (input: {
-    code: string;
-    name: string;
-    symbol?: string;
-    decimalPlaces: number;
-    source?: 'catalog' | 'manual';
-  }) => Promise<boolean>;
   onValuesChange: () => void;
 }
 
@@ -36,14 +27,11 @@ export function BookkeepingRecordModal({
   open,
   error,
   categoryOptions,
-  currencies,
-  currencyPresets,
   currencyOptions,
   baseCurrency,
   confirmLoading,
   onCancel,
   onOk,
-  onSaveCurrency,
   onValuesChange,
 }: BookkeepingRecordModalProps) {
   const { t } = useI18n();
@@ -51,7 +39,6 @@ export function BookkeepingRecordModal({
   const currency = Form.useWatch('currency', form) ?? baseCurrency;
   const amount = Form.useWatch('amount', form);
   const rate = Form.useWatch('rate', form);
-  const targetBaseAmount = Form.useWatch('targetBaseAmount', form);
   const destinationCurrency = Form.useWatch('destinationCurrency', form);
   const destinationAmount = Form.useWatch('destinationAmount', form);
   const showDestinationFields =
@@ -66,25 +53,23 @@ export function BookkeepingRecordModal({
     typeof destinationAmount === 'number' && Number.isFinite(destinationAmount) && destinationCurrency
       ? `${destinationCurrency} ${destinationAmount.toFixed(2)}`
       : null;
-
-  useEffect(() => {
-    if (
-      !open
-      || typeof amount !== 'number'
-      || !Number.isFinite(amount)
-      || amount <= 0
-      || typeof targetBaseAmount !== 'number'
-      || !Number.isFinite(targetBaseAmount)
-      || targetBaseAmount < 0
-    ) {
-      return;
+  const handleValuesChange = (
+    changedValues: Partial<BookkeepingRecordFormValues>,
+    allValues: BookkeepingRecordFormValues,
+  ) => {
+    const sourceFields = syncCurrencyTriad(changedValues, allValues, bookkeepingSourceTriadKeys);
+    const destinationFields = showDestinationFields
+      ? syncCurrencyTriad(changedValues, allValues, bookkeepingDestinationTriadKeys)
+      : {};
+    const nextFields = {
+      ...sourceFields,
+      ...destinationFields,
+    };
+    if (Object.keys(nextFields).length > 0) {
+      form.setFieldsValue(nextFields);
     }
-
-    const nextRate = Number((targetBaseAmount / amount).toFixed(6));
-    if (nextRate > 0 && form.getFieldValue('rate') !== nextRate) {
-      form.setFieldValue('rate', nextRate);
-    }
-  }, [amount, form, open, targetBaseAmount]);
+    onValuesChange();
+  };
 
   return (
     <Modal
@@ -105,7 +90,7 @@ export function BookkeepingRecordModal({
         layout="vertical"
         name="budget-centre-bookkeeping-record"
         requiredMark={false}
-        onValuesChange={onValuesChange}
+        onValuesChange={handleValuesChange}
       >
         <div className="modal-form-grid">
           <Form.Item
@@ -190,11 +175,12 @@ export function BookkeepingRecordModal({
               name="currency"
               rules={[{ required: true, message: t('selectCurrency') }]}
             >
-              <CurrencySelectWithQuickAdd
-                currencies={currencies}
-                currencyPresets={currencyPresets}
+              <Select
+                showSearch
+                optionFilterProp="label"
+                optionLabelProp="value"
+                optionRender={renderCurrencyOption}
                 options={currencyOptions}
-                onSaveCurrency={onSaveCurrency}
               />
             </Form.Item>
             <Form.Item
@@ -214,40 +200,24 @@ export function BookkeepingRecordModal({
             >
               <InputNumber className="form-full-width" precision={6} step={0.01} />
             </Form.Item>
+            <Form.Item
+              label={t('targetBaseAmount', { currency: baseCurrency })}
+              name="targetBaseAmount"
+              extra={t('targetBaseAmountHelp')}
+              rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+            >
+              <InputNumber
+                addonBefore={baseCurrency}
+                className="form-full-width"
+                precision={2}
+                step={100}
+              />
+            </Form.Item>
           </div>
           <div className="currency-field-preview">
             <span>{t('baseCurrencyPreview')}</span>
             <strong>{basePreview === null ? `${baseCurrency} --` : `${baseCurrency} ${basePreview.toFixed(2)}`}</strong>
           </div>
-          <details className="currency-advanced-fields">
-            <summary>{t('advancedCurrencySettings')}</summary>
-            <div className="currency-reference-grid">
-              <Form.Item
-                label={t('targetBaseAmount', { currency: baseCurrency })}
-                name="targetBaseAmount"
-                extra={t('targetBaseAmountHelp')}
-                rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
-              >
-                <InputNumber
-                  addonBefore={baseCurrency}
-                  className="form-full-width"
-                  precision={2}
-                  step={100}
-                />
-              </Form.Item>
-              <Form.Item label={t('rateSaveScope')} name="rateScope" initialValue="item">
-                <Radio.Group
-                  block
-                  optionType="button"
-                  options={[
-                    { label: t('rateScopeItem'), value: 'item' },
-                    { label: t('rateScopeBudget'), value: 'budget_default' },
-                  ]}
-                  size="small"
-                />
-              </Form.Item>
-            </div>
-          </details>
         </div>
 
         {showDestinationFields ? (
@@ -264,14 +234,15 @@ export function BookkeepingRecordModal({
                         : Promise.resolve();
                     },
                   }),
-                ]}
-              >
-                <CurrencySelectWithQuickAdd
+              ]}
+            >
+                <Select
                   allowClear
-                  currencies={currencies}
-                  currencyPresets={currencyPresets}
+                  showSearch
+                  optionFilterProp="label"
+                  optionLabelProp="value"
+                  optionRender={renderCurrencyOption}
                   options={currencyOptions}
-                  onSaveCurrency={onSaveCurrency}
                 />
               </Form.Item>
               <Form.Item
@@ -353,3 +324,15 @@ function transactionTypeOptions(
     { label: t('transactionTypeCrossBorderRemittance'), value: 'cross_border_remittance' },
   ];
 }
+
+const bookkeepingSourceTriadKeys = {
+  amountKey: 'amount',
+  rateKey: 'rate',
+  targetKey: 'targetBaseAmount',
+} as const;
+
+const bookkeepingDestinationTriadKeys = {
+  amountKey: 'amount',
+  rateKey: 'destinationRate',
+  targetKey: 'destinationAmount',
+} as const;

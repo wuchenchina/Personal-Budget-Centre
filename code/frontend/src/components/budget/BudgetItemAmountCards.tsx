@@ -1,16 +1,15 @@
-import { Form, InputNumber, Radio } from 'antd';
+import { Form, InputNumber, Select } from 'antd';
 import type { RefObject } from 'react';
-import { useEffect } from 'react';
 import { useI18n } from '../../i18n';
-import type { Currency, CurrencyCode } from '../../types/budget';
+import type { CurrencyCode } from '../../types/budget';
 import type { BudgetItemFormValues } from '../../types/forms';
 import type { CurrencySelectOption } from '../../utils/currencyOptions';
+import { renderCurrencyOption } from '../../utils/currencyOptions';
 import {
   formatBudgetMoney,
   type TransactionCurrencyTotal,
 } from '../../utils/budgetTemplate';
 import { previewBaseAmount } from './budgetItemAmountMath';
-import { CurrencySelectWithQuickAdd } from './CurrencySelectWithQuickAdd';
 
 export function MoneyLegCard({
   allowNegative = false,
@@ -20,15 +19,12 @@ export function MoneyLegCard({
   currency,
   currencyName,
   currencyOptions,
-  currencyPresets,
-  currencies,
   help,
   focused,
   rate,
   rateName,
   title,
   wrapperRef,
-  onSaveCurrency,
 }: {
   allowNegative?: boolean;
   amount?: number;
@@ -37,47 +33,15 @@ export function MoneyLegCard({
   currency: CurrencyCode;
   currencyName: keyof BudgetItemFormValues;
   currencyOptions: CurrencySelectOption[];
-  currencyPresets: Currency[];
-  currencies: Currency[];
   focused: boolean;
   help: string;
   rate?: number;
   rateName: keyof BudgetItemFormValues;
   title: string;
   wrapperRef?: RefObject<HTMLDivElement | null>;
-  onSaveCurrency: (input: {
-    code: string;
-    name: string;
-    symbol?: string;
-    decimalPlaces: number;
-    source?: 'catalog' | 'manual';
-  }) => Promise<boolean>;
 }) {
   const { t } = useI18n();
-  const form = Form.useFormInstance<BudgetItemFormValues>();
   const preview = previewBaseAmount(amount, rate);
-  const targetBaseAmount = Form.useWatch('budgetTargetBaseAmount', form);
-
-  useEffect(() => {
-    if (amountName !== 'budgetAmount') {
-      return;
-    }
-    if (
-      typeof amount !== 'number'
-      || !Number.isFinite(amount)
-      || amount <= 0
-      || typeof targetBaseAmount !== 'number'
-      || !Number.isFinite(targetBaseAmount)
-      || targetBaseAmount < 0
-    ) {
-      return;
-    }
-
-    const nextRate = Number((targetBaseAmount / amount).toFixed(6));
-    if (nextRate > 0 && form.getFieldValue(rateName) !== nextRate) {
-      form.setFieldValue(rateName, nextRate);
-    }
-  }, [amount, amountName, form, rateName, targetBaseAmount]);
 
   return (
     <div
@@ -94,11 +58,12 @@ export function MoneyLegCard({
           name={currencyName}
           rules={[{ required: true, message: t('selectCurrency') }]}
         >
-          <CurrencySelectWithQuickAdd
-            currencies={currencies}
-            currencyPresets={currencyPresets}
+          <Select
+            showSearch
+            optionFilterProp="label"
+            optionLabelProp="value"
+            optionRender={renderCurrencyOption}
             options={currencyOptions}
-            onSaveCurrency={onSaveCurrency}
           />
         </Form.Item>
         <Form.Item
@@ -127,37 +92,19 @@ export function MoneyLegCard({
         <InputNumber className="form-full-width" precision={6} step={0.01} />
       </Form.Item>
       {amountName === 'budgetAmount' ? (
-        <details className="currency-advanced-fields">
-          <summary>{t('advancedCurrencySettings')}</summary>
-          <Form.Item
-            label={t('targetBaseAmount', { currency: baseCurrency })}
-            name="budgetTargetBaseAmount"
-            extra={t('targetBaseAmountHelp')}
-            rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
-          >
-            <InputNumber
-              addonBefore={baseCurrency}
-              className="form-full-width"
-              precision={2}
-              step={100}
-            />
-          </Form.Item>
-          <Form.Item
-            label={t('rateSaveScope')}
-            name="rateScope"
-            initialValue="item"
-          >
-            <Radio.Group
-              block
-              optionType="button"
-              options={[
-                { label: t('rateScopeItem'), value: 'item' },
-                { label: t('rateScopeBudget'), value: 'budget_default' },
-              ]}
-              size="small"
-            />
-          </Form.Item>
-        </details>
+        <Form.Item
+          label={t('targetBaseAmount', { currency: baseCurrency })}
+          name="budgetTargetBaseAmount"
+          extra={t('targetBaseAmountHelp')}
+          rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+        >
+          <InputNumber
+            addonBefore={baseCurrency}
+            className="form-full-width"
+            precision={2}
+            step={100}
+          />
+        </Form.Item>
       ) : null}
       <div className="currency-field-preview">
         <span>{t('baseCurrencyPreview')}</span>

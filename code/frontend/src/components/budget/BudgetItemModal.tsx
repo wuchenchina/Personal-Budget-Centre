@@ -8,7 +8,6 @@ import type {
   BudgetItem,
   BudgetItemSplitType,
   BudgetParticipant,
-  Currency,
   CurrencyCode,
   Transaction,
 } from '../../types/budget';
@@ -20,6 +19,10 @@ import {
   formatBudgetMoney,
   transactionCurrencyTotalsForItem,
 } from '../../utils/budgetTemplate';
+import {
+  syncCurrencyTriad,
+  syncCurrencyTriadAfterProgrammaticChange,
+} from '../../utils/currencyTriad';
 import {
   MoneyLegCard,
   SettlementPreviewCard,
@@ -35,8 +38,6 @@ interface BudgetItemModalProps {
   open: boolean;
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
-  currencies: Currency[];
-  currencyPresets: Currency[];
   currencyOptions: CurrencySelectOption[];
   baseCurrency: CurrencyCode;
   focus: BudgetItemModalFocus;
@@ -49,13 +50,6 @@ interface BudgetItemModalProps {
   onOk: () => void;
   onRefreshRates: () => void;
   onSyncGlobalRate: () => void;
-  onSaveCurrency: (input: {
-    code: string;
-    name: string;
-    symbol?: string;
-    decimalPlaces: number;
-    source?: 'catalog' | 'manual';
-  }) => Promise<boolean>;
 }
 
 export function BudgetItemModal({
@@ -64,8 +58,6 @@ export function BudgetItemModal({
   open,
   error,
   categoryOptions,
-  currencies,
-  currencyPresets,
   currencyOptions,
   baseCurrency,
   focus,
@@ -78,7 +70,6 @@ export function BudgetItemModal({
   onOk,
   onRefreshRates,
   onSyncGlobalRate,
-  onSaveCurrency,
 }: BudgetItemModalProps) {
   const { t } = useI18n();
   const categoryRef = useRef<HTMLDivElement>(null);
@@ -254,9 +245,26 @@ export function BudgetItemModal({
 
     const nextBudgetAmount = Number(pricingTotal.toFixed(2));
     if (form.getFieldValue('budgetAmount') !== nextBudgetAmount) {
-      form.setFieldValue('budgetAmount', nextBudgetAmount);
+      const values = {
+        ...form.getFieldsValue(),
+        budgetAmount: nextBudgetAmount,
+      } as BudgetItemFormValues;
+      form.setFieldsValue({
+        budgetAmount: nextBudgetAmount,
+        ...syncCurrencyTriadAfterProgrammaticChange(values, budgetItemBaseTriadKeys),
+      });
     }
   }, [form, open, pricingConfigEnabled, pricingEnabled, pricingTotal]);
+
+  const handleValuesChange = (
+    changedValues: Partial<BudgetItemFormValues>,
+    allValues: BudgetItemFormValues,
+  ) => {
+    const nextFields = syncCurrencyTriad(changedValues, allValues, budgetItemBaseTriadKeys);
+    if (Object.keys(nextFields).length > 0) {
+      form.setFieldsValue(nextFields);
+    }
+  };
 
   const handleCategoryChange = (categoryId: number | null | undefined) => {
     if (categoryId === null || categoryId === undefined) {
@@ -333,6 +341,7 @@ export function BudgetItemModal({
         layout="vertical"
         name="budget-centre-budget-item"
         requiredMark={false}
+        onValuesChange={handleValuesChange}
       >
         <div
           className={`entry-basic-grid${focus === 'category' ? ' budget-modal-focus-target' : ''}`}
@@ -425,8 +434,6 @@ export function BudgetItemModal({
               amountName="budgetAmount"
               currencyName="budgetCurrency"
               currencyOptions={currencyOptions}
-              currencyPresets={currencyPresets}
-              currencies={currencies}
               rateName="budgetRate"
               amount={budgetAmount}
               baseCurrency={baseCurrency}
@@ -436,7 +443,6 @@ export function BudgetItemModal({
               rate={budgetRate}
               title={t('budget')}
               wrapperRef={budgetRef}
-              onSaveCurrency={onSaveCurrency}
             />
             <TransactionActualsCard
               baseCurrency={baseCurrency}
@@ -576,6 +582,12 @@ export function BudgetItemModal({
 }
 
 type IndividualAmountRows = NonNullable<BudgetItemFormValues['split']>['individualAmounts'];
+
+const budgetItemBaseTriadKeys = {
+  amountKey: 'budgetAmount',
+  rateKey: 'budgetRate',
+  targetKey: 'budgetTargetBaseAmount',
+} as const;
 
 function normalizeIndividualAmountRows(
   rows: IndividualAmountRows | undefined,

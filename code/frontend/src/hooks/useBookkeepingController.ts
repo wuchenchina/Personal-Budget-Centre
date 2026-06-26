@@ -113,6 +113,7 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
       currency: record.currency,
       amount: record.amountOriginal,
       rate: record.rateToBase,
+      targetBaseAmount: record.amountBase,
       rateScope: 'item',
       destinationCurrency: record.destinationCurrency ?? undefined,
       destinationAmount: record.destinationAmountOriginal ?? undefined,

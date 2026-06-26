@@ -11,6 +11,7 @@ import { convertCurrency, refreshBochkRates } from '../api/exchangeRates';
 import { translateCurrent } from '../i18n';
 import type { BudgetDetail, CurrencyCode, Transaction } from '../types/budget';
 import type { TransactionFormValues } from '../types/forms';
+import { syncCurrencyTriadAfterProgrammaticChange } from '../utils/currencyTriad';
 import { normalizedAmount, roundMoney } from './budgetEntryMath';
 import {
   transactionPricingConfigForBudget,
@@ -73,9 +74,14 @@ export function useTransactionEntryActions({
       await refreshBochkRates(selectedBudget.workspaceId);
       const values = transactionForm.getFieldsValue();
       const rate = await resolveRate(values.currency, selectedBudget.baseCurrency);
+      const nextValues = {
+        ...values,
+        rate,
+      };
 
       transactionForm.setFieldsValue({
         rate,
+        ...syncCurrencyTriadAfterProgrammaticChange(nextValues, transactionBaseTriadKeys),
       });
     } catch (error: unknown) {
       setEntryError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
@@ -139,10 +145,15 @@ export function useTransactionEntryActions({
       const rate = normalizedAmount(values.rate)
         ?? await resolveRate(values.currency, selectedBudget.baseCurrency);
       const referenceAmount = await convertedTransactionReferenceAmount(values, rate);
+      const nextValues = {
+        ...values,
+        rate,
+      };
 
       transactionForm.setFieldsValue({
         rate,
         referenceAmount,
+        ...syncCurrencyTriadAfterProgrammaticChange(nextValues, transactionBaseTriadKeys),
       });
     } catch (error: unknown) {
       setEntryError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
@@ -216,6 +227,7 @@ export function useTransactionEntryActions({
       currency: transaction.currency,
       amount: transaction.amountOriginal,
       rate: transaction.rateToBase,
+      targetBaseAmount: transaction.amountBase,
       rateScope: 'item',
       pricingConfig: transactionPricingConfigForEditForm(transaction, selectedBudget),
       referenceCurrency: transaction.referenceCurrency ?? undefined,
@@ -595,3 +607,9 @@ export function useTransactionEntryActions({
     handleTransactionDelete,
   };
 }
+
+const transactionBaseTriadKeys = {
+  amountKey: 'amount',
+  rateKey: 'rate',
+  targetKey: 'targetBaseAmount',
+} as const;

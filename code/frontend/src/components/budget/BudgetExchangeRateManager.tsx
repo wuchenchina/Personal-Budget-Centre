@@ -65,7 +65,7 @@ export function BudgetExchangeRateManager({
   const toCurrency = Form.useWatch('toCurrency', form);
 
   const defaultForeignCurrency = useMemo(
-    () => currencyOptions.find((option) => option.value !== baseCurrency)?.value ?? baseCurrency,
+    () => currencyOptions.find((option) => option.value !== baseCurrency)?.value,
     [baseCurrency, currencyOptions],
   );
 
@@ -123,7 +123,7 @@ export function BudgetExchangeRateManager({
     setEditingRate(null);
     form.resetFields();
     form.setFieldsValue({
-      fromCurrency: defaultForeignCurrency,
+      ...(defaultForeignCurrency === undefined ? {} : { fromCurrency: defaultForeignCurrency }),
       toCurrency: baseCurrency,
       rateDate: todayInputDate(),
     });

@@ -1,4 +1,4 @@
-import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Radio, Select } from 'antd';
+import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import { Calculator, RefreshCcw } from 'lucide-react';
 import { useEffect } from 'react';
@@ -8,13 +8,16 @@ import type {
   BudgetItemSplitType,
   BudgetParticipant,
   BudgetParticipantMode,
-  Currency,
   CurrencyCode,
   Transaction,
 } from '../../types/budget';
 import type { TransactionFormValues } from '../../types/forms';
 import type { CurrencySelectOption } from '../../utils/currencyOptions';
-import { CurrencySelectWithQuickAdd } from './CurrencySelectWithQuickAdd';
+import { renderCurrencyOption } from '../../utils/currencyOptions';
+import {
+  syncCurrencyTriad,
+  syncCurrencyTriadAfterProgrammaticChange,
+} from '../../utils/currencyTriad';
 
 interface TransactionModalProps {
   form: FormInstance<TransactionFormValues>;
@@ -22,8 +25,6 @@ interface TransactionModalProps {
   open: boolean;
   error: string | null;
   categoryOptions: Array<{ label: string; value: number }>;
-  currencies: Currency[];
-  currencyPresets: Currency[];
   currencyOptions: CurrencySelectOption[];
   baseCurrency: CurrencyCode;
   pricingEnabled: boolean;
@@ -36,13 +37,6 @@ interface TransactionModalProps {
   onOk: () => void;
   onRefreshRates: () => void;
   onReferenceConvert: () => void;
-  onSaveCurrency: (input: {
-    code: string;
-    name: string;
-    symbol?: string;
-    decimalPlaces: number;
-    source?: 'catalog' | 'manual';
-  }) => Promise<boolean>;
   onValuesChange: () => void;
 }
 
@@ -52,8 +46,6 @@ export function TransactionModal({
   open,
   error,
   categoryOptions,
-  currencies,
-  currencyPresets,
   currencyOptions,
   baseCurrency,
   pricingEnabled,
@@ -66,7 +58,6 @@ export function TransactionModal({
   onOk,
   onRefreshRates,
   onReferenceConvert,
-  onSaveCurrency,
   onValuesChange,
 }: TransactionModalProps) {
   const { t } = useI18n();
@@ -74,7 +65,6 @@ export function TransactionModal({
   const selectedCategoryId = Form.useWatch('categoryId', form);
   const amount = Form.useWatch('amount', form);
   const rate = Form.useWatch('rate', form);
-  const targetBaseAmount = Form.useWatch('targetBaseAmount', form);
   const referenceCurrency = Form.useWatch('referenceCurrency', form);
   const referenceAmount = Form.useWatch('referenceAmount', form);
   const pricingUnitPrice = Form.useWatch(['pricingConfig', 'unitPrice'], form);
@@ -155,28 +145,16 @@ export function TransactionModal({
 
     const nextAmount = Number(pricingTotal.toFixed(2));
     if (form.getFieldValue('amount') !== nextAmount) {
-      form.setFieldValue('amount', nextAmount);
+      const values = {
+        ...form.getFieldsValue(),
+        amount: nextAmount,
+      } as TransactionFormValues;
+      form.setFieldsValue({
+        amount: nextAmount,
+        ...syncCurrencyTriadAfterProgrammaticChange(values, transactionBaseTriadKeys),
+      });
     }
   }, [form, open, pricingEnabled, pricingTotal]);
-
-  useEffect(() => {
-    if (
-      !open
-      || typeof amount !== 'number'
-      || !Number.isFinite(amount)
-      || amount <= 0
-      || typeof targetBaseAmount !== 'number'
-      || !Number.isFinite(targetBaseAmount)
-      || targetBaseAmount < 0
-    ) {
-      return;
-    }
-
-    const nextRate = Number((targetBaseAmount / amount).toFixed(6));
-    if (nextRate > 0 && form.getFieldValue('rate') !== nextRate) {
-      form.setFieldValue('rate', nextRate);
-    }
-  }, [amount, form, open, targetBaseAmount]);
 
   const defaultPaidByParticipantId =
     selectedItem?.split?.paidByParticipantId ?? participants[0]?.id ?? null;
@@ -203,6 +181,16 @@ export function TransactionModal({
       ),
     });
   };
+  const handleValuesChange = (
+    changedValues: Partial<TransactionFormValues>,
+    allValues: TransactionFormValues,
+  ) => {
+    const nextFields = syncCurrencyTriad(changedValues, allValues, transactionBaseTriadKeys);
+    if (Object.keys(nextFields).length > 0) {
+      form.setFieldsValue(nextFields);
+    }
+    onValuesChange();
+  };
 
   return (
     <Modal
@@ -223,7 +211,7 @@ export function TransactionModal({
         layout="vertical"
         name="budget-centre-transaction"
         requiredMark={false}
-        onValuesChange={onValuesChange}
+        onValuesChange={handleValuesChange}
       >
         <div className="entry-basic-grid">
           <Form.Item
@@ -362,11 +350,12 @@ export function TransactionModal({
               name="currency"
               rules={[{ required: true, message: t('selectCurrency') }]}
             >
-              <CurrencySelectWithQuickAdd
-                currencies={currencies}
-                currencyPresets={currencyPresets}
+              <Select
+                showSearch
+                optionFilterProp="label"
+                optionLabelProp="value"
+                optionRender={renderCurrencyOption}
                 options={currencyOptions}
-                onSaveCurrency={onSaveCurrency}
               />
             </Form.Item>
             {pricingEnabled ? (
@@ -425,101 +414,86 @@ export function TransactionModal({
             >
               <InputNumber className="form-full-width" precision={6} step={0.01} />
             </Form.Item>
+            <Form.Item
+              label={t('targetBaseAmount', { currency: baseCurrency })}
+              name="targetBaseAmount"
+              extra={t('targetBaseAmountHelp')}
+              rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+            >
+              <InputNumber
+                addonBefore={baseCurrency}
+                className="form-full-width"
+                precision={2}
+                step={100}
+              />
+            </Form.Item>
           </div>
           <div className="currency-field-preview">
             <span>{t('baseCurrencyPreview')}</span>
             <strong>
               {basePreview === null
                 ? `${baseCurrency} --`
-                : `${baseCurrency} ${basePreview.toFixed(2)}`}
+              : `${baseCurrency} ${basePreview.toFixed(2)}`}
             </strong>
           </div>
-          <details className="currency-advanced-fields">
-            <summary>{t('advancedCurrencySettings')}</summary>
-            <div className="currency-reference-grid">
-              <Form.Item
-                label={t('targetBaseAmount', { currency: baseCurrency })}
-                name="targetBaseAmount"
-                extra={t('targetBaseAmountHelp')}
-                rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
-              >
-                <InputNumber
-                  addonBefore={baseCurrency}
-                  className="form-full-width"
-                  precision={2}
-                  step={100}
-                />
-              </Form.Item>
-              <Form.Item label={t('rateSaveScope')} name="rateScope" initialValue="item">
-                <Radio.Group
-                  block
-                  optionType="button"
-                  options={[
-                    { label: t('rateScopeItem'), value: 'item' },
-                    { label: t('rateScopeBudget'), value: 'budget_default' },
-                  ]}
-                  size="small"
-                />
-              </Form.Item>
-            </div>
-            <div className="currency-reference-grid">
-              <Form.Item
-                label={t('referenceCurrency')}
-                name="referenceCurrency"
-                extra={t('referenceAmountHelp')}
-              >
-                <CurrencySelectWithQuickAdd
-                  allowClear
-                  currencies={currencies}
-                  currencyPresets={currencyPresets}
-                  options={currencyOptions}
-                  onSaveCurrency={onSaveCurrency}
-                />
-              </Form.Item>
-              <Form.Item
-                label={t('referenceAmount')}
-                name="referenceAmount"
-                rules={[
-                  { type: 'number', min: 0, message: t('referenceAmountMin') },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (typeof value !== 'number' || !Number.isFinite(value)) {
-                        return Promise.resolve();
-                      }
+          <div className="currency-reference-grid">
+            <Form.Item
+              label={t('referenceCurrency')}
+              name="referenceCurrency"
+              extra={t('referenceAmountHelp')}
+            >
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                optionLabelProp="value"
+                optionRender={renderCurrencyOption}
+                options={currencyOptions}
+              />
+            </Form.Item>
+            <Form.Item
+              label={t('referenceAmount')}
+              name="referenceAmount"
+              rules={[
+                { type: 'number', min: 0, message: t('referenceAmountMin') },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (typeof value !== 'number' || !Number.isFinite(value)) {
+                      return Promise.resolve();
+                    }
 
-                      return getFieldValue('referenceCurrency')
-                        ? Promise.resolve()
-                        : Promise.reject(new Error(t('selectReferenceCurrency')));
-                    },
-                  }),
-                ]}
+                    return getFieldValue('referenceCurrency')
+                      ? Promise.resolve()
+                      : Promise.reject(new Error(t('selectReferenceCurrency')));
+                  },
+                }),
+              ]}
+            >
+              <InputNumber
+                addonBefore={referenceCurrency ?? t('currency')}
+                className="form-full-width"
+                precision={2}
+                step={100}
+              />
+            </Form.Item>
+          </div>
+          <div className="currency-field-preview currency-reference-preview">
+            <span>{t('referenceAmountPreview')}</span>
+            <span className="currency-reference-preview-actions">
+              <strong>
+                {referencePreview ?? '--'}
+                {impliedReferenceRate ? <small>{impliedReferenceRate}</small> : null}
+              </strong>
+              <Button
+                icon={<Calculator size={14} />}
+                loading={confirmLoading}
+                size="small"
+                onClick={onReferenceConvert}
               >
-                <InputNumber
-                  addonBefore={referenceCurrency ?? t('currency')}
-                  className="form-full-width"
-                  precision={2}
-                  step={100}
-                />
-              </Form.Item>
-            </div>
-            <div className="currency-field-preview currency-reference-preview">
-              <span>{t('referenceAmountPreview')}</span>
-              <span className="currency-reference-preview-actions">
-                <strong>
-                  {referencePreview ?? '--'}
-                  {impliedReferenceRate ? <small>{impliedReferenceRate}</small> : null}
-                </strong>
-                <Button
-                  icon={<Calculator size={14} />}
-                  loading={confirmLoading}
-                  size="small"
-                  onClick={onReferenceConvert}
-                >
-                  {t('referenceConvert')}
-                </Button>
-              </span>
-            </div>
-          </details>
+                {t('referenceConvert')}
+              </Button>
+            </span>
+          </div>
         </div>
 
         <div className="modal-form-grid">
@@ -545,6 +519,12 @@ export function TransactionModal({
 }
 
 type TransactionPaymentFormRows = NonNullable<TransactionFormValues['payments']>;
+
+const transactionBaseTriadKeys = {
+  amountKey: 'amount',
+  rateKey: 'rate',
+  targetKey: 'targetBaseAmount',
+} as const;
 
 function splitTypeSupportsTransactionPayments(splitType: BudgetItemSplitType): boolean {
   return splitType !== 'excluded' && splitType !== 'per_person';

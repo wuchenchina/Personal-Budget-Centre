@@ -16,6 +16,7 @@ import {
   installmentConfigToForm,
 } from '../utils/budgetInstallments';
 import { budgetItemAmountMultiplier, effectiveBudgetItemAmounts } from '../utils/budgetTemplate';
+import { syncCurrencyTriadAfterProgrammaticChange } from '../utils/currencyTriad';
 import { normalizedAmount, originalAmountFromBase, roundMoney } from './budgetEntryMath';
 import {
   emptyPricingConfig,
@@ -93,6 +94,7 @@ export function useBudgetItemEntryActions({
       budgetCurrency: item.budget.currency,
       budgetAmount: itemBudgetAmountFormValue(item),
       budgetRate: item.budget.rateToBase,
+      budgetTargetBaseAmount: item.budget.amountBase,
       rateScope: 'item',
       pricingConfig: selectedBudget?.pricingEnabled === true
         ? item.pricingConfig
@@ -197,9 +199,14 @@ export function useBudgetItemEntryActions({
       await refreshBochkRates(selectedBudget.workspaceId);
       const values = budgetItemForm.getFieldsValue();
       const budgetRate = await resolveRate(values.budgetCurrency, selectedBudget.baseCurrency);
+      const nextValues = {
+        ...values,
+        budgetRate,
+      };
 
       budgetItemForm.setFieldsValue({
         budgetRate,
+        ...syncCurrencyTriadAfterProgrammaticChange(nextValues, budgetItemBaseTriadKeys),
       });
     } catch (error: unknown) {
       setEntryError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
@@ -232,9 +239,14 @@ export function useBudgetItemEntryActions({
       if (synced === undefined) {
         throw new Error(translateCurrent('loadingExchangeRatesFailed'));
       }
+      const nextValues = {
+        ...values,
+        budgetRate: synced.rate,
+      };
       budgetItemForm.setFieldsValue({
         budgetRate: synced.rate,
         rateScope: 'budget_default',
+        ...syncCurrencyTriadAfterProgrammaticChange(nextValues, budgetItemBaseTriadKeys),
       });
     } catch (error: unknown) {
       setEntryError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
@@ -364,6 +376,12 @@ export function useBudgetItemEntryActions({
     handleBudgetItemGlobalRateSync,
   };
 }
+
+const budgetItemBaseTriadKeys = {
+  amountKey: 'budgetAmount',
+  rateKey: 'budgetRate',
+  targetKey: 'budgetTargetBaseAmount',
+} as const;
 
 function itemBudgetAmountFormValue(item: BudgetItem): number | undefined {
   return item.budget.amountOriginal === 0 && item.budget.amountBase === 0
