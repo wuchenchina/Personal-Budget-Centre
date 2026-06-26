@@ -177,7 +177,7 @@ func (a *App) bookkeepingRecordValues(ctx context.Context, input map[string]any,
 	if err != nil {
 		return bookkeepingRecordValues{}, err
 	}
-	if shouldSaveBudgetRate(input, []string{"rateScope"}) {
+	if shouldSaveBudgetRate(input, []string{"rateScope"}) && hasExplicitRate {
 		if currencyID != basics.BaseCurrencyID {
 			if _, err := a.saveBudgetExchangeRate(ctx, budgetExchangeRateInput{
 				BudgetID:       budgetID,

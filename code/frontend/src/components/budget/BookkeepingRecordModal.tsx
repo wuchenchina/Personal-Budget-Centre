@@ -42,10 +42,7 @@ export function BookkeepingRecordModal({
   const destinationCurrency = Form.useWatch('destinationCurrency', form);
   const destinationAmount = Form.useWatch('destinationAmount', form);
   const showTargetBaseAmount = currency !== baseCurrency;
-  const showDestinationFields =
-    transactionType === 'transfer'
-    || transactionType === 'fx_exchange'
-    || transactionType === 'cross_border_remittance';
+  const showDestinationFields = showsDestinationFields(transactionType);
   const effectiveRate = showTargetBaseAmount
     ? typeof rate === 'number' && Number.isFinite(rate) && rate > 0
       ? rate
@@ -69,9 +66,10 @@ export function BookkeepingRecordModal({
       : Object.prototype.hasOwnProperty.call(changedValues, 'currency')
         ? resetForeignCurrencySourceFields(allValues)
         : syncCurrencyTriad(changedValues, allValues, bookkeepingSourceTriadKeys);
-    const destinationFields = showDestinationFields
-      ? syncCurrencyTriad(changedValues, allValues, bookkeepingDestinationTriadKeys)
-      : {};
+    const nextShowDestinationFields = showsDestinationFields(allValues.transactionType ?? 'expense');
+    const destinationFields = nextShowDestinationFields
+      ? clearDestinationAmountWhenCurrencyCleared(changedValues, allValues)
+      : clearDestinationFields(allValues);
     const nextFields = {
       ...sourceFields,
       ...destinationFields,
@@ -343,16 +341,16 @@ function transactionTypeOptions(
   ];
 }
 
+function showsDestinationFields(transactionType: TransactionType): boolean {
+  return transactionType === 'transfer'
+    || transactionType === 'fx_exchange'
+    || transactionType === 'cross_border_remittance';
+}
+
 const bookkeepingSourceTriadKeys = {
   amountKey: 'amount',
   rateKey: 'rate',
   targetKey: 'targetBaseAmount',
-} as const;
-
-const bookkeepingDestinationTriadKeys = {
-  amountKey: 'amount',
-  rateKey: 'destinationRate',
-  targetKey: 'destinationAmount',
 } as const;
 
 function fixedBaseCurrencySourceFields(
@@ -372,6 +370,45 @@ function fixedBaseCurrencySourceFields(
     }
   } else if (allValues.targetBaseAmount !== undefined) {
     nextFields.targetBaseAmount = undefined;
+  }
+
+  return nextFields;
+}
+
+function clearDestinationAmountWhenCurrencyCleared(
+  changedValues: Partial<BookkeepingRecordFormValues>,
+  allValues: BookkeepingRecordFormValues,
+): Partial<BookkeepingRecordFormValues> {
+  if (
+    Object.prototype.hasOwnProperty.call(changedValues, 'destinationCurrency')
+    && allValues.destinationCurrency === undefined
+    && allValues.destinationAmount !== undefined
+  ) {
+    return { destinationAmount: undefined };
+  }
+
+  return {};
+}
+
+function clearDestinationFields(
+  allValues: BookkeepingRecordFormValues,
+): Partial<BookkeepingRecordFormValues> {
+  const nextFields: Partial<BookkeepingRecordFormValues> = {};
+
+  if (allValues.destinationAccountName !== undefined) {
+    nextFields.destinationAccountName = undefined;
+  }
+
+  if (allValues.destinationCurrency !== undefined) {
+    nextFields.destinationCurrency = undefined;
+  }
+
+  if (allValues.destinationAmount !== undefined) {
+    nextFields.destinationAmount = undefined;
+  }
+
+  if (allValues.destinationRate !== undefined) {
+    nextFields.destinationRate = undefined;
   }
 
   return nextFields;

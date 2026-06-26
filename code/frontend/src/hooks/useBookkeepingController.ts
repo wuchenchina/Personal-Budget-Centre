@@ -87,11 +87,12 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
     setEditingRecord(null);
     setError(null);
     form.resetFields();
+    const defaultCurrency = options.selectedBudget.displayCurrency ?? options.selectedBudget.baseCurrency;
     form.setFieldsValue({
       transactionType: 'expense',
       recordDate: dayjs(),
-      currency: options.selectedBudget.displayCurrency ?? options.baseCurrency,
-      rate: 1,
+      currency: defaultCurrency,
+      rate: defaultCurrency === options.selectedBudget.baseCurrency ? 1 : undefined,
       rateScope: 'item',
       sortOrder: records.length + 1,
     });
