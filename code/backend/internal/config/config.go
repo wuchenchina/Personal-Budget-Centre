@@ -59,8 +59,8 @@ func Load() Config {
 	return Config{
 		AppEnv:        env("APP_ENV", "production"),
 		AppKey:        env("APP_KEY", ""),
-		AppURL:        env("APP_URL", "https://bc.tool.axchen.top"),
-		APIURL:        env("API_URL", "https://bc.tool.axchen.top"),
+		AppURL:        env("APP_URL", "http://localhost:5173"),
+		APIURL:        env("API_URL", "http://localhost:8080"),
 		ListenAddr:    env("LISTEN_ADDR", ":8080"),
 		DatabaseDir:   env("DATABASE_DIR", "/app/database"),
 		FontDir:       fontDir,
@@ -84,14 +84,14 @@ func Load() Config {
 		MailFrom:     env("MAIL_FROM", env("SMTP_USERNAME", "")),
 		MailFromName: env("MAIL_FROM_NAME", "BudgetCentre"),
 
-		CasdoorServerURL:    env("CASDOOR_SERVER_URL", "https://sso.axchen.top"),
-		CasdoorClientID:     env("CASDOOR_CLIENT_ID", "3e4912a22fdbce3dd6ca"),
-		CasdoorRedirectURI:  env("CASDOOR_REDIRECT_URI", "https://bc.tool.axchen.top/api/callback"),
+		CasdoorServerURL:    env("CASDOOR_SERVER_URL", ""),
+		CasdoorClientID:     env("CASDOOR_CLIENT_ID", ""),
+		CasdoorRedirectURI:  env("CASDOOR_REDIRECT_URI", "http://localhost:5173/api/callback"),
 		CasdoorClientSecret: env("CASDOOR_CLIENT_SECRET", ""),
 
-		WebAuthnRPID:   env("WEBAUTHN_RP_ID", "bc.tool.axchen.top"),
+		WebAuthnRPID:   env("WEBAUTHN_RP_ID", "localhost"),
 		WebAuthnRPName: env("WEBAUTHN_RP_NAME", "BudgetCentre"),
-		WebAuthnOrigin: env("WEBAUTHN_ORIGIN", "https://bc.tool.axchen.top"),
+		WebAuthnOrigin: env("WEBAUTHN_ORIGIN", "http://localhost:5173"),
 	}
 }
 

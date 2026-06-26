@@ -105,7 +105,7 @@ function CasdoorCallbackScreen({
         }
 
         if (mode === 'bind') {
-          void message.success(handlers().t('axchenSsoBindingSuccess'));
+          void message.success(handlers().t('genericSsoBindingSuccess'));
           handlers().onNavigateProfile();
           return;
         }

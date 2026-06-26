@@ -1,60 +1,101 @@
 # BudgetCentre
 
-BudgetCentre 是個人生活預算網站，前端使用 Vite + React + TypeScript + Ant Design，後端已遷移為 Go API，正式運行由 Docker Compose 驅動。
+BudgetCentre is a personal and shared budget workspace built with React,
+TypeScript, Ant Design, and a Go API. It supports budget projects, workspace
+roles, passkeys, SSO, exchange rates, bookkeeping records, and PDF exports.
 
-## 目錄
+## Stack
+
+- Frontend: Vite, React, TypeScript, Ant Design
+- Backend: Go HTTP API
+- Database: MySQL, initialized and migrated from `code/database`
+- Runtime: Docker Compose with an Nginx web container and a Go API container
+
+## Repository Layout
 
 ```text
 .
   code/
-    frontend/             Vite + React + TypeScript + Ant Design
+    frontend/             Vite + React application
     backend/              Go API
-    backend-php-legacy/   舊 PHP 後端封存，只供比對/回退參考
-    database/             MySQL 建表、seed、view、migration SQL
-    deploy/docker/        Docker Nginx 配置
+    database/             schema, seed, view, and migration SQL
+    deploy/docker/        Nginx config for Docker
+    font/                 local PDF font assets, ignored except README.md
   Dockerfile
   docker-compose.yaml
-  deploy.sh
+  deploy.example.sh       public deployment template
+  .env.example            application environment template
 ```
 
-## 本地開發
+## Local Development
 
-前端：
+Create an environment file from the template:
+
+```bash
+cp .env.example .env
+```
+
+Install and build the frontend:
 
 ```bash
 cd code/frontend
-yarn
+yarn install --frozen-lockfile
 yarn build
 ```
 
-後端：
+Run backend tests:
 
 ```bash
 cd code/backend
 go test ./...
+```
+
+Run the API locally:
+
+```bash
+cd code/backend
 go run ./cmd/api
 ```
 
-## Docker Compose
+The first successfully registered user becomes an admin. If an existing
+database has no admin user, set `users.is_admin = 1` manually.
 
-Compose 同時提供前端靜態站與 Go API：
+## Configuration
+
+Runtime configuration is read from `.env`. Keep real secrets out of git.
+
+Important values:
+
+- `APP_KEY`: required for secure token and SSO flows.
+- `APP_URL` and `API_URL`: public frontend/API origins.
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`: MySQL connection.
+- `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN`: must match the deployed domain.
+- `CASDOOR_*`: optional Casdoor SSO configuration.
+- `SMTP_*`: optional mail configuration.
+- `WEB_BIND`: host bind for the web container, default `127.0.0.1:18080`.
+
+## PDF Fonts
+
+PDF export expects local font files under `code/font`. Font binaries are ignored
+because many system fonts are not redistributable. See
+`code/font/README.md` for the filenames expected by the current PDF themes.
+
+## Docker
+
+Build and start the application:
 
 ```bash
 docker compose build
 docker compose up -d
 ```
 
-預設 Web 入口綁定：
+The web service binds to `WEB_BIND`, which defaults to:
 
 ```text
 127.0.0.1:18080
 ```
 
-寶塔只需把正式域名反向代理到該入口。
-
-Compose 模板不保存資料庫密碼、APP_KEY、SMTP 密碼、Casdoor secret 等敏感值；正式值由 `deploy.sh` 在伺服器目錄寫入 `.env`。容器只透過 `env_file: .env` 讀取。
-
-API 產生的匯出檔、暫存檔與日誌會持久化到專案目錄下：
+The API stores generated files, temporary files, and logs under:
 
 ```text
 storage/exports
@@ -62,54 +103,54 @@ storage/tmp
 storage/logs
 ```
 
-`deploy.sh` 同步時會排除 `.env` 和 `storage/`，避免部署時覆蓋配置或刪除持久化資料。
+## Database
 
-## 資料庫
+MySQL is expected to run outside Docker. The Go API performs safe bootstrap on
+startup:
 
-- MySQL 由宿主機提供，不容器化。
-- Docker 內預設使用 `DB_HOST=172.17.0.1`。
-- Go API 啟動時自動執行安全 bootstrap：
-  - 空 database：套用 `code/database/*.sql` 初始化。
-  - 既有 database：建立/更新 `schema_migrations`，套用尚未執行的安全增量。
-- 不提供 fresh/reset/drop/truncate/清空資料功能。
-- 匯率只保留 current rows：
-  - `exchange_rates` 只保留目前最新匯率，每次手動或 BOCHK 更新都覆蓋同 scope/source/pair/type 的 current row。
-  - `exchange_rate_history` 表保留給舊庫相容，但新後端不再寫入；升級 migration 會清空既有 history 內容。
-  - legacy provider current（例如舊 Mastercard 或 BOCHK mid/card）會在升級時移出 current 表。
-  - BOCHK 匯率由 Go API 啟動後檢查，之後每 4 小時刷新一次；管理介面仍可人工刷新。
-- 幣種是獨立目錄：
-  - 空庫不預置貨幣；管理端可從前端本地儲備加入常用貨幣，也可新增 BOCHK 不支援的貨幣。
-  - BOCHK refresh 會自動補齊 HKD 與 feed 支援貨幣，但不再標記為供應商託管，也不阻止刪除。
-  - 刪除貨幣前會清掉純匯率引用；若已有預算、交易、帳戶等真正業務資料引用，後端仍會拒絕刪除。
-  - 舊資料庫若殘留 TWD/MOP，可先執行 `scripts/legacy_currency_audit.sql` 檢查引用，再視結果執行 `scripts/legacy_currency_cleanup.sql` 做安全刪除。
+- Empty database: applies `code/database/*.sql`.
+- Existing database: creates or updates `schema_migrations`, then applies
+  pending safe migrations.
 
-第一個成功註冊的使用者會自動成為 admin。既有資料庫若沒有 admin，可手動更新 `users.is_admin = 1`。
+The application does not provide a destructive reset/drop/truncate flow.
 
-## 部署
+## Deployment
 
-`deploy.sh` 只負責本地預構建、建置驗證、上傳檔案與寫入遠端 `.env`，不啟動 Docker、不重啟服務、不操作資料庫：
+`deploy.example.sh` is a public template. Copy it to a private local script and
+fill in your server, SSH, domain, database, SMTP, and SSO values:
 
 ```bash
-./deploy.sh
+cp deploy.example.sh deploy.local.sh
+chmod +x deploy.local.sh
+./deploy.local.sh
 ```
 
-部署腳本會在本地完成：
+The deployment script:
 
-- 前端 `yarn build`，並把 `code/frontend/dist` 打包到 `build/deploy/frontend`。
-- 後端 `go test ./...`，再交叉編譯 Linux binary 到 `build/deploy/backend/budgetcentre-api`。
+- runs `yarn build` for the frontend,
+- copies frontend assets into `build/deploy/frontend`,
+- runs `go test ./...`,
+- cross-compiles the Go API into `build/deploy/backend/budgetcentre-api`,
+- uploads only the release allowlist,
+- writes the remote `.env`.
 
-伺服器端 Compose 預設使用 `web-prebuilt` / `api-prebuilt` targets，只把已上傳的 artifacts 封裝進 runtime image，不再執行 `yarn build` 或 `go build`。需要臨時改回伺服器編譯時，可設定：
+It does not start Docker, restart services, or modify the database. After upload,
+run on the server:
 
 ```bash
-WEB_BUILD_TARGET=web API_BUILD_TARGET=api docker compose build
-```
-
-上傳完成後，在伺服器手動執行：
-
-```bash
-cd /www/wwwroot/bc.tool.axchen.top
+cd /path/to/budgetcentre
 docker compose build
 docker compose up -d
 ```
 
-Go API 仍維持既有 `/api/*` JSON envelope、HttpOnly session cookie 與 CSRF 合約。
+## Git Hygiene
+
+This repository is intended to be open-source friendly. Do not commit:
+
+- `.env*` files, except `.env.example`
+- `deploy.local.sh` or other private deployment scripts
+- `BudgetCentre_old/`, `template/`, `parsed_templates/`
+- `docs/` and AI/agent working files
+- `build/`, `dist/`, `node_modules/`, `vendor/`, `storage/`
+- local font binaries in `code/font`
+- caches such as `__pycache__`, logs, and OS/editor metadata

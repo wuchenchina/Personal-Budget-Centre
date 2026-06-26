@@ -260,7 +260,7 @@ export function AuthScreen({
               size="large"
               onClick={handleSsoLogin}
             >
-              {t('loginWithAxchenSso')}
+              {t('loginWithSso')}
             </Button>
           </div>
         ) : null}

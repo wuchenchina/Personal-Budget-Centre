@@ -288,9 +288,9 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
 
   const handleSsoUnlink = () => {
     Modal.confirm({
-      title: t('axchenSsoUnlinkTitle'),
-      content: t('axchenSsoUnlinkConfirm'),
-      okText: t('axchenSsoUnlink'),
+      title: t('genericSsoUnlinkTitle'),
+      content: t('genericSsoUnlinkConfirm'),
+      okText: t('genericSsoUnlink'),
       okButtonProps: { danger: true },
       cancelText: t('cancel'),
       onOk: async () => {
@@ -299,7 +299,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
         try {
           const result = await unlinkSsoBinding();
           setSsoBinding(result.binding);
-          void message.success(t('axchenSsoUnlinked'));
+          void message.success(t('genericSsoUnlinked'));
         } catch (error: unknown) {
           void message.error(error instanceof Error ? error.message : t('authFailed'));
         } finally {
@@ -797,16 +797,16 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                           <ShieldCheck size={16} />
                         </span>
                         <div>
-                          <Text strong>{t('axchenSso')}</Text>
+                          <Text strong>{t('genericSso')}</Text>
                           <Text type="secondary">
-                            {ssoBinding === null ? t('axchenSsoNotLinked') : t('axchenSsoLinked')}
+                            {ssoBinding === null ? t('genericSsoNotLinked') : t('genericSsoLinked')}
                           </Text>
                         </div>
                       </div>
                       {ssoBinding === null ? (
                         session.user.hasPassword ? (
                           <Button className={styles.outlineAction} loading={isSsoLoading} onClick={handleSsoBind}>
-                            {t('axchenSsoBind')}
+                            {t('genericSsoBind')}
                           </Button>
                         ) : (
                           <Alert
@@ -831,10 +831,10 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                         <>
                           <div className={styles.readonlyValue}>
                             <strong>{ssoBinding.username ?? ssoBinding.email ?? ssoBinding.subject}</strong>
-                            <small>{ssoBinding.email ?? t('axchenSsoBoundFallback')}</small>
+                            <small>{ssoBinding.email ?? t('genericSsoBoundFallback')}</small>
                           </div>
                           <div className={styles.ssoActions}>
-                            <Tag color="green">{t('axchenSsoBound')}</Tag>
+                            <Tag color="green">{t('genericSsoBound')}</Tag>
                             {session.user.hasPassword ? (
                               <Button
                                 danger
@@ -842,7 +842,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                                 loading={isSsoUnlinking}
                                 onClick={handleSsoUnlink}
                               >
-                                {t('axchenSsoUnlink')}
+                                {t('genericSsoUnlink')}
                               </Button>
                             ) : (
                               <Button

@@ -23,6 +23,10 @@ lerna-debug.log*
 .env.*
 !**/.env.example
 
+# Private deploy configuration
+deploy.local.sh
+deploy.*.local.sh
+
 # Node / frontend builds
 build/
 **/node_modules/
@@ -37,13 +41,28 @@ coverage/
 code/backend/api
 code/backend/storage/
 
-# Legacy PHP backend runtime
-code/backend-php-legacy/storage/
-code/backend-php-legacy/vendor/
+# PDF font assets are local-only. See code/font/README.md.
+code/font/*
+!code/font/
+!code/font/README.md
 
-# Local tooling state
+# Legacy PHP backend kept locally only
+code/backend-php-legacy/
+
+# Local/imported source material that should not ship in the open repository
+BudgetCentre_old/
+parsed_templates/
+template/
+docs/
+
+# Local AI/agent/tooling state
 .playwright-mcp
 .agents/
 .claude/
+AGENTS.md
 CLAUDE.md
 skills-lock.json
+
+# Python cache
+__pycache__/
+*.pyc

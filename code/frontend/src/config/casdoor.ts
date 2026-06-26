@@ -1,6 +1,6 @@
 export const casdoorConfig = {
-  serverUrl: 'https://sso.axchen.top',
-  clientId: '3e4912a22fdbce3dd6ca',
+  serverUrl: '',
+  clientId: '',
   appName: 'app-built-in',
   organizationName: 'built-in',
   redirectPath: '/api/callback',
