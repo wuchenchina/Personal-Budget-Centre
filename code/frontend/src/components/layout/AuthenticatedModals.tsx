@@ -146,7 +146,7 @@ export function AuthenticatedModals({
             open={budgetEntry.isTransactionModalOpen}
             error={budgetEntry.entryError}
             categoryOptions={transactionCategoryOptions}
-            currencyOptions={operations.currencyCatalogOptions}
+            currencyOptions={operations.currencyOptions}
             baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
             pricingEnabled={budget.selectedBudget?.pricingEnabled ?? false}
             participantMode={budget.selectedBudget?.participantMode ?? 'solo'}

@@ -1,12 +1,16 @@
 package app
 
 import (
+	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"testing"
+
+	"budgetcentre/backend/internal/config"
 )
 
 func TestGoRoutesCoverPHPLegacyRoutes(t *testing.T) {
@@ -72,6 +76,49 @@ func TestExchangeRateListClauseMatchesCurrentRateContract(t *testing.T) {
 		if args[i] != want {
 			t.Fatalf("arg %d = %#v, want %#v", i, args[i], want)
 		}
+	}
+}
+
+func TestDateStringNormalizesISODateTimes(t *testing.T) {
+	cases := map[string]string{
+		"2026-06-26":                "2026-06-26",
+		"2026-06-26 00:00:00":       "2026-06-26",
+		"2026-06-26T00:00:00Z":      "2026-06-26",
+		"2026-06-26T08:30:00+08:00": "2026-06-26",
+		"2026-99-99T00:00:00Z":      "",
+	}
+
+	for input, want := range cases {
+		if got := dateString(input); got != want {
+			t.Fatalf("dateString(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestRouterDetectsMethodNotAllowedForKnownPath(t *testing.T) {
+	app := &App{}
+	if app.route(http.MethodGet, "/api/budget-exchange-rates/sync-global") != nil {
+		t.Fatal("sync-global GET must not be registered as a handler")
+	}
+	if !app.routeExists("/api/budget-exchange-rates/sync-global") {
+		t.Fatal("sync-global path should be recognized for method-not-allowed handling")
+	}
+	allowed := strings.Join(app.allowedMethods("/api/budget-exchange-rates/sync-global"), ", ")
+	if allowed != http.MethodPost {
+		t.Fatalf("allowed methods = %q, want %q", allowed, http.MethodPost)
+	}
+}
+
+func TestMethodNotAllowedIsNotWrittenToAppLog(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "app.log")
+	app := &App{cfg: config.Config{AppLogFile: logPath}, logger: slog.New(slog.NewTextHandler(os.Stderr, nil))}
+	req, err := http.NewRequest(http.MethodGet, "/api/budget-exchange-rates/sync-global", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.appendAppLog(req, apiError("METHOD_NOT_ALLOWED", "API route does not support this method.", http.StatusMethodNotAllowed))
+	if _, err := os.Stat(logPath); !os.IsNotExist(err) {
+		t.Fatalf("method-not-allowed should not create an app log entry, stat err: %v", err)
 	}
 }
 
@@ -288,6 +335,32 @@ func TestCurrencyDeleteRemovesOnlyPersonalCurrencyLink(t *testing.T) {
 	}
 	if strings.Contains(body, "DELETE FROM currencies") || strings.Contains(body, "deleteCurrencyExchangeRateReferences") {
 		t.Fatal("personal currency removal must not delete canonical currency or exchange-rate rows")
+	}
+}
+
+func TestCurrencyListIncludesPrivateManualExchangeRateCurrencies(t *testing.T) {
+	content, err := os.ReadFile("currencies.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func referencedAccountExchangeRateCurrenciesSQL")
+	end := strings.Index(source, "func referencedWorkspaceCurrenciesSQL")
+	if start < 0 || end < start {
+		t.Fatal("could not locate referencedAccountExchangeRateCurrenciesSQL function")
+	}
+	body := source[start:end]
+	for _, want := range []string{
+		"FROM exchange_rates",
+		"user_id = ?",
+		"workspace_id IS NULL",
+		"source = 'manual'",
+		"from_currency_id",
+		"to_currency_id",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("currency list must include private manual exchange-rate currencies, missing %q", want)
+		}
 	}
 }
 

@@ -201,13 +201,17 @@ c.is_enabled,
 CASE WHEN uc.id IS NULL THEN 0 ELSE 1 END AS is_personal,
 0 AS is_referenced,
 COALESCE(uc.source, '') AS source
-FROM user_currencies uc
-JOIN currencies c ON c.id = uc.currency_id
-WHERE uc.user_id = ? AND uc.is_active = 1 AND c.is_enabled = 1`
+	FROM user_currencies uc
+	JOIN currencies c ON c.id = uc.currency_id
+	WHERE uc.user_id = ? AND uc.is_active = 1 AND c.is_enabled = 1`
 	args := []any{userID}
+	query += `
+	UNION
+	` + referencedAccountExchangeRateCurrenciesSQL()
+	args = append(args, userID, userID, userID)
 	if budgetID > 0 {
 		query += `
-UNION
+	UNION
 ` + referencedBudgetCurrenciesSQL()
 		args = append(args, userID)
 		for i := 0; i < 11; i++ {
@@ -258,12 +262,28 @@ WHERE c.is_enabled = 1
     UNION SELECT destination_currency_id FROM budget_bookkeeping_records WHERE budget_id = ? AND destination_currency_id IS NOT NULL
     UNION SELECT from_currency_id FROM budget_exchange_rates WHERE budget_id = ?
     UNION SELECT to_currency_id FROM budget_exchange_rates WHERE budget_id = ?
-  )`
+	  )`
+}
+
+func referencedAccountExchangeRateCurrenciesSQL() string {
+	return `SELECT DISTINCT c.id, c.code, c.name, c.symbol, c.decimal_places, c.is_enabled,
+	CASE WHEN uc.id IS NULL THEN 0 ELSE 1 END AS is_personal,
+	1 AS is_referenced,
+	'account_rate' AS source
+	FROM currencies c
+	LEFT JOIN user_currencies uc ON uc.currency_id = c.id AND uc.user_id = ? AND uc.is_active = 1
+	WHERE c.is_enabled = 1
+	  AND c.id IN (
+	    SELECT from_currency_id FROM exchange_rates
+	    WHERE user_id = ? AND workspace_id IS NULL AND source = 'manual'
+	    UNION SELECT to_currency_id FROM exchange_rates
+	    WHERE user_id = ? AND workspace_id IS NULL AND source = 'manual'
+	  )`
 }
 
 func referencedWorkspaceCurrenciesSQL() string {
 	return `SELECT DISTINCT c.id, c.code, c.name, c.symbol, c.decimal_places, c.is_enabled,
-CASE WHEN uc.id IS NULL THEN 0 ELSE 1 END AS is_personal,
+	CASE WHEN uc.id IS NULL THEN 0 ELSE 1 END AS is_personal,
 1 AS is_referenced,
 'referenced' AS source
 FROM currencies c

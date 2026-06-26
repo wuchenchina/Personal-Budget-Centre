@@ -205,10 +205,11 @@ export function BudgetExchangeRateManager({
       return;
     }
 
+    const rateDate = todayInputDate();
     const pairs = currencyOptions
       .map((option) => option.value)
       .filter((currency) => currency !== baseCurrency)
-      .map((currency) => ({ fromCurrency: currency, toCurrency: baseCurrency }));
+      .map((currency) => ({ fromCurrency: currency, toCurrency: baseCurrency, rateDate }));
 
     if (pairs.length === 0) {
       return;

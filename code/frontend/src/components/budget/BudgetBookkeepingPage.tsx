@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Empty, Input, Popconfirm, Space, Spin, Table, Tabs, Tag, Tooltip } from 'antd';
+import { Alert, Button, Empty, FloatButton, Input, Popconfirm, Space, Spin, Table, Tabs, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
 import { ArrowLeft, Download, FileText, Landmark, Pencil, Plus, Search, Settings2, Trash2 } from 'lucide-react';
 import { transactionTypeColors } from '../../config/appConfig';
@@ -387,6 +387,15 @@ export function BudgetBookkeepingPage({
           size="small"
         />
       </section>
+      {canWriteBudgets ? (
+        <FloatButton
+          className="bookkeeping-add-float"
+          icon={<Plus size={20} />}
+          tooltip={t('addBookkeepingRecord')}
+          type="primary"
+          onClick={onNewRecord}
+        />
+      ) : null}
     </div>
   );
 }

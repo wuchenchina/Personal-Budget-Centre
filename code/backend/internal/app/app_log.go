@@ -19,6 +19,9 @@ func (a *App) appendAppLog(r *http.Request, err error) {
 	if err == nil {
 		return
 	}
+	if shouldSkipAppLog(err) {
+		return
+	}
 	path := a.cfg.AppLogFile
 	if path == "" {
 		return
@@ -115,6 +118,11 @@ func normalizedLogEntry(entry map[string]any, raw string) map[string]any {
 		out["status"] = http.StatusInternalServerError
 	}
 	return out
+}
+
+func shouldSkipAppLog(err error) bool {
+	var apiErr httpx.APIError
+	return errors.As(err, &apiErr) && apiErr.Status == http.StatusMethodNotAllowed
 }
 
 func normalizedLogTrace(value any) []string {

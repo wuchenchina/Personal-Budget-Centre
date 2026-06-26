@@ -42,6 +42,11 @@ func (a *App) handle(w http.ResponseWriter, r *http.Request) {
 
 	handler := a.route(r.Method, r.URL.Path)
 	if handler == nil {
+		if a.routeExists(r.URL.Path) {
+			w.Header().Set("Allow", strings.Join(a.allowedMethods(r.URL.Path), ", "))
+			a.writeError(w, r, apiError("METHOD_NOT_ALLOWED", "API route does not support this method.", http.StatusMethodNotAllowed))
+			return
+		}
 		a.writeError(w, r, apiError("NOT_FOUND", "API route not found.", http.StatusNotFound))
 		return
 	}
@@ -241,6 +246,21 @@ func (a *App) route(method, path string) handlerFunc {
 	default:
 		return nil
 	}
+}
+
+func (a *App) routeExists(path string) bool {
+	return len(a.allowedMethods(path)) > 0
+}
+
+func (a *App) allowedMethods(path string) []string {
+	methods := []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete, http.MethodPut}
+	allowed := []string{}
+	for _, method := range methods {
+		if a.route(method, path) != nil {
+			allowed = append(allowed, method)
+		}
+	}
+	return allowed
 }
 
 func (a *App) applyCORS(w http.ResponseWriter) {

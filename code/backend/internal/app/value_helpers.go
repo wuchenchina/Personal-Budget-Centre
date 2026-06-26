@@ -192,8 +192,11 @@ func dateString(value any) string {
 	if text == "" {
 		return ""
 	}
-	if len(text) >= len("2006-01-02") {
-		text = text[:len("2006-01-02")]
+	for _, separator := range []string{"T", " "} {
+		if index := strings.Index(text, separator); index > 0 {
+			text = text[:index]
+			break
+		}
 	}
 	if _, err := time.Parse("2006-01-02", text); err != nil {
 		return ""
