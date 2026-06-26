@@ -410,7 +410,7 @@ export function BudgetDocumentPreview({
             canWriteBudgets,
             entry,
             transactionCategoryOptions,
-            operations.currencyOptions,
+            operations.currencyCatalogOptions,
             selectedBudget?.baseCurrency ?? baseCurrency,
             t('referenceShort'),
             selectedBudget?.pricingEnabled ?? false,
@@ -453,7 +453,7 @@ export function BudgetDocumentPreview({
       tableLanguageMode,
       columnLabelStyle,
       localizedTransactionBreakdown,
-      operations.currencyOptions,
+      operations.currencyCatalogOptions,
       transactionCategoryOptions,
     ],
   );

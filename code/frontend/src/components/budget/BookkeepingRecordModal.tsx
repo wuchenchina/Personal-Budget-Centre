@@ -41,13 +41,19 @@ export function BookkeepingRecordModal({
   const rate = Form.useWatch('rate', form);
   const destinationCurrency = Form.useWatch('destinationCurrency', form);
   const destinationAmount = Form.useWatch('destinationAmount', form);
+  const showTargetBaseAmount = currency !== baseCurrency;
   const showDestinationFields =
     transactionType === 'transfer'
     || transactionType === 'fx_exchange'
     || transactionType === 'cross_border_remittance';
+  const effectiveRate = showTargetBaseAmount
+    ? typeof rate === 'number' && Number.isFinite(rate) && rate > 0
+      ? rate
+      : null
+    : 1;
   const basePreview =
-    typeof amount === 'number' && Number.isFinite(amount)
-      ? amount * (typeof rate === 'number' && Number.isFinite(rate) && rate > 0 ? rate : 1)
+    typeof amount === 'number' && Number.isFinite(amount) && effectiveRate !== null
+      ? amount * effectiveRate
       : null;
   const destinationPreview =
     typeof destinationAmount === 'number' && Number.isFinite(destinationAmount) && destinationCurrency
@@ -57,7 +63,12 @@ export function BookkeepingRecordModal({
     changedValues: Partial<BookkeepingRecordFormValues>,
     allValues: BookkeepingRecordFormValues,
   ) => {
-    const sourceFields = syncCurrencyTriad(changedValues, allValues, bookkeepingSourceTriadKeys);
+    const sourceCurrency = allValues.currency ?? baseCurrency;
+    const sourceFields = sourceCurrency === baseCurrency
+      ? fixedBaseCurrencySourceFields(allValues)
+      : Object.prototype.hasOwnProperty.call(changedValues, 'currency')
+        ? resetForeignCurrencySourceFields(allValues)
+        : syncCurrencyTriad(changedValues, allValues, bookkeepingSourceTriadKeys);
     const destinationFields = showDestinationFields
       ? syncCurrencyTriad(changedValues, allValues, bookkeepingDestinationTriadKeys)
       : {};
@@ -198,21 +209,28 @@ export function BookkeepingRecordModal({
               name="rate"
               rules={[{ type: 'number', min: Number.MIN_VALUE, message: t('rateMin') }]}
             >
-              <InputNumber className="form-full-width" precision={6} step={0.01} />
-            </Form.Item>
-            <Form.Item
-              label={t('targetBaseAmount', { currency: baseCurrency })}
-              name="targetBaseAmount"
-              extra={t('targetBaseAmountHelp')}
-              rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
-            >
               <InputNumber
-                addonBefore={baseCurrency}
                 className="form-full-width"
-                precision={2}
-                step={100}
+                disabled={!showTargetBaseAmount}
+                precision={6}
+                step={0.01}
               />
             </Form.Item>
+            {showTargetBaseAmount ? (
+              <Form.Item
+                label={t('targetBaseAmount', { currency: baseCurrency })}
+                name="targetBaseAmount"
+                extra={t('targetBaseAmountHelp')}
+                rules={[{ type: 'number', min: 0, message: t('amountMin') }]}
+              >
+                <InputNumber
+                  addonBefore={baseCurrency}
+                  className="form-full-width"
+                  precision={2}
+                  step={100}
+                />
+              </Form.Item>
+            ) : null}
           </div>
           <div className="currency-field-preview">
             <span>{t('baseCurrencyPreview')}</span>
@@ -234,8 +252,8 @@ export function BookkeepingRecordModal({
                         : Promise.resolve();
                     },
                   }),
-              ]}
-            >
+                ]}
+              >
                 <Select
                   allowClear
                   showSearch
@@ -336,3 +354,41 @@ const bookkeepingDestinationTriadKeys = {
   rateKey: 'destinationRate',
   targetKey: 'destinationAmount',
 } as const;
+
+function fixedBaseCurrencySourceFields(
+  allValues: BookkeepingRecordFormValues,
+): Partial<BookkeepingRecordFormValues> {
+  const nextFields: Partial<BookkeepingRecordFormValues> = {};
+
+  if (allValues.rate !== 1) {
+    nextFields.rate = 1;
+  }
+
+  if (typeof allValues.amount === 'number' && Number.isFinite(allValues.amount)) {
+    const nextTargetBaseAmount = Math.round((allValues.amount + Number.EPSILON) * 100) / 100;
+
+    if (allValues.targetBaseAmount !== nextTargetBaseAmount) {
+      nextFields.targetBaseAmount = nextTargetBaseAmount;
+    }
+  } else if (allValues.targetBaseAmount !== undefined) {
+    nextFields.targetBaseAmount = undefined;
+  }
+
+  return nextFields;
+}
+
+function resetForeignCurrencySourceFields(
+  allValues: BookkeepingRecordFormValues,
+): Partial<BookkeepingRecordFormValues> {
+  const nextFields: Partial<BookkeepingRecordFormValues> = {};
+
+  if (allValues.rate !== undefined) {
+    nextFields.rate = undefined;
+  }
+
+  if (allValues.targetBaseAmount !== undefined) {
+    nextFields.targetBaseAmount = undefined;
+  }
+
+  return nextFields;
+}

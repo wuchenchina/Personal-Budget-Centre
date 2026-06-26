@@ -80,7 +80,7 @@ export function BudgetEditorView({
           budgetId={budget.selectedBudget?.id ?? null}
           baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
           canWriteBudgets={canWriteBudgets}
-          currencyOptions={operations.currencyOptions}
+          currencyOptions={operations.currencyCatalogOptions}
         />
       </div>
       <Suspense fallback={<div className="empty-line">{t('loadingBudget')}</div>}>

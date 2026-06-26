@@ -286,6 +286,25 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     [currencies],
   );
 
+  const currencyCatalogOptions = useMemo(
+    () => {
+      const catalogCurrencies = new Map<CurrencyCode, Currency>();
+
+      currencyPresets.forEach((currency) => {
+        catalogCurrencies.set(currency.code, currency);
+      });
+      currencies.forEach((currency) => {
+        catalogCurrencies.set(currency.code, currency);
+      });
+
+      return buildCurrencyOptions(
+        Array.from(catalogCurrencies.values())
+          .sort((left, right) => left.code.localeCompare(right.code)),
+      );
+    },
+    [currencies, currencyPresets],
+  );
+
   const saveCurrency = async (input: {
     code: string;
     name: string;
@@ -591,6 +610,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     categories,
     categoryOptions,
     currencyOptions,
+    currencyCatalogOptions,
     shares,
     passkeys,
     operationsError,
