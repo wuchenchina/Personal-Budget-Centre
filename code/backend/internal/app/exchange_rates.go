@@ -181,7 +181,7 @@ func scanExchangeRate(row rowScanner) (map[string]any, error) {
 		"providerUpdatedAt": nullableString(updated),
 		"fetchedAt":         nullableString(fetched),
 		"note":              nullableString(note),
-		"rateDate":          rateDate,
+		"rateDate":          dateString(rateDate),
 		"createdAt":         created,
 	}, nil
 }
@@ -294,6 +294,7 @@ ORDER BY c.code`
 		if value, ok := nullStringFloat(sell); ok {
 			row.CustomerSellRate = value
 		}
+		row.RateDate = dateString(row.RateDate)
 		row.ProviderUpdatedAt = nullableStringToString(updated)
 		row.FetchedAt = nullableStringToString(fetched)
 		row.SourceName = nullableStringToString(sourceName)
@@ -634,7 +635,7 @@ func scanBudgetExchangeRate(row rowScanner) (map[string]any, error) {
 		"from":      from,
 		"to":        to,
 		"rate":      rate,
-		"rateDate":  rateDate,
+		"rateDate":  dateString(rateDate),
 		"source":    "budget_default",
 		"note":      nullableString(note),
 		"updatedAt": updated,

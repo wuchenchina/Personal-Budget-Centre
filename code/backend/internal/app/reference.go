@@ -79,7 +79,7 @@ func (a *App) exchangeRateList(w http.ResponseWriter, r *http.Request) error {
 	rates, err := a.exchangeRatesForWorkspace(r.Context(), workspaceID, exchangeRateFilter{
 		From:     firstQuery(r, "fromCurrency", "from"),
 		To:       firstQuery(r, "toCurrency", "to"),
-		RateDate: r.URL.Query().Get("rateDate"),
+		RateDate: dateString(r.URL.Query().Get("rateDate")),
 		Source:   r.URL.Query().Get("source"),
 	})
 	if err != nil {

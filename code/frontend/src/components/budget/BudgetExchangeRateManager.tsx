@@ -27,6 +27,7 @@ import { useI18n } from '../../i18n';
 import type { BudgetExchangeRate, CurrencyCode } from '../../types/budget';
 import type { CurrencySelectOption } from '../../utils/currencyOptions';
 import { renderCurrencyOption } from '../../utils/currencyOptions';
+import { formatDateOnly, inputDateValue } from '../../utils/dateOnly';
 
 interface BudgetExchangeRateManagerProps {
   budgetId: number | null;
@@ -136,7 +137,7 @@ export function BudgetExchangeRateManager({
       fromCurrency: rate.from,
       toCurrency: rate.to,
       rate: rate.rate,
-      rateDate: rate.rateDate,
+      rateDate: inputDateValue(rate.rateDate),
       note: rate.note ?? undefined,
     });
   }, [form]);
@@ -252,6 +253,7 @@ export function BudgetExchangeRateManager({
         key: 'rateDate',
         title: t('date'),
         width: 116,
+        render: formatDateOnly,
       },
       {
         key: 'actions',

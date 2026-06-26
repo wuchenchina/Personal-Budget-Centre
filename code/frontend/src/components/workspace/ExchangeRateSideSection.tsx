@@ -36,6 +36,7 @@ import type { OperationsController } from '../../hooks/useOperationsController';
 import { useI18n } from '../../i18n';
 import type { Currency, CurrencyCode, CurrencyRate } from '../../types/budget';
 import { buildCurrencyOptions, renderCurrencyOption } from '../../utils/currencyOptions';
+import { formatDateOnly, inputDateValue } from '../../utils/dateOnly';
 
 interface ExchangeRateSideSectionProps {
   activeWorkspaceId: number | null;
@@ -210,7 +211,7 @@ export function ExchangeRateSideSection({
       fromCurrency: rate.from,
       toCurrency: rate.to,
       rate: rate.rate,
-      rateDate: rate.rateDate,
+      rateDate: inputDateValue(rate.rateDate),
       note: rate.note ?? undefined,
     });
     setPrivateRateModalOpen(true);
@@ -298,6 +299,7 @@ export function ExchangeRateSideSection({
         key: 'rateDate',
         title: t('date'),
         width: 120,
+        render: formatDateOnly,
       },
     ],
     [t],
@@ -327,6 +329,7 @@ export function ExchangeRateSideSection({
         key: 'rateDate',
         title: t('date'),
         width: 120,
+        render: formatDateOnly,
       },
       {
         dataIndex: 'note',
@@ -364,7 +367,7 @@ export function ExchangeRateSideSection({
 
   const boardMetaItems: DescriptionsProps['items'] = [
     { key: 'base', label: t('baseCurrency'), children: 'HKD' },
-    { key: 'date', label: t('date'), children: boardRows[0]?.rateDate ?? '--' },
+    { key: 'date', label: t('date'), children: formatDateOnly(boardRows[0]?.rateDate) },
   ];
 
   return (
