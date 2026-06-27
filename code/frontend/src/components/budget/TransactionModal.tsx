@@ -341,7 +341,7 @@ export function TransactionModal({
               size="small"
               onClick={onRefreshRates}
             >
-              {t('refreshBochkRates')}
+              {t('refreshBankReferenceRates')}
             </Button>
           </div>
           <div className={`currency-transaction-grid${pricingEnabled ? ' currency-transaction-grid-pricing' : ''}`}>

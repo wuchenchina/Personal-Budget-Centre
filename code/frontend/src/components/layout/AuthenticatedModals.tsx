@@ -125,7 +125,7 @@ export function AuthenticatedModals({
             open={budgetEntry.isBudgetItemModalOpen}
             error={budgetEntry.entryError}
             categoryOptions={budgetItemPresetCategoryOptions}
-            currencyOptions={operations.currencyCatalogOptions}
+            currencyOptions={operations.currencyOptions}
             baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
             focus={budgetEntry.budgetItemModalFocus}
             pricingEnabled={budget.selectedBudget?.pricingEnabled ?? false}
@@ -167,7 +167,7 @@ export function AuthenticatedModals({
           open={bookkeeping.modalOpen}
           error={bookkeeping.error}
           categoryOptions={bookkeepingCategoryOptions}
-          currencyOptions={operations.currencyCatalogOptions}
+          currencyOptions={operations.currencyOptions}
           baseCurrency={budget.selectedBudget?.baseCurrency ?? baseCurrency}
           confirmLoading={bookkeeping.saving}
           onValuesChange={() => undefined}

@@ -101,6 +101,38 @@
   letter-spacing: 0;
 }
 
+.pdf-export-modal-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-export-modal {
+  display: grid;
+  gap: 14px;
+}
+
+.pdf-export-modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pdf-export-modal-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 14px;
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid var(--bc-border-soft);
+  font-size: 12px;
+}
+
+.pdf-export-modal-actions {
+  justify-content: flex-end;
+  width: 100%;
+}
+
 .budget-export-label {
   gap: 6px;
   color: var(--bc-text);
@@ -846,7 +878,7 @@
 .budget-signature-section {
   min-width: 760px;
   margin-top: 22px;
-  font-family: var(--font-mono), var(--font-cjk), monospace;
+  font-family: var(--bc-font-sans), var(--font-cjk), sans-serif;
 }
 
 .budget-signature-section-right {
@@ -859,7 +891,7 @@
   padding: 5px 7px;
   color: #111;
   background: #a4a4a4;
-  border: 0.5pt solid #7e7e7e;
+  border: 1pt solid #7e7e7e;
   border-bottom: 0;
   font-size: 10.5pt;
 }
@@ -868,7 +900,7 @@
   display: grid;
   gap: 10px;
   padding: 9px 10px;
-  border: 0.5pt solid #7e7e7e;
+  border: 1pt solid #7e7e7e;
 }
 
 .budget-signature-card {
@@ -878,7 +910,7 @@
   align-items: start;
   min-height: 100px;
   padding-bottom: 10px;
-  border-bottom: 0.5pt solid #bfbfbf;
+  border-bottom: 0.75pt solid #bfbfbf;
   font-size: 7.5pt;
 }
 
@@ -924,7 +956,7 @@
   min-height: 126px;
   color: rgba(17, 17, 17, 0.58);
   background: #fff;
-  border: 0.5pt solid #7e7e7e;
+  border: 0.8pt solid #7e7e7e;
   overflow: hidden;
 }
 
@@ -938,7 +970,7 @@
   display: block;
   align-self: end;
   margin: 0 8px;
-  border-top: 0.5pt solid #7e7e7e;
+  border-top: 0.75pt solid #7e7e7e;
 }
 
 .budget-signature-box-label {
@@ -1510,13 +1542,23 @@
 }
 
 .bookkeeping-add-float.ant-float-btn {
-  inset-block-end: 104px;
+  inset-block-end: 128px;
 }
 
 .bookkeeping-ledger-table .ant-table,
 .bookkeeping-ledger-table .ant-table-container,
 .bookkeeping-ledger-table .ant-table-content {
   max-width: 100%;
+}
+
+.bookkeeping-ledger-table .ant-table-body {
+  min-height: 280px;
+}
+
+.bookkeeping-ledger-table .ant-pagination {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--bc-border);
 }
 
 .bookkeeping-total-row .ant-table-cell {

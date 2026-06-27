@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS user_currencies (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id BIGINT UNSIGNED NOT NULL,
   currency_id BIGINT UNSIGNED NOT NULL,
-  source ENUM('manual', 'catalog', 'referenced', 'bochk') NOT NULL DEFAULT 'manual',
+  source ENUM('manual', 'catalog', 'referenced', 'bank_reference') NOT NULL DEFAULT 'manual',
   display_name VARCHAR(120) NULL,
   display_symbol VARCHAR(16) NULL,
   display_decimal_places TINYINT UNSIGNED NULL,

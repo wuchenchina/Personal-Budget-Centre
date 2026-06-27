@@ -37,9 +37,48 @@ services:
       EXPORT_STORAGE_DIR: /app/storage/exports
       EXPORT_TEMP_DIR: /app/storage/tmp/pdf
       APP_LOG_FILE: /app/storage/logs/app.log
-      CHROME_BIN: /usr/bin/chromium-browser
     volumes:
       - ${APP_STORAGE_ROOT:-./storage}/exports:/app/storage/exports
       - ${APP_STORAGE_ROOT:-./storage}/tmp:/app/storage/tmp
       - ${APP_STORAGE_ROOT:-./storage}/logs:/app/storage/logs
+    restart: unless-stopped
+
+  pdf-renderer:
+    build:
+      context: .
+      dockerfile: code/pdf-renderer-dotnet/Dockerfile
+      args:
+        HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
+        HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
+        ALL_PROXY: ${BUILD_ALL_PROXY:-}
+        NO_PROXY: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1}
+        http_proxy: ${BUILD_HTTP_PROXY:-}
+        https_proxy: ${BUILD_HTTPS_PROXY:-}
+        all_proxy: ${BUILD_ALL_PROXY:-}
+        no_proxy: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1}
+    env_file:
+      - .env
+    environment:
+      EXPORT_STORAGE_DIR: /app/storage/exports
+      EXPORT_TEMP_DIR: /app/storage/tmp/pdf
+      APP_LOG_DIR: /app/storage/logs
+      FONT_DIR: /app/font
+      PDF_RENDERER_MIN_WORKERS: ${PDF_RENDERER_MIN_WORKERS:-1}
+      PDF_RENDERER_MAX_WORKERS: ${PDF_RENDERER_MAX_WORKERS:-4}
+      PDF_RENDERER_BATCH_SIZE: ${PDF_RENDERER_BATCH_SIZE:-1000}
+      PDF_RENDERER_LARGE_ROW_THRESHOLD: ${PDF_RENDERER_LARGE_ROW_THRESHOLD:-100000}
+      PDF_RENDERER_LARGE_JOB_CONCURRENCY: ${PDF_RENDERER_LARGE_JOB_CONCURRENCY:-2}
+      PDF_RENDERER_POLL_MS: ${PDF_RENDERER_POLL_MS:-100}
+      PDF_RENDERER_LOCK_TIMEOUT_SECONDS: ${PDF_RENDERER_LOCK_TIMEOUT_SECONDS:-300}
+      PDF_RENDERER_JOB_SECRET: ${PDF_RENDERER_JOB_SECRET:-}
+      PDF_EXPORT_TMP_MAX_AGE_HOURS: ${PDF_EXPORT_TMP_MAX_AGE_HOURS:-24}
+      PDF_EXPORT_FAILED_MAX_AGE_DAYS: ${PDF_EXPORT_FAILED_MAX_AGE_DAYS:-14}
+      PDF_EXPORT_MAX_TOTAL_BYTES: ${PDF_EXPORT_MAX_TOTAL_BYTES:-0}
+    volumes:
+      - ${APP_STORAGE_ROOT:-./storage}/exports:/app/storage/exports
+      - ${APP_STORAGE_ROOT:-./storage}/tmp:/app/storage/tmp
+      - ${APP_STORAGE_ROOT:-./storage}/logs:/app/storage/logs
+      - ./code/font:/app/font:ro
+    cpus: "7"
+    mem_limit: 20g
     restart: unless-stopped

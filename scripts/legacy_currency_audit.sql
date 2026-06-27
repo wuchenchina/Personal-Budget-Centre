@@ -93,9 +93,9 @@ ORDER BY code, location;
 -- legacy provider rates are still in the current table instead of history.
 SELECT source, provider_rate_type, COUNT(*) AS rows_found
 FROM exchange_rates
-WHERE source NOT IN ('manual', 'budget_default', 'bochk')
+WHERE source NOT IN ('manual', 'budget_default', 'bank_reference')
    OR provider_rate_type NOT IN ('manual', 'customer_sell', 'customer_buy')
-   OR (source = 'bochk' AND provider_rate_type NOT IN ('customer_sell', 'customer_buy'))
+   OR (source = 'bank_reference' AND provider_rate_type NOT IN ('customer_sell', 'customer_buy'))
    OR (source IN ('manual', 'budget_default') AND provider_rate_type <> 'manual')
 GROUP BY source, provider_rate_type
 ORDER BY source, provider_rate_type;

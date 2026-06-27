@@ -165,10 +165,10 @@ func (a *App) route(method, path string) handlerFunc {
 		return a.exchangeRateCreate
 	case method == http.MethodPost && path == "/api/exchange-rates/convert":
 		return a.exchangeRateConvert
-	case method == http.MethodGet && path == "/api/exchange-rates/bochk/board":
-		return a.bochkRateBoardList
-	case method == http.MethodPost && path == "/api/exchange-rates/bochk/refresh":
-		return a.bochkRefresh
+	case method == http.MethodGet && path == "/api/exchange-rates/reference/board":
+		return a.bankReferenceRateBoardList
+	case method == http.MethodPost && path == "/api/exchange-rates/reference/refresh":
+		return a.bankReferenceRefresh
 	case method == http.MethodGet && path == "/api/account-exchange-rates":
 		return a.accountExchangeRateList
 	case method == http.MethodPost && path == "/api/account-exchange-rates":
@@ -239,7 +239,7 @@ func (a *App) route(method, path string) handlerFunc {
 		return a.adminDatabaseMigrate
 	case method == http.MethodGet && path == "/api/admin/logs":
 		return a.adminLogs
-	case method == http.MethodPost && path == "/api/admin/export-cache/cleanup":
+	case method == http.MethodPost && path == "/api/admin/exports/cleanup":
 		return a.adminExportCleanup
 	case method == http.MethodGet && path == "/api/templates/personal-living-budget":
 		return a.templateResponse

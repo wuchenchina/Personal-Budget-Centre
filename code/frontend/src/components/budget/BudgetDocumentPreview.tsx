@@ -12,7 +12,6 @@ import {
   Segmented,
   Select,
   Space,
-  Spin,
   Table,
   Tag,
   Tooltip,
@@ -410,7 +409,7 @@ export function BudgetDocumentPreview({
             canWriteBudgets,
             entry,
             transactionCategoryOptions,
-            operations.currencyCatalogOptions,
+            operations.currencyOptions,
             selectedBudget?.baseCurrency ?? baseCurrency,
             t('referenceShort'),
             selectedBudget?.pricingEnabled ?? false,
@@ -453,7 +452,7 @@ export function BudgetDocumentPreview({
       tableLanguageMode,
       columnLabelStyle,
       localizedTransactionBreakdown,
-      operations.currencyCatalogOptions,
+      operations.currencyOptions,
       transactionCategoryOptions,
     ],
   );
@@ -493,12 +492,6 @@ export function BudgetDocumentPreview({
 
   return (
     <main className="document-workbench">
-      <Spin
-        className="pdf-export-spin"
-        fullscreen
-        spinning={exportingPdf}
-        tip={t('pdfExportGenerating')}
-      />
       <div className="toolbar-row">
         <Space wrap>
           <Button

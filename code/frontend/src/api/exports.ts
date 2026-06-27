@@ -15,6 +15,16 @@ export function listBudgetExports(budgetId: number): Promise<BudgetExport[]> {
   );
 }
 
+export function getBudgetExportStatus(budgetId: number, exportId: number): Promise<BudgetExport> {
+  return listBudgetExports(budgetId).then((exports) => {
+    const item = exports.find((candidate) => candidate.id === exportId);
+    if (!item) {
+      throw new Error('Export job was not found.');
+    }
+    return item;
+  });
+}
+
 export function createBudgetExport(
   budgetId: number,
   format: BudgetExportFormat,

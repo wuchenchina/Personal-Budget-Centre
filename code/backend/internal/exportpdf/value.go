@@ -2,7 +2,6 @@ package exportpdf
 
 import (
 	"encoding/json"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -120,45 +119,4 @@ func enumString(value string, allowed []string, fallback string) string {
 		}
 	}
 	return fallback
-}
-
-func anyList(value any) []any {
-	if items, ok := value.([]any); ok {
-		return items
-	}
-	rv := reflect.ValueOf(value)
-	if !rv.IsValid() || (rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array) {
-		return []any{}
-	}
-	out := make([]any, 0, rv.Len())
-	for index := 0; index < rv.Len(); index++ {
-		out = append(out, rv.Index(index).Interface())
-	}
-	return out
-}
-
-func cloneBudgetForRenderer(input map[string]any) map[string]any {
-	out := make(map[string]any, len(input))
-	for key, value := range input {
-		switch key {
-		case "items", "transactions", "participants":
-			out[key] = anyList(value)
-		default:
-			out[key] = value
-		}
-	}
-	if config, ok := out["signatureConfig"].(map[string]any); ok {
-		next := cloneMap(config)
-		next["rows"] = anyList(config["rows"])
-		out["signatureConfig"] = next
-	}
-	if plan, ok := out["overallInstallmentPlan"].(map[string]any); ok {
-		next := cloneMap(plan)
-		next["periodAmounts"] = anyList(plan["periodAmounts"])
-		next["periodLocked"] = anyList(plan["periodLocked"])
-		next["periodProgress"] = anyList(plan["periodProgress"])
-		next["periodRemarks"] = anyList(plan["periodRemarks"])
-		out["overallInstallmentPlan"] = next
-	}
-	return out
 }

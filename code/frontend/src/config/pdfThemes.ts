@@ -13,12 +13,12 @@ export const pdfThemeOptions: PdfThemeOption[] = [
     accent: '#7e7e7e',
   },
   {
-    key: 'hsbc',
+    key: 'statement_red',
     swatch: '#db0011',
     accent: '#111111',
   },
   {
-    key: 'uswds',
+    key: 'civic_blue',
     swatch: '#005ea8',
     accent: '#1a4480',
   },
@@ -26,7 +26,7 @@ export const pdfThemeOptions: PdfThemeOption[] = [
 
 export function normalizePdfTheme(theme: string | null | undefined): PdfThemeKey {
   if (theme === 'statement_red') {
-    return 'hsbc';
+    return 'statement_red';
   }
 
   return pdfThemeOptions.some((option) => option.key === theme)

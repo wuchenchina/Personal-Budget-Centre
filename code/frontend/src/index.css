@@ -361,7 +361,8 @@ select {
 .ant-input-number-affix-wrapper-focused,
 .ant-picker-focused,
 .ant-select-focused .ant-select-selector {
-  border: 2px solid var(--bc-focus) !important;
+  border-color: var(--bc-focus) !important;
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.08) !important;
   outline: none !important;
 }
 
@@ -381,7 +382,8 @@ select {
 .ant-form-item-has-error .ant-picker,
 .ant-form-item-has-error .ant-picker-focused,
 .ant-form-item-has-error .ant-select-selector {
-  border: 2px solid var(--bc-danger) !important;
+  border-color: var(--bc-danger) !important;
+  box-shadow: 0 0 0 2px rgba(219, 0, 17, 0.08) !important;
   outline: none !important;
 }
 
@@ -394,6 +396,7 @@ select {
 .ant-picker-status-error,
 .ant-picker-status-error-focused,
 .ant-select-status-error .ant-select-selector {
-  border: 2px solid var(--bc-danger) !important;
+  border-color: var(--bc-danger) !important;
+  box-shadow: 0 0 0 2px rgba(219, 0, 17, 0.08) !important;
   outline: none !important;
 }

@@ -8,6 +8,8 @@
 *.njsproj
 *.sln
 *.sw?
+storage/
+local-only/
 
 # Logs
 logs/
@@ -41,6 +43,10 @@ coverage/
 code/backend/api
 code/backend/storage/
 
+# .NET build intermediates
+**/bin/
+**/obj/
+
 # PDF font assets are local-only. See code/font/README.md.
 code/font/*
 !code/font/
@@ -54,6 +60,11 @@ BudgetCentre_old/
 parsed_templates/
 template/
 docs/
+*.sql.zip
+*.dump
+*.bak
+*.tar
+*.tar.gz
 
 # Local AI/agent/tooling state
 .playwright-mcp

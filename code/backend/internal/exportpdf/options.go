@@ -3,8 +3,6 @@ package exportpdf
 import (
 	"encoding/json"
 	"strings"
-
-	"budgetcentre/backend/internal/exportpdf/theme"
 )
 
 type Options struct {
@@ -28,6 +26,12 @@ var supportedPDFLanguages = map[string]bool{
 	"fr": true,
 	"ru": true,
 	"de": true,
+}
+
+var supportedPDFThemes = map[string]bool{
+	"classic":       true,
+	"statement_red": true,
+	"civic_blue":   true,
 }
 
 func OptionsFromInput(input map[string]any, defaultTheme string, rawSettings any) Options {
@@ -95,8 +99,11 @@ func SettingsFromRaw(raw any) map[string]any {
 }
 
 func NormalizeTheme(value any) string {
-	key := stringValue(value)
-	return theme.NormalizeKey(key)
+	key := strings.TrimSpace(stringValue(value))
+	if supportedPDFThemes[key] {
+		return key
+	}
+	return "classic"
 }
 
 func SettingsJSON(raw any, currentRaw any) (string, error) {

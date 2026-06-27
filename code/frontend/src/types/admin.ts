@@ -60,7 +60,7 @@ export interface AdminEnvironmentCheck {
   recommendations: string[];
 }
 
-export interface AdminExportCacheCleanupResult {
+export interface AdminExportCleanupResult {
   exportPath: string;
   tempPath: string;
   deletedExports: number;

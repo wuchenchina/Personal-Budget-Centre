@@ -46,7 +46,7 @@ ARG http_proxy
 ARG https_proxy
 ARG all_proxy
 ARG no_proxy
-RUN apk add --no-cache ca-certificates chromium fontconfig tzdata
+RUN apk add --no-cache ca-certificates fontconfig tzdata
 WORKDIR /app
 RUN mkdir -p /app/storage/exports /app/storage/tmp/pdf /app/storage/logs
 ENV LISTEN_ADDR=:8080 \
@@ -54,8 +54,7 @@ ENV LISTEN_ADDR=:8080 \
     FONT_DIR=/app/font \
     EXPORT_STORAGE_DIR=/app/storage/exports \
     EXPORT_TEMP_DIR=/app/storage/tmp/pdf \
-    APP_LOG_FILE=/app/storage/logs/app.log \
-    CHROME_BIN=/usr/bin/chromium-browser
+    APP_LOG_FILE=/app/storage/logs/app.log
 EXPOSE 8080
 CMD ["/app/budgetcentre-api"]
 

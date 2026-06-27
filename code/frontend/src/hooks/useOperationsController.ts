@@ -14,8 +14,8 @@ import {
   listBudgetShares,
   updateBudgetShare,
 } from '../api/budgetShares';
-import { createBudgetExport, exportDownloadUrl } from '../api/exports';
-import { refreshBochkRates } from '../api/exchangeRates';
+import { createBudgetExport, exportDownloadUrl, getBudgetExportStatus } from '../api/exports';
+import { refreshBankReferenceRates } from '../api/exchangeRates';
 import {
   createCurrency,
   deleteCurrency,
@@ -26,6 +26,7 @@ import type { AuthSession, PasskeyCredential } from '../types/auth';
 import type {
   BudgetCategory,
   BudgetDetail,
+  BudgetExport,
   BudgetExportFormat,
   BudgetExportOptions,
   BudgetShare,
@@ -56,6 +57,18 @@ function triggerExportDownload(url: string): void {
   link.remove();
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function exportPollDelay(attempt: number): number {
+  const quickPollDelays = [100, 200, 400, 800, 1000];
+
+  return quickPollDelays[attempt] ?? 2000;
+}
+
 export function useOperationsController(options: UseOperationsControllerOptions) {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [currencyPresets, setCurrencyPresets] = useState<Currency[]>([]);
@@ -71,7 +84,8 @@ export function useOperationsController(options: UseOperationsControllerOptions)
   const [isShareLoading, setIsShareLoading] = useState(false);
   const [isShareSaving, setIsShareSaving] = useState(false);
   const [creatingExportFormat, setCreatingExportFormat] = useState<BudgetExportFormat | null>(null);
-  const [refreshingExchangeRateSource, setRefreshingExchangeRateSource] = useState<'bochk' | null>(null);
+  const [activeExport, setActiveExport] = useState<BudgetExport | null>(null);
+  const [refreshingExchangeRateSource, setRefreshingExchangeRateSource] = useState<'bank_reference' | null>(null);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
   const [isPasskeyRegistering, setIsPasskeyRegistering] = useState(false);
   const { activeWorkspaceId, canManageBudgetShares, loadPasskeys = false, selectedBudget, session } = options;
@@ -468,32 +482,54 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         signatureLabelLanguages: userPdfExportSettings.signatureLabelLanguages,
         ...exportOptions,
       });
-      triggerExportDownload(exportDownloadUrl(nextExport));
+      setActiveExport(nextExport);
+      let current = nextExport;
+      let pollAttempt = 0;
+      while (current.status === 'queued' || current.status === 'processing') {
+        await delay(exportPollDelay(pollAttempt));
+        pollAttempt += 1;
+        current = await getBudgetExportStatus(selectedBudget.id, current.id);
+        setActiveExport(current);
+      }
+      if (current.status === 'completed') {
+        triggerExportDownload(exportDownloadUrl(current));
+      } else {
+        throw new Error(current.errorMessage ?? translateCurrent('pdfExportFailed'));
+      }
     } catch (error: unknown) {
       setOperationsError(error instanceof Error ? error.message : translateCurrent('authFailed'));
+      setActiveExport((current) => current === null ? null : {
+        ...current,
+        status: 'failed',
+        errorMessage: error instanceof Error ? error.message : translateCurrent('authFailed'),
+      });
     } finally {
       setCreatingExportFormat(null);
     }
   };
 
-  const refreshBochk = async () => {
+  const closeExportProgress = () => {
+    setActiveExport(null);
+  };
+
+  const refreshBankReference = async () => {
     if (activeWorkspaceId === null) {
       setOperationsError(translateCurrent('selectWorkspaceFirst'));
 
       return;
     }
 
-    setRefreshingExchangeRateSource('bochk');
+    setRefreshingExchangeRateSource('bank_reference');
     setOperationsError(null);
 
     try {
-      await refreshBochkRates(activeWorkspaceId);
+      await refreshBankReferenceRates(activeWorkspaceId);
       setCurrencies(await listCurrencies({
         workspaceId: activeWorkspaceId,
         budgetId: selectedBudget?.id ?? null,
       }));
     } catch (error: unknown) {
-      setOperationsError(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
+      throw new Error(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
     } finally {
       setRefreshingExchangeRateSource(null);
     }
@@ -623,6 +659,7 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     isShareLoading,
     isShareSaving,
     creatingExportFormat,
+    activeExport,
     refreshingExchangeRateSource,
     isPasskeyLoading,
     isPasskeyRegistering,
@@ -634,7 +671,8 @@ export function useOperationsController(options: UseOperationsControllerOptions)
     saveAlias,
     removeAlias,
     createExport,
-    refreshBochk,
+    closeExportProgress,
+    refreshBankReference,
     saveShare,
     removeShare,
     registerPasskey,

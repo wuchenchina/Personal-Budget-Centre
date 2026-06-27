@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var bochkOfficialRateCurrencyCodes = []string{
+var bankReferenceOfficialRateCurrencyCodes = []string{
 	"CNY",
 	"CNH",
 	"USD",
@@ -25,7 +25,7 @@ var bochkOfficialRateCurrencyCodes = []string{
 	"ZAR",
 }
 
-func TestParseBochkHTMLUsesOfficialHKDRateCurrencies(t *testing.T) {
+func TestParseBankReferenceHTMLUsesOfficialHKDRateCurrencies(t *testing.T) {
 	html := `
 <html><body>
 <table>
@@ -50,14 +50,14 @@ func TestParseBochkHTMLUsesOfficialHKDRateCurrencies(t *testing.T) {
 </table>
 <p>資料更新於香港時間： 2026/06/24 02:42:55</p>
 </body></html>`
-	feed, err := parseBochkHTML(html)
+	feed, err := parseBankReferenceHTML(html)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if feed.ProviderUpdatedAt != "2026-06-24 02:42:55" || feed.RateDate != "2026-06-24" {
 		t.Fatalf("unexpected feed date: %#v", feed)
 	}
-	want := bochkOfficialRateCurrencyCodes
+	want := bankReferenceOfficialRateCurrencyCodes
 	if len(feed.Rates) != len(want) {
 		t.Fatalf("rate count = %d, want %d", len(feed.Rates), len(want))
 	}
@@ -68,23 +68,23 @@ func TestParseBochkHTMLUsesOfficialHKDRateCurrencies(t *testing.T) {
 	}
 	for _, rate := range feed.Rates {
 		if rate.CurrencyCode == "TWD" || rate.CurrencyCode == "MOP" {
-			t.Fatalf("BOCHK HKD feed must not include unsupported legacy currency %s", rate.CurrencyCode)
+			t.Fatalf("bank reference HKD feed must not include unsupported legacy currency %s", rate.CurrencyCode)
 		}
 	}
 }
 
-func TestBochkCurrencyMetadataMatchesOfficialHKDFeed(t *testing.T) {
-	mapCodes := make([]string, 0, len(bochkCurrencyMap))
-	for _, code := range bochkCurrencyMap {
+func TestBankReferenceCurrencyMetadataMatchesOfficialHKDFeed(t *testing.T) {
+	mapCodes := make([]string, 0, len(bankReferenceCurrencyMap))
+	for _, code := range bankReferenceCurrencyMap {
 		mapCodes = append(mapCodes, code)
 	}
-	assertSameCurrencySet(t, "BOCHK parser currency map", mapCodes, bochkOfficialRateCurrencyCodes)
+	assertSameCurrencySet(t, "bank reference parser currency map", mapCodes, bankReferenceOfficialRateCurrencyCodes)
 
-	metaCodes := make([]string, 0, len(bochkCurrencyMetaByCode))
-	for code := range bochkCurrencyMetaByCode {
+	metaCodes := make([]string, 0, len(bankReferenceCurrencyMetaByCode))
+	for code := range bankReferenceCurrencyMetaByCode {
 		metaCodes = append(metaCodes, code)
 	}
-	assertSameCurrencySet(t, "BOCHK metadata", metaCodes, append([]string{"HKD"}, bochkOfficialRateCurrencyCodes...))
+	assertSameCurrencySet(t, "bank reference metadata", metaCodes, append([]string{"HKD"}, bankReferenceOfficialRateCurrencyCodes...))
 }
 
 func assertSameCurrencySet(t *testing.T, label string, got, want []string) {

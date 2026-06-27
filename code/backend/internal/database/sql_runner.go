@@ -22,6 +22,7 @@ var (
 	allowedModifyColumns = map[string]bool{
 		"end_date":           true,
 		"provider_rate_type": true,
+		"source":             true,
 		"split_type":         true,
 		"start_date":         true,
 	}
@@ -79,7 +80,7 @@ func applyMigration(ctx context.Context, db *sql.DB, file migrationFile) error {
 	if err != nil {
 		return err
 	}
-	for _, statement := range statements {
+	for index, statement := range statements {
 		trimmed := strings.TrimSpace(statement)
 		if trimmed == "" {
 			continue
@@ -88,7 +89,7 @@ func applyMigration(ctx context.Context, db *sql.DB, file migrationFile) error {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, trimmed); err != nil {
-			return fmt.Errorf("statement failed: %w", err)
+			return fmt.Errorf("statement %d failed: %w", index+1, err)
 		}
 	}
 	if _, err := tx.ExecContext(ctx,

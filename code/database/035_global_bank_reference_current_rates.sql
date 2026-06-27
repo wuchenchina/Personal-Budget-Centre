@@ -38,7 +38,7 @@ SELECT
   er.note,
   er.created_at
 FROM exchange_rates er
-WHERE er.source = 'bochk'
+WHERE er.source = 'bank_reference'
   AND er.workspace_id IS NOT NULL
   AND NOT EXISTS (
     SELECT 1
@@ -48,17 +48,17 @@ WHERE er.source = 'bochk'
   );
 
 DELETE FROM exchange_rates
-WHERE source = 'bochk'
+WHERE source = 'bank_reference'
   AND workspace_id IS NOT NULL;
 
 UPDATE exchange_rates
 SET user_id = NULL
-WHERE source = 'bochk'
+WHERE source = 'bank_reference'
   AND workspace_id IS NULL
   AND user_id IS NOT NULL;
 
 UPDATE exchange_rate_history
 SET user_id = NULL
-WHERE source = 'bochk'
+WHERE source = 'bank_reference'
   AND workspace_id IS NULL
   AND user_id IS NOT NULL;

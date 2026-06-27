@@ -26,7 +26,7 @@ type exchangeRateConversion struct {
 	ConversionPath string
 }
 
-type bochkRateBoardRow struct {
+type bankReferenceRateBoardRow struct {
 	CurrencyCode      string
 	CurrencyName      string
 	CurrencySymbol    string
@@ -93,9 +93,8 @@ func exchangeRateListClause(workspaceID int64, filter exchangeRateFilter) (strin
 		return "", nil, apiError("VALIDATION_ERROR", "Exchange rate source is invalid.", http.StatusUnprocessableEntity)
 	}
 	where := []string{
-		"((er.source = 'bochk' AND er.workspace_id IS NULL) OR (er.source <> 'bochk' AND er.workspace_id = ?))",
-		"er.source <> 'mastercard'",
-		"NOT (er.source = 'bochk' AND er.provider_rate_type = 'mid')",
+		"((er.source = 'bank_reference' AND er.workspace_id IS NULL) OR (er.source <> 'bank_reference' AND er.workspace_id = ?))",
+		"NOT (er.source = 'bank_reference' AND er.provider_rate_type = 'mid')",
 	}
 	args := []any{workspaceID}
 	if filter.From != "" {
@@ -166,6 +165,12 @@ func scanExchangeRate(row rowScanner) (map[string]any, error) {
 	if err := row.Scan(&id, &ws, &from, &to, &rate, &source, &sourceName, &sourceURL, &provider, &sell, &buy, &updated, &fetched, &note, &rateDate, &created); err != nil {
 		return nil, err
 	}
+	sourceNameValue := nullableString(sourceName)
+	sourceURLValue := nullableString(sourceURL)
+	if source == "bank_reference" {
+		sourceNameValue = "Reference rate provider"
+		sourceURLValue = nil
+	}
 	return map[string]any{
 		"id":                id,
 		"workspaceId":       nullableInt(ws),
@@ -173,8 +178,8 @@ func scanExchangeRate(row rowScanner) (map[string]any, error) {
 		"to":                to,
 		"rate":              rate,
 		"source":            source,
-		"sourceName":        nullableString(sourceName),
-		"sourceUrl":         nullableString(sourceURL),
+		"sourceName":        sourceNameValue,
+		"sourceUrl":         sourceURLValue,
 		"providerRateType":  provider,
 		"providerSellRate":  parseNullFloat(sell),
 		"providerBuyRate":   parseNullFloat(buy),
@@ -196,12 +201,12 @@ JOIN currencies t ON t.id = er.to_currency_id ` + clause
 }
 
 func validExchangeRateSource(source string) bool {
-	return source == "manual" || source == "budget_default" || source == "bochk"
+	return source == "manual" || source == "budget_default" || source == "bank_reference"
 }
 
-func bochkCurrencyCodes() []string {
-	codes := make([]string, 0, len(bochkCurrencyMetaByCode))
-	for code := range bochkCurrencyMetaByCode {
+func bankReferenceCurrencyCodes() []string {
+	codes := make([]string, 0, len(bankReferenceCurrencyMetaByCode))
+	for code := range bankReferenceCurrencyMetaByCode {
 		if code == "HKD" {
 			continue
 		}
@@ -210,27 +215,27 @@ func bochkCurrencyCodes() []string {
 	return codes
 }
 
-func bochkReferenceCurrencyCodes() []string {
-	codes := make([]string, 0, len(bochkCurrencyMetaByCode))
-	for code := range bochkCurrencyMetaByCode {
+func bankReferenceSupportedCurrencyCodes() []string {
+	codes := make([]string, 0, len(bankReferenceCurrencyMetaByCode))
+	for code := range bankReferenceCurrencyMetaByCode {
 		codes = append(codes, code)
 	}
 	return codes
 }
 
-func isBochkSupportedCurrency(code string) bool {
-	_, ok := bochkCurrencyMetaByCode[strings.ToUpper(strings.TrimSpace(code))]
+func isBankReferenceSupportedCurrency(code string) bool {
+	_, ok := bankReferenceCurrencyMetaByCode[strings.ToUpper(strings.TrimSpace(code))]
 	return ok
 }
 
-func (a *App) bochkRateBoard(ctx context.Context, onDate string) ([]bochkRateBoardRow, error) {
+func (a *App) bankReferenceRateBoard(ctx context.Context, onDate string) ([]bankReferenceRateBoardRow, error) {
 	hkdID, err := a.requiredSeedCurrencyID(ctx, "HKD")
 	if err != nil {
 		return nil, err
 	}
-	codes := bochkCurrencyCodes()
+	codes := bankReferenceCurrencyCodes()
 	if len(codes) == 0 {
-		return []bochkRateBoardRow{}, nil
+		return []bankReferenceRateBoardRow{}, nil
 	}
 	args := []any{hkdID}
 	for _, code := range codes {
@@ -253,7 +258,7 @@ JOIN currencies c ON c.id = CASE
   WHEN er.from_currency_id = ? THEN er.to_currency_id
   ELSE er.from_currency_id
 END
-WHERE er.source = 'bochk'
+WHERE er.source = 'bank_reference'
   AND er.workspace_id IS NULL
   AND c.code IN (` + placeholders(len(codes)) + `)
   AND ((er.to_currency_id = ? AND er.provider_rate_type = 'customer_buy')
@@ -270,9 +275,9 @@ ORDER BY c.code`
 		return nil, err
 	}
 	defer rows.Close()
-	out := []bochkRateBoardRow{}
+	out := []bankReferenceRateBoardRow{}
 	for rows.Next() {
-		var row bochkRateBoardRow
+		var row bankReferenceRateBoardRow
 		var buy, sell, updated, fetched, sourceName, sourceURL sql.NullString
 		if err := rows.Scan(
 			&row.CurrencyCode,
@@ -419,21 +424,21 @@ func (a *App) resolveExchangeRateForBudget(ctx context.Context, budgetID, userID
 			return *inverse, nil
 		}
 	}
-	direct, err := a.latestBochkExchangeRate(ctx, fromCurrencyID, toCurrencyID, onDate)
+	direct, err := a.latestBankReferenceExchangeRate(ctx, fromCurrencyID, toCurrencyID, onDate)
 	if err != nil {
 		return exchangeRateConversion{}, err
 	}
 	if direct != nil {
-		direct.ConversionPath = "bochk_direct"
+		direct.ConversionPath = "bank_reference_direct"
 		return *direct, nil
 	}
-	inverse, err := a.latestBochkExchangeRate(ctx, toCurrencyID, fromCurrencyID, onDate)
+	inverse, err := a.latestBankReferenceExchangeRate(ctx, toCurrencyID, fromCurrencyID, onDate)
 	if err != nil {
 		return exchangeRateConversion{}, err
 	}
 	if inverse != nil && inverse.Rate > 0 {
 		inverse.Rate = 1 / inverse.Rate
-		inverse.ConversionPath = "bochk_inverse"
+		inverse.ConversionPath = "bank_reference_inverse"
 		return *inverse, nil
 	}
 	direct, err = a.latestAccountExchangeRate(ctx, userID, fromCurrencyID, toCurrencyID, onDate)
@@ -468,7 +473,7 @@ func (a *App) resolveExchangeRateForBudget(ctx context.Context, budgetID, userID
 	if fromHKD == nil || hkdToTarget == nil {
 		fromCode, _ := a.currencyCodeByID(ctx, fromCurrencyID)
 		toCode, _ := a.currencyCodeByID(ctx, toCurrencyID)
-		return exchangeRateConversion{}, httpx.APIError{Code: "EXCHANGE_RATE_NOT_FOUND", Message: "Exchange rate is missing. Enter a manual rate; Mastercard can be used as an external reference.", Status: http.StatusUnprocessableEntity, Meta: map[string]any{
+		return exchangeRateConversion{}, httpx.APIError{Code: "EXCHANGE_RATE_NOT_FOUND", Message: "Exchange rate is missing. Enter a manual rate or use an external reference.", Status: http.StatusUnprocessableEntity, Meta: map[string]any{
 			"fromCurrency": nullableText(fromCode),
 			"toCurrency":   nullableText(toCode),
 			"rateDate":     nullableText(onDate),
@@ -510,14 +515,14 @@ func (a *App) latestGlobalExchangeRate(ctx context.Context, fromCurrencyID, toCu
 	if fromCurrencyID == toCurrencyID {
 		return &exchangeRateConversion{Rate: 1, RateDate: dateStringOrToday(onDate), Source: "identity", ConversionPath: "identity"}, nil
 	}
-	direct, err := a.latestGlobalBochkRate(ctx, fromCurrencyID, toCurrencyID, onDate)
+	direct, err := a.latestGlobalBankReferenceRate(ctx, fromCurrencyID, toCurrencyID, onDate)
 	if err != nil || direct != nil {
 		if direct != nil {
 			direct.ConversionPath = "global_direct"
 		}
 		return direct, err
 	}
-	inverse, err := a.latestGlobalBochkRate(ctx, toCurrencyID, fromCurrencyID, onDate)
+	inverse, err := a.latestGlobalBankReferenceRate(ctx, toCurrencyID, fromCurrencyID, onDate)
 	if err != nil || inverse == nil || inverse.Rate <= 0 {
 		return nil, err
 	}
@@ -558,7 +563,7 @@ func (a *App) latestGlobalExchangeRateWithCross(ctx context.Context, fromCurrenc
 	}, nil
 }
 
-func (a *App) latestGlobalBochkRate(ctx context.Context, fromCurrencyID, toCurrencyID int64, onDate string) (*exchangeRateConversion, error) {
+func (a *App) latestGlobalBankReferenceRate(ctx context.Context, fromCurrencyID, toCurrencyID int64, onDate string) (*exchangeRateConversion, error) {
 	dateFilter := ""
 	args := []any{fromCurrencyID, toCurrencyID}
 	if onDate != "" {
@@ -567,7 +572,7 @@ func (a *App) latestGlobalBochkRate(ctx context.Context, fromCurrencyID, toCurre
 	}
 	row := a.db.QueryRowContext(ctx, `SELECT er.rate, er.rate_date, er.source
 FROM exchange_rates er
-WHERE er.source = 'bochk'
+WHERE er.source = 'bank_reference'
   AND er.workspace_id IS NULL
   AND er.from_currency_id = ?
   AND er.to_currency_id = ?
@@ -678,11 +683,11 @@ func (a *App) rateForPair(ctx context.Context, userID, workspaceID, fromCurrency
 	if fromCurrencyID == toCurrencyID {
 		return &exchangeRateConversion{Rate: 1, RateDate: onDate, Source: "identity"}, nil
 	}
-	direct, err := a.latestBochkExchangeRate(ctx, fromCurrencyID, toCurrencyID, onDate)
+	direct, err := a.latestBankReferenceExchangeRate(ctx, fromCurrencyID, toCurrencyID, onDate)
 	if err != nil || direct != nil {
 		return direct, err
 	}
-	inverse, err := a.latestBochkExchangeRate(ctx, toCurrencyID, fromCurrencyID, onDate)
+	inverse, err := a.latestBankReferenceExchangeRate(ctx, toCurrencyID, fromCurrencyID, onDate)
 	if err != nil {
 		return nil, err
 	}
@@ -702,7 +707,7 @@ func (a *App) rateForPair(ctx context.Context, userID, workspaceID, fromCurrency
 	return inverse, nil
 }
 
-func (a *App) latestBochkExchangeRate(ctx context.Context, fromCurrencyID, toCurrencyID int64, onDate string) (*exchangeRateConversion, error) {
+func (a *App) latestBankReferenceExchangeRate(ctx context.Context, fromCurrencyID, toCurrencyID int64, onDate string) (*exchangeRateConversion, error) {
 	dateFilter := ""
 	args := []any{fromCurrencyID, toCurrencyID}
 	if onDate != "" {
@@ -711,7 +716,7 @@ func (a *App) latestBochkExchangeRate(ctx context.Context, fromCurrencyID, toCur
 	}
 	row := a.db.QueryRowContext(ctx, `SELECT er.rate, er.rate_date, er.source
 FROM exchange_rates er
-WHERE er.source = 'bochk'
+WHERE er.source = 'bank_reference'
   AND er.workspace_id IS NULL
   AND er.from_currency_id = ?
   AND er.to_currency_id = ?
@@ -768,17 +773,16 @@ func (a *App) latestExchangeRate(ctx context.Context, workspaceID, fromCurrencyI
 	args = append(args, workspaceID)
 	row := a.db.QueryRowContext(ctx, `SELECT er.rate, er.rate_date, er.source
 FROM exchange_rates er
-WHERE ((er.source = 'bochk' AND er.workspace_id IS NULL) OR (er.source <> 'bochk' AND er.workspace_id = ?))
+WHERE ((er.source = 'bank_reference' AND er.workspace_id IS NULL) OR (er.source <> 'bank_reference' AND er.workspace_id = ?))
   AND er.from_currency_id = ?
   AND er.to_currency_id = ?
-  AND er.source <> 'mastercard'
-  AND NOT (er.source = 'bochk' AND er.provider_rate_type = 'mid')`+dateFilter+`
+  AND NOT (er.source = 'bank_reference' AND er.provider_rate_type = 'mid')`+dateFilter+`
 ORDER BY
   CASE WHEN er.workspace_id = ? THEN 0 ELSE 1 END,
   er.rate_date DESC,
   CASE er.source
     WHEN 'manual' THEN 0
-    WHEN 'bochk' THEN 1
+    WHEN 'bank_reference' THEN 1
     WHEN 'budget_default' THEN 3
     ELSE 4
   END,

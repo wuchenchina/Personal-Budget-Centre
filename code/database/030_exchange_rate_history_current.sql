@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS exchange_rate_history (
   to_currency_id BIGINT UNSIGNED NOT NULL,
   rate DECIMAL(20, 10) NOT NULL,
   rate_date DATE NOT NULL,
-  source ENUM('manual', 'budget_default', 'bochk') NOT NULL DEFAULT 'manual',
+  source ENUM('manual', 'budget_default', 'bank_reference') NOT NULL DEFAULT 'manual',
   source_name VARCHAR(160) NULL,
   source_url VARCHAR(500) NULL,
   provider_rate_type ENUM('manual', 'mid', 'card', 'customer_sell', 'customer_buy') NOT NULL DEFAULT 'manual',
@@ -77,7 +77,7 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 UPDATE currencies
-SET provider_source = 'bochk',
+SET provider_source = 'bank_reference',
     is_api_managed = 1
 WHERE code IN (
   'CNY',
@@ -128,7 +128,7 @@ SELECT
   er.rate,
   er.rate_date,
   CASE
-    WHEN er.source IN ('manual', 'budget_default', 'bochk') THEN er.source
+    WHEN er.source IN ('manual', 'budget_default', 'bank_reference') THEN er.source
     ELSE 'manual'
   END,
   er.source_name,

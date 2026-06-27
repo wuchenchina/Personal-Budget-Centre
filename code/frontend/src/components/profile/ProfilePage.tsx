@@ -32,7 +32,7 @@ import { PasskeySideSection } from '../workspace/PasskeySideSection';
 import styles from './ProfilePage.module.css';
 
 const { Text, Title } = Typography;
-const bochkProfileCurrencyCodes = new Set([
+const bankReferenceProfileCurrencyCodes = new Set([
   'AUD',
   'BND',
   'CAD',
@@ -100,7 +100,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   ).signatureLabelLanguages;
   const previewWorkspaceName = session.workspace?.name ?? t('noWorkspaceSelected');
   const profileCurrencyOptions = operations.currencyPresets
-    .filter((currency) => bochkProfileCurrencyCodes.has(currency.code))
+    .filter((currency) => bankReferenceProfileCurrencyCodes.has(currency.code))
     .map((currency) => ({
       label: currencySearchLabel(currency),
       value: currency.code,
@@ -932,9 +932,9 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
 
 function pdfThemeTagColor(theme: string) {
   switch (normalizePdfTheme(theme)) {
-    case 'hsbc':
+    case 'statement_red':
       return 'red';
-    case 'uswds':
+    case 'civic_blue':
       return 'blue';
     default:
       return 'default';
@@ -943,10 +943,10 @@ function pdfThemeTagColor(theme: string) {
 
 function pdfThemePreviewClass(theme: string) {
   switch (normalizePdfTheme(theme)) {
-    case 'hsbc':
+    case 'statement_red':
       return styles.previewStatement;
-    case 'uswds':
-      return styles.previewUswds;
+    case 'civic_blue':
+      return styles.previewCivicBlue;
     default:
       return styles.previewClassic;
   }
@@ -954,10 +954,10 @@ function pdfThemePreviewClass(theme: string) {
 
 function pdfThemeLabelKey(theme: string) {
   switch (normalizePdfTheme(theme)) {
-    case 'hsbc':
-      return 'pdfThemeHsbc';
-    case 'uswds':
-      return 'pdfThemeUswds';
+    case 'statement_red':
+      return 'pdfThemeStatementRed';
+    case 'civic_blue':
+      return 'pdfThemeCivicBlue';
     default:
       return 'pdfThemeClassic';
   }
@@ -965,10 +965,10 @@ function pdfThemeLabelKey(theme: string) {
 
 function pdfThemeDescriptionKey(theme: string) {
   switch (normalizePdfTheme(theme)) {
-    case 'hsbc':
-      return 'pdfThemeHsbcDescription';
-    case 'uswds':
-      return 'pdfThemeUswdsDescription';
+    case 'statement_red':
+      return 'pdfThemeStatementRedDescription';
+    case 'civic_blue':
+      return 'pdfThemeCivicBlueDescription';
     default:
       return 'pdfThemeClassicDescription';
   }

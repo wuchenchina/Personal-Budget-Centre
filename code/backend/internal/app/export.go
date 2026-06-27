@@ -2,7 +2,11 @@ package app
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"budgetcentre/backend/internal/exportpdf"
 	"budgetcentre/backend/internal/httpx"
 )
 
@@ -30,7 +35,7 @@ func (a *App) exportList(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	rows, err := a.db.QueryContext(r.Context(), "SELECT id, budget_id, user_id, format, file_name, file_path, status, error_message, created_at FROM budget_exports WHERE budget_id = ? ORDER BY created_at DESC, id DESC", budgetID)
+	rows, err := a.db.QueryContext(r.Context(), exportSelectSQL("WHERE budget_id = ? ORDER BY created_at DESC, id DESC"), budgetID)
 	if err != nil {
 		return err
 	}
@@ -75,32 +80,80 @@ func (a *App) exportCreate(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	fileName := exportFileName(budget, format, scope)
-	path := filepath.Join(a.cfg.ExportDir, fileName)
-	exportCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Minute)
-	defer cancel()
-	if err := a.writePDFExport(exportCtx, budget, scope, options, path); err != nil {
-		return apiError("EXPORT_FAILED", "Export file could not be created. Check Chromium, fonts and export storage permissions.", http.StatusInternalServerError)
-	}
-	if info, err := os.Stat(path); err != nil || info.IsDir() || info.Size() == 0 {
-		return apiError("EXPORT_FAILED", "Export file could not be created.", http.StatusInternalServerError)
-	}
-
-	res, err := a.db.ExecContext(exportCtx, "INSERT INTO budget_exports (budget_id, user_id, format, file_name, file_path, status) VALUES (?, ?, 'pdf', ?, ?, 'completed')", budgetID, s.UserID, fileName, fileName)
+	optionsJSON, err := json.Marshal(exportOptionsPayload(options, scope))
 	if err != nil {
-		_ = os.Remove(path)
+		return err
+	}
+	exportCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 15*time.Second)
+	defer cancel()
+
+	tx, err := a.db.BeginTx(exportCtx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(exportCtx, `
+INSERT INTO budget_exports
+(budget_id, user_id, format, scope, file_name, file_path, status, options_json, progress_stage)
+VALUES (?, ?, 'pdf', ?, ?, NULL, 'queued', ?, 'queued')`,
+		budgetID, s.UserID, scope, fileName, string(optionsJSON))
+	if err != nil {
 		return err
 	}
 	id, _ := res.LastInsertId()
-	row := a.db.QueryRowContext(exportCtx, "SELECT id, budget_id, user_id, format, file_name, file_path, status, error_message, created_at FROM budget_exports WHERE id = ?", id)
+	if err := a.signExportJob(exportCtx, tx, id, budgetID, s.UserID, scope, fileName); err != nil {
+		return err
+	}
+	if err := insertExportAudit(exportCtx, tx, id, "queued", "", "Export job queued by Go API.", nil); err != nil {
+		return err
+	}
+	row := tx.QueryRowContext(exportCtx, exportSelectSQL("WHERE id = ?"), id)
 	export, err := scanExport(row)
 	if err != nil {
 		return err
 	}
-	if err := a.pruneOldExports(exportCtx, budgetID, format, id); err != nil {
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	httpx.WriteOK(w, map[string]any{"export": export}, http.StatusCreated)
 	return nil
+}
+
+type exportSQLExecer interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+func (a *App) signExportJob(ctx context.Context, execer exportSQLExecer, exportID, budgetID, userID int64, scope, fileName string) error {
+	secret := strings.TrimSpace(a.cfg.ExportJobSecret)
+	if secret == "" {
+		return apiError("EXPORT_JOB_SECRET_MISSING", "PDF renderer job secret is missing. Set PDF_RENDERER_JOB_SECRET or APP_KEY.", http.StatusInternalServerError)
+	}
+	token := exportJobToken(secret, exportID, budgetID, userID, scope, fileName)
+	_, err := execer.ExecContext(ctx, "UPDATE budget_exports SET job_token = ? WHERE id = ?", token, exportID)
+	return err
+}
+
+func exportJobToken(secret string, exportID, budgetID, userID int64, scope, fileName string) string {
+	payload := fmt.Sprintf("%d|%d|%d|%s|%s", exportID, budgetID, userID, scope, fileName)
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte(payload))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func insertExportAudit(ctx context.Context, execer exportSQLExecer, exportID int64, event, workerID, message string, metadata any) error {
+	var encoded any
+	if metadata != nil {
+		bytes, err := json.Marshal(metadata)
+		if err != nil {
+			return err
+		}
+		encoded = string(bytes)
+	}
+	_, err := execer.ExecContext(ctx, `
+INSERT INTO budget_export_audit_logs (export_id, event, worker_id, message, metadata_json)
+VALUES (?, ?, ?, ?, ?)`, exportID, event, nullableText(workerID), nullableText(message), encoded)
+	return err
 }
 
 func (a *App) exportDownload(w http.ResponseWriter, r *http.Request) error {
@@ -112,11 +165,11 @@ func (a *App) exportDownload(w http.ResponseWriter, r *http.Request) error {
 	if id <= 0 {
 		return apiError("VALIDATION_ERROR", "Export id query parameter is required.", http.StatusUnprocessableEntity)
 	}
-	row := a.db.QueryRowContext(r.Context(), "SELECT budget_id, format, file_name, file_path FROM budget_exports WHERE id = ?", id)
+	row := a.db.QueryRowContext(r.Context(), "SELECT budget_id, format, file_name, file_path, status FROM budget_exports WHERE id = ?", id)
 	var budgetID int64
-	var format, name string
+	var format, name, status string
 	var filePath sql.NullString
-	if err := row.Scan(&budgetID, &format, &name, &filePath); err != nil {
+	if err := row.Scan(&budgetID, &format, &name, &filePath, &status); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return apiError("EXPORT_NOT_FOUND", "Export was not found.", http.StatusNotFound)
 		}
@@ -124,6 +177,9 @@ func (a *App) exportDownload(w http.ResponseWriter, r *http.Request) error {
 	}
 	if err := a.requireBudgetExport(r, budgetID, s.UserID); err != nil {
 		return err
+	}
+	if status != "completed" {
+		return apiError("EXPORT_NOT_READY", "Export file is not ready yet.", http.StatusConflict)
 	}
 
 	relativePath := name
@@ -139,72 +195,70 @@ func (a *App) exportDownload(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	w.Header().Set("Content-Type", contentTypeForExport(format))
-	w.Header().Set("Content-Disposition", `attachment; filename="`+filepath.Base(name)+`"`)
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filepath.Base(relativePath)+`"`)
 	http.ServeFile(w, r, path)
-	return nil
-}
-
-func (a *App) pruneOldExports(ctx context.Context, budgetID int64, format string, currentExportID int64) error {
-	keep := a.cfg.ExportKeep
-	if keep <= 0 {
-		keep = 3
-	}
-	rows, err := a.db.QueryContext(ctx, fmt.Sprintf(`
-SELECT id, file_path
-FROM budget_exports
-WHERE budget_id = ? AND format = ? AND id NOT IN (
-  SELECT id FROM (
-    SELECT id
-    FROM budget_exports
-    WHERE budget_id = ? AND format = ?
-    ORDER BY created_at DESC, id DESC
-    LIMIT %d
-  ) recent_exports
-)
-ORDER BY created_at ASC, id ASC`, keep), budgetID, format, budgetID, format)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	type staleExport struct {
-		ID   int64
-		Path sql.NullString
-	}
-	stale := []staleExport{}
-	for rows.Next() {
-		var item staleExport
-		if err := rows.Scan(&item.ID, &item.Path); err != nil {
-			return err
-		}
-		stale = append(stale, item)
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	for _, item := range stale {
-		if item.ID == currentExportID {
-			continue
-		}
-		if item.Path.Valid && item.Path.String != "" {
-			if path := safeExportPath(a.cfg.ExportDir, item.Path.String); path != "" {
-				_ = os.Remove(path)
-			}
-		}
-		if _, err := a.db.ExecContext(ctx, "DELETE FROM budget_exports WHERE id = ?", item.ID); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
 func scanExport(row rowScanner) (map[string]any, error) {
 	var id, budgetID, userID int64
-	var format, name, status, created string
+	var format, scope, name, status, progressStage, created string
 	var filePath, errorMessage sql.NullString
-	if err := row.Scan(&id, &budgetID, &userID, &format, &name, &filePath, &status, &errorMessage, &created); err != nil {
+	var progressPercent float64
+	var rowsTotal, rowsProcessed, pages, fileSize sql.NullInt64
+	var startedAt, completedAt sql.NullString
+	if err := row.Scan(
+		&id,
+		&budgetID,
+		&userID,
+		&format,
+		&scope,
+		&name,
+		&filePath,
+		&status,
+		&errorMessage,
+		&progressPercent,
+		&progressStage,
+		&rowsTotal,
+		&rowsProcessed,
+		&pages,
+		&fileSize,
+		&created,
+		&startedAt,
+		&completedAt,
+	); err != nil {
 		return nil, err
 	}
-	return map[string]any{"id": id, "budgetId": budgetID, "userId": userID, "format": format, "fileName": name, "filePath": nullableString(filePath), "status": status, "errorMessage": nullableString(errorMessage), "createdAt": created, "downloadUrl": fmt.Sprintf("/api/exports/download?id=%d", id)}, nil
+	return map[string]any{
+		"id": id, "budgetId": budgetID, "userId": userID, "format": format, "scope": scope,
+		"fileName": name, "filePath": nullableString(filePath), "status": status,
+		"errorMessage": nullableString(errorMessage), "progressPercent": progressPercent,
+		"progressStage": progressStage, "rowsTotal": nullableInt(rowsTotal),
+		"rowsProcessed": nullableInt(rowsProcessed), "pages": nullableInt(pages),
+		"fileSize": nullableInt(fileSize), "createdAt": created,
+		"startedAt": nullableString(startedAt), "completedAt": nullableString(completedAt),
+		"downloadUrl": fmt.Sprintf("/api/exports/download?id=%d", id),
+	}, nil
+}
+
+func exportSelectSQL(where string) string {
+	return `SELECT id, budget_id, user_id, format, scope, file_name, file_path, status, error_message,
+progress_percent, progress_stage, rows_total, rows_processed, pages, file_size,
+created_at, started_at, completed_at
+FROM budget_exports ` + where
+}
+
+func exportOptionsPayload(options exportpdf.Options, scope string) map[string]any {
+	return map[string]any{
+		"exportScope":             scope,
+		"tableLanguageMode":       options.TableLanguageMode,
+		"tableChineseLanguage":    options.TableChineseLanguage,
+		"pdfTheme":                options.PDFTheme,
+		"showWorkspace":           options.ShowWorkspace,
+		"pdfLanguages":            options.PDFLanguages,
+		"signatureLabelMode":      options.SignatureLabelMode,
+		"signatureLabelLanguages": options.SignatureLabelLanguage,
+	}
 }
 
 func exportScope(input map[string]any) string {

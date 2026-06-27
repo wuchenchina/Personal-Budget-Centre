@@ -9,19 +9,19 @@ import (
 )
 
 type Config struct {
-	AppEnv        string
-	AppKey        string
-	AppURL        string
-	APIURL        string
-	ListenAddr    string
-	DatabaseDir   string
-	FontDir       string
-	ExportDir     string
-	ExportTempDir string
-	ExportKeep    int
-	ChromeBin     string
-	AppLogFile    string
-	SessionCookie string
+	AppEnv                string
+	AppKey                string
+	AppURL                string
+	APIURL                string
+	ListenAddr            string
+	DatabaseDir           string
+	FontDir               string
+	ExportDir             string
+	ExportTempDir         string
+	ExportJobSecret       string
+	AppLogFile            string
+	SessionCookie         string
+	BankReferenceRatesURL string
 
 	DBHost     string
 	DBPort     int
@@ -57,19 +57,19 @@ func Load() Config {
 	}
 
 	return Config{
-		AppEnv:        env("APP_ENV", "production"),
-		AppKey:        env("APP_KEY", ""),
-		AppURL:        env("APP_URL", "http://localhost:5173"),
-		APIURL:        env("API_URL", "http://localhost:8080"),
-		ListenAddr:    env("LISTEN_ADDR", ":8080"),
-		DatabaseDir:   env("DATABASE_DIR", "/app/database"),
-		FontDir:       fontDir,
-		ExportDir:     env("EXPORT_STORAGE_DIR", "/app/storage/exports"),
-		ExportTempDir: env("EXPORT_TEMP_DIR", env("PDF_TEMP_DIR", "/app/storage/tmp/pdf")),
-		ExportKeep:    envInt("EXPORT_RETENTION_PER_BUDGET", 3),
-		ChromeBin:     env("CHROME_BIN", "chromium"),
-		AppLogFile:    env("APP_LOG_FILE", "/app/storage/logs/app.log"),
-		SessionCookie: env("SESSION_COOKIE", "budgetcentre_session"),
+		AppEnv:                env("APP_ENV", "production"),
+		AppKey:                env("APP_KEY", ""),
+		AppURL:                env("APP_URL", "http://localhost:5173"),
+		APIURL:                env("API_URL", "http://localhost:8080"),
+		ListenAddr:            env("LISTEN_ADDR", ":8080"),
+		DatabaseDir:           env("DATABASE_DIR", "/app/database"),
+		FontDir:               fontDir,
+		ExportDir:             env("EXPORT_STORAGE_DIR", "/app/storage/exports"),
+		ExportTempDir:         env("EXPORT_TEMP_DIR", env("PDF_TEMP_DIR", "/app/storage/tmp/pdf")),
+		ExportJobSecret:       env("PDF_RENDERER_JOB_SECRET", env("APP_KEY", "")),
+		AppLogFile:            env("APP_LOG_FILE", "/app/storage/logs/app.log"),
+		SessionCookie:         env("SESSION_COOKIE", "budgetcentre_session"),
+		BankReferenceRatesURL: env("BANK_REFERENCE_RATES_URL", ""),
 
 		DBHost:     env("DB_HOST", "172.17.0.1"),
 		DBPort:     envInt("DB_PORT", 3306),

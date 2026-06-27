@@ -22,19 +22,23 @@ func TestGoRoutesCoverPHPLegacyRoutes(t *testing.T) {
 		"GET /api/account-exchange-rates":             true,
 		"GET /api/budget-exchange-rates":              true,
 		"GET /api/currency-presets":                   true,
-		"GET /api/exchange-rates/bochk/board":         true,
+		"GET /api/exchange-rates/reference/board":     true,
 		"POST /api/admin/database/migrate":            true,
+		"POST /api/admin/exports/cleanup":             true,
 		"POST /api/account-exchange-rates":            true,
 		"POST /api/budget-exchange-rates":             true,
 		"POST /api/budget-exchange-rates/sync-global": true,
 		"POST /api/currencies":                        true,
+		"POST /api/exchange-rates/reference/refresh":  true,
 		"PATCH /api/account-exchange-rates":           true,
 		"PATCH /api/budget-exchange-rates":            true,
 		"DELETE /api/account-exchange-rates":          true,
 		"DELETE /api/budget-exchange-rates":           true,
 	}
-
 	for _, route := range phpRoutes {
+		if isRetiredLegacyRoute(route) {
+			continue
+		}
 		if !goRoutes[route] {
 			t.Fatalf("Go router is missing PHP legacy route %s", route)
 		}
@@ -51,24 +55,21 @@ func TestExchangeRateListClauseMatchesCurrentRateContract(t *testing.T) {
 		From:     "usd",
 		To:       "hkd",
 		RateDate: "2026-01-02",
-		Source:   "bochk",
+		Source:   "bank_reference",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(where, "NOT (er.source = 'bochk' AND er.provider_rate_type = 'mid')") {
-		t.Fatalf("exchange-rate list must hide legacy BOCHK mid rates: %s", where)
+	if !strings.Contains(where, "NOT (er.source = 'bank_reference' AND er.provider_rate_type = 'mid')") {
+		t.Fatalf("exchange-rate list must hide legacy bank reference mid rates: %s", where)
 	}
-	if !strings.Contains(where, "er.source <> 'mastercard'") {
-		t.Fatalf("exchange-rate list must hide legacy Mastercard rates: %s", where)
+	if !strings.Contains(where, "er.source = 'bank_reference' AND er.workspace_id IS NULL") {
+		t.Fatalf("bank reference provider rates must be global current rows: %s", where)
 	}
-	if !strings.Contains(where, "er.source = 'bochk' AND er.workspace_id IS NULL") {
-		t.Fatalf("BOCHK provider rates must be global current rows: %s", where)
-	}
-	if !strings.Contains(where, "er.source <> 'bochk' AND er.workspace_id = ?") {
+	if !strings.Contains(where, "er.source <> 'bank_reference' AND er.workspace_id = ?") {
 		t.Fatalf("custom exchange rates must stay scoped to the current workspace: %s", where)
 	}
-	wantArgs := []any{int64(42), "USD", "HKD", "2026-01-02", "bochk"}
+	wantArgs := []any{int64(42), "USD", "HKD", "2026-01-02", "bank_reference"}
 	if len(args) != len(wantArgs) {
 		t.Fatalf("args length = %d, want %d: %#v", len(args), len(wantArgs), args)
 	}
@@ -92,6 +93,14 @@ func TestDateStringNormalizesISODateTimes(t *testing.T) {
 		if got := dateString(input); got != want {
 			t.Fatalf("dateString(%q) = %q, want %q", input, got, want)
 		}
+	}
+}
+
+func TestExportJobTokenContract(t *testing.T) {
+	got := exportJobToken("secret", 12, 34, 56, "bookkeeping", "20260627-budget-bookkeeping-ledger.pdf")
+	want := "f83beaa627e9aa42667484dcbe10d1aeea9a111b87462eb05cc33934b47becc4"
+	if got != want {
+		t.Fatalf("export job token = %s, want %s", got, want)
 	}
 }
 
@@ -122,7 +131,7 @@ func TestMethodNotAllowedIsNotWrittenToAppLog(t *testing.T) {
 	}
 }
 
-func TestLatestExchangeRateKeepsBochkGlobalAndCustomRatesScoped(t *testing.T) {
+func TestLatestExchangeRateKeepsBankReferenceGlobalAndCustomRatesScoped(t *testing.T) {
 	content, err := os.ReadFile("exchange_rates.go")
 	if err != nil {
 		t.Fatal(err)
@@ -135,8 +144,8 @@ func TestLatestExchangeRateKeepsBochkGlobalAndCustomRatesScoped(t *testing.T) {
 	}
 	body := source[start:end]
 	for _, want := range []string{
-		"er.source = 'bochk' AND er.workspace_id IS NULL",
-		"er.source <> 'bochk' AND er.workspace_id = ?",
+		"er.source = 'bank_reference' AND er.workspace_id IS NULL",
+		"er.source <> 'bank_reference' AND er.workspace_id = ?",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("latest exchange-rate lookup must keep provider/global and custom/workspace scopes separate, missing %q", want)
@@ -144,16 +153,16 @@ func TestLatestExchangeRateKeepsBochkGlobalAndCustomRatesScoped(t *testing.T) {
 	}
 }
 
-func TestBochkBoardUsesBuySellProviderColumns(t *testing.T) {
+func TestBankReferenceBoardUsesBuySellProviderColumns(t *testing.T) {
 	content, err := os.ReadFile("exchange_rates.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	source := string(content)
-	start := strings.Index(source, "func (a *App) bochkRateBoard")
+	start := strings.Index(source, "func (a *App) bankReferenceRateBoard")
 	end := strings.Index(source, "func nullStringFloat")
 	if start < 0 || end < start {
-		t.Fatal("could not locate bochkRateBoard function")
+		t.Fatal("could not locate bankReferenceRateBoard function")
 	}
 	body := source[start:end]
 	for _, want := range []string{
@@ -164,11 +173,11 @@ func TestBochkBoardUsesBuySellProviderColumns(t *testing.T) {
 		"GROUP BY c.code",
 	} {
 		if !strings.Contains(body, want) {
-			t.Fatalf("BOCHK board must aggregate official buy/sell quote rows, missing %q", want)
+			t.Fatalf("bank reference board must aggregate official buy/sell quote rows, missing %q", want)
 		}
 	}
 	if strings.Contains(body, "1 /") {
-		t.Fatal("BOCHK board must not create reciprocal display rates")
+		t.Fatal("bank reference board must not create reciprocal display rates")
 	}
 }
 
@@ -237,62 +246,62 @@ func TestLatestExchangeRateReadsCurrentRowsOnly(t *testing.T) {
 	}
 }
 
-func TestBochkNamedLockUsesDedicatedConnection(t *testing.T) {
-	content, err := os.ReadFile("bochk.go")
+func TestBankReferenceNamedLockUsesDedicatedConnection(t *testing.T) {
+	content, err := os.ReadFile("bank_reference.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	source := string(content)
 	for _, want := range []string{"a.db.Conn(ctx)", "conn.QueryRowContext", "conn.ExecContext", "conn.Close()"} {
 		if !strings.Contains(source, want) {
-			t.Fatalf("BOCHK named lock must use one dedicated connection, missing %q", want)
+			t.Fatalf("bank reference named lock must use one dedicated connection, missing %q", want)
 		}
 	}
 }
 
-func TestManualBochkRefreshUsesSharedNamedLock(t *testing.T) {
-	content, err := os.ReadFile("bochk.go")
+func TestManualBankReferenceRefreshUsesSharedNamedLock(t *testing.T) {
+	content, err := os.ReadFile("bank_reference.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	source := string(content)
-	start := strings.Index(source, "func (a *App) bochkRefresh")
-	end := strings.Index(source, "func (a *App) saveBochkRates")
+	start := strings.Index(source, "func (a *App) bankReferenceRefresh")
+	end := strings.Index(source, "func (a *App) saveBankReferenceRates")
 	if start < 0 || end < start {
-		t.Fatal("could not locate bochkRefresh function")
+		t.Fatal("could not locate bankReferenceRefresh function")
 	}
 	body := source[start:end]
 	for _, want := range []string{
-		`a.tryNamedLock(r.Context(), "budgetcentre_bochk_refresh")`,
+		`a.tryNamedLock(r.Context(), "budgetcentre_bank_reference_refresh")`,
 		`EXCHANGE_RATE_REFRESH_IN_PROGRESS`,
 		`defer unlock()`,
 	} {
 		if !strings.Contains(body, want) {
-			t.Fatalf("manual BOCHK refresh must share the refresh lock, missing %q", want)
+			t.Fatalf("manual bank reference refresh must share the refresh lock, missing %q", want)
 		}
 	}
 }
 
-func TestBochkRefreshWritesGlobalProviderRates(t *testing.T) {
-	content, err := os.ReadFile("bochk.go")
+func TestBankReferenceRefreshWritesGlobalProviderRates(t *testing.T) {
+	content, err := os.ReadFile("bank_reference.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	source := string(content)
-	start := strings.Index(source, "func (a *App) saveBochkRates")
-	end := strings.Index(source, "func fetchBochkFeed")
+	start := strings.Index(source, "func (a *App) saveBankReferenceRates")
+	end := strings.Index(source, "func (a *App) fetchBankReferenceFeed")
 	if start < 0 || end < start {
-		t.Fatal("could not locate saveBochkRates function")
+		t.Fatal("could not locate saveBankReferenceRates function")
 	}
 	body := source[start:end]
 	if strings.Contains(body, "userID") || strings.Contains(body, "Int64: s.UserID") {
-		t.Fatal("BOCHK provider rates must not be owned by the refresh-triggering user")
+		t.Fatal("bank reference provider rates must not be owned by the refresh-triggering user")
 	}
 	if strings.Count(body, "WorkspaceID:       sql.NullInt64{}") < 2 {
-		t.Fatal("BOCHK buy/sell current rates must be stored as global workspace-null rates")
+		t.Fatal("bank reference buy/sell current rates must be stored as global workspace-null rates")
 	}
 	if strings.Count(body, "UserID:            sql.NullInt64{}") < 2 {
-		t.Fatal("BOCHK buy/sell current rates must not store user_id")
+		t.Fatal("bank reference buy/sell current rates must not store user_id")
 	}
 }
 
@@ -400,9 +409,19 @@ func TestNormalizedLogEntryUsesArrayTraceAndObjectQuery(t *testing.T) {
 
 func legacyPHPRoutes(t *testing.T) []string {
 	t.Helper()
-	content, err := os.ReadFile(filepath.Join("..", "..", "..", "backend-php-legacy", "src", "App.php"))
+	var content []byte
+	var err error
+	for _, path := range []string{
+		filepath.Join("..", "..", "..", "..", "local-only", "legacy", "backend-php-legacy", "src", "App.php"),
+		filepath.Join("..", "..", "..", "backend-php-legacy", "src", "App.php"),
+	} {
+		content, err = os.ReadFile(path)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
-		t.Fatal(err)
+		t.Skip("PHP legacy route source is local-only and unavailable in this checkout")
 	}
 	pattern := regexp.MustCompile(`\['([A-Z]+)', '([^']+)'\]`)
 	matches := pattern.FindAllStringSubmatch(string(content), -1)
@@ -447,4 +466,11 @@ func containsString(values []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+func isRetiredLegacyRoute(route string) bool {
+	if strings.HasPrefix(route, "POST /api/exchange-rates/") && strings.HasSuffix(route, "/refresh") {
+		return true
+	}
+	return strings.HasPrefix(route, "POST /api/admin/export-") && strings.HasSuffix(route, "/cleanup")
 }

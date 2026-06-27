@@ -418,7 +418,7 @@ export function BudgetItemModal({
               size="small"
               onClick={onRefreshRates}
             >
-              {t('refreshBochkRates')}
+              {t('refreshBankReferenceRates')}
             </Button>
             <Button
               loading={confirmLoading}

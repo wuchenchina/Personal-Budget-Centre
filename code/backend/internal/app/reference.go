@@ -89,7 +89,7 @@ func (a *App) exchangeRateList(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (a *App) bochkRateBoardList(w http.ResponseWriter, r *http.Request) error {
+func (a *App) bankReferenceRateBoardList(w http.ResponseWriter, r *http.Request) error {
 	s, err := a.currentSession(r)
 	if err != nil {
 		return err
@@ -100,7 +100,7 @@ func (a *App) bochkRateBoardList(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 	}
-	rows, err := a.bochkRateBoard(r.Context(), dateString(r.URL.Query().Get("rateDate")))
+	rows, err := a.bankReferenceRateBoard(r.Context(), dateString(r.URL.Query().Get("rateDate")))
 	if err != nil {
 		return err
 	}
@@ -117,15 +117,15 @@ func (a *App) bochkRateBoardList(w http.ResponseWriter, r *http.Request) error {
 			"providerUpdatedAt": nullableText(row.ProviderUpdatedAt),
 			"fetchedAt":         nullableText(row.FetchedAt),
 			"sourceName":        nullableText(row.SourceName),
-			"sourceUrl":         nullableText(row.SourceURL),
+			"sourceUrl":         nil,
 		})
 	}
 	httpx.WriteOK(w, map[string]any{
 		"board": map[string]any{
 			"baseCurrency": "HKD",
-			"source":       bochkSource,
-			"sourceName":   bochkSourceName,
-			"sourceUrl":    bochkSourceURL,
+			"source":       bankReferenceSource,
+			"sourceName":   bankReferenceSourceName,
+			"sourceUrl":    nil,
 			"rates":        items,
 		},
 	}, http.StatusOK)
@@ -196,10 +196,10 @@ func (a *App) accountExchangeRateList(w http.ResponseWriter, r *http.Request) er
 		return err
 	}
 	httpx.WriteOK(w, map[string]any{
-		"rates":               rates,
-		"bochkSupportedCodes": bochkReferenceCurrencyCodes(),
-		"baseCurrencyHint":    "Reference-rate supported currency",
-		"counterCurrencyHint": "Non-reference currency from currency presets",
+		"rates":                       rates,
+		"bankReferenceSupportedCodes": bankReferenceSupportedCurrencyCodes(),
+		"baseCurrencyHint":            "Reference-rate supported currency",
+		"counterCurrencyHint":         "Non-reference currency from currency presets",
 	}, http.StatusOK)
 	return nil
 }
@@ -243,10 +243,10 @@ func (a *App) accountExchangeRateSaveWithInput(w http.ResponseWriter, r *http.Re
 	if fromCode == "" || toCode == "" || fromCode == toCode {
 		return apiError("VALIDATION_ERROR", "Private exchange-rate currencies must differ.", http.StatusUnprocessableEntity)
 	}
-	fromIsBochk := isBochkSupportedCurrency(fromCode)
-	toIsBochk := isBochkSupportedCurrency(toCode)
-	if fromIsBochk == toIsBochk {
-		return apiError("VALIDATION_ERROR", "Private account rates must pair one BOCHK-supported currency with one non-BOCHK currency.", http.StatusUnprocessableEntity)
+	fromIsBankReference := isBankReferenceSupportedCurrency(fromCode)
+	toIsBankReference := isBankReferenceSupportedCurrency(toCode)
+	if fromIsBankReference == toIsBankReference {
+		return apiError("VALIDATION_ERROR", "Private account rates must pair one bank reference-supported currency with one non-bank reference currency.", http.StatusUnprocessableEntity)
 	}
 	from, err := a.requiredCurrencyID(r.Context(), fromCode)
 	if err != nil {
@@ -508,7 +508,7 @@ func (a *App) budgetExchangeRateSyncGlobal(w http.ResponseWriter, r *http.Reques
 			ToCurrencyID:   to,
 			Rate:           global.Rate,
 			RateDate:       global.RateDate,
-			Note:           "Synced from global BOCHK rate.",
+			Note:           "Synced from global bank reference rate.",
 		})
 		if err != nil {
 			return err

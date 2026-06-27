@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Empty, FloatButton, Input, Popconfirm, Space, Spin, Table, Tabs, Tag, Tooltip } from 'antd';
+import { Alert, Button, Empty, FloatButton, Input, Popconfirm, Space, Table, Tabs, Tag, Tooltip } from 'antd';
 import type { TableProps } from 'antd';
 import { ArrowLeft, Download, FileText, Landmark, Pencil, Plus, Search, Settings2, Trash2 } from 'lucide-react';
 import { transactionTypeColors } from '../../config/appConfig';
@@ -119,6 +119,7 @@ export function BudgetBookkeepingPage({
     [activeFilter, normalizedSearch, records],
   );
   const totals = useMemo(() => ledgerTotals(records, currency), [currency, records]);
+  const filteredTotals = useMemo(() => ledgerTotals(filteredRecords, currency), [currency, filteredRecords]);
   const columns = useMemo<TableProps<BookkeepingRecord>['columns']>(() => [
     {
       key: 'type',
@@ -257,12 +258,6 @@ export function BudgetBookkeepingPage({
 
   return (
     <div className="bookkeeping-page">
-      <Spin
-        className="pdf-export-spin"
-        fullscreen
-        spinning={exportingPdf}
-        tip={t('pdfExportGenerating')}
-      />
       <section className="project-page-header bookkeeping-header">
         <div>
           <Tag color="red">{t('bookkeeping')}</Tag>
@@ -379,12 +374,37 @@ export function BudgetBookkeepingPage({
           loading={loading || saving}
           locale={{ emptyText: <Empty image={<Landmark size={34} />} description={t('bookkeepingRecordsEmpty')} /> }}
           pagination={{
-            defaultPageSize: 12,
-            hideOnSinglePage: true,
+            defaultPageSize: 50,
+            pageSizeOptions: [12, 20, 50, 100],
+            position: ['bottomRight'],
+            showSizeChanger: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} / ${total}`,
           }}
           rowKey="id"
           scroll={{ x: 1314 }}
           size="small"
+          summary={() => (
+            <Table.Summary>
+              <Table.Summary.Row className="bookkeeping-total-row">
+                <Table.Summary.Cell index={0} colSpan={6}>
+                  {t('bookkeepingIncomeTotal')}
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={6} align="right">
+                  {formatMoney({ currency, amount: filteredTotals.incomeBase })}
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={7} colSpan={3} />
+              </Table.Summary.Row>
+              <Table.Summary.Row className="bookkeeping-total-row">
+                <Table.Summary.Cell index={0} colSpan={6}>
+                  {t('bookkeepingExpenseTotal')}
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={6} align="right">
+                  {formatMoney({ currency, amount: filteredTotals.expenseBase })}
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={7} colSpan={3} />
+              </Table.Summary.Row>
+            </Table.Summary>
+          )}
         />
       </section>
       {canWriteBudgets ? (
@@ -411,13 +431,17 @@ function BookkeepingTile({ label, value }: { label: string; value: string }) {
 
 function ledgerTotals(records: BookkeepingRecord[], currency: CurrencyCode) {
   return records.reduce(
-    (totals, record) => ({
-      baseAmount: totals.baseAmount + (record.currency === currency
-        ? record.amountOriginal
-        : record.amountBase),
-      transferCount: totals.transferCount + (isTransferTransaction(record.transactionType) ? 1 : 0),
-    }),
-    { baseAmount: 0, transferCount: 0 },
+    (totals, record) => {
+      const baseAmount = record.currency === currency ? record.amountOriginal : record.amountBase;
+
+      return {
+        baseAmount: totals.baseAmount + baseAmount,
+        expenseBase: totals.expenseBase + (record.transactionType === 'expense' ? baseAmount : 0),
+        incomeBase: totals.incomeBase + (record.transactionType === 'income' ? baseAmount : 0),
+        transferCount: totals.transferCount + (isTransferTransaction(record.transactionType) ? 1 : 0),
+      };
+    },
+    { baseAmount: 0, expenseBase: 0, incomeBase: 0, transferCount: 0 },
   );
 }
 

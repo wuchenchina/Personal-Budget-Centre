@@ -2,8 +2,9 @@
 
 set -Eeuo pipefail
 
-# Copy this file to deploy.local.sh and fill in values for your own server.
-# deploy.local.sh is ignored by git.
+# Copy this file to deploy.local.sh and fill in values for your own server,
+# or put private values in local-only/deploy.local.env.
+# deploy.local.sh and local-only/ are ignored by git.
 
 SERVER_USER="${SERVER_USER:-root}"
 SERVER_IP="${SERVER_IP:-}"
@@ -17,6 +18,11 @@ REMOTE_PATH="${REMOTE_PATH:-}"
 DOMAIN="${DOMAIN:-}"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOCAL_DEPLOY_ENV="${LOCAL_DEPLOY_ENV:-${PROJECT_ROOT}/local-only/deploy.local.env}"
+if [[ -f "${LOCAL_DEPLOY_ENV}" ]]; then
+  # shellcheck source=/dev/null
+  source "${LOCAL_DEPLOY_ENV}"
+fi
 REMOTE="${SERVER_USER}@${SERVER_IP}"
 SSH_OPTS=(
   -i "${SERVER_SSH_KEY}"
@@ -40,6 +46,7 @@ DB_PASSWORD="${DB_PASSWORD:-}"
 APP_KEY="${APP_KEY:-}"
 SESSION_COOKIE="${SESSION_COOKIE:-budgetcentre_session}"
 CSRF_COOKIE="${CSRF_COOKIE:-budgetcentre_csrf}"
+BANK_REFERENCE_RATES_URL="${BANK_REFERENCE_RATES_URL:-}"
 WEBAUTHN_RP_ID="${WEBAUTHN_RP_ID:-${DOMAIN}}"
 WEBAUTHN_RP_NAME="${WEBAUTHN_RP_NAME:-BudgetCentre}"
 WEBAUTHN_ORIGIN="${WEBAUTHN_ORIGIN:-https://${DOMAIN}}"
@@ -62,6 +69,17 @@ BUILD_ALL_PROXY="${BUILD_ALL_PROXY:-}"
 BUILD_NO_PROXY="${BUILD_NO_PROXY:-localhost,127.0.0.1,::1}"
 WEB_BUILD_TARGET="${WEB_BUILD_TARGET:-web-prebuilt}"
 API_BUILD_TARGET="${API_BUILD_TARGET:-api-prebuilt}"
+PDF_RENDERER_MIN_WORKERS="${PDF_RENDERER_MIN_WORKERS:-1}"
+PDF_RENDERER_MAX_WORKERS="${PDF_RENDERER_MAX_WORKERS:-4}"
+PDF_RENDERER_BATCH_SIZE="${PDF_RENDERER_BATCH_SIZE:-1000}"
+PDF_RENDERER_LARGE_ROW_THRESHOLD="${PDF_RENDERER_LARGE_ROW_THRESHOLD:-100000}"
+PDF_RENDERER_LARGE_JOB_CONCURRENCY="${PDF_RENDERER_LARGE_JOB_CONCURRENCY:-2}"
+PDF_RENDERER_POLL_MS="${PDF_RENDERER_POLL_MS:-100}"
+PDF_RENDERER_LOCK_TIMEOUT_SECONDS="${PDF_RENDERER_LOCK_TIMEOUT_SECONDS:-300}"
+PDF_RENDERER_JOB_SECRET="${PDF_RENDERER_JOB_SECRET:-}"
+PDF_EXPORT_TMP_MAX_AGE_HOURS="${PDF_EXPORT_TMP_MAX_AGE_HOURS:-24}"
+PDF_EXPORT_FAILED_MAX_AGE_DAYS="${PDF_EXPORT_FAILED_MAX_AGE_DAYS:-14}"
+PDF_EXPORT_MAX_TOTAL_BYTES="${PDF_EXPORT_MAX_TOTAL_BYTES:-0}"
 BACKEND_GOOS="${BACKEND_GOOS:-linux}"
 BACKEND_GOARCH="${BACKEND_GOARCH:-amd64}"
 BACKEND_CGO_ENABLED="${BACKEND_CGO_ENABLED:-0}"
@@ -87,6 +105,7 @@ DEPLOY_DIRS=(
   "code/deploy"
   "code/font"
   "code/frontend"
+  "code/pdf-renderer-dotnet"
 )
 
 DEPLOY_MANUAL_FILES=(
@@ -99,6 +118,7 @@ DEPLOY_REMOTE_PRUNE_PATHS=(
   ".claude"
   ".gitignore"
   "AGENTS.md"
+  "local-only"
   "build/deploy"
   "code/README.md"
   "code/backend-php-legacy"
@@ -107,17 +127,44 @@ DEPLOY_REMOTE_PRUNE_PATHS=(
   "code/frontend/node_modules"
   "docs"
   "parsed_templates"
+  "storage/exports/visual-tests"
+  "storage/tmp/pdf-real-tests"
+  "storage/tmp/preview-check"
+  "storage/tmp/preview-check-055034"
+  "storage/tmp/preview-check-063316"
+  "storage/tmp/preview-check-071123"
+  "storage/tmp/preview-check-071622"
+  "storage/tmp/preview-check-073000"
   "scripts"
   "template"
 )
 
+DEPLOY_REMOTE_PRUNE_GLOBS=(
+  "*.sql.zip"
+  "*.dump"
+  "*.bak"
+  "storage/exports/visual-tests/*"
+  "storage/tmp/pdf-real-tests*"
+  "storage/tmp/preview-check*"
+)
+
 RSYNC_RELEASE_EXCLUDES=(
   "--exclude=.DS_Store"
+  "--exclude=local-only/"
+  "--exclude=storage/"
+  "--exclude=*.sql.zip"
+  "--exclude=*.dump"
+  "--exclude=*.bak"
+  "--exclude=*.tar"
+  "--exclude=*.tar.gz"
+  "--exclude=*.zip"
   "--exclude=*.log"
   "--exclude=__pycache__/"
   "--exclude=*.pyc"
   "--exclude=node_modules/"
   "--exclude=dist/"
+  "--exclude=bin/"
+  "--exclude=obj/"
   "--exclude=vendor/"
   "--exclude=coverage/"
   "--exclude=tmp/"
@@ -127,7 +174,13 @@ RSYNC_RELEASE_EXCLUDES=(
   "--exclude=.env.production"
   "--exclude=.env.test"
   "--exclude=deploy.local.sh"
+  "--exclude=/BudgetCentre_old/"
+  "--exclude=/parsed_templates/"
+  "--exclude=/template/"
+  "--exclude=/docs/"
   "--exclude=/code/backend/api"
+  "--exclude=/code/backend/storage/"
+  "--exclude=/code/backend-php-legacy/"
   "--exclude=/code/backend/*.test"
   "--exclude=/code/backend/coverage.out"
 )
@@ -216,6 +269,7 @@ write_env() {
     env_line DB_PASSWORD "${DB_PASSWORD}"
     env_line SESSION_COOKIE "${SESSION_COOKIE}"
     env_line CSRF_COOKIE "${CSRF_COOKIE}"
+    env_line BANK_REFERENCE_RATES_URL "${BANK_REFERENCE_RATES_URL}"
     env_line WEBAUTHN_RP_ID "${WEBAUTHN_RP_ID}"
     env_line WEBAUTHN_RP_NAME "${WEBAUTHN_RP_NAME}"
     env_line WEBAUTHN_ORIGIN "${WEBAUTHN_ORIGIN}"
@@ -237,6 +291,17 @@ write_env() {
     env_line BUILD_NO_PROXY "${BUILD_NO_PROXY}"
     env_line WEB_BUILD_TARGET "${WEB_BUILD_TARGET}"
     env_line API_BUILD_TARGET "${API_BUILD_TARGET}"
+    env_line PDF_RENDERER_MIN_WORKERS "${PDF_RENDERER_MIN_WORKERS}"
+    env_line PDF_RENDERER_MAX_WORKERS "${PDF_RENDERER_MAX_WORKERS}"
+    env_line PDF_RENDERER_BATCH_SIZE "${PDF_RENDERER_BATCH_SIZE}"
+    env_line PDF_RENDERER_LARGE_ROW_THRESHOLD "${PDF_RENDERER_LARGE_ROW_THRESHOLD}"
+    env_line PDF_RENDERER_LARGE_JOB_CONCURRENCY "${PDF_RENDERER_LARGE_JOB_CONCURRENCY}"
+    env_line PDF_RENDERER_POLL_MS "${PDF_RENDERER_POLL_MS}"
+    env_line PDF_RENDERER_LOCK_TIMEOUT_SECONDS "${PDF_RENDERER_LOCK_TIMEOUT_SECONDS}"
+    env_line PDF_RENDERER_JOB_SECRET "${PDF_RENDERER_JOB_SECRET}"
+    env_line PDF_EXPORT_TMP_MAX_AGE_HOURS "${PDF_EXPORT_TMP_MAX_AGE_HOURS}"
+    env_line PDF_EXPORT_FAILED_MAX_AGE_DAYS "${PDF_EXPORT_FAILED_MAX_AGE_DAYS}"
+    env_line PDF_EXPORT_MAX_TOTAL_BYTES "${PDF_EXPORT_MAX_TOTAL_BYTES}"
   } >"${target}"
 }
 
@@ -317,14 +382,14 @@ sync_release_allowlist() {
     sources+=("${PROJECT_ROOT}/./${rel}")
   done
 
-  rsync -az --delete --delete-excluded --relative \
+  rsync -avz --progress --itemize-changes --delete --delete-excluded --relative \
     "${RSYNC_RELEASE_EXCLUDES[@]}" \
     -e "$(rsync_ssh_command)" \
     "${sources[@]}" "${REMOTE}:${REMOTE_PATH}/"
 }
 
 sync_env_file() {
-  rsync -az -e "$(rsync_ssh_command)" "${DEPLOY_TMP_ENV}" "${REMOTE}:${REMOTE_PATH}/.env"
+  rsync -avz --progress --itemize-changes -e "$(rsync_ssh_command)" "${DEPLOY_TMP_ENV}" "${REMOTE}:${REMOTE_PATH}/.env"
 }
 
 prepare_local_artifacts() {
@@ -343,6 +408,9 @@ prepare_local_artifacts() {
 
   echo "Verifying Go backend locally..."
   (cd "${PROJECT_ROOT}/code/backend" && go test ./...)
+
+  echo "Building .NET PDF renderer locally..."
+  dotnet build "${PROJECT_ROOT}/code/pdf-renderer-dotnet/BudgetCentre.PdfRenderer/BudgetCentre.PdfRenderer.csproj"
 
   echo "Building backend Linux artifact locally (${BACKEND_GOOS}/${BACKEND_GOARCH})..."
   rm -rf "${BACKEND_ARTIFACT_DIR}"
@@ -369,6 +437,15 @@ prune_remote_release() {
   for rel in "${DEPLOY_REMOTE_PRUNE_PATHS[@]}"; do
     command="${command} && rm -rf -- $(remote_quote "${rel}")"
   done
+  local glob parent pattern
+  for glob in "${DEPLOY_REMOTE_PRUNE_GLOBS[@]}"; do
+    parent="${glob%/*}"
+    pattern="${glob##*/}"
+    if [[ "${parent}" == "${glob}" ]]; then
+      parent="."
+    fi
+    command="${command} && if [ -d $(remote_quote "${parent}") ]; then find $(remote_quote "${parent}") -maxdepth 1 -name $(remote_quote "${pattern}") -exec rm -rf -- {} +; fi"
+  done
   run_remote "${command}"
 }
 
@@ -379,6 +456,7 @@ main() {
   require_command rsync
   require_command yarn
   require_command go
+  require_command dotnet
   check_deploy_config
   check_remote_access
 
@@ -393,7 +471,7 @@ main() {
   echo "Uploading release allowlist to ${REMOTE}:${REMOTE_PATH}..."
   sync_release_allowlist
   sync_env_file
-  run_remote "mkdir -p $(remote_quote "${REMOTE_PATH}/storage/exports") $(remote_quote "${REMOTE_PATH}/storage/tmp") $(remote_quote "${REMOTE_PATH}/storage/logs") && chmod 600 $(remote_quote "${REMOTE_PATH}/.env")"
+  run_remote "mkdir -p $(remote_quote "${REMOTE_PATH}/storage/exports") $(remote_quote "${REMOTE_PATH}/storage/tmp/pdf") $(remote_quote "${REMOTE_PATH}/storage/logs") && chmod 600 $(remote_quote "${REMOTE_PATH}/.env")"
 
   cat <<EOF
 

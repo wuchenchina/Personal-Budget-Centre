@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"budgetcentre/backend/internal/database"
 	"budgetcentre/backend/internal/httpx"
@@ -387,7 +389,7 @@ func (a *App) adminExportCleanup(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	tempFiles, tempDirs, tempBytes, err := deleteDirectoryContents(a.cfg.ExportTempDir)
+	tempResult, err := a.deleteSafeExportTempFiles(r)
 	if err != nil {
 		return err
 	}
@@ -397,9 +399,9 @@ func (a *App) adminExportCleanup(w http.ResponseWriter, r *http.Request) error {
 		"deletedExports":         exportResult.deletedExports,
 		"deletedExportFiles":     exportResult.deletedFiles,
 		"deletedExportBytes":     exportResult.deletedBytes,
-		"deletedTempFiles":       tempFiles,
-		"deletedTempDirectories": tempDirs,
-		"deletedTempBytes":       tempBytes,
+		"deletedTempFiles":       tempResult.deletedFiles,
+		"deletedTempDirectories": tempResult.deletedDirs,
+		"deletedTempBytes":       tempResult.deletedBytes,
 	}}, http.StatusOK)
 	return nil
 }
@@ -451,7 +453,7 @@ type exportCleanupResult struct {
 }
 
 func (a *App) deleteExportFiles(r *http.Request) (exportCleanupResult, error) {
-	rows, err := a.db.QueryContext(r.Context(), "SELECT id, file_path FROM budget_exports")
+	rows, err := a.db.QueryContext(r.Context(), "SELECT id, file_path FROM budget_exports WHERE status IN ('completed', 'failed')")
 	if err != nil {
 		return exportCleanupResult{}, err
 	}
@@ -501,6 +503,138 @@ func (a *App) deleteExportFiles(r *http.Request) (exportCleanupResult, error) {
 	return result, nil
 }
 
+type tempCleanupResult struct {
+	deletedFiles int
+	deletedDirs  int
+	deletedBytes int64
+}
+
+func (a *App) deleteSafeExportTempFiles(r *http.Request) (tempCleanupResult, error) {
+	result := tempCleanupResult{}
+	root := a.cfg.ExportTempDir
+	entries, err := os.ReadDir(root)
+	if os.IsNotExist(err) {
+		return result, nil
+	}
+	if err != nil {
+		return result, err
+	}
+	for _, entry := range entries {
+		path := filepath.Join(root, entry.Name())
+		if entry.IsDir() {
+			next, err := a.deleteSafeExportTempDir(r, path)
+			if err != nil {
+				return result, err
+			}
+			result.deletedFiles += next.deletedFiles
+			result.deletedDirs += next.deletedDirs
+			result.deletedBytes += next.deletedBytes
+			continue
+		}
+		deleted, bytes, err := a.deleteSafeExportTempFile(r, path)
+		if err != nil {
+			return result, err
+		}
+		if deleted {
+			result.deletedFiles++
+			result.deletedBytes += bytes
+		}
+	}
+	return result, nil
+}
+
+func (a *App) deleteSafeExportTempDir(r *http.Request, dir string) (tempCleanupResult, error) {
+	result := tempCleanupResult{}
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return result, nil
+	}
+	if err != nil {
+		return result, err
+	}
+	for _, entry := range entries {
+		path := filepath.Join(dir, entry.Name())
+		if entry.IsDir() {
+			next, err := a.deleteSafeExportTempDir(r, path)
+			if err != nil {
+				return result, err
+			}
+			result.deletedFiles += next.deletedFiles
+			result.deletedDirs += next.deletedDirs
+			result.deletedBytes += next.deletedBytes
+			continue
+		}
+		deleted, bytes, err := a.deleteSafeExportTempFile(r, path)
+		if err != nil {
+			return result, err
+		}
+		if deleted {
+			result.deletedFiles++
+			result.deletedBytes += bytes
+		}
+	}
+	if remaining, err := os.ReadDir(dir); err == nil && len(remaining) == 0 {
+		if err := os.Remove(dir); err != nil {
+			return result, err
+		}
+		result.deletedDirs++
+	}
+	return result, nil
+}
+
+func (a *App) deleteSafeExportTempFile(r *http.Request, path string) (bool, int64, error) {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false, 0, nil
+	}
+	if err != nil || info.IsDir() {
+		return false, 0, err
+	}
+	if !strings.HasSuffix(path, ".tmp.pdf") && !strings.HasSuffix(path, ".lease") {
+		if info.ModTime().After(time.Now().Add(-24 * time.Hour)) {
+			return false, 0, nil
+		}
+		if err := os.Remove(path); err != nil {
+			return false, 0, err
+		}
+		return true, info.Size(), nil
+	}
+	if active, err := a.activeExportTempFile(r, path); err != nil || active {
+		return false, 0, err
+	}
+	if err := os.Remove(path); err != nil {
+		return false, 0, err
+	}
+	return true, info.Size(), nil
+}
+
+func (a *App) activeExportTempFile(r *http.Request, path string) (bool, error) {
+	name := filepath.Base(path)
+	name = strings.TrimSuffix(strings.TrimSuffix(name, ".tmp.pdf"), ".lease")
+	parts := strings.SplitN(name, "-", 2)
+	if len(parts) != 2 {
+		return false, nil
+	}
+	exportID, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return false, nil
+	}
+	attempt, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return false, nil
+	}
+	var count int
+	err = a.db.QueryRowContext(r.Context(), `
+SELECT COUNT(*)
+FROM budget_exports
+WHERE id = ?
+  AND attempt = ?
+  AND status = 'processing'
+  AND locked_until IS NOT NULL
+  AND locked_until >= UTC_TIMESTAMP()`, exportID, attempt).Scan(&count)
+	return count > 0, err
+}
+
 func safeExportPath(root, value string) string {
 	if value == "" {
 		return ""
@@ -519,41 +653,4 @@ func safeExportPath(root, value string) string {
 		return ""
 	}
 	return cleanPath
-}
-
-func deleteDirectoryContents(path string) (files int, dirs int, bytes int64, err error) {
-	entries, err := os.ReadDir(path)
-	if os.IsNotExist(err) {
-		return 0, 0, 0, nil
-	}
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	for _, entry := range entries {
-		itemPath := filepath.Join(path, entry.Name())
-		info, statErr := entry.Info()
-		if statErr != nil {
-			return files, dirs, bytes, statErr
-		}
-		if entry.IsDir() {
-			nextFiles, nextDirs, nextBytes, nextErr := deleteDirectoryContents(itemPath)
-			if nextErr != nil {
-				return files, dirs, bytes, nextErr
-			}
-			files += nextFiles
-			dirs += nextDirs
-			bytes += nextBytes
-			if err := os.Remove(itemPath); err != nil {
-				return files, dirs, bytes, err
-			}
-			dirs++
-			continue
-		}
-		bytes += info.Size()
-		if err := os.Remove(itemPath); err != nil {
-			return files, dirs, bytes, err
-		}
-		files++
-	}
-	return files, dirs, bytes, nil
 }

@@ -7,7 +7,7 @@ import {
   updateTransaction,
   type SaveTransactionPayload,
 } from '../api/budgetEntries';
-import { convertCurrency, refreshBochkRates } from '../api/exchangeRates';
+import { convertCurrency, refreshBankReferenceRates } from '../api/exchangeRates';
 import { translateCurrent } from '../i18n';
 import type { BudgetDetail, CurrencyCode, Transaction } from '../types/budget';
 import type { TransactionFormValues } from '../types/forms';
@@ -71,7 +71,7 @@ export function useTransactionEntryActions({
     setEntryError(null);
 
     try {
-      await refreshBochkRates(selectedBudget.workspaceId);
+      await refreshBankReferenceRates(selectedBudget.workspaceId);
       const values = transactionForm.getFieldsValue();
       const rate = await resolveRate(values.currency, selectedBudget.baseCurrency);
       const nextValues = {

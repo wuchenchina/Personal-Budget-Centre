@@ -201,13 +201,15 @@ c.is_enabled,
 CASE WHEN uc.id IS NULL THEN 0 ELSE 1 END AS is_personal,
 0 AS is_referenced,
 COALESCE(uc.source, '') AS source
-	FROM user_currencies uc
-	JOIN currencies c ON c.id = uc.currency_id
-	WHERE uc.user_id = ? AND uc.is_active = 1 AND c.is_enabled = 1`
+		FROM user_currencies uc
+		JOIN currencies c ON c.id = uc.currency_id
+		WHERE uc.user_id = ? AND uc.is_active = 1 AND c.is_enabled = 1`
 	args := []any{userID}
 	query += `
-	UNION
-	` + referencedAccountExchangeRateCurrenciesSQL()
+		UNION
+		` + referencedBankReferenceCurrenciesSQL() + `
+		UNION
+		` + referencedAccountExchangeRateCurrenciesSQL()
 	args = append(args, userID, userID, userID)
 	if budgetID > 0 {
 		query += `
@@ -262,12 +264,27 @@ WHERE c.is_enabled = 1
     UNION SELECT destination_currency_id FROM budget_bookkeeping_records WHERE budget_id = ? AND destination_currency_id IS NOT NULL
     UNION SELECT from_currency_id FROM budget_exchange_rates WHERE budget_id = ?
     UNION SELECT to_currency_id FROM budget_exchange_rates WHERE budget_id = ?
+		  )`
+}
+
+func referencedBankReferenceCurrenciesSQL() string {
+	return `SELECT DISTINCT c.id, c.code, c.name, c.symbol, c.decimal_places, c.is_enabled,
+	0 AS is_personal,
+	1 AS is_referenced,
+	'bank_reference' AS source
+	FROM currencies c
+	WHERE c.is_enabled = 1
+	  AND c.id IN (
+	    SELECT from_currency_id FROM exchange_rates
+	    WHERE source = 'bank_reference'
+	    UNION SELECT to_currency_id FROM exchange_rates
+	    WHERE source = 'bank_reference'
 	  )`
 }
 
 func referencedAccountExchangeRateCurrenciesSQL() string {
 	return `SELECT DISTINCT c.id, c.code, c.name, c.symbol, c.decimal_places, c.is_enabled,
-	CASE WHEN uc.id IS NULL THEN 0 ELSE 1 END AS is_personal,
+		CASE WHEN uc.id IS NULL THEN 0 ELSE 1 END AS is_personal,
 	1 AS is_referenced,
 	'account_rate' AS source
 	FROM currencies c

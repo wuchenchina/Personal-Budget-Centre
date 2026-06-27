@@ -26,10 +26,10 @@ import {
   createAccountExchangeRate,
   deleteAccountExchangeRate,
   listAccountExchangeRates,
-  listBochkRateBoard,
+  listBankReferenceRateBoard,
   updateAccountExchangeRate,
   type AccountExchangeRatePayload,
-  type BochkRateBoardRow,
+  type BankReferenceRateBoardRow,
 } from '../../api/exchangeRates';
 import { listCurrencyPresets } from '../../api/referenceData';
 import type { OperationsController } from '../../hooks/useOperationsController';
@@ -54,7 +54,7 @@ interface PrivateRateFormValues {
 }
 
 const priorityCurrencies = ['USD', 'CNY', 'CNH', 'EUR', 'GBP', 'JPY'];
-const hkdCurrency: BochkRateBoardRow = {
+const hkdCurrency: BankReferenceRateBoardRow = {
   currency: 'HKD',
   currencyName: 'Hong Kong Dollar',
   currencySymbol: 'HKD',
@@ -74,7 +74,7 @@ export function ExchangeRateSideSection({
   operations,
 }: ExchangeRateSideSectionProps) {
   const { t } = useI18n();
-  const [boardRows, setBoardRows] = useState<BochkRateBoardRow[]>([]);
+  const [boardRows, setBoardRows] = useState<BankReferenceRateBoardRow[]>([]);
   const [privateRates, setPrivateRates] = useState<CurrencyRate[]>([]);
   const [supportedCodes, setSupportedCodes] = useState<CurrencyCode[]>([]);
   const [currencyPresets, setCurrencyPresets] = useState<Currency[]>([]);
@@ -95,7 +95,7 @@ export function ExchangeRateSideSection({
     setError(null);
 
     try {
-      const board = await listBochkRateBoard({ workspaceId: activeWorkspaceId });
+      const board = await listBankReferenceRateBoard({ workspaceId: activeWorkspaceId });
       setBoardRows(board.rates);
       if (
         board.rates.length > 0
@@ -124,7 +124,7 @@ export function ExchangeRateSideSection({
     try {
       const response = await listAccountExchangeRates();
       setPrivateRates(response.rates);
-      setSupportedCodes(response.bochkSupportedCodes);
+      setSupportedCodes(response.bankReferenceSupportedCodes);
     } catch (nextError: unknown) {
       setError(nextError instanceof Error ? nextError.message : t('loadingExchangeRatesFailed'));
     } finally {
@@ -159,7 +159,7 @@ export function ExchangeRateSideSection({
     const byCode = new Map(boardRows.map((row) => [row.currency, row]));
     const featured = priorityCurrencies
       .map((code) => byCode.get(code))
-      .filter((row): row is BochkRateBoardRow => row !== undefined);
+      .filter((row): row is BankReferenceRateBoardRow => row !== undefined);
 
     return featured.length > 0 ? featured : boardRows.slice(0, 6);
   }, [boardRows]);
@@ -179,18 +179,24 @@ export function ExchangeRateSideSection({
       ? calculatorAmount * calculatorQuote.rate
       : null;
 
-  const bochkCurrencyOptions = boardRowsWithHkd.map((row) => ({
+  const bankReferenceCurrencyOptions = boardRowsWithHkd.map((row) => ({
     label: `${row.currency} ${row.currencyName}`,
     value: row.currency,
   }));
   const presetOptions = buildCurrencyOptions(currencyPresets);
-  const bochkSupportedSet = useMemo(() => new Set(supportedCodes), [supportedCodes]);
-  const unsupportedCurrencyOptions = presetOptions.filter((option) => !bochkSupportedSet.has(option.value));
-  const supportedCurrencyOptions = presetOptions.filter((option) => bochkSupportedSet.has(option.value));
+  const bankReferenceSupportedSet = useMemo(() => new Set(supportedCodes), [supportedCodes]);
+  const unsupportedCurrencyOptions = presetOptions.filter((option) => !bankReferenceSupportedSet.has(option.value));
+  const supportedCurrencyOptions = presetOptions.filter((option) => bankReferenceSupportedSet.has(option.value));
 
-  const handleRefreshBochk = async () => {
-    await operations.refreshBochk();
-    await loadBoard();
+  const handleRefreshBankReference = async () => {
+    setError(null);
+
+    try {
+      await operations.refreshBankReference();
+      await loadBoard();
+    } catch (nextError: unknown) {
+      setError(nextError instanceof Error ? nextError.message : t('loadingExchangeRatesFailed'));
+    }
   };
 
   const openCreatePrivateRate = () => {
@@ -259,7 +265,7 @@ export function ExchangeRateSideSection({
     }
   }, [t]);
 
-  const boardColumns = useMemo<TableColumnsType<BochkRateBoardRow>>(
+  const boardColumns = useMemo<TableColumnsType<BankReferenceRateBoardRow>>(
     () => [
       {
         key: 'currency',
@@ -381,11 +387,11 @@ export function ExchangeRateSideSection({
           {canManageExchangeRates ? (
             <Button
               icon={<RefreshCcw size={13} />}
-              loading={operations.refreshingExchangeRateSource === 'bochk'}
+              loading={operations.refreshingExchangeRateSource === 'bank_reference'}
               size="small"
-              onClick={() => void handleRefreshBochk()}
+              onClick={() => void handleRefreshBankReference()}
             >
-              {t('refreshBochkRates')}
+              {t('refreshBankReferenceRates')}
             </Button>
           ) : null}
           <Button
@@ -407,15 +413,15 @@ export function ExchangeRateSideSection({
       <Tabs
         items={[
           {
-            key: 'bochk',
-            label: t('bochkRatesTab'),
+            key: 'bank_reference',
+            label: t('bankReferenceRatesTab'),
             children: (
               <div className="rate-workbench-stack">
                 <section className="rate-calculator-panel">
                   <div className="rate-panel-heading">
                     <div>
                       <strong>{t('exchangeRateCalculator')}</strong>
-                      <span>{t('bochkQuoteUnitHint')}</span>
+                      <span>{t('bankReferenceQuoteUnitHint')}</span>
                     </div>
                   </div>
                   <div className="rate-calculator-grid">
@@ -430,14 +436,14 @@ export function ExchangeRateSideSection({
                     <Select
                       showSearch
                       optionFilterProp="label"
-                      options={bochkCurrencyOptions}
+                      options={bankReferenceCurrencyOptions}
                       value={calculatorCurrency}
                       onChange={setCalculatorCurrency}
                     />
                     <Select
                       showSearch
                       optionFilterProp="label"
-                      options={bochkCurrencyOptions}
+                      options={bankReferenceCurrencyOptions}
                       value={calculatorTargetCurrency}
                       onChange={setCalculatorTargetCurrency}
                     />
@@ -483,8 +489,8 @@ export function ExchangeRateSideSection({
                 <section className="rate-board-panel">
                   <div className="rate-board-toolbar">
                     <div>
-                      <strong>{t('bochkRateBoard')}</strong>
-                      <span>{t('bochkNoReciprocalHint')}</span>
+                      <strong>{t('bankReferenceRateBoard')}</strong>
+                      <span>{t('bankReferenceNoReciprocalHint')}</span>
                     </div>
                     <Input
                       allowClear
@@ -495,7 +501,7 @@ export function ExchangeRateSideSection({
                       onChange={(event) => setSearchText(event.target.value)}
                     />
                   </div>
-                  <Table<BochkRateBoardRow>
+                  <Table<BankReferenceRateBoardRow>
                     columns={boardColumns}
                     dataSource={filteredBoardRows}
                     loading={isLoadingBoard}
@@ -627,7 +633,7 @@ function formatMoney(value: number): string {
 }
 
 function calculateReferenceQuote(
-  rows: Map<CurrencyCode, BochkRateBoardRow>,
+  rows: Map<CurrencyCode, BankReferenceRateBoardRow>,
   fromCurrency: CurrencyCode,
   toCurrency: CurrencyCode,
 ): { rate: number; path: string } | null {
@@ -649,7 +655,7 @@ function calculateReferenceQuote(
   };
 }
 
-function rateToHkd(rows: Map<CurrencyCode, BochkRateBoardRow>, currency: CurrencyCode): number | null {
+function rateToHkd(rows: Map<CurrencyCode, BankReferenceRateBoardRow>, currency: CurrencyCode): number | null {
   if (currency === 'HKD') {
     return 1;
   }
@@ -660,7 +666,7 @@ function rateToHkd(rows: Map<CurrencyCode, BochkRateBoardRow>, currency: Currenc
   return row.customerBuyRate;
 }
 
-function rateFromHkd(rows: Map<CurrencyCode, BochkRateBoardRow>, currency: CurrencyCode): number | null {
+function rateFromHkd(rows: Map<CurrencyCode, BankReferenceRateBoardRow>, currency: CurrencyCode): number | null {
   if (currency === 'HKD') {
     return 1;
   }

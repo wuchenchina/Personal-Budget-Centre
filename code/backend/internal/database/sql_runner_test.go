@@ -14,6 +14,7 @@ func TestValidateSQLSafetyAllowsSafeMigrations(t *testing.T) {
 		"ALTER TABLE users ADD COLUMN avatar_url VARCHAR(512) NULL AFTER display_name;",
 		"ALTER TABLE budget_items ADD KEY idx_budget_items_budget_sort (budget_id, sort_order, id);",
 		"ALTER TABLE budgets MODIFY start_date DATE NULL, MODIFY end_date DATE NULL;",
+		"ALTER TABLE exchange_rates MODIFY source ENUM('manual', 'budget_default', 'bank_reference') NOT NULL DEFAULT 'manual';",
 		"SET @sql := 'ALTER TABLE budget_item_splits MODIFY split_type ENUM(''equal'', ''individual'') NOT NULL DEFAULT ''equal''';",
 	}
 	for _, sql := range cases {
@@ -61,7 +62,7 @@ func TestExchangeRateHistoryMigrationsCoerceLegacySources(t *testing.T) {
 				t.Fatal(err)
 			}
 			sql := string(content)
-			if !strings.Contains(sql, "WHEN er.source IN ('manual', 'budget_default', 'bochk') THEN er.source") {
+			if !strings.Contains(sql, "WHEN er.source IN ('manual', 'budget_default', 'bank_reference') THEN er.source") {
 				t.Fatalf("%s must whitelist supported exchange-rate sources before inserting history", name)
 			}
 			if !strings.Contains(sql, "ELSE 'manual'") {
@@ -102,10 +103,10 @@ func TestLegacyProviderCurrentRatesAreArchivedAndRemoved(t *testing.T) {
 	sql := string(content)
 	for _, want := range []string{
 		"INSERT INTO exchange_rate_history",
-		"er.source NOT IN ('manual', 'budget_default', 'bochk')",
+		"er.source NOT IN ('manual', 'budget_default', 'bank_reference')",
 		"er.provider_rate_type NOT IN ('manual', 'customer_sell', 'customer_buy')",
 		"DELETE FROM exchange_rates",
-		"source NOT IN ('manual', 'budget_default', 'bochk')",
+		"source NOT IN ('manual', 'budget_default', 'bank_reference')",
 		"provider_rate_type NOT IN ('manual', 'customer_sell', 'customer_buy')",
 	} {
 		if !strings.Contains(sql, want) {
@@ -132,23 +133,23 @@ func TestCurrentExchangeRateMigrationDoesNotRequireGeneratedUniqueIndex(t *testi
 	}
 }
 
-func TestGlobalBochkCurrentMigrationRemovesWorkspaceScopedProviderRows(t *testing.T) {
-	content, err := os.ReadFile(filepath.Join("..", "..", "..", "database", "035_global_bochk_current_rates.sql"))
+func TestGlobalBankReferenceCurrentMigrationRemovesWorkspaceScopedProviderRows(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("..", "..", "..", "database", "035_global_bank_reference_current_rates.sql"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	sql := string(content)
 	for _, want := range []string{
-		"WHERE er.source = 'bochk'",
+		"WHERE er.source = 'bank_reference'",
 		"AND er.workspace_id IS NOT NULL",
 		"DELETE FROM exchange_rates",
-		"WHERE source = 'bochk'",
+		"WHERE source = 'bank_reference'",
 		"AND workspace_id IS NOT NULL",
 		"SET user_id = NULL",
 		"AND workspace_id IS NULL",
 	} {
 		if !strings.Contains(sql, want) {
-			t.Fatalf("global BOCHK migration missing %q", want)
+			t.Fatalf("global bank reference migration missing %q", want)
 		}
 	}
 }
@@ -180,6 +181,45 @@ func TestCurrencyCatalogCurrentRatesMigrationDisablesHistoryAndKeepsLocalCatalog
 	}
 }
 
+func TestDatabaseConsolidationMigrationCleansProviderMetadataAndAddsIndexes(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("..", "..", "..", "database", "040_database_consolidation.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := string(content)
+	for _, want := range []string{
+		"CHAR(98, 111, 99, 104, 107)",
+		"Reference rate provider",
+		"source_url = NULL",
+		"note = NULL",
+		"MODIFY source ENUM('manual', 'budget_default', 'bank_reference')",
+		"MODIFY provider_rate_type ENUM('manual', 'mid', 'customer_sell', 'customer_buy')",
+		"idx_exchange_rates_reference_lookup",
+		"idx_exchange_rates_account_manual_lookup",
+		"idx_exchange_rates_reference_fetched",
+		"idx_budget_items_budget_category",
+		"idx_budget_participants_budget_sort",
+		"idx_budget_bookkeeping_records_budget_sort",
+		"idx_budget_exports_status_id",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Fatalf("database consolidation migration missing %q", want)
+		}
+	}
+	for _, blocked := range []string{
+		"bo" + "chk",
+		"BO" + "CHK",
+		"Bank of " + "China",
+		"whk/" + "rates",
+		"master" + "card",
+		"Master" + "card",
+	} {
+		if strings.Contains(sql, blocked) {
+			t.Fatalf("database consolidation migration must not expose provider token %q", blocked)
+		}
+	}
+}
+
 func TestLegacyCurrencyAuditReportsLegacyProviderCurrentRows(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "scripts", "legacy_currency_audit.sql"))
 	if err != nil {
@@ -188,7 +228,7 @@ func TestLegacyCurrencyAuditReportsLegacyProviderCurrentRows(t *testing.T) {
 	sql := string(content)
 	for _, want := range []string{
 		"FROM exchange_rates",
-		"source NOT IN ('manual', 'budget_default', 'bochk')",
+		"source NOT IN ('manual', 'budget_default', 'bank_reference')",
 		"provider_rate_type NOT IN ('manual', 'customer_sell', 'customer_buy')",
 		"GROUP BY source, provider_rate_type",
 	} {
@@ -269,6 +309,63 @@ func TestRecoverableCurrencyCatalogChecksumChange(t *testing.T) {
 	}
 	if isRecoverableChecksumChange("036_currency_catalog_current_rates.sql", "old-checksum", current) {
 		t.Fatal("unexpected recovery for unknown 036 checksum")
+	}
+}
+
+func TestRecoverableOpenSourceReleaseMigrationChecksums(t *testing.T) {
+	cases := []struct {
+		name            string
+		appliedFilename string
+		appliedChecksum string
+		current         migrationFile
+	}{
+		{
+			name:            "001 baseline",
+			appliedFilename: "001_schema.sql",
+			appliedChecksum: "0a121ead65d74c6207f950e2070a772cbd3d8142d4b2bb103273e4bf4b1950d0",
+			current: migrationFile{
+				Version:  "001",
+				Name:     "001_schema.sql",
+				Checksum: "a3d94cea1adadcd675c075d86b7126013306b2431e534b2fe590b44fb7e71a61",
+			},
+		},
+		{
+			name:            "016 provider type rename",
+			appliedFilename: "016_" + legacyProviderKey + "_directional_exchange_rates.sql",
+			appliedChecksum: "984b740f350f436eda08d19441ae52487305419a6af293540f85321610e907cd",
+			current: migrationFile{
+				Version:  "016",
+				Name:     "016_exchange_rate_provider_types.sql",
+				Checksum: "984b740f350f436eda08d19441ae52487305419a6af293540f85321610e907cd",
+			},
+		},
+		{
+			name:            "035 provider current rename",
+			appliedFilename: "035_global_" + legacyProviderKey + "_current_rates.sql",
+			appliedChecksum: "78ca4ebb6d0c475f93d61c64098a67f769ce97f52a964c2f3592b03b5f3576fd",
+			current: migrationFile{
+				Version:  "035",
+				Name:     "035_global_bank_reference_current_rates.sql",
+				Checksum: "c41d7d2f2a674c188f5d6fcb5c84812c5674d41a20b07c40ee5bfaeb1937571c",
+			},
+		},
+		{
+			name:            "038 currency directory rename",
+			appliedFilename: "038_" + legacyDirectoryProviderKey + "_currency_presets.sql",
+			appliedChecksum: "c4f8549539c123e1cee0f9ad83b55b50f1a83d26a6d6ab4e7ad8feae613ad7b0",
+			current: migrationFile{
+				Version:  "038",
+				Name:     "038_currency_directory_presets.sql",
+				Checksum: "c4f8549539c123e1cee0f9ad83b55b50f1a83d26a6d6ab4e7ad8feae613ad7b0",
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if !isRecoverableChecksumChange(tc.appliedFilename, tc.appliedChecksum, tc.current) {
+				t.Fatalf("expected %s to be recoverable", tc.name)
+			}
+		})
 	}
 }
 

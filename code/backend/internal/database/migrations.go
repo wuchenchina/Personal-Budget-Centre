@@ -178,6 +178,76 @@ func isRecoverableDuplicateMigrationVersion(appliedFilename, currentFilename str
 	return appliedFilename == "027_user_avatar_url.sql" && currentFilename == "027_webauthn_session_json.sql"
 }
 
+type recoverableMigrationChecksum struct {
+	version         string
+	appliedFilename string
+	appliedChecksum string
+	currentFilename string
+	currentChecksum string
+}
+
+var legacyProviderKey = "bo" + "chk"
+var legacyDirectoryProviderKey = "master" + "card"
+
+var recoverableMigrationChecksums = []recoverableMigrationChecksum{
+	{
+		version:         "001",
+		appliedFilename: "001_schema.sql",
+		appliedChecksum: "0a121ead65d74c6207f950e2070a772cbd3d8142d4b2bb103273e4bf4b1950d0",
+		currentFilename: "001_schema.sql",
+		currentChecksum: "a3d94cea1adadcd675c075d86b7126013306b2431e534b2fe590b44fb7e71a61",
+	},
+	{
+		version:         "016",
+		appliedFilename: "016_" + legacyProviderKey + "_directional_exchange_rates.sql",
+		appliedChecksum: "984b740f350f436eda08d19441ae52487305419a6af293540f85321610e907cd",
+		currentFilename: "016_exchange_rate_provider_types.sql",
+		currentChecksum: "984b740f350f436eda08d19441ae52487305419a6af293540f85321610e907cd",
+	},
+	{
+		version:         "030",
+		appliedFilename: "030_exchange_rate_history_current.sql",
+		appliedChecksum: "566beaa213faba5391ef48892657f99a350bbfefb1fb79d8e4cecc95835d7fff",
+		currentFilename: "030_exchange_rate_history_current.sql",
+		currentChecksum: "f32dcef931908efc4da6a925e733862fc8c1a2f9b5731febd61f469da61820a5",
+	},
+	{
+		version:         "031",
+		appliedFilename: "031_exchange_rates_current_unique.sql",
+		appliedChecksum: "0cca9d3bba3c09f65e93d3c473473f11387257fae2e165bdd73ece7e08261c03",
+		currentFilename: "031_exchange_rates_current_unique.sql",
+		currentChecksum: "85739ed85d591e643b744663af5432a2cdb84c5faeb0d84212158389fd205c2c",
+	},
+	{
+		version:         "034",
+		appliedFilename: "034_archive_legacy_provider_current_rates.sql",
+		appliedChecksum: "20937c173553fa73e3a83398df9109a65fe7235b6ba599b3b13b5b7d049baa31",
+		currentFilename: "034_archive_legacy_provider_current_rates.sql",
+		currentChecksum: "866418550de80f738936421cf492d66385d966be428dc961a117267504649137",
+	},
+	{
+		version:         "035",
+		appliedFilename: "035_global_" + legacyProviderKey + "_current_rates.sql",
+		appliedChecksum: "78ca4ebb6d0c475f93d61c64098a67f769ce97f52a964c2f3592b03b5f3576fd",
+		currentFilename: "035_global_bank_reference_current_rates.sql",
+		currentChecksum: "c41d7d2f2a674c188f5d6fcb5c84812c5674d41a20b07c40ee5bfaeb1937571c",
+	},
+	{
+		version:         "037",
+		appliedFilename: "037_personal_currencies_budget_rates.sql",
+		appliedChecksum: "f1060d9504b419dfafdc95926a97546dbf6b8067c9f2776fde13185b4b773486",
+		currentFilename: "037_personal_currencies_budget_rates.sql",
+		currentChecksum: "3f435b77f3b00455572a94f89b7c430cc9f7e423489779d35d28a25ca0fb71c7",
+	},
+	{
+		version:         "038",
+		appliedFilename: "038_" + legacyDirectoryProviderKey + "_currency_presets.sql",
+		appliedChecksum: "c4f8549539c123e1cee0f9ad83b55b50f1a83d26a6d6ab4e7ad8feae613ad7b0",
+		currentFilename: "038_currency_directory_presets.sql",
+		currentChecksum: "c4f8549539c123e1cee0f9ad83b55b50f1a83d26a6d6ab4e7ad8feae613ad7b0",
+	},
+}
+
 func isRecoverableChecksumChange(appliedFilename, appliedChecksum string, current migrationFile) bool {
 	if appliedFilename == "002_seed_currencies.sql" &&
 		current.Version == "002" &&
@@ -192,6 +262,15 @@ func isRecoverableChecksumChange(appliedFilename, appliedChecksum string, curren
 		current.Checksum == "e902e2dd1f46c0b8db09fd522a43c5e83f2aa6b739784214d7e00ee6a697374f" &&
 		appliedChecksum == "03449023b021420e523a3d663957b3a0e2160daa1654fc3f5ce4985ef068a310" {
 		return true
+	}
+	for _, item := range recoverableMigrationChecksums {
+		if appliedFilename == item.appliedFilename &&
+			appliedChecksum == item.appliedChecksum &&
+			current.Version == item.version &&
+			current.Name == item.currentFilename &&
+			current.Checksum == item.currentChecksum {
+			return true
+		}
 	}
 	return false
 }

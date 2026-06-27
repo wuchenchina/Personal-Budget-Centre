@@ -13,6 +13,7 @@ import { BudgetEditorView } from './components/budget/BudgetEditorView';
 import { AuthenticatedModals } from './components/layout/AuthenticatedModals';
 import { AppShell } from './components/layout/AppShell';
 import { GovernancePanel } from './components/workspace/GovernancePanel';
+import { BudgetExportProgressModal } from './components/budget/BudgetExportProgressModal';
 import { WorkspacePage } from './components/workspace/WorkspacePage';
 import {
   initialRouteFromLocation,
@@ -271,21 +272,27 @@ function AuthenticatedApp({
     </Suspense>
   );
   const modals = (
-    <AuthenticatedModals
-      baseCurrency={baseCurrency}
-      bookkeeping={bookkeeping}
-      bookkeepingCategoryOptions={bookkeepingCategoryOptions}
-      budget={budget}
-      budgetEntry={budgetEntry}
-      budgetItemPresetCategoryOptions={budgetItemPresetCategoryOptions}
-      canManageWorkspaceMembers={canManageWorkspaceMembers}
-      canWriteBudgets={canWriteBudgets}
-      isShareModalOpen={isShareModalOpen}
-      onShareModalOpenChange={setIsShareModalOpen}
-      operations={operations}
-      transactionCategoryOptions={transactionCategoryOptions}
-      workspace={workspace}
-    />
+    <>
+      <AuthenticatedModals
+        baseCurrency={baseCurrency}
+        bookkeeping={bookkeeping}
+        bookkeepingCategoryOptions={bookkeepingCategoryOptions}
+        budget={budget}
+        budgetEntry={budgetEntry}
+        budgetItemPresetCategoryOptions={budgetItemPresetCategoryOptions}
+        canManageWorkspaceMembers={canManageWorkspaceMembers}
+        canWriteBudgets={canWriteBudgets}
+        isShareModalOpen={isShareModalOpen}
+        onShareModalOpenChange={setIsShareModalOpen}
+        operations={operations}
+        transactionCategoryOptions={transactionCategoryOptions}
+        workspace={workspace}
+      />
+      <BudgetExportProgressModal
+        exportJob={operations.activeExport}
+        onClose={operations.closeExportProgress}
+      />
+    </>
   );
 
   const renderMainContent = () => {

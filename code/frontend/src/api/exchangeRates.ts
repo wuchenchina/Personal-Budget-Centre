@@ -9,7 +9,7 @@ interface ExchangeRateResponse {
   rate: CurrencyRate;
 }
 
-export interface BochkRateBoardRow {
+export interface BankReferenceRateBoardRow {
   currency: CurrencyCode;
   currencyName: string;
   currencySymbol: string;
@@ -23,19 +23,19 @@ export interface BochkRateBoardRow {
   sourceUrl: string | null;
 }
 
-interface BochkRateBoardResponse {
+interface BankReferenceRateBoardResponse {
   board: {
     baseCurrency: 'HKD';
-    source: 'bochk';
+    source: 'bank_reference';
     sourceName: string;
-    sourceUrl: string;
-    rates: BochkRateBoardRow[];
+    sourceUrl: string | null;
+    rates: BankReferenceRateBoardRow[];
   };
 }
 
 interface AccountExchangeRateListResponse {
   rates: CurrencyRate[];
-  bochkSupportedCodes: CurrencyCode[];
+  bankReferenceSupportedCodes: CurrencyCode[];
 }
 
 interface BudgetExchangeRateListResponse {
@@ -66,9 +66,9 @@ interface ConversionResponse {
 
 interface ProviderRefreshResponse {
   provider: {
-    source: 'bochk';
+    source: 'bank_reference';
     sourceName: string;
-    sourceUrl: string;
+    sourceUrl: string | null;
     rateDate: string;
     saved: number;
     skipped: CurrencyCode[];
@@ -81,7 +81,7 @@ export interface ListExchangeRatesParams {
   fromCurrency?: CurrencyCode;
   toCurrency?: CurrencyCode;
   rateDate?: string;
-  source?: 'manual' | 'budget_default' | 'bochk';
+  source?: 'manual' | 'budget_default' | 'bank_reference';
 }
 
 export interface CreateManualExchangeRatePayload {
@@ -143,7 +143,7 @@ export function createManualExchangeRate(
   );
 }
 
-export function listBochkRateBoard(params: { workspaceId?: number | null; rateDate?: string } = {}) {
+export function listBankReferenceRateBoard(params: { workspaceId?: number | null; rateDate?: string } = {}) {
   const search = new URLSearchParams();
   if (params.workspaceId !== undefined && params.workspaceId !== null) {
     search.set('workspaceId', String(params.workspaceId));
@@ -153,7 +153,7 @@ export function listBochkRateBoard(params: { workspaceId?: number | null; rateDa
   }
   const suffix = search.size > 0 ? `?${search.toString()}` : '';
 
-  return apiGet<BochkRateBoardResponse>(`/api/exchange-rates/bochk/board${suffix}`).then(
+  return apiGet<BankReferenceRateBoardResponse>(`/api/exchange-rates/reference/board${suffix}`).then(
     (response) => response.board,
   );
 }
@@ -220,8 +220,8 @@ export function convertCurrency(payload: ConvertCurrencyPayload): Promise<Conver
   );
 }
 
-export function refreshBochkRates(workspaceId: number): Promise<ProviderRefreshResponse['provider']> {
-  return apiPost<ProviderRefreshResponse>('/api/exchange-rates/bochk/refresh', {
+export function refreshBankReferenceRates(workspaceId: number): Promise<ProviderRefreshResponse['provider']> {
+  return apiPost<ProviderRefreshResponse>('/api/exchange-rates/reference/refresh', {
     workspaceId,
   }).then((response) => response.provider);
 }

@@ -1,5 +1,7 @@
 .git
 ._*
+local-only
+storage
 BudgetCentre_old
 parsed_templates
 template
@@ -14,7 +16,14 @@ deploy.local.sh
 .env.*
 code/frontend/node_modules
 code/frontend/dist
+**/bin
+**/obj
 code/backend-php-legacy
+*.sql.zip
+*.dump
+*.bak
+*.tar
+*.tar.gz
 *.log
 .DS_Store
 __pycache__

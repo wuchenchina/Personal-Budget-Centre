@@ -26,7 +26,7 @@ export type PrincipalType = 'user' | 'workgroup' | 'workspace';
 
 export type WorkspaceRole = 'owner' | 'admin' | 'editor' | 'viewer' | 'auditor';
 
-export type PdfThemeKey = 'classic' | 'hsbc' | 'uswds';
+export type PdfThemeKey = 'classic' | 'statement_red' | 'civic_blue';
 
 export type BudgetShareRole = 'owner' | 'editor' | 'viewer' | 'auditor';
 
@@ -275,7 +275,7 @@ export interface CurrencyRate {
   from: CurrencyCode;
   to: CurrencyCode;
   rate: number;
-  source: 'manual' | 'budget_default' | 'bochk';
+  source: 'manual' | 'budget_default' | 'bank_reference';
   sourceName: string | null;
   sourceUrl: string | null;
   providerRateType: 'manual' | 'mid' | 'card' | 'customer_sell' | 'customer_buy';
@@ -351,11 +351,20 @@ export interface BudgetExport {
   budgetId: number;
   userId: number;
   format: BudgetExportFormat;
+  scope: 'budget' | 'bookkeeping';
   fileName: string;
-  filePath: string;
+  filePath: string | null;
   status: 'queued' | 'processing' | 'completed' | 'failed';
   errorMessage: string | null;
+  progressPercent: number;
+  progressStage: string;
+  rowsTotal: number | null;
+  rowsProcessed: number | null;
+  pages: number | null;
+  fileSize: number | null;
   createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
   downloadUrl: string;
 }
 

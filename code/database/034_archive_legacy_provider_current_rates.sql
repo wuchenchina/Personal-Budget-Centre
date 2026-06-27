@@ -28,7 +28,7 @@ SELECT
   er.rate,
   er.rate_date,
   CASE
-    WHEN er.source IN ('manual', 'budget_default', 'bochk') THEN er.source
+    WHEN er.source IN ('manual', 'budget_default', 'bank_reference') THEN er.source
     ELSE 'manual'
   END,
   er.source_name,
@@ -46,9 +46,9 @@ SELECT
   er.created_at
 FROM exchange_rates er
 WHERE (
-    er.source NOT IN ('manual', 'budget_default', 'bochk')
+    er.source NOT IN ('manual', 'budget_default', 'bank_reference')
     OR er.provider_rate_type NOT IN ('manual', 'customer_sell', 'customer_buy')
-    OR (er.source = 'bochk' AND er.provider_rate_type NOT IN ('customer_sell', 'customer_buy'))
+    OR (er.source = 'bank_reference' AND er.provider_rate_type NOT IN ('customer_sell', 'customer_buy'))
     OR (er.source IN ('manual', 'budget_default') AND er.provider_rate_type <> 'manual')
   )
   AND NOT EXISTS (
@@ -59,7 +59,7 @@ WHERE (
   );
 
 DELETE FROM exchange_rates
-WHERE source NOT IN ('manual', 'budget_default', 'bochk')
+WHERE source NOT IN ('manual', 'budget_default', 'bank_reference')
    OR provider_rate_type NOT IN ('manual', 'customer_sell', 'customer_buy')
-   OR (source = 'bochk' AND provider_rate_type NOT IN ('customer_sell', 'customer_buy'))
+   OR (source = 'bank_reference' AND provider_rate_type NOT IN ('customer_sell', 'customer_buy'))
    OR (source IN ('manual', 'budget_default') AND provider_rate_type <> 'manual');

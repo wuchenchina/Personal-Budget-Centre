@@ -65,8 +65,10 @@ export function BudgetExchangeRateManager({
   const fromCurrency = Form.useWatch('fromCurrency', form);
   const toCurrency = Form.useWatch('toCurrency', form);
 
-  const defaultForeignCurrency = useMemo(
-    () => currencyOptions.find((option) => option.value !== baseCurrency)?.value,
+  const defaultFromCurrency = useMemo(
+    () =>
+      currencyOptions.find((option) => option.value === 'HKD')?.value
+      ?? currencyOptions.find((option) => option.value !== baseCurrency)?.value,
     [baseCurrency, currencyOptions],
   );
 
@@ -124,11 +126,10 @@ export function BudgetExchangeRateManager({
     setEditingRate(null);
     form.resetFields();
     form.setFieldsValue({
-      ...(defaultForeignCurrency === undefined ? {} : { fromCurrency: defaultForeignCurrency }),
-      toCurrency: baseCurrency,
+      ...(defaultFromCurrency === undefined ? {} : { fromCurrency: defaultFromCurrency }),
       rateDate: todayInputDate(),
     });
-  }, [baseCurrency, defaultForeignCurrency, form]);
+  }, [defaultFromCurrency, form]);
 
   const openEditRate = useCallback((rate: BudgetExchangeRate) => {
     setEditingRate(rate);
@@ -353,6 +354,7 @@ export function BudgetExchangeRateManager({
                         optionLabelProp="value"
                         optionRender={renderCurrencyOption}
                         options={currencyOptions}
+                        placeholder={t('selectCurrency')}
                       />
                     </Form.Item>
                     <Form.Item
@@ -371,10 +373,12 @@ export function BudgetExchangeRateManager({
                     >
                       <Select
                         showSearch
+                        allowClear
                         optionFilterProp="label"
                         optionLabelProp="value"
                         optionRender={renderCurrencyOption}
                         options={currencyOptions}
+                        placeholder={t('selectCurrency')}
                         status={fromCurrency !== undefined && fromCurrency === toCurrency ? 'error' : undefined}
                       />
                     </Form.Item>

@@ -37,7 +37,7 @@ export const transactionTypeColors: Record<TransactionType, string> = {
 export const currencyRateSourceColors: Record<CurrencyRate['source'], string> = {
   manual: 'orange',
   budget_default: 'default',
-  bochk: 'red',
+  bank_reference: 'red',
 };
 
 export const defaultBudgetTotals = {

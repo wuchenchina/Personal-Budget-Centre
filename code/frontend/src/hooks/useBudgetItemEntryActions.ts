@@ -6,7 +6,7 @@ import {
   updateBudgetItem,
   type SaveBudgetItemPayload,
 } from '../api/budgetEntries';
-import { refreshBochkRates, syncBudgetExchangeRatesFromGlobal } from '../api/exchangeRates';
+import { refreshBankReferenceRates, syncBudgetExchangeRatesFromGlobal } from '../api/exchangeRates';
 import { translateCurrent } from '../i18n';
 import type { BudgetDetail, BudgetItem, CurrencyCode } from '../types/budget';
 import type { BudgetItemFormValues } from '../types/forms';
@@ -196,7 +196,7 @@ export function useBudgetItemEntryActions({
     setEntryError(null);
 
     try {
-      await refreshBochkRates(selectedBudget.workspaceId);
+      await refreshBankReferenceRates(selectedBudget.workspaceId);
       const values = budgetItemForm.getFieldsValue();
       const budgetRate = await resolveRate(values.budgetCurrency, selectedBudget.baseCurrency);
       const nextValues = {

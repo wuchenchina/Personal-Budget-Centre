@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  cleanupAdminExportCache,
+  cleanupAdminExports,
   createAdminUser,
   getAdminDatabaseStatus,
   getAdminEnvironment,
@@ -39,7 +39,7 @@ export function useAdminController(enabled: boolean) {
   const [logs, setLogs] = useState<AdminLogEntry[]>([]);
   const [logPath, setLogPath] = useState<string | null>(null);
   const [isLogsLoading, setIsLogsLoading] = useState(false);
-  const [isExportCacheCleaning, setIsExportCacheCleaning] = useState(false);
+  const [isExportCleaning, setIsExportCleaning] = useState(false);
   const [databaseStatus, setDatabaseStatus] = useState<AdminDatabaseStatus | null>(null);
   const [isDatabaseLoading, setIsDatabaseLoading] = useState(false);
   const [currencyOptions, setCurrencyOptions] = useState<CurrencySelectOption[]>([]);
@@ -246,24 +246,24 @@ export function useAdminController(enabled: boolean) {
     }
   };
 
-  const cleanupExportCache = async () => {
-    setIsExportCacheCleaning(true);
+  const cleanupExports = async () => {
+    setIsExportCleaning(true);
     setError(null);
     setNotice(null);
 
     try {
-      const result = await cleanupAdminExportCache();
+      const result = await cleanupAdminExports();
       setNotice(
-        translateCurrent('exportCacheCleanupDone', {
+        translateCurrent('exportCleanupDone', {
           exports: result.deletedExports,
           files: result.deletedExportFiles,
           tempFiles: result.deletedTempFiles,
         }),
       );
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : translateCurrent('exportCacheCleanupFailed'));
+      setError(caught instanceof Error ? caught.message : translateCurrent('exportCleanupFailed'));
     } finally {
-      setIsExportCacheCleaning(false);
+      setIsExportCleaning(false);
     }
   };
 
@@ -348,7 +348,7 @@ export function useAdminController(enabled: boolean) {
     logs,
     logPath,
     isLogsLoading,
-    isExportCacheCleaning,
+    isExportCleaning,
     databaseStatus,
     isDatabaseLoading,
     currencyOptions,
@@ -363,7 +363,7 @@ export function useAdminController(enabled: boolean) {
     resendVerification,
     checkEnvironment,
     refreshLogs,
-    cleanupExportCache,
+    cleanupExports,
     refreshDatabaseStatus,
     dryRunDatabaseMigration,
     retryDatabaseMigration,

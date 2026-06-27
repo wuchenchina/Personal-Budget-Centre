@@ -269,8 +269,8 @@ func budgetSelectSQL(where string) string {
 base.code, display.code, b.budget_type, b.participant_mode, b.installment_display_mode,
 b.installment_period_unit, b.pricing_enabled, b.visibility, b.status, b.note, b.signature_config,
 bt.template_key, bt.name, b.created_at, b.updated_at,
-COALESCE(SUM(bi.budget_amount_base), 0), COALESCE(SUM(bi.estimated_amount_base), 0),
-COALESCE(SUM(bi.variance_amount_base), 0),
+COALESCE(SUM(ie.effective_budget_base), 0), COALESCE(SUM(ie.effective_estimated_base), 0),
+COALESCE(SUM(ie.effective_variance_base), 0),
 (SELECT COUNT(*) FROM budget_transactions tx WHERE tx.budget_id = b.id),
 (SELECT COALESCE(SUM(tx.amount_base), 0) FROM budget_transactions tx WHERE tx.budget_id = b.id)
 FROM budgets b
@@ -278,7 +278,42 @@ JOIN workspaces w ON w.id = b.workspace_id
 JOIN currencies base ON base.id = b.base_currency_id
 JOIN currencies display ON display.id = b.display_currency_id
 LEFT JOIN budget_templates bt ON bt.id = b.template_id
-LEFT JOIN budget_items bi ON bi.budget_id = b.id ` + where + `
+LEFT JOIN (
+SELECT bi.id, bi.budget_id,
+ROUND(
+  CASE
+    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(tx.tx_count, 0) > 0
+      THEN COALESCE(tx.tx_base, 0) * COALESCE(sm.multiplier, 1)
+    ELSE bi.budget_amount_base * COALESCE(sm.multiplier, 1)
+  END,
+  2
+) AS effective_budget_base,
+ROUND(COALESCE(tx.tx_base, 0) * COALESCE(sm.multiplier, 1), 2) AS effective_estimated_base,
+ROUND(
+  CASE
+    WHEN bi.budget_amount_original = 0 AND bi.budget_amount_base = 0 AND COALESCE(tx.tx_count, 0) > 0
+      THEN COALESCE(tx.tx_base, 0) * COALESCE(sm.multiplier, 1)
+    ELSE bi.budget_amount_base * COALESCE(sm.multiplier, 1)
+  END - COALESCE(tx.tx_base, 0) * COALESCE(sm.multiplier, 1),
+  2
+) AS effective_variance_base
+FROM budget_items bi
+LEFT JOIN (
+  SELECT budget_id, category_id, COUNT(*) AS tx_count, ROUND(SUM(amount_base), 2) AS tx_base
+  FROM budget_transactions
+  GROUP BY budget_id, category_id
+) tx ON tx.budget_id = bi.budget_id AND tx.category_id = bi.category_id
+LEFT JOIN (
+  SELECT bis.budget_item_id,
+  CASE
+    WHEN bis.split_type = 'per_person' THEN GREATEST(1, COALESCE(SUM(CASE WHEN bisp.is_included = 1 THEN 1 ELSE 0 END), 0))
+    ELSE 1
+  END AS multiplier
+  FROM budget_item_splits bis
+  LEFT JOIN budget_item_split_participants bisp ON bisp.split_id = bis.id
+  GROUP BY bis.id, bis.budget_item_id, bis.split_type
+) sm ON sm.budget_item_id = bi.id
+) ie ON ie.budget_id = b.id ` + where + `
  GROUP BY b.id, b.workspace_id, w.name, b.title, b.owner_name, b.start_date, b.end_date,
 base.code, display.code, b.budget_type, b.participant_mode, b.installment_display_mode,
 b.installment_period_unit, b.pricing_enabled, b.visibility, b.status, b.note, b.signature_config,

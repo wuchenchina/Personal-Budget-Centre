@@ -159,10 +159,10 @@ export function BudgetPdfExportSettingsModal({
 
 function pdfThemeLabelKey(theme: PdfThemeKey) {
   switch (theme) {
-    case 'hsbc':
-      return 'pdfThemeHsbc';
-    case 'uswds':
-      return 'pdfThemeUswds';
+    case 'statement_red':
+      return 'pdfThemeStatementRed';
+    case 'civic_blue':
+      return 'pdfThemeCivicBlue';
     default:
       return 'pdfThemeClassic';
   }

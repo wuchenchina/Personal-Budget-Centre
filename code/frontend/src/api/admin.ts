@@ -1,7 +1,7 @@
 import { apiGet, apiPatch, apiPost } from './http';
 import type {
   AdminEnvironmentCheck,
-  AdminExportCacheCleanupResult,
+  AdminExportCleanupResult,
   AdminLogsResult,
   AdminDatabaseStatus,
   AdminUser,
@@ -63,9 +63,9 @@ export function listAdminLogs(limit = 100): Promise<AdminLogsResult> {
   );
 }
 
-export function cleanupAdminExportCache(): Promise<AdminExportCacheCleanupResult> {
-  return apiPost<{ cleanup: AdminExportCacheCleanupResult }>(
-    '/api/admin/export-cache/cleanup',
+export function cleanupAdminExports(): Promise<AdminExportCleanupResult> {
+  return apiPost<{ cleanup: AdminExportCleanupResult }>(
+    '/api/admin/exports/cleanup',
     {},
   ).then(({ cleanup }) => cleanup);
 }

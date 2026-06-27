@@ -28,7 +28,7 @@ SELECT
   er.rate,
   er.rate_date,
   CASE
-    WHEN er.source IN ('manual', 'budget_default', 'bochk') THEN er.source
+    WHEN er.source IN ('manual', 'budget_default', 'bank_reference') THEN er.source
     ELSE 'manual'
   END,
   er.source_name,

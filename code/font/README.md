@@ -14,8 +14,10 @@ exporting PDFs locally:
 - PingFang-SC-Regular.ttf
 - PingFang-SC-Semibold.ttf
 - SF-Mono-Regular.ttf
+- SF-Mono-Bold.ttf
 - SF-Mono-Light.ttf
 - Times New Roman.ttf
+- Times New Roman Bold.ttf
 - Songti-SC-Regular.ttf
 - Songti-SC-Bold.ttf
 - Songti-TC-Regular.ttf

@@ -216,19 +216,19 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
             {t('environmentCheck')}
           </Button>
           <Popconfirm
-            title={t('cleanupExportCache')}
-            description={t('confirmCleanupExportCache')}
+            title={t('cleanupExports')}
+            description={t('confirmCleanupExports')}
             okText={t('cleanup')}
             cancelText={t('cancel')}
             okButtonProps={{ danger: true }}
-            onConfirm={() => void controller.cleanupExportCache()}
+            onConfirm={() => void controller.cleanupExports()}
           >
             <Button
               danger
               icon={<Trash2 size={14} />}
-              loading={controller.isExportCacheCleaning}
+              loading={controller.isExportCleaning}
             >
-              {t('cleanupExportCache')}
+              {t('cleanupExports')}
             </Button>
           </Popconfirm>
         </Space>
