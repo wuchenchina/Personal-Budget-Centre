@@ -119,7 +119,7 @@ public sealed partial class PdfExportRenderer(RendererConfig config)
 
     private static Paragraph HeaderParagraph(string text, PdfTheme theme, FontSet fonts, float fontSize, float lineHeight)
     {
-        return ParagraphLines(text, HeaderTitleFont(theme, fonts), fontSize, lineHeight, fallbackFont: ThemeFallback(theme, fonts));
+        return ParagraphLines(text, HeaderTitleFont(theme, fonts), fontSize, lineHeight, fallbackFonts: ThemeFallbacks(fonts));
     }
 
     private static PdfFont HeaderTitleFont(PdfTheme theme, FontSet fonts)
@@ -135,9 +135,9 @@ public sealed partial class PdfExportRenderer(RendererConfig config)
     {
         var border = new SolidBorder(new DeviceRgb(217, 217, 217), 0.45f);
         table.AddCell(new Cell().SetBorder(Border.NO_BORDER).SetBorderBottom(border).SetPadding(1.6f)
-            .Add(new Paragraph(label).SetFont(fonts.CjkBold).SetFontSize(7).SetFontColor(theme.MutedTextColor)));
+            .Add(ParagraphLines(label, fonts.CjkBold, 7, 1.2f, fallbackFonts: ThemeFallbacks(fonts, true)).SetFontColor(theme.MutedTextColor)));
         table.AddCell(new Cell().SetBorder(Border.NO_BORDER).SetBorderBottom(border).SetPadding(1.6f)
-            .Add(new Paragraph(value).SetFont(fonts.Cjk).SetFontSize(7).SetTextAlignment(TextAlignment.RIGHT)));
+            .Add(ParagraphLines(value, fonts.Cjk, 7, 1.2f, fallbackFonts: ThemeFallbacks(fonts)).SetTextAlignment(TextAlignment.RIGHT)));
     }
 
     private async Task RenderBookkeepingAsync(

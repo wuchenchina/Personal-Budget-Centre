@@ -17,9 +17,9 @@ public sealed partial class PdfExportRenderer
             .SetVerticalAlignment(VerticalAlignment.TOP);
     }
 
-    private static Cell TextCell(string text, PdfFont font, float size, float leading, bool money = false, PdfFont? fallbackFont = null)
+    private static Cell TextCell(string text, PdfFont font, float size, float leading, bool money = false, IReadOnlyList<PdfFont>? fallbackFonts = null)
     {
-        return BareCell().Add(ParagraphLines(text, font, size, leading, money, fallbackFont));
+        return BareCell().Add(ParagraphLines(text, font, size, leading, money, fallbackFonts));
     }
 
     private static PdfFont ThemeMono(PdfTheme theme, FontSet fonts, bool bold = false)
@@ -36,12 +36,12 @@ public sealed partial class PdfExportRenderer
         return theme.Key == "classic" ? fonts.Regular : fonts.Cjk;
     }
 
-    private static PdfFont? ThemeFallback(PdfTheme theme, FontSet fonts)
+    private static IReadOnlyList<PdfFont> ThemeFallbacks(FontSet fonts, bool bold = false)
     {
-        return theme.Key == "classic" ? fonts.Cjk : null;
+        return bold ? fonts.CjkBoldFallbacks : fonts.CjkFallbacks;
     }
 
-    private static Paragraph ParagraphLines(string text, PdfFont font, float size, float leading, bool money = false, PdfFont? fallbackFont = null)
+    private static Paragraph ParagraphLines(string text, PdfFont font, float size, float leading, bool money = false, IReadOnlyList<PdfFont>? fallbackFonts = null)
     {
         var p = new Paragraph()
             .SetFont(font)
@@ -55,7 +55,7 @@ public sealed partial class PdfExportRenderer
             {
                 p.Add("\n");
             }
-            foreach (var t in TextRuns(lines[i].Trim(), font, fallbackFont))
+            foreach (var t in TextRuns(lines[i].Trim(), font, fallbackFonts))
             {
                 if (money && i > 0)
                 {
@@ -67,29 +67,50 @@ public sealed partial class PdfExportRenderer
         return p;
     }
 
-    private static IReadOnlyList<Text> TextRuns(string value, PdfFont primaryFont, PdfFont? fallbackFont)
+    private static IReadOnlyList<Text> TextRuns(string value, PdfFont primaryFont, IReadOnlyList<PdfFont>? fallbackFonts)
     {
-        if (fallbackFont is null || value.Length == 0 || value.All(v => !NeedsCjkFallback(v)))
+        if (value.Length == 0)
         {
             return [new Text(value).SetFont(primaryFont)];
         }
 
         var runs = new List<Text>();
         var start = 0;
-        var fallback = NeedsCjkFallback(value[0]);
+        var font = FontForCharacter(value[0], primaryFont, fallbackFonts);
         for (var i = 1; i < value.Length; i++)
         {
-            var nextFallback = NeedsCjkFallback(value[i]);
-            if (nextFallback == fallback)
+            var nextFont = FontForCharacter(value[i], primaryFont, fallbackFonts);
+            if (ReferenceEquals(nextFont, font))
             {
                 continue;
             }
-            runs.Add(new Text(value[start..i]).SetFont(fallback ? fallbackFont : primaryFont));
+            runs.Add(new Text(value[start..i]).SetFont(font));
             start = i;
-            fallback = nextFallback;
+            font = nextFont;
         }
-        runs.Add(new Text(value[start..]).SetFont(fallback ? fallbackFont : primaryFont));
+        runs.Add(new Text(value[start..]).SetFont(font));
         return runs;
+    }
+
+    private static PdfFont FontForCharacter(char value, PdfFont primaryFont, IReadOnlyList<PdfFont>? fallbackFonts)
+    {
+        if (!NeedsCjkFallback(value) || primaryFont.ContainsGlyph(value))
+        {
+            return primaryFont;
+        }
+
+        if (fallbackFonts is not null)
+        {
+            foreach (var fallbackFont in fallbackFonts)
+            {
+                if (fallbackFont.ContainsGlyph(value))
+                {
+                    return fallbackFont;
+                }
+            }
+        }
+
+        return primaryFont;
     }
 
     private static bool NeedsCjkFallback(char value)
@@ -135,7 +156,7 @@ public sealed partial class PdfExportRenderer
         PdfTableVisualSpec spec,
         bool bold)
     {
-        var cell = TextCell(column.Label, ThemeMono(theme, fonts, bold), spec.HeaderFontSize, spec.HeaderLineHeight, fallbackFont: ThemeFallback(theme, fonts))
+        var cell = TextCell(column.Label, ThemeMono(theme, fonts, bold), spec.HeaderFontSize, spec.HeaderLineHeight, fallbackFonts: ThemeFallbacks(fonts, bold))
             .SetBackgroundColor(theme.HeaderFill)
             .SetFontColor(theme.Key == "civic_blue" ? theme.SectionFill : theme.TextColor)
             .SetVerticalAlignment(VerticalAlignment.MIDDLE)
@@ -161,7 +182,7 @@ public sealed partial class PdfExportRenderer
         var font = mono
             ? bold ? fonts.MonoBold : fonts.Mono
             : ThemeMono(theme, fonts, bold);
-        var cell = TextCell(text, font, spec.BodyFontSize, spec.BodyLineHeight, column.DataType == "money", ThemeFallback(theme, fonts))
+        var cell = TextCell(text, font, spec.BodyFontSize, spec.BodyLineHeight, column.DataType == "money", ThemeFallbacks(fonts, bold))
             .SetKeepTogether(true);
         ApplyCellPadding(cell, spec.BodyPaddingVertical, spec.BodyPaddingHorizontal);
         cell.SetBorder(Border.NO_BORDER);
@@ -172,7 +193,7 @@ public sealed partial class PdfExportRenderer
 
     private static Cell EmptyCell(string text, int colspan, PdfTheme theme, FontSet fonts, PdfTableVisualSpec spec)
     {
-        var cell = TextCell(text, ThemeMono(theme, fonts), spec.BodyFontSize, spec.BodyLineHeight, fallbackFont: ThemeFallback(theme, fonts))
+        var cell = TextCell(text, ThemeMono(theme, fonts), spec.BodyFontSize, spec.BodyLineHeight, fallbackFonts: ThemeFallbacks(fonts))
             .SetTextAlignment(TextAlignment.CENTER)
             .SetFontColor(theme.MutedTextColor);
         ApplyCellPadding(cell, Math.Max(spec.BodyPaddingVertical, Mm(1.5f)), spec.BodyPaddingHorizontal);

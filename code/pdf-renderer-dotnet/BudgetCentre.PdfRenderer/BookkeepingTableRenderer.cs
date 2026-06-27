@@ -37,7 +37,7 @@ public sealed partial class PdfExportRenderer
     private static Cell BookkeepingSectionHeader(int columns, string sectionTitle, PdfTheme theme, FontSet fonts, PdfTableVisualSpec spec)
     {
         var cell = new Cell(1, columns)
-            .Add(ParagraphLines(SingleLine(sectionTitle), ThemeMono(theme, fonts), spec.SectionFontSize, spec.SectionLineHeight, fallbackFont: ThemeFallback(theme, fonts)))
+            .Add(ParagraphLines(SingleLine(sectionTitle), ThemeMono(theme, fonts), spec.SectionFontSize, spec.SectionLineHeight, fallbackFonts: ThemeFallbacks(fonts)))
             .SetBackgroundColor(theme.SectionFill)
             .SetFontColor(theme.SectionTextColor)
             .SetBorder(new SolidBorder(theme.BorderColor, Mm(0.2f)))
@@ -49,7 +49,7 @@ public sealed partial class PdfExportRenderer
 
     private static Cell BookkeepingDateHeader(int columns, string text, PdfTheme theme, FontSet fonts, PdfTableVisualSpec spec)
     {
-        var paragraph = ParagraphLines(text, ThemeMonoLight(theme, fonts), spec.DateFontSize, spec.DateLineHeight, fallbackFont: ThemeFallback(theme, fonts));
+        var paragraph = ParagraphLines(text, ThemeMonoLight(theme, fonts), spec.DateFontSize, spec.DateLineHeight, fallbackFonts: ThemeFallbacks(fonts));
         if (spec.DateUnderline)
         {
             paragraph.SetUnderline(0.4f, -1.2f);
@@ -79,7 +79,7 @@ public sealed partial class PdfExportRenderer
     {
         var spec = theme.BookkeepingTable;
         var cell = new Cell(1, columns)
-            .Add(ParagraphLines(text, ThemeMono(theme, fonts), spec.BodyFontSize, spec.BodyLineHeight, fallbackFont: ThemeFallback(theme, fonts)))
+            .Add(ParagraphLines(text, ThemeMono(theme, fonts), spec.BodyFontSize, spec.BodyLineHeight, fallbackFonts: ThemeFallbacks(fonts)))
             .SetBorder(Border.NO_BORDER)
             .SetTextAlignment(TextAlignment.CENTER)
             .SetFontColor(theme.MutedTextColor);
@@ -96,7 +96,7 @@ public sealed partial class PdfExportRenderer
 
         var labelColspan = Math.Max(1, amountIndex);
         var labelCell = new Cell(1, labelColspan)
-            .Add(ParagraphLines(label, ThemeMono(theme, fonts, true), spec.BodyFontSize, spec.BodyLineHeight, fallbackFont: ThemeFallback(theme, fonts)))
+            .Add(ParagraphLines(label, ThemeMono(theme, fonts, true), spec.BodyFontSize, spec.BodyLineHeight, fallbackFonts: ThemeFallbacks(fonts, true)))
             .SetBackgroundColor(theme.SummaryFill)
             .SetTextAlignment(TextAlignment.RIGHT)
             .SetBorder(Border.NO_BORDER)
@@ -116,7 +116,7 @@ public sealed partial class PdfExportRenderer
         if (trailing > 0)
         {
             var trailingCell = new Cell(1, trailing)
-                .Add(ParagraphLines("", ThemeMono(theme, fonts, true), spec.BodyFontSize, spec.BodyLineHeight, fallbackFont: ThemeFallback(theme, fonts)))
+                .Add(ParagraphLines("", ThemeMono(theme, fonts, true), spec.BodyFontSize, spec.BodyLineHeight, fallbackFonts: ThemeFallbacks(fonts, true)))
                 .SetBackgroundColor(theme.SummaryFill)
                 .SetBorder(Border.NO_BORDER)
                 .SetBorderTop(new SolidBorder(topColor, topWidth));

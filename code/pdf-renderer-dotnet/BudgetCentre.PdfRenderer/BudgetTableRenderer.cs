@@ -41,7 +41,7 @@ public sealed partial class PdfExportRenderer
 
     private static Paragraph BudgetSectionBand(string text, PdfTheme theme, FontSet fonts, PdfTableVisualSpec spec)
     {
-        var p = ParagraphLines(SingleLine(text), ThemeMono(theme, fonts), spec.SectionFontSize, spec.SectionLineHeight, fallbackFont: ThemeFallback(theme, fonts))
+        var p = ParagraphLines(SingleLine(text), ThemeMono(theme, fonts), spec.SectionFontSize, spec.SectionLineHeight, fallbackFonts: ThemeFallbacks(fonts))
             .SetBackgroundColor(theme.SectionFill)
             .SetFontColor(theme.SectionTextColor)
             .SetBorder(new SolidBorder(theme.BorderColor, Mm(0.2f)))
@@ -62,7 +62,7 @@ public sealed partial class PdfExportRenderer
         {
             return;
         }
-        var p = ParagraphLines(DatePrefix(options, false) + period, ThemeMonoLight(theme, fonts), spec.DateFontSize, spec.DateLineHeight, fallbackFont: ThemeFallback(theme, fonts))
+        var p = ParagraphLines(DatePrefix(options, false) + period, ThemeMonoLight(theme, fonts), spec.DateFontSize, spec.DateLineHeight, fallbackFonts: ThemeFallbacks(fonts))
             .SetFontColor(theme.Key == "civic_blue" ? theme.MutedTextColor : theme.TextColor)
             .SetPaddingTop(spec.DatePaddingTop)
             .SetPaddingBottom(spec.DatePaddingBottom)
