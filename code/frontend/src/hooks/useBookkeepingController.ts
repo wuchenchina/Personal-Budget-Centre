@@ -139,9 +139,19 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
     }
 
     try {
-      const values = await form.validateFields();
+      const validatedValues = await form.validateFields();
+      const values = {
+        ...form.getFieldsValue(true),
+        ...validatedValues,
+      };
       setSaving(true);
       setError(null);
+      const amount = normalizedAmount(values.amount);
+      if (amount === null) {
+        throw new Error(translateCurrent('amountRequired'));
+      }
+      const rate = rateToBaseFromBookkeepingForm(values, options.selectedBudget.baseCurrency);
+      const destinationAmount = normalizedAmount(values.destinationAmount);
       const payload: SaveBookkeepingRecordPayload = {
         transactionType: values.transactionType ?? 'expense',
         recordDate: values.recordDate?.format('YYYY-MM-DD') ?? null,
@@ -151,13 +161,13 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
         sourceAccountName: normalizedText(values.sourceAccountName),
         destinationAccountName: normalizedText(values.destinationAccountName),
         currency: values.currency,
-        amount: values.amount,
-        rate: values.rate,
+        amount,
+        rate: rate ?? undefined,
         rateScope: values.rateScope ?? 'item',
-        destinationCurrency: normalizedAmount(values.destinationAmount) === null
+        destinationCurrency: destinationAmount === null
           ? undefined
           : values.destinationCurrency,
-        destinationAmount: normalizedAmount(values.destinationAmount),
+        destinationAmount,
         destinationRate: normalizedAmount(values.destinationRate) ?? undefined,
         remark: normalizedText(values.remark),
         sortOrder: values.sortOrder ?? 0,
@@ -213,14 +223,48 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
   };
 }
 
-function normalizedAmount(value: number | null | undefined): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+function normalizedAmount(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
 }
 
 function normalizedText(value: string | null | undefined): string | null {
   const trimmed = typeof value === 'string' ? value.trim() : '';
 
   return trimmed === '' ? null : trimmed;
+}
+
+function rateToBaseFromBookkeepingForm(
+  values: BookkeepingRecordFormValues,
+  baseCurrency: CurrencyCode,
+): number | null {
+  if (values.currency === baseCurrency) {
+    return 1;
+  }
+
+  const rate = normalizedAmount(values.rate);
+  if (rate !== null && rate > 0) {
+    return rate;
+  }
+
+  const amount = normalizedAmount(values.amount);
+  const targetBaseAmount = normalizedAmount(values.targetBaseAmount);
+  if (amount !== null && amount > 0 && targetBaseAmount !== null) {
+    const derivedRate = Number((targetBaseAmount / amount).toFixed(6));
+
+    return derivedRate > 0 ? derivedRate : null;
+  }
+
+  return null;
 }
 
 export type BookkeepingController = ReturnType<typeof useBookkeepingController>;
