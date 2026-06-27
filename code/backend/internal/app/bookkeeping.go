@@ -173,6 +173,12 @@ func (a *App) bookkeepingRecordValues(ctx context.Context, input map[string]any,
 	}
 	rateDate := dateString(firstValue(input, "rateDate", "recordDate", "record_date"))
 	explicitRate, hasExplicitRate, rateErr := rateInput(input, []string{"rate"}, "Rate")
+	if rateErr == nil && !hasExplicitRate && currencyID != basics.BaseCurrencyID && amount > 0 {
+		if targetBaseAmount, ok := optionalNumber(firstValue(input, "targetBaseAmount", "target_base_amount", "amountBase", "amount_base")); ok && targetBaseAmount >= 0 {
+			explicitRate = targetBaseAmount / amount
+			hasExplicitRate = explicitRate > 0
+		}
+	}
 	rate, err := a.rateToBase(ctx, userID, basics.WorkspaceID, currencyID, basics, rateDate, explicitRate, hasExplicitRate, rateErr)
 	if err != nil {
 		return bookkeepingRecordValues{}, err

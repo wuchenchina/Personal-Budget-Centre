@@ -151,6 +151,7 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
         throw new Error(translateCurrent('amountRequired'));
       }
       const rate = rateToBaseFromBookkeepingForm(values, options.selectedBudget.baseCurrency);
+      const targetBaseAmount = normalizedAmount(values.targetBaseAmount);
       const destinationAmount = normalizedAmount(values.destinationAmount);
       const payload: SaveBookkeepingRecordPayload = {
         transactionType: values.transactionType ?? 'expense',
@@ -163,6 +164,7 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
         currency: values.currency,
         amount,
         rate: rate ?? undefined,
+        targetBaseAmount,
         rateScope: values.rateScope ?? 'item',
         destinationCurrency: destinationAmount === null
           ? undefined
