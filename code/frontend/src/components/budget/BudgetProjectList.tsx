@@ -90,7 +90,7 @@ export function BudgetProjectList({
         />
         <Input
           allowClear
-          className="project-search"
+          className="bc-search-input project-search"
           placeholder={t('searchBudgetProjects')}
           prefix={<Search size={15} />}
           value={searchText}

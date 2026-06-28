@@ -18,6 +18,7 @@ export function useBudgetEntryController(options: UseBudgetEntryControllerOption
 
     const conversion = await convertCurrency({
       workspaceId: options.selectedBudget.workspaceId,
+      budgetId: options.selectedBudget.id,
       fromCurrency,
       toCurrency,
       amount: 1,

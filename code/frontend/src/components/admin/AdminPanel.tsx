@@ -17,6 +17,7 @@ import {
   Mail,
   RefreshCcw,
   Database,
+  Search as SearchIcon,
   ServerCog,
   ShieldCheck,
   Trash2,
@@ -334,8 +335,8 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
           <Space wrap>
             <Search
               allowClear
-              className="admin-search"
-              enterButton={t('search')}
+              className="bc-search-input admin-search"
+              enterButton={<SearchIcon size={14} />}
               placeholder={t('searchUsersPlaceholder')}
               onSearch={controller.applySearch}
             />

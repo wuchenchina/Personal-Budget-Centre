@@ -115,10 +115,10 @@ export function useTransactionEntryActions({
 
     const conversion = await convertCurrency({
       workspaceId: selectedBudget.workspaceId,
+      budgetId: selectedBudget.id,
       fromCurrency: selectedBudget.baseCurrency,
       toCurrency: values.referenceCurrency,
       amount: baseAmount,
-      rateDate: values.transactionDate?.format('YYYY-MM-DD'),
     });
 
     return roundMoney(conversion.convertedAmount);

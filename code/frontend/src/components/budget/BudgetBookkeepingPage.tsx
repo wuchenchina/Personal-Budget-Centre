@@ -359,7 +359,7 @@ export function BudgetBookkeepingPage({
           />
           <Input
             allowClear
-            className="bookkeeping-search"
+            className="bc-search-input bookkeeping-search"
             placeholder={t('searchBookkeeping')}
             prefix={<Search size={15} />}
             value={searchText}

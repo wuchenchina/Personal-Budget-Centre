@@ -494,7 +494,7 @@ export function ExchangeRateSideSection({
                     </div>
                     <Input
                       allowClear
-                      className="rate-board-search"
+                      className="bc-search-input rate-board-search"
                       prefix={<Search size={14} />}
                       placeholder={t('search')}
                       value={searchText}

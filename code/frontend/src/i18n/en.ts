@@ -470,7 +470,7 @@ export const enDictionary = {
     manageCategories: 'Preset category management',
     manual: 'Manual',
     manualEntry: 'Manual entry',
-    manualRateOptional: 'Optional. Leave blank to use budget or bank reference rates. For unsupported currencies, enter a manual rate and use an external reference if needed.',
+    manualRateOptional: 'Optional. Leave blank to use budget, private, then bank reference rates. For unsupported currencies, enter a manual rate and use an external reference if needed.',
     currencySettings: 'Currency settings',
     specifiedCurrency: 'Specified currency',
     specifiedCurrencyHelp: 'Used as the secondary currency shown under the base-currency amount.',

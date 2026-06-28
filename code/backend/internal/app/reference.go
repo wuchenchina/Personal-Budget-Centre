@@ -529,8 +529,23 @@ func (a *App) exchangeRateConvert(w http.ResponseWriter, r *http.Request) error 
 		return err
 	}
 	workspaceID := int64Value(firstValue(input, "workspaceId", "workspace_id"))
-	if err := a.requireWorkspaceRole(r.Context(), workspaceID, s.UserID, "owner", "admin", "editor", "viewer", "auditor"); err != nil {
-		return err
+	budgetID := int64Value(firstValue(input, "budgetId", "budget_id"))
+	if budgetID > 0 {
+		if err := a.requireBudgetRead(r, budgetID, s.UserID); err != nil {
+			return err
+		}
+		basics, err := a.budgetBasics(r.Context(), budgetID)
+		if err != nil {
+			return err
+		}
+		if workspaceID > 0 && workspaceID != basics.WorkspaceID {
+			return apiError("VALIDATION_ERROR", "Budget does not belong to the workspace.", http.StatusUnprocessableEntity)
+		}
+		workspaceID = basics.WorkspaceID
+	} else {
+		if err := a.requireWorkspaceRole(r.Context(), workspaceID, s.UserID, "owner", "admin", "editor", "viewer", "auditor"); err != nil {
+			return err
+		}
 	}
 	fromID, err := a.requiredCurrencyID(r.Context(), firstValue(input, "fromCurrency", "from_currency"))
 	if err != nil {
@@ -545,7 +560,12 @@ func (a *App) exchangeRateConvert(w http.ResponseWriter, r *http.Request) error 
 		return apiError("VALIDATION_ERROR", "Amount is required.", http.StatusUnprocessableEntity)
 	}
 	rateDate := dateString(firstValue(input, "rateDate", "rate_date"))
-	conversion, err := a.resolveExchangeRate(r.Context(), s.UserID, workspaceID, fromID, toID, rateDate)
+	var conversion exchangeRateConversion
+	if budgetID > 0 {
+		conversion, err = a.resolveExchangeRateForBudget(r.Context(), budgetID, s.UserID, workspaceID, fromID, toID, rateDate)
+	} else {
+		conversion, err = a.resolveExchangeRate(r.Context(), s.UserID, workspaceID, fromID, toID, rateDate)
+	}
 	if err != nil {
 		return err
 	}

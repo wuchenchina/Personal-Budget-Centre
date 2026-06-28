@@ -424,24 +424,7 @@ func (a *App) resolveExchangeRateForBudget(ctx context.Context, budgetID, userID
 			return *inverse, nil
 		}
 	}
-	direct, err := a.latestBankReferenceExchangeRate(ctx, fromCurrencyID, toCurrencyID, onDate)
-	if err != nil {
-		return exchangeRateConversion{}, err
-	}
-	if direct != nil {
-		direct.ConversionPath = "bank_reference_direct"
-		return *direct, nil
-	}
-	inverse, err := a.latestBankReferenceExchangeRate(ctx, toCurrencyID, fromCurrencyID, onDate)
-	if err != nil {
-		return exchangeRateConversion{}, err
-	}
-	if inverse != nil && inverse.Rate > 0 {
-		inverse.Rate = 1 / inverse.Rate
-		inverse.ConversionPath = "bank_reference_inverse"
-		return *inverse, nil
-	}
-	direct, err = a.latestAccountExchangeRate(ctx, userID, fromCurrencyID, toCurrencyID, onDate)
+	direct, err := a.latestAccountExchangeRate(ctx, userID, fromCurrencyID, toCurrencyID, onDate)
 	if err != nil {
 		return exchangeRateConversion{}, err
 	}
@@ -449,13 +432,30 @@ func (a *App) resolveExchangeRateForBudget(ctx context.Context, budgetID, userID
 		direct.ConversionPath = "account_direct"
 		return *direct, nil
 	}
-	inverse, err = a.latestAccountExchangeRate(ctx, userID, toCurrencyID, fromCurrencyID, onDate)
+	inverse, err := a.latestAccountExchangeRate(ctx, userID, toCurrencyID, fromCurrencyID, onDate)
 	if err != nil {
 		return exchangeRateConversion{}, err
 	}
 	if inverse != nil && inverse.Rate > 0 {
 		inverse.Rate = 1 / inverse.Rate
 		inverse.ConversionPath = "account_inverse"
+		return *inverse, nil
+	}
+	direct, err = a.latestBankReferenceExchangeRate(ctx, fromCurrencyID, toCurrencyID, onDate)
+	if err != nil {
+		return exchangeRateConversion{}, err
+	}
+	if direct != nil {
+		direct.ConversionPath = "bank_reference_direct"
+		return *direct, nil
+	}
+	inverse, err = a.latestBankReferenceExchangeRate(ctx, toCurrencyID, fromCurrencyID, onDate)
+	if err != nil {
+		return exchangeRateConversion{}, err
+	}
+	if inverse != nil && inverse.Rate > 0 {
+		inverse.Rate = 1 / inverse.Rate
+		inverse.ConversionPath = "bank_reference_inverse"
 		return *inverse, nil
 	}
 	hkdID, err := a.requiredSeedCurrencyID(ctx, "HKD")
@@ -683,11 +683,11 @@ func (a *App) rateForPair(ctx context.Context, userID, workspaceID, fromCurrency
 	if fromCurrencyID == toCurrencyID {
 		return &exchangeRateConversion{Rate: 1, RateDate: onDate, Source: "identity"}, nil
 	}
-	direct, err := a.latestBankReferenceExchangeRate(ctx, fromCurrencyID, toCurrencyID, onDate)
+	direct, err := a.latestAccountExchangeRate(ctx, userID, fromCurrencyID, toCurrencyID, onDate)
 	if err != nil || direct != nil {
 		return direct, err
 	}
-	inverse, err := a.latestBankReferenceExchangeRate(ctx, toCurrencyID, fromCurrencyID, onDate)
+	inverse, err := a.latestAccountExchangeRate(ctx, userID, toCurrencyID, fromCurrencyID, onDate)
 	if err != nil {
 		return nil, err
 	}
@@ -695,11 +695,11 @@ func (a *App) rateForPair(ctx context.Context, userID, workspaceID, fromCurrency
 		inverse.Rate = 1 / inverse.Rate
 		return inverse, nil
 	}
-	direct, err = a.latestAccountExchangeRate(ctx, userID, fromCurrencyID, toCurrencyID, onDate)
+	direct, err = a.latestBankReferenceExchangeRate(ctx, fromCurrencyID, toCurrencyID, onDate)
 	if err != nil || direct != nil {
 		return direct, err
 	}
-	inverse, err = a.latestAccountExchangeRate(ctx, userID, toCurrencyID, fromCurrencyID, onDate)
+	inverse, err = a.latestBankReferenceExchangeRate(ctx, toCurrencyID, fromCurrencyID, onDate)
 	if err != nil || inverse == nil || inverse.Rate <= 0 {
 		return nil, err
 	}

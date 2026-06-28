@@ -455,7 +455,7 @@ export const scDictionary = {
     manageCategories: '预设分类管理',
     manual: '手动',
     manualEntry: '手动输入',
-    manualRateOptional: '选填。留空则使用本预算或 bank reference 汇率；不支持的货币请手动填写，可按需参考外部来源。',
+    manualRateOptional: '选填。留空则依序使用本预算、私人和 bank reference 汇率；不支持的货币请手动填写，可按需参考外部来源。',
     currencySettings: '货币设置',
     specifiedCurrency: '指定货币',
     specifiedCurrencyHelp: '用于在基准货币金额下方显示副货币。',

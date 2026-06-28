@@ -47,10 +47,13 @@
 
 .ant-input:focus,
 .ant-input-focused,
+.ant-input-affix-wrapper-focused,
 .ant-input-number-focused,
+.ant-input-number-affix-wrapper-focused,
 .ant-picker-focused,
 .ant-select-focused .ant-select-selector {
-  border: 2px solid var(--bc-focus) !important;
+  border-color: var(--bc-input-border-focus) !important;
+  box-shadow: var(--bc-input-focus-ring) !important;
   outline: none !important;
 }
 
@@ -83,9 +86,11 @@
 .ant-input,
 .ant-input-affix-wrapper,
 .ant-input-number,
+.ant-input-number-affix-wrapper,
 .ant-picker {
   transition:
     border-color var(--bc-motion-fast) var(--bc-ease-standard),
     color var(--bc-motion-fast) var(--bc-ease-standard),
-    background-color var(--bc-motion-fast) var(--bc-ease-standard);
+    background-color var(--bc-motion-fast) var(--bc-ease-standard),
+    box-shadow var(--bc-motion-fast) var(--bc-ease-standard);
 }

@@ -28,6 +28,16 @@
   --bc-warning-soft: #fff7e8;
   --bc-danger-soft: #fff1f2;
   --bc-focus: #111111;
+  --bc-input-bg: #ffffff;
+  --bc-input-bg-hover: #fcfcfc;
+  --bc-input-border: #d0d0d0;
+  --bc-input-border-hover: #adadad;
+  --bc-input-border-focus: #777777;
+  --bc-input-icon: #767676;
+  --bc-input-placeholder: #9a9a9a;
+  --bc-input-focus-ring: 0 0 0 3px rgba(17, 17, 17, 0.06);
+  --bc-search-bg: #fbfbfb;
+  --bc-search-bg-focus: #ffffff;
   --bc-shadow-raised: 0 6px 16px rgba(17, 17, 17, 0.08);
   --bc-shadow-menu: 0 8px 20px rgba(17, 17, 17, 0.12);
   --bc-shadow-modal: 0 16px 36px rgba(17, 17, 17, 0.16);
@@ -354,6 +364,43 @@ select {
   color: var(--bc-accent) !important;
 }
 
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-search .ant-input,
+.ant-input-search .ant-input-group-addon .ant-btn,
+.ant-input-number,
+.ant-input-number-affix-wrapper,
+.ant-picker {
+  background: var(--bc-input-bg) !important;
+  border-color: var(--bc-input-border) !important;
+  box-shadow: none !important;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-input-search:hover .ant-input,
+.ant-input-search:hover .ant-input-group-addon .ant-btn,
+.ant-input-number:hover,
+.ant-input-number-affix-wrapper:hover,
+.ant-picker:hover {
+  background: var(--bc-input-bg-hover) !important;
+  border-color: var(--bc-input-border-hover) !important;
+}
+
+.ant-input::placeholder,
+.ant-input-affix-wrapper input::placeholder,
+.ant-input-search input::placeholder,
+.ant-input-number-input::placeholder {
+  color: var(--bc-input-placeholder) !important;
+}
+
+.ant-input-affix-wrapper .ant-input-prefix,
+.ant-input-affix-wrapper .ant-input-suffix,
+.ant-input-search .ant-input-prefix,
+.ant-input-search .ant-input-suffix {
+  color: var(--bc-input-icon);
+}
+
 .ant-input:focus,
 .ant-input-focused,
 .ant-input-affix-wrapper-focused,
@@ -361,15 +408,101 @@ select {
 .ant-input-number-affix-wrapper-focused,
 .ant-picker-focused,
 .ant-select-focused .ant-select-selector {
-  border-color: var(--bc-focus) !important;
-  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.08) !important;
+  border-color: var(--bc-input-border-focus) !important;
+  box-shadow: var(--bc-input-focus-ring) !important;
   outline: none !important;
+}
+
+.ant-input-search .ant-input:focus,
+.ant-input-search .ant-input-focused,
+.ant-input-search .ant-input-group-addon .ant-btn:focus-visible {
+  border-color: var(--bc-input-border-focus) !important;
+  box-shadow: var(--bc-input-focus-ring) !important;
+  outline: none !important;
+}
+
+.bc-search-input.ant-input-affix-wrapper,
+.bookkeeping-search.ant-input-affix-wrapper,
+.project-search.ant-input-affix-wrapper,
+.rate-board-search.ant-input-affix-wrapper,
+.admin-search.ant-input-search .ant-input,
+.admin-search.ant-input-search .ant-input-group-addon .ant-btn {
+  min-height: 34px;
+  background: var(--bc-search-bg) !important;
+  border-color: var(--bc-input-border) !important;
+}
+
+.bc-search-input.ant-input-affix-wrapper,
+.bookkeeping-search.ant-input-affix-wrapper,
+.project-search.ant-input-affix-wrapper,
+.rate-board-search.ant-input-affix-wrapper {
+  padding-inline: 11px 9px;
+}
+
+.bc-search-input.ant-input-affix-wrapper:hover,
+.bookkeeping-search.ant-input-affix-wrapper:hover,
+.project-search.ant-input-affix-wrapper:hover,
+.rate-board-search.ant-input-affix-wrapper:hover,
+.admin-search.ant-input-search:hover .ant-input,
+.admin-search.ant-input-search:hover .ant-input-group-addon .ant-btn {
+  background: #ffffff !important;
+  border-color: var(--bc-input-border-hover) !important;
+}
+
+.bc-search-input.ant-input-affix-wrapper-focused,
+.bookkeeping-search.ant-input-affix-wrapper-focused,
+.project-search.ant-input-affix-wrapper-focused,
+.rate-board-search.ant-input-affix-wrapper-focused,
+.admin-search.ant-input-search .ant-input:focus,
+.admin-search.ant-input-search .ant-input-focused,
+.admin-search.ant-input-search .ant-input-group-addon .ant-btn:focus-visible {
+  background: var(--bc-search-bg-focus) !important;
+  border-color: var(--bc-input-border-focus) !important;
+  box-shadow: var(--bc-input-focus-ring) !important;
+}
+
+.bc-search-input .ant-input,
+.bookkeeping-search .ant-input,
+.project-search .ant-input,
+.rate-board-search .ant-input,
+.admin-search.ant-input-search .ant-input {
+  background: transparent !important;
+}
+
+.bc-search-input svg,
+.bookkeeping-search svg,
+.project-search svg,
+.rate-board-search svg,
+.admin-search svg {
+  color: var(--bc-input-icon);
+  stroke-width: 2;
+}
+
+.admin-search.ant-input-search .ant-input-group-addon .ant-btn {
+  width: 36px;
+  padding-inline: 0;
+  color: var(--bc-input-icon);
+}
+
+.admin-search.ant-input-search .ant-input-group-addon,
+.admin-search.ant-input-search .ant-input-group-addon .ant-btn {
+  border-inline-start: 0 !important;
+}
+
+.admin-search.ant-input-search .ant-input-group-addon .ant-btn:hover {
+  color: var(--bc-text) !important;
 }
 
 .ant-btn:focus-visible {
   border-color: var(--bc-focus) !important;
   outline: 1px solid var(--bc-focus) !important;
   outline-offset: 0;
+}
+
+.admin-search.ant-input-search .ant-input-group-addon .ant-btn:focus-visible {
+  border-color: var(--bc-input-border-focus) !important;
+  box-shadow: var(--bc-input-focus-ring) !important;
+  outline: none !important;
 }
 
 .ant-form-item-has-error .ant-input,

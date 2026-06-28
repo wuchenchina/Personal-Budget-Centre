@@ -127,9 +127,10 @@ export function BudgetExchangeRateManager({
     form.resetFields();
     form.setFieldsValue({
       ...(defaultFromCurrency === undefined ? {} : { fromCurrency: defaultFromCurrency }),
+      toCurrency: baseCurrency,
       rateDate: todayInputDate(),
     });
-  }, [defaultFromCurrency, form]);
+  }, [baseCurrency, defaultFromCurrency, form]);
 
   const openEditRate = useCallback((rate: BudgetExchangeRate) => {
     setEditingRate(rate);

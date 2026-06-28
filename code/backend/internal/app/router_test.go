@@ -204,6 +204,66 @@ func TestAccountExchangeRatesStayUserScoped(t *testing.T) {
 	}
 }
 
+func TestExchangeRateResolverPriorityOrder(t *testing.T) {
+	content, err := os.ReadFile("exchange_rates.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func (a *App) resolveExchangeRateForBudget")
+	end := strings.Index(source, "func (a *App) latestBudgetExchangeRate")
+	if start < 0 || end < start {
+		t.Fatal("could not locate resolveExchangeRateForBudget function")
+	}
+	body := source[start:end]
+	budgetIndex := strings.Index(body, "latestBudgetExchangeRate")
+	accountIndex := strings.Index(body, "latestAccountExchangeRate")
+	bankReferenceIndex := strings.Index(body, "latestBankReferenceExchangeRate")
+	if budgetIndex < 0 || accountIndex < 0 || bankReferenceIndex < 0 {
+		t.Fatalf("exchange-rate resolver must check budget, account, and bank reference rates: %s", body)
+	}
+	if !(budgetIndex < accountIndex && accountIndex < bankReferenceIndex) {
+		t.Fatal("exchange-rate resolver priority must be budget, private account, then bank reference")
+	}
+
+	start = strings.Index(source, "func (a *App) rateForPair")
+	end = strings.Index(source, "func (a *App) latestBankReferenceExchangeRate")
+	if start < 0 || end < start {
+		t.Fatal("could not locate rateForPair function")
+	}
+	body = source[start:end]
+	accountIndex = strings.Index(body, "latestAccountExchangeRate")
+	bankReferenceIndex = strings.Index(body, "latestBankReferenceExchangeRate")
+	if accountIndex < 0 || bankReferenceIndex < 0 {
+		t.Fatalf("HKD cross-rate fallback must check account and bank reference rates: %s", body)
+	}
+	if accountIndex > bankReferenceIndex {
+		t.Fatal("HKD cross-rate fallback must use private account rates before bank reference rates")
+	}
+}
+
+func TestRateToBaseUsesExplicitRateBeforeSharedResolver(t *testing.T) {
+	content, err := os.ReadFile("entries.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func (a *App) rateToBase")
+	end := strings.Index(source, "func rateInput")
+	if start < 0 || end < start {
+		t.Fatal("could not locate rateToBase function")
+	}
+	body := source[start:end]
+	explicitIndex := strings.Index(body, "if hasExplicitRate")
+	resolverIndex := strings.Index(body, "resolveExchangeRateForBudget")
+	if explicitIndex < 0 || resolverIndex < 0 {
+		t.Fatalf("rateToBase must support explicit rates and shared resolver fallback: %s", body)
+	}
+	if explicitIndex > resolverIndex {
+		t.Fatal("single-entry explicit rates must be used before the shared exchange-rate resolver")
+	}
+}
+
 func TestSaveCurrentExchangeRateOverwritesWithoutRuntimeHistory(t *testing.T) {
 	content, err := os.ReadFile("exchange_rates.go")
 	if err != nil {
@@ -302,6 +362,30 @@ func TestBankReferenceRefreshWritesGlobalProviderRates(t *testing.T) {
 	}
 	if strings.Count(body, "UserID:            sql.NullInt64{}") < 2 {
 		t.Fatal("bank reference buy/sell current rates must not store user_id")
+	}
+}
+
+func TestExchangeRateConvertUsesBudgetScopedRatesWhenBudgetIDIsProvided(t *testing.T) {
+	content, err := os.ReadFile("reference.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func (a *App) exchangeRateConvert")
+	end := strings.Index(source, "func (a *App) categoryList")
+	if start < 0 || end < start {
+		t.Fatal("could not locate exchangeRateConvert function")
+	}
+	body := source[start:end]
+	for _, want := range []string{
+		`firstValue(input, "budgetId", "budget_id")`,
+		"requireBudgetRead",
+		"Budget does not belong to the workspace.",
+		"resolveExchangeRateForBudget",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("exchange-rate convert must use budget scoped rates when budgetId is provided, missing %q", want)
+		}
 	}
 }
 

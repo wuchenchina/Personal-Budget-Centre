@@ -123,6 +123,7 @@ export interface AccountExchangeRatePayload {
 
 export interface ConvertCurrencyPayload {
   workspaceId: number;
+  budgetId?: number;
   fromCurrency: CurrencyCode;
   toCurrency: CurrencyCode;
   amount: number;

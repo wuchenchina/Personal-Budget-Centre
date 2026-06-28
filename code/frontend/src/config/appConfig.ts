@@ -92,6 +92,14 @@ export const appTheme: ThemeConfig = {
       textHoverBg: '#ffffff',
       textTextHoverColor: '#db0011',
     },
+    Input: {
+      activeBg: '#ffffff',
+      activeBorderColor: '#8f8f8f',
+      activeShadow: '0 0 0 3px rgba(17, 17, 17, 0.06)',
+      hoverBg: '#ffffff',
+      hoverBorderColor: '#b7b7b7',
+      paddingInline: 11,
+    },
     Table: {
       cellFontSizeSM: 12,
       borderColor: '#e6e6e6',

@@ -67,6 +67,8 @@ export function TransactionModal({
   const rate = Form.useWatch('rate', form);
   const referenceCurrency = Form.useWatch('referenceCurrency', form);
   const referenceAmount = Form.useWatch('referenceAmount', form);
+  const hasReferenceAmount =
+    typeof referenceAmount === 'number' && Number.isFinite(referenceAmount);
   const pricingUnitPrice = Form.useWatch(['pricingConfig', 'unitPrice'], form);
   const pricingQuantity = Form.useWatch(['pricingConfig', 'quantity'], form);
   const basePreview =
@@ -74,7 +76,7 @@ export function TransactionModal({
       ? amount * (typeof rate === 'number' && Number.isFinite(rate) && rate > 0 ? rate : 1)
       : null;
   const referencePreview =
-    typeof referenceAmount === 'number' && Number.isFinite(referenceAmount) && referenceCurrency
+    hasReferenceAmount && referenceCurrency
       ? `${referenceCurrency} ${referenceAmount.toFixed(2)}`
       : null;
   const impliedReferenceRate =
@@ -485,6 +487,7 @@ export function TransactionModal({
                 {impliedReferenceRate ? <small>{impliedReferenceRate}</small> : null}
               </strong>
               <Button
+                disabled={referenceCurrency === undefined}
                 icon={<Calculator size={14} />}
                 loading={confirmLoading}
                 size="small"

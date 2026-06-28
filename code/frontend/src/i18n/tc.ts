@@ -455,7 +455,7 @@ export const tcDictionary = {
     manageCategories: '預設分類管理',
     manual: '手動',
     manualEntry: '手動輸入',
-    manualRateOptional: '選填。留空則使用本預算或 bank reference 匯率；不支援的貨幣請手動填寫，可視需要參考外部來源。',
+    manualRateOptional: '選填。留空則依序使用本預算、私人與 bank reference 匯率；不支援的貨幣請手動填寫，可視需要參考外部來源。',
     currencySettings: '貨幣設定',
     specifiedCurrency: '指定貨幣',
     specifiedCurrencyHelp: '用於在基準貨幣金額下方顯示副貨幣。',
