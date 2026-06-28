@@ -34,8 +34,6 @@ import { AdminLogsPanel } from './AdminLogsPanel';
 import { EnvironmentCheckSummary } from './EnvironmentCheckSummary';
 import { formatDate } from './adminFormat';
 
-const { Search } = Input;
-
 interface AdminPanelProps {
   controller: AdminController;
   currentUserId: number | null;
@@ -333,12 +331,13 @@ export function AdminPanel({ controller, currentUserId }: AdminPanelProps) {
             <h2>{t('adminUserManagement')}</h2>
           </div>
           <Space wrap>
-            <Search
+            <Input
               allowClear
               className="bc-search-input admin-search"
-              enterButton={<SearchIcon size={14} />}
               placeholder={t('searchUsersPlaceholder')}
-              onSearch={controller.applySearch}
+              prefix={<SearchIcon size={15} />}
+              value={controller.search}
+              onChange={(event) => controller.applySearch(event.target.value)}
             />
             <Select<UserStatus | 'all'>
               className="admin-status-filter"

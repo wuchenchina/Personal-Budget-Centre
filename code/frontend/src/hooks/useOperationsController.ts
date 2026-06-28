@@ -529,7 +529,10 @@ export function useOperationsController(options: UseOperationsControllerOptions)
         budgetId: selectedBudget?.id ?? null,
       }));
     } catch (error: unknown) {
-      throw new Error(error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'));
+      throw new Error(
+        error instanceof Error ? error.message : translateCurrent('loadingExchangeRatesFailed'),
+        { cause: error },
+      );
     } finally {
       setRefreshingExchangeRateSource(null);
     }
