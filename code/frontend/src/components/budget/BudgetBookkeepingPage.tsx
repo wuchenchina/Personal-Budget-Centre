@@ -32,6 +32,7 @@ interface BudgetBookkeepingPageProps {
   defaultPdfTheme: PdfThemeKey;
   exportingPdf: boolean;
   pdfExportSettings: PdfExportSettings;
+  recordModalOpen: boolean;
   onBackToProjects: () => void;
   onOpenEditor: (budgetId: number) => void;
   onExportPdf: (options: BudgetExportOptions) => void;
@@ -54,6 +55,7 @@ export function BudgetBookkeepingPage({
   defaultPdfTheme,
   exportingPdf,
   pdfExportSettings,
+  recordModalOpen,
   onBackToProjects,
   onOpenEditor,
   onExportPdf,
@@ -95,6 +97,35 @@ export function BudgetBookkeepingPage({
 
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [exportingPdf]);
+  const canUseRecordShortcut = canWriteBudgets && selectedBudget !== null;
+  useEffect(() => {
+    if (!canUseRecordShortcut) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isShortcut =
+        event.key.toLowerCase() === 'n'
+        && !event.altKey
+        && !event.shiftKey
+        && ((event.ctrlKey && !event.metaKey) || (event.metaKey && !event.ctrlKey));
+
+      if (event.defaultPrevented || event.repeat || !isShortcut) {
+        return;
+      }
+
+      event.preventDefault();
+      if (recordModalOpen) {
+        return;
+      }
+
+      onNewRecord();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canUseRecordShortcut, onNewRecord, recordModalOpen]);
   const currency = selectedBudget?.baseCurrency ?? baseCurrency;
   const normalizedSearch = searchText.trim().toLowerCase();
   const filteredRecords = useMemo(

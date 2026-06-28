@@ -259,6 +259,7 @@ function AuthenticatedApp({
         defaultPdfTheme={session.user.defaultPdfTheme}
         exportingPdf={operations.creatingExportFormat === 'pdf'}
         pdfExportSettings={session.user.pdfExportSettings}
+        recordModalOpen={bookkeeping.modalOpen}
         onBackToProjects={() => navigateToPath('/budgets')}
         onOpenEditor={openBudgetProjectInNewTab}
         onExportPdf={(exportOptions) => operations.createExport('pdf', {
