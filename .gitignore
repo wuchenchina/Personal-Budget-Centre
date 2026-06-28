@@ -10,6 +10,7 @@
 *.sw?
 storage/
 local-only/
+.codex/
 
 # Logs
 logs/
