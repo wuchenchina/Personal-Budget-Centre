@@ -91,7 +91,7 @@ public sealed partial class PdfExportRenderer
             .Append(SigNum(width)).Append("mm\" height=\"").Append(SigNum(height)).Append("mm\" viewBox=\"0 0 ")
             .Append(SigNum(width)).Append(' ').Append(SigNum(height)).Append("\">");
         svg.Append(SignatureFontFaceSvgStyle(fontDir, options.PrimaryChineseLanguage(), theme));
-        var outerStrokeWidth = 0.55f;
+        var outerStrokeWidth = 0.2f;
         var outerInset = outerStrokeWidth / 2;
         svg.Append("<rect x=\"0\" y=\"0\" width=\"").Append(SigNum(width)).Append("\" height=\"")
             .Append(SigNum(titleBandHeight)).Append("\" fill=\"").Append(palette.TitleFill).Append("\"/>");
@@ -107,7 +107,7 @@ public sealed partial class PdfExportRenderer
             var rowHeight = SignatureRowHeight(row, width);
             if (index > 0)
             {
-                svg.Append(LineSvg(2, rowTop - 1.1f, width - 2, rowTop - 1.1f, palette.Divider, 0.24f));
+                svg.Append(LineSvg(2, rowTop - 1.1f, width - 2, rowTop - 1.1f, palette.Divider, 0.16f));
             }
             var box = SignatureBoxMetrics(rowTop, width, Math.Max(1, row.Fields.Count));
             svg.Append(SignatureBoxSvg(config, rowTop, width, Math.Max(1, row.Fields.Count), palette, check));
@@ -119,7 +119,7 @@ public sealed partial class PdfExportRenderer
         {
             if (signingRows.Count > 0)
             {
-                svg.Append(LineSvg(2, rowTop - 1.1f, width - 2, rowTop - 1.1f, palette.NoteDivider, 0.22f));
+                svg.Append(LineSvg(2, rowTop - 1.1f, width - 2, rowTop - 1.1f, palette.NoteDivider, 0.14f));
             }
             svg.Append(SignatureNotesSvg(noteRows, rowTop, width, palette));
         }
@@ -270,9 +270,9 @@ public sealed partial class PdfExportRenderer
         var svg = new StringBuilder();
         svg.Append("<rect x=\"").Append(SigNum(box.X)).Append("\" y=\"").Append(SigNum(box.Y)).Append("\" width=\"")
             .Append(SigNum(box.Width)).Append("\" height=\"").Append(SigNum(box.Height)).Append("\" fill=\"#fff\" stroke=\"")
-            .Append(palette.Border).Append("\" stroke-width=\"0.45\"/>");
+            .Append(palette.Border).Append("\" stroke-width=\"0.2\"/>");
         svg.Append(SignatureSecurityPatternSvg(box.X, box.Y, box.Width, box.Height, palette, check));
-        svg.Append(LineSvg(box.X + 4, lineY, box.X + box.Width - 4, lineY, palette.SignatureLine, 0.22f));
+        svg.Append(LineSvg(box.X + 4, lineY, box.X + box.Width - 4, lineY, palette.SignatureLine, 0.16f));
         var alignRight = JsonValue.String(config, "labelAlign") == "right";
         foreach (var (line, index) in captionLines.Select((line, index) => (line, index)))
         {
@@ -327,7 +327,7 @@ public sealed partial class PdfExportRenderer
         var svg = new StringBuilder();
         svg.Append("<rect x=\"").Append(SigNum(x)).Append("\" y=\"").Append(SigNum(rowTop)).Append("\" width=\"")
             .Append(SigNum(innerWidth)).Append("\" height=\"").Append(SigNum(height)).Append("\" fill=\"")
-            .Append(palette.NoteFill).Append("\" stroke=\"").Append(palette.NoteStroke).Append("\" stroke-width=\"0.22\"/>");
+            .Append(palette.NoteFill).Append("\" stroke=\"").Append(palette.NoteStroke).Append("\" stroke-width=\"0.14\"/>");
         var items = rows.Where(v => !string.IsNullOrWhiteSpace(v.PrimaryNote) || !string.IsNullOrWhiteSpace(v.DetailNote)).ToList();
         if (items.Count == 0)
         {
