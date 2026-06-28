@@ -108,7 +108,8 @@ export function BudgetBookkeepingPage({
         event.key.toLowerCase() === 'n'
         && !event.altKey
         && !event.shiftKey
-        && ((event.ctrlKey && !event.metaKey) || (event.metaKey && !event.ctrlKey));
+        && event.ctrlKey
+        && !event.metaKey;
 
       if (event.defaultPrevented || event.repeat || !isShortcut) {
         return;
