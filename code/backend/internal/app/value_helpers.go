@@ -161,6 +161,11 @@ func queryInt(r *http.Request, key string) int64 {
 	return out
 }
 
+func queryNativeInt(r *http.Request, key string) int {
+	out, _ := strconv.ParseInt(r.URL.Query().Get(key), 10, strconv.IntSize)
+	return int(out)
+}
+
 func firstQuery(r *http.Request, keys ...string) string {
 	for _, key := range keys {
 		if value := strings.TrimSpace(r.URL.Query().Get(key)); value != "" {

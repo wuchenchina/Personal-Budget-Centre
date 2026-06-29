@@ -26,11 +26,11 @@ func (a *App) adminUserList(w http.ResponseWriter, r *http.Request) error {
 	if status != "" && !validUserStatus(status) {
 		return apiError("VALIDATION_ERROR", "Invalid user status.", http.StatusUnprocessableEntity)
 	}
-	page := int(queryInt(r, "page"))
+	page := queryNativeInt(r, "page")
 	if page <= 0 {
 		page = 1
 	}
-	pageSize := int(queryInt(r, "pageSize"))
+	pageSize := queryNativeInt(r, "pageSize")
 	if pageSize <= 0 {
 		pageSize = 30
 	}
