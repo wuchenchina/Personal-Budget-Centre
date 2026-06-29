@@ -26,11 +26,11 @@ func (a *App) adminUserList(w http.ResponseWriter, r *http.Request) error {
 	if status != "" && !validUserStatus(status) {
 		return apiError("VALIDATION_ERROR", "Invalid user status.", http.StatusUnprocessableEntity)
 	}
-	page := int(queryInt(r, "page"))
+	page := queryInt(r, "page")
 	if page <= 0 {
 		page = 1
 	}
-	pageSize := int(queryInt(r, "pageSize"))
+	pageSize := queryInt(r, "pageSize")
 	if pageSize <= 0 {
 		pageSize = 30
 	}
@@ -40,13 +40,16 @@ func (a *App) adminUserList(w http.ResponseWriter, r *http.Request) error {
 	if pageSize > 100 {
 		pageSize = 100
 	}
+	pageInt := int(page)
+	pageSizeInt := int(pageSize)
+
 	where, args := adminUserFilters(search, status)
 	var total int
 	if err := a.db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM users u "+where, args...).Scan(&total); err != nil {
 		return err
 	}
 	queryArgs := append([]any{}, args...)
-	queryArgs = append(queryArgs, pageSize, (page-1)*pageSize)
+	queryArgs = append(queryArgs, pageSizeInt, (pageInt-1)*pageSizeInt)
 	rows, err := a.db.QueryContext(r.Context(), `
 SELECT u.id, u.email, u.username, u.display_name, u.status, u.is_admin,
        u.email_verified_at, u.email_verification_sent_at, u.created_at, u.updated_at, c.code
