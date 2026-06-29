@@ -103,14 +103,18 @@ func smtpExpect(reader *bufio.Reader, expected ...int) error {
 
 func mailMessage(from, fromName, to, subject, body string) string {
 	headers := []string{
-		"From: " + encodedHeader(fromName) + " <" + from + ">",
-		"To: <" + to + ">",
+		"From: " + mailHeaderAddress(fromName, from),
+		"To: " + mailHeaderAddress("", to),
 		"Subject: " + encodedHeader(subject),
 		"MIME-Version: 1.0",
 		"Content-Type: text/plain; charset=UTF-8",
 		"Content-Transfer-Encoding: base64",
 	}
 	return strings.Join(headers, "\r\n") + "\r\n\r\n" + encodedMailBody(body)
+}
+
+func mailHeaderAddress(name, address string) string {
+	return (&mail.Address{Name: sanitizeSMTPHeaderValue(name), Address: address}).String()
 }
 
 func sanitizeSMTPAddress(value string) (string, error) {
