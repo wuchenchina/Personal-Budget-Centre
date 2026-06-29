@@ -199,6 +199,81 @@ func (a *App) passkeyLoginVerify(w http.ResponseWriter, r *http.Request) error {
 	return a.issueSession(w, r, userID, workspace)
 }
 
+func (a *App) passkeyResetOptions(w http.ResponseWriter, r *http.Request) error {
+	email := normalizedEmail(r.URL.Query().Get("email"))
+	if email == "" {
+		return apiError("VALIDATION_ERROR", "A valid email is required.", http.StatusUnprocessableEntity)
+	}
+	user, err := a.passkeyUserByEmail(r.Context(), email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return apiError("PASSWORD_RESET_NOT_AVAILABLE", "Password reset is not available for this account.", http.StatusConflict)
+		}
+		return err
+	}
+	if _, _, _, eligible, err := a.passwordResetEligibleUserByEmail(r.Context(), email); err != nil {
+		return err
+	} else if !eligible || len(user.Credentials) == 0 {
+		return apiError("PASSWORD_RESET_NOT_AVAILABLE", "Password reset is not available for this account.", http.StatusConflict)
+	}
+	webAuthn, err := a.webAuthn()
+	if err != nil {
+		return err
+	}
+	assertion, session, err := webAuthn.BeginLogin(user, wan.WithUserVerification(protocol.VerificationPreferred))
+	if err != nil {
+		return passkeyWebAuthnError("PASSKEY_OPTIONS_FAILED", "Passkey reset options could not be generated.", http.StatusInternalServerError, "resetOptions", err, map[string]any{"challengeType": "authentication", "challengeUserKnown": true})
+	}
+	if err := a.storeWebAuthnSession(r.Context(), sql.NullInt64{Int64: user.ID, Valid: true}, "authentication", session); err != nil {
+		return apiErrorWithMeta("PASSKEY_CHALLENGE_STORE_FAILED", "Passkey challenge could not be stored.", http.StatusInternalServerError, passkeyMeta("store", map[string]any{"challengeType": "authentication", "challengeUserKnown": true, "storageErrorType": fmt.Sprintf("%T", err), "storageErrorMessage": err.Error()}))
+	}
+	httpx.WriteOK(w, map[string]any{"options": assertion.Response}, http.StatusOK)
+	return nil
+}
+
+func (a *App) passkeyResetVerify(w http.ResponseWriter, r *http.Request) error {
+	input, err := readJSON(r)
+	if err != nil {
+		return err
+	}
+	raw, err := credentialJSON(input)
+	if err != nil {
+		return err
+	}
+	parsed, err := protocol.ParseCredentialRequestResponseBytes(raw)
+	if err != nil {
+		return passkeyWebAuthnError("PASSKEY_INVALID", "Authentication response is invalid.", http.StatusUnprocessableEntity, "parseResetAuthentication", err, map[string]any{"challengeType": "authentication"})
+	}
+	session, challengeUserID, err := a.consumeWebAuthnSession(r.Context(), parsed.Response.CollectedClientData.Challenge, "authentication", sql.NullInt64{})
+	if err != nil {
+		return err
+	}
+	if !challengeUserID.Valid {
+		return apiError("PASSKEY_INVALID", "Passkey reset could not be verified.", http.StatusUnauthorized)
+	}
+	webAuthn, err := a.webAuthn()
+	if err != nil {
+		return err
+	}
+	user, err := a.passkeyUserByID(r.Context(), challengeUserID.Int64)
+	if err != nil {
+		return err
+	}
+	credential, err := webAuthn.ValidateLogin(user, session, parsed)
+	if err != nil || credential == nil {
+		return passkeyVerifyError(err, true, len(parsed.Response.UserHandle) == 0, credential != nil, user.ID > 0)
+	}
+	if err := a.updatePasskeyAfterLogin(r.Context(), credential); err != nil {
+		return err
+	}
+	token, err := a.createPasswordResetTokenForUser(r.Context(), user.ID, "passkey")
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{"passwordResetToken": token}, http.StatusOK)
+	return nil
+}
+
 func passkeyVerifyError(err error, challengeUserKnown, blankUserHandle, credentialVerified, userResolved bool) error {
 	extra := map[string]any{
 		"challengeType":      "authentication",

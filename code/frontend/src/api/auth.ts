@@ -40,6 +40,15 @@ export interface UpdatePasswordPayload {
   password: string;
 }
 
+export interface PasswordResetTokenResult {
+  passwordResetToken: string;
+}
+
+export interface PasswordResetVerifyResult {
+  valid: true;
+  email: string;
+}
+
 export interface SsoProviderListResult {
   providers: SsoProvider[];
 }
@@ -82,7 +91,7 @@ export interface SsoCallbackPayload {
   ssoCreateToken?: string;
 }
 
-export type SsoCallbackMode = 'login' | 'bind';
+export type SsoCallbackMode = 'login' | 'bind' | 'reset';
 
 export function getCurrentSession(): Promise<AuthSession | null> {
   return apiGet<CurrentSessionResult>('/api/auth/me').then((result) => result.session);
@@ -97,11 +106,12 @@ export function ssoCallback(
   mode: 'login',
 ): Promise<AuthSession | SsoAccountActionRequired>;
 export function ssoCallback(payload: SsoCallbackPayload, mode: 'bind'): Promise<{ binding: SsoBinding }>;
+export function ssoCallback(payload: SsoCallbackPayload, mode: 'reset'): Promise<PasswordResetTokenResult>;
 export function ssoCallback(
   payload: SsoCallbackPayload,
   mode: SsoCallbackMode = 'login',
-): Promise<AuthSession | { binding: SsoBinding } | SsoAccountActionRequired> {
-  return apiPost<AuthSession | { binding: SsoBinding } | SsoAccountActionRequired>('/api/callback', {
+): Promise<AuthSession | { binding: SsoBinding } | SsoAccountActionRequired | PasswordResetTokenResult> {
+  return apiPost<AuthSession | { binding: SsoBinding } | SsoAccountActionRequired | PasswordResetTokenResult>('/api/callback', {
     ...payload,
     mode,
   });
@@ -127,6 +137,23 @@ export function updateProfile(payload: UpdateProfilePayload): Promise<UpdateProf
 
 export function updatePassword(payload: UpdatePasswordPayload): Promise<{ changed: true }> {
   return apiPatch<{ changed: true }>('/api/auth/password', payload);
+}
+
+export function requestPasswordResetEmail(email: string): Promise<{ sent: true; email: string }> {
+  return apiPost<{ sent: true; email: string }>('/api/auth/password-reset/email', { email });
+}
+
+export function verifyPasswordResetToken(token: string): Promise<PasswordResetVerifyResult> {
+  return apiGet<PasswordResetVerifyResult>(
+    `/api/auth/password-reset/verify?token=${encodeURIComponent(token)}`,
+  );
+}
+
+export function completePasswordReset(payload: {
+  token: string;
+  password: string;
+}): Promise<{ changed: true }> {
+  return apiPost<{ changed: true }>('/api/auth/password-reset/complete', payload);
 }
 
 export function getSsoProviders(): Promise<SsoProviderListResult> {

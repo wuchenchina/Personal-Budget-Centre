@@ -29,6 +29,8 @@ func TestGoRoutesCoverPHPLegacyRoutes(t *testing.T) {
 		"GET /api/auth/sso-providers":                 true,
 		"GET /api/auth/sso/casdoor/authorize":         true,
 		"GET /api/auth/sso/linux-do/authorize":        true,
+		"GET /api/auth/passkey/reset/options":         true,
+		"GET /api/auth/password-reset/verify":         true,
 		"GET /api/budget-exchange-rates":              true,
 		"GET /api/callback":                           true,
 		"GET /api/currency-presets":                   true,
@@ -36,6 +38,9 @@ func TestGoRoutesCoverPHPLegacyRoutes(t *testing.T) {
 		"POST /api/admin/database/migrate":            true,
 		"POST /api/admin/exports/cleanup":             true,
 		"POST /api/account-exchange-rates":            true,
+		"POST /api/auth/passkey/reset/verify":         true,
+		"POST /api/auth/password-reset/complete":      true,
+		"POST /api/auth/password-reset/email":         true,
 		"POST /api/callback":                          true,
 		"POST /api/budget-exchange-rates":             true,
 		"POST /api/budget-exchange-rates/sync-global": true,
@@ -199,6 +204,66 @@ func TestRouterDetectsMethodNotAllowedForKnownPath(t *testing.T) {
 	allowed := strings.Join(app.allowedMethods("/api/budget-exchange-rates/sync-global"), ", ")
 	if allowed != http.MethodPost {
 		t.Fatalf("allowed methods = %q, want %q", allowed, http.MethodPost)
+	}
+}
+
+func TestPasswordResetPublicUnsafePaths(t *testing.T) {
+	for _, path := range []string{
+		"/api/auth/password-reset/email",
+		"/api/auth/password-reset/complete",
+		"/api/auth/passkey/reset/verify",
+	} {
+		if !publicUnsafePath(path) {
+			t.Fatalf("%s must be callable before sign in", path)
+		}
+	}
+	if publicUnsafePath("/api/auth/password") {
+		t.Fatal("authenticated password update must still require CSRF")
+	}
+}
+
+func TestPasswordResetCompleteRevokesSessionsAndRequiresPasswordAccount(t *testing.T) {
+	content, err := os.ReadFile("password_reset.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func (a *App) authPasswordResetComplete")
+	end := strings.Index(source, "type passwordResetUser")
+	if start < 0 || end < start {
+		t.Fatal("could not locate authPasswordResetComplete function")
+	}
+	body := source[start:end]
+	for _, want := range []string{
+		"u.password_hash",
+		"!passwordHash.Valid",
+		"UPDATE users SET password_hash",
+		"UPDATE password_reset_tokens SET used_at",
+		"DELETE FROM user_sessions WHERE user_id",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("password reset complete contract missing %q", want)
+		}
+	}
+}
+
+func TestSSOResetDoesNotIssueSession(t *testing.T) {
+	content, err := os.ReadFile("sso_oauth.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(content)
+	start := strings.Index(source, "func (a *App) resetPasswordWithSSO")
+	end := strings.Index(source, "func (a *App) createAndLoginWithSSO")
+	if start < 0 || end < start {
+		t.Fatal("could not locate resetPasswordWithSSO function")
+	}
+	body := source[start:end]
+	if !strings.Contains(body, "createPasswordResetTokenForUser") {
+		t.Fatal("SSO reset must issue a password reset token")
+	}
+	if strings.Contains(body, "issueSession") {
+		t.Fatal("SSO reset must not issue a login session")
 	}
 }
 

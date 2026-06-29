@@ -71,6 +71,12 @@ func (a *App) route(method, path string) handlerFunc {
 		return a.authProfile
 	case method == http.MethodPatch && path == "/api/auth/password":
 		return a.authPassword
+	case method == http.MethodPost && path == "/api/auth/password-reset/email":
+		return a.authPasswordResetEmail
+	case method == http.MethodGet && path == "/api/auth/password-reset/verify":
+		return a.authPasswordResetVerify
+	case method == http.MethodPost && path == "/api/auth/password-reset/complete":
+		return a.authPasswordResetComplete
 	case method == http.MethodGet && path == "/api/auth/email/verify":
 		return a.authEmailVerify
 	case method == http.MethodPost && path == "/api/auth/email/resend":
@@ -101,6 +107,10 @@ func (a *App) route(method, path string) handlerFunc {
 		return a.passkeyLoginOptions
 	case method == http.MethodPost && path == "/api/auth/passkey/login/verify":
 		return a.passkeyLoginVerify
+	case method == http.MethodGet && path == "/api/auth/passkey/reset/options":
+		return a.passkeyResetOptions
+	case method == http.MethodPost && path == "/api/auth/passkey/reset/verify":
+		return a.passkeyResetVerify
 	case method == http.MethodGet && path == "/api/auth/passkey/credentials":
 		return a.passkeyCredentialList
 	case method == http.MethodPatch && path == "/api/auth/passkey/credentials":

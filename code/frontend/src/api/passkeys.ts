@@ -39,6 +39,18 @@ export function verifyPasskeyLogin(credential: PublicKeyCredentialJSON): Promise
   return apiPost<AuthSession>('/api/auth/passkey/login/verify', { credential });
 }
 
+export function getPasskeyResetOptions(email: string): Promise<Record<string, unknown>> {
+  return apiGet<PasskeyOptionsResponse>(
+    `/api/auth/passkey/reset/options?email=${encodeURIComponent(email.trim())}`,
+  ).then((payload) => payload.options);
+}
+
+export function verifyPasskeyReset(
+  credential: PublicKeyCredentialJSON,
+): Promise<{ passwordResetToken: string }> {
+  return apiPost<{ passwordResetToken: string }>('/api/auth/passkey/reset/verify', { credential });
+}
+
 export function listPasskeyCredentials(): Promise<PasskeyCredential[]> {
   return apiGet<PasskeyCredentialsResponse>('/api/auth/passkey/credentials').then(
     (payload) => payload.credentials,

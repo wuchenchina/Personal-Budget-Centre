@@ -2,7 +2,7 @@ import type { SsoProvider, SsoProviderID } from '../types/auth';
 
 const ssoIntentKey = 'budgetCentre.ssoIntent';
 
-export type SsoIntentMode = 'login' | 'bind';
+export type SsoIntentMode = 'login' | 'bind' | 'reset';
 
 interface StoredSsoIntent {
   provider: SsoProviderID;
@@ -29,10 +29,10 @@ export function consumeSsoIntent(): StoredSsoIntent {
     const parsed = JSON.parse(raw) as Partial<StoredSsoIntent>;
     return {
       provider: typeof parsed.provider === 'string' ? parsed.provider : '',
-      mode: parsed.mode === 'bind' ? 'bind' : 'login',
+      mode: parsed.mode === 'bind' || parsed.mode === 'reset' ? parsed.mode : 'login',
     };
   } catch {
-    return { provider: '', mode: raw === 'bind' ? 'bind' : 'login' };
+    return { provider: '', mode: raw === 'bind' || raw === 'reset' ? raw : 'login' };
   }
 }
 

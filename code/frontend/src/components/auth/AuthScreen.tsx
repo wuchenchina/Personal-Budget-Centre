@@ -161,6 +161,14 @@ export function AuthScreen({
                 />
               </Form.Item>
 
+              {mode === 'login' ? (
+                <div className={styles.forgotPasswordRow}>
+                  <Button type="link" href="/password/reset">
+                    {t('forgotPassword')}
+                  </Button>
+                </div>
+              ) : null}
+
               {mode === 'register' ? (
                 <>
                   <div

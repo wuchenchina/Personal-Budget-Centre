@@ -18,6 +18,11 @@ const EmailVerificationScreen = lazy(() =>
     default: module.EmailVerificationScreen,
   })),
 );
+const PasswordResetScreen = lazy(() =>
+  import('./components/auth/PasswordResetScreen').then((module) => ({
+    default: module.PasswordResetScreen,
+  })),
+);
 
 function initialLanguage(): AppLanguage {
   return normalizeLanguage(
@@ -43,12 +48,14 @@ interface SsoCallbackScreenProps {
   onAuthenticated: (session: AuthSession) => void;
   onNavigateHome: () => void;
   onNavigateProfile: () => void;
+  onNavigatePasswordReset: (token: string) => void;
 }
 
 function SsoCallbackScreen({
   onAuthenticated,
   onNavigateHome,
   onNavigateProfile,
+  onNavigatePasswordReset,
 }: SsoCallbackScreenProps) {
   const { t } = useI18n();
   const [ssoDecision, setSsoDecision] = useState<SsoAccountActionRequired | null>(null);
@@ -58,6 +65,7 @@ function SsoCallbackScreen({
   const callbackHandlersRef = useRef({
     onAuthenticated,
     onNavigateHome,
+    onNavigatePasswordReset,
     onNavigateProfile,
     t,
   });
@@ -66,6 +74,7 @@ function SsoCallbackScreen({
     callbackHandlersRef.current = {
       onAuthenticated,
       onNavigateHome,
+      onNavigatePasswordReset,
       onNavigateProfile,
       t,
     };
@@ -97,6 +106,8 @@ function SsoCallbackScreen({
     const callbackRequest =
       mode === 'bind'
         ? ssoCallback({ code, state }, 'bind')
+        : mode === 'reset'
+          ? ssoCallback({ code, state }, 'reset')
         : ssoCallback({ code, state }, 'login');
 
     callbackRequest
@@ -108,6 +119,15 @@ function SsoCallbackScreen({
         if (mode === 'bind') {
           void message.success(handlers().t('genericSsoBindingSuccess'));
           handlers().onNavigateProfile();
+          return;
+        }
+
+        if (mode === 'reset') {
+          if ('passwordResetToken' in result) {
+            handlers().onNavigatePasswordReset(result.passwordResetToken);
+          } else {
+            setCallbackError(handlers().t('authFailed'));
+          }
           return;
         }
 
@@ -261,6 +281,7 @@ function App() {
   );
   const currentUrl = new URL(currentLocation, window.location.origin);
   const isEmailVerificationRoute = currentUrl.pathname === '/email/verify';
+  const isPasswordResetRoute = currentUrl.pathname === '/password/reset';
   const isSsoCallbackRoute =
     currentUrl.pathname === '/api/callback'
     || currentUrl.search.includes('sso_callback=1');
@@ -337,11 +358,19 @@ function App() {
         <EmailVerificationScreen />
       </Suspense>
     );
+  } else if (isPasswordResetRoute) {
+    content = (
+      <Suspense fallback={<AuthLoadingScreen />}>
+        <PasswordResetScreen language={language} onLanguageChange={setLanguage} />
+      </Suspense>
+    );
   } else if (isSsoCallbackRoute) {
     content = (
       <SsoCallbackScreen
         onAuthenticated={handleAuthenticated}
         onNavigateHome={() => navigateToPath('/')}
+        onNavigatePasswordReset={(token) =>
+          navigateToPath(`/password/reset?token=${encodeURIComponent(token)}`)}
         onNavigateProfile={() => navigateToPath('/profile')}
       />
     );

@@ -52,7 +52,7 @@ func unsafeMethod(method string) bool {
 
 func publicUnsafePath(path string) bool {
 	switch path {
-	case "/api/auth/login", "/api/auth/register", "/api/auth/email/resend", "/api/auth/passkey/login/verify", "/api/callback":
+	case "/api/auth/login", "/api/auth/register", "/api/auth/email/resend", "/api/auth/password-reset/email", "/api/auth/password-reset/complete", "/api/auth/passkey/login/verify", "/api/auth/passkey/reset/verify", "/api/callback":
 		return true
 	default:
 		return false

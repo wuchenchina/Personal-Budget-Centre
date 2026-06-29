@@ -170,6 +170,29 @@
   box-shadow: none;
 }
 
+.forgotPasswordRow {
+  display: flex;
+  justify-content: flex-end;
+  margin: -10px 0 14px;
+}
+
+.forgotPasswordRow :global(.ant-btn-link) {
+  height: auto;
+  padding: 0;
+  color: var(--bc-accent);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.backLinkButton {
+  width: 100%;
+  height: auto;
+  margin-top: 16px;
+  padding: 0;
+  color: var(--bc-text-muted);
+  font-size: 13px;
+}
+
 .altActions {
   margin-top: 18px;
 }

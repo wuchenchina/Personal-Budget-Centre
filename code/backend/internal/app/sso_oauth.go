@@ -144,7 +144,7 @@ func (a *App) oauthAuthorize(w http.ResponseWriter, r *http.Request, providerID 
 	if err != nil {
 		return err
 	}
-	mode := enumString(r.URL.Query().Get("mode"), []string{"login", "bind"}, "login")
+	mode := enumString(r.URL.Query().Get("mode"), []string{"login", "bind", "reset"}, "login")
 	if mode == "bind" {
 		if _, err := a.currentSession(r); err != nil {
 			return err
@@ -219,6 +219,9 @@ func (a *App) oauthCallback(w http.ResponseWriter, r *http.Request) error {
 		httpx.WriteOK(w, map[string]any{"binding": binding}, http.StatusOK)
 		return nil
 	}
+	if mode == "reset" {
+		return a.resetPasswordWithSSO(w, r, provider, subject)
+	}
 	return a.loginWithSSO(w, r, provider, subject, userinfo)
 }
 
@@ -235,7 +238,7 @@ func (a *App) oauthCallbackState(w http.ResponseWriter, r *http.Request, input m
 	if err != nil {
 		return oauthProvider{}, "", nil, err
 	}
-	mode := enumString(pkce["mode"], []string{"login", "bind"}, "login")
+	mode := enumString(pkce["mode"], []string{"login", "bind", "reset"}, "login")
 	return provider, mode, pkce, nil
 }
 
@@ -264,6 +267,23 @@ func (a *App) loginWithSSO(w http.ResponseWriter, r *http.Request, provider oaut
 		return err
 	}
 	return a.issueSession(w, r, userID, workspace)
+}
+
+func (a *App) resetPasswordWithSSO(w http.ResponseWriter, r *http.Request, provider oauthProvider, subject string) error {
+	binding, err := a.ssoBindingBySubject(r.Context(), provider.ID, subject)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return apiError("PASSWORD_RESET_NOT_AVAILABLE", "Password reset is not available for this account.", http.StatusConflict)
+		}
+		return err
+	}
+	userID := binding["userId"].(int64)
+	token, err := a.createPasswordResetTokenForUser(r.Context(), userID, "sso")
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{"passwordResetToken": token}, http.StatusOK)
+	return nil
 }
 
 func (a *App) createAndLoginWithSSO(w http.ResponseWriter, r *http.Request, provider oauthProvider, subject string, userinfo map[string]any) error {
