@@ -474,7 +474,7 @@ public sealed partial class PdfExportRenderer
         {
             return JsonValue.String(config, "title");
         }
-        return JoinWithLanguages("Preparation & Review Record", "製表及覆核記錄", "制表及复核记录", options.SignatureLabelLanguages);
+        return JoinWithLanguages(Text("Preparation & Review Record", "製表及覆核記錄", "制表及复核记录", "作成・確認記録", "Registre de préparation et de revue", "Запись подготовки и проверки", "Erstellungs- und Prüfvermerk"), options.SignatureLabelLanguages);
     }
 
     private static SignaturePalette SignaturePaletteForTheme(PdfTheme theme)
@@ -491,11 +491,11 @@ public sealed partial class PdfExportRenderer
     {
         return key switch
         {
-            "participant" => JoinWithLanguages("Name", "姓名", "姓名", options.SignatureLabelLanguages),
-            "capacity" => JoinWithLanguages("Capacity", "身份", "身份", options.SignatureLabelLanguages),
-            "position" => JoinWithLanguages("Position", "職務", "职务", options.SignatureLabelLanguages),
-            "email" => JoinWithLanguages("Email", "電子郵件", "电子邮件", options.SignatureLabelLanguages),
-            "dateTime" => JoinWithLanguages("Date & Time", "日期及時間", "日期及时间", options.SignatureLabelLanguages),
+            "participant" => JoinWithLanguages(Text("Name", "姓名", "姓名", "氏名", "Nom", "Имя", "Name"), options.SignatureLabelLanguages),
+            "capacity" => JoinWithLanguages(Text("Capacity", "身份", "身份", "役割", "Qualité", "Роль", "Funktion"), options.SignatureLabelLanguages),
+            "position" => JoinWithLanguages(Text("Position", "職務", "职务", "職位", "Poste", "Должность", "Position"), options.SignatureLabelLanguages),
+            "email" => JoinWithLanguages(Text("Email", "電子郵件", "电子邮件", "メール", "E-mail", "Электронная почта", "E-Mail"), options.SignatureLabelLanguages),
+            "dateTime" => JoinWithLanguages(Text("Date & Time", "日期及時間", "日期及时间", "日時", "Date et heure", "Дата и время", "Datum und Uhrzeit"), options.SignatureLabelLanguages),
             _ => key,
         };
     }
@@ -510,7 +510,7 @@ public sealed partial class PdfExportRenderer
         };
         if (string.IsNullOrWhiteSpace(trimmed) || legacy.Contains(trimmed) || trimmed == SignatureLabel(config))
         {
-            return JoinWithLanguages("Confirmed by", "確認", "确认", options.SignatureLabelLanguages);
+            return JoinWithLanguages(Text("Confirmed by", "確認", "确认", "確認者", "Confirmé par", "Подтвердил", "Bestätigt von"), options.SignatureLabelLanguages);
         }
         return TranslateSignaturePhrase(trimmed, SignatureRolePhrases(), options.SignatureLabelLanguages);
     }
@@ -519,8 +519,8 @@ public sealed partial class PdfExportRenderer
     {
         return value.Trim() switch
         {
-            "Budget Owner" or "預算負責人" or "预算负责人" => JoinWithLanguages("Budget Owner", "預算負責人", "预算负责人", options.SignatureLabelLanguages),
-            "Finance Owner" or "財務負責人" or "财务负责人" => JoinWithLanguages("Finance Owner", "財務負責人", "财务负责人", options.SignatureLabelLanguages),
+            "Budget Owner" or "預算負責人" or "预算负责人" => JoinWithLanguages(Text("Budget Owner", "預算負責人", "预算负责人", "予算責任者", "Responsable du budget", "Ответственный за бюджет", "Budgetverantwortliche Person"), options.SignatureLabelLanguages),
+            "Finance Owner" or "財務負責人" or "财务负责人" => JoinWithLanguages(Text("Finance Owner", "財務負責人", "财务负责人", "財務責任者", "Responsable financier", "Ответственный за финансы", "Finanzverantwortliche Person"), options.SignatureLabelLanguages),
             var other => other,
         };
     }
@@ -529,39 +529,39 @@ public sealed partial class PdfExportRenderer
     {
         return value.Trim() switch
         {
-            "Telephone" or "Tel. No." or "電話號碼" or "电话号码" => JoinWithLanguages("Tel. No.", "電話號碼", "电话号码", options.SignatureLabelLanguages),
-            "Mobile" or "Mobile No." or "流動電話號碼" or "流动电话号码" => JoinWithLanguages("Mobile No.", "流動電話號碼", "流动电话号码", options.SignatureLabelLanguages),
+            "Telephone" or "Tel. No." or "電話號碼" or "电话号码" => JoinWithLanguages(Text("Tel. No.", "電話號碼", "电话号码", "電話番号", "Téléphone", "Телефон", "Telefonnummer"), options.SignatureLabelLanguages),
+            "Mobile" or "Mobile No." or "流動電話號碼" or "流动电话号码" => JoinWithLanguages(Text("Mobile No.", "流動電話號碼", "流动电话号码", "携帯番号", "Mobile", "Мобильный телефон", "Mobilnummer"), options.SignatureLabelLanguages),
             var other => other,
         };
     }
 
-    private static IReadOnlyList<(string En, string Tc, string Sc)> SignatureRolePhrases() =>
+    private static IReadOnlyList<LocalizedText> SignatureRolePhrases() =>
     [
-        ("Prepared by", "製表", "制表"),
-        ("Handled by", "經辦", "经办"),
-        ("Checked by", "覆核", "复核"),
-        ("Reviewed by", "審核", "审核"),
-        ("Approved by", "審批", "审批"),
-        ("Audited by", "審計", "审计"),
-        ("Confirmed by", "確認", "确认"),
-        ("Verified by", "核驗", "核验"),
-        ("Authorised by", "授權", "授权"),
-        ("Accepted by", "接納", "接纳"),
-        ("Acknowledged by", "知悉確認", "知悉确认"),
-        ("Reconciled by", "對賬", "对账"),
-        ("Documented by", "記錄", "记录"),
-        ("Processed by", "處理", "处理"),
-        ("Finance reviewed by", "財務覆核", "财务复核"),
+        Text("Prepared by", "製表", "制表", "作成者", "Préparé par", "Подготовил", "Erstellt von"),
+        Text("Handled by", "經辦", "经办", "担当者", "Traité par", "Обработал", "Bearbeitet von"),
+        Text("Checked by", "覆核", "复核", "確認者", "Vérifié par", "Проверил", "Geprüft von"),
+        Text("Reviewed by", "審核", "审核", "レビュー者", "Revu par", "Рассмотрел", "Kontrolliert von"),
+        Text("Approved by", "審批", "审批", "承認者", "Approuvé par", "Утвердил", "Genehmigt von"),
+        Text("Audited by", "審計", "审计", "監査者", "Audité par", "Аудитор", "Geprüft durch"),
+        Text("Confirmed by", "確認", "确认", "確認者", "Confirmé par", "Подтвердил", "Bestätigt von"),
+        Text("Verified by", "核驗", "核验", "検証者", "Validé par", "Верифицировал", "Verifiziert von"),
+        Text("Authorised by", "授權", "授权", "承認者", "Autorisé par", "Авторизовал", "Autorisiert von"),
+        Text("Accepted by", "接納", "接纳", "受理者", "Accepté par", "Принял", "Akzeptiert von"),
+        Text("Acknowledged by", "知悉確認", "知悉确认", "確認済み", "Pris en compte par", "Подтверждено", "Zur Kenntnis genommen von"),
+        Text("Reconciled by", "對賬", "对账", "照合者", "Rapproché par", "Сверил", "Abgeglichen von"),
+        Text("Documented by", "記錄", "记录", "記録者", "Documenté par", "Задокументировал", "Dokumentiert von"),
+        Text("Processed by", "處理", "处理", "処理者", "Traité par", "Обработал", "Verarbeitet von"),
+        Text("Finance reviewed by", "財務覆核", "财务复核", "財務確認者", "Revu par les finances", "Проверено финансами", "Finanziell geprüft von"),
     ];
 
-    private static string TranslateSignaturePhrase(string value, IReadOnlyList<(string En, string Tc, string Sc)> phrases, IReadOnlyList<string> languages)
+    private static string TranslateSignaturePhrase(string value, IReadOnlyList<LocalizedText> phrases, IReadOnlyList<string> languages)
     {
         var trimmed = value.Trim();
         foreach (var phrase in phrases)
         {
-            if (trimmed == phrase.En || trimmed == phrase.Tc || trimmed == phrase.Sc)
+            if (trimmed == phrase.En || trimmed == phrase.Tc || trimmed == phrase.Sc || trimmed == phrase.Ja || trimmed == phrase.Fr || trimmed == phrase.Ru || trimmed == phrase.De)
             {
-                return JoinWithLanguages(phrase.En, phrase.Tc, phrase.Sc, languages);
+                return JoinWithLanguages(phrase, languages);
             }
         }
         return trimmed;
@@ -593,6 +593,10 @@ public sealed partial class PdfExportRenderer
         {
             "sc" => new Dictionary<string, string> { ["confirmation"] = "确认", ["signature"] = "签署" },
             "tc" => new Dictionary<string, string> { ["confirmation"] = "確認", ["signature"] = "簽署" },
+            "ja" => new Dictionary<string, string> { ["confirmation"] = "確認", ["signature"] = "署名" },
+            "fr" => new Dictionary<string, string> { ["confirmation"] = "Confirmation", ["signature"] = "Signature" },
+            "ru" => new Dictionary<string, string> { ["confirmation"] = "Подтверждение", ["signature"] = "Подпись" },
+            "de" => new Dictionary<string, string> { ["confirmation"] = "Bestätigung", ["signature"] = "Unterschrift" },
             _ => new Dictionary<string, string> { ["confirmation"] = "Confirmation", ["signature"] = "Signature" },
         };
         var parts = mode == "confirmation_signature" ? new[] { labels["confirmation"], labels["signature"] } : new[] { labels.GetValueOrDefault(mode, labels["signature"]) };
@@ -602,7 +606,7 @@ public sealed partial class PdfExportRenderer
     private static string SignatureLanguage(JsonElement config)
     {
         var language = JsonValue.String(config, "labelLanguage", "en");
-        return language is "en" or "sc" or "tc" or "en_sc" or "en_tc" ? language : "en";
+        return language is "en" or "sc" or "tc" or "ja" or "fr" or "ru" or "de" or "en_sc" or "en_tc" ? language : "en";
     }
 
     private static string JoinSignatureLabelParts(IReadOnlyList<string> parts, string separator)
@@ -614,26 +618,6 @@ public sealed partial class PdfExportRenderer
             "line" => string.Join("\n", parts),
             _ => string.Join(" ", parts),
         };
-    }
-
-    private static string JoinWithLanguages(string en, string tc, string sc, IReadOnlyList<string> languages)
-    {
-        var selected = languages.Count == 0 ? ["en"] : languages;
-        var parts = new List<string>();
-        foreach (var lang in selected)
-        {
-            var value = lang switch
-            {
-                "tc" => tc,
-                "sc" => sc,
-                _ => en,
-            };
-            if (!parts.Contains(value))
-            {
-                parts.Add(value);
-            }
-        }
-        return string.Join(parts.Count == 2 && parts[0] == en ? " " : "\n", parts);
     }
 
     private static string SignatureDateTime(string value)

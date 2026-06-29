@@ -72,7 +72,7 @@ VALUES (?, ?, ?, ?, ?, 'pending', ?, NULL)`, email, username, string(passwordHas
 	if err != nil {
 		return err
 	}
-	if err := a.sendVerificationEmail(email, displayName, token); err != nil {
+	if err := a.sendVerificationEmail(email, displayName, token, requestLanguage(r)); err != nil {
 		return err
 	}
 	httpx.WriteOK(w, map[string]any{"requiresEmailVerification": true, "email": email}, http.StatusCreated)
@@ -99,7 +99,7 @@ func (a *App) authLogin(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		if err := a.sendVerificationEmail(email, displayName, token); err != nil {
+		if err := a.sendVerificationEmail(email, displayName, token, requestLanguage(r)); err != nil {
 			return err
 		}
 		return apiError("EMAIL_NOT_VERIFIED", "Email verification is required before login. A new verification email has been sent.", http.StatusForbidden)
@@ -217,7 +217,7 @@ WHERE id = ?`, email, displayName, defaultTheme, settingsJSON, s.UserID)
 		return err
 	}
 	if verificationToken != "" {
-		if err := a.sendVerificationEmail(email, displayName, verificationToken); err != nil {
+		if err := a.sendVerificationEmail(email, displayName, verificationToken, requestLanguage(r)); err != nil {
 			return err
 		}
 	}

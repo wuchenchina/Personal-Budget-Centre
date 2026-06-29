@@ -32,6 +32,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const method = options.method ?? 'GET';
   const headers: Record<string, string> = {
     Accept: 'application/json',
+    'Accept-Language': currentLanguage(),
   };
 
   if (options.body !== undefined) {
@@ -84,6 +85,10 @@ function readableApiError(error: ApiErrorPayload | null, status: number): string
     && apiErrorMessagesByLanguage[language][error.code] !== undefined
   ) {
     return apiErrorMessagesByLanguage[language][error.code];
+  }
+
+  if (language !== 'en') {
+    return requestFailedMessage(status);
   }
 
   return error?.message ?? requestFailedMessage(status);

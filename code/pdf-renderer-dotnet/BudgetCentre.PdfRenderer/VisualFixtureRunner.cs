@@ -10,6 +10,10 @@ public sealed class VisualFixtureRunner(RendererConfig config, ExportRepository 
         ("en", ["en"], ["en"]),
         ("tc", ["tc"], ["tc"]),
         ("sc", ["sc"], ["sc"]),
+        ("ja", ["ja"], ["ja"]),
+        ("fr", ["fr"], ["fr"]),
+        ("ru", ["ru"], ["ru"]),
+        ("de", ["de"], ["de"]),
         ("en-tc", ["en", "tc"], ["en", "tc"]),
         ("en-sc", ["en", "sc"], ["en", "sc"]),
     ];

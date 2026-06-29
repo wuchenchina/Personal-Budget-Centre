@@ -41,7 +41,7 @@ func (a *App) authEmailResend(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		if err := a.sendVerificationEmail(email, displayName, token); err != nil {
+		if err := a.sendVerificationEmail(email, displayName, token, requestLanguage(r)); err != nil {
 			return err
 		}
 	}
@@ -71,7 +71,7 @@ func (a *App) adminUserEmailVerification(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		return err
 	}
-	if err := a.sendVerificationEmail(email, displayName, token); err != nil {
+	if err := a.sendVerificationEmail(email, displayName, token, requestLanguage(r)); err != nil {
 		return err
 	}
 	httpx.WriteOK(w, map[string]any{"sent": true, "email": email, "alreadyVerified": false}, http.StatusOK)
@@ -147,21 +147,47 @@ LIMIT 1`, hash).Scan(&usedEmail, &usedUsername, &usedVerified)
 	return map[string]any{"verified": true, "alreadyVerified": false, "email": email, "username": username}, nil
 }
 
-func (a *App) sendVerificationEmail(email, _ string, token string) error {
+func (a *App) sendVerificationEmail(email, _ string, token string, language string) error {
 	appURL := strings.TrimRight(a.cfg.AppURL, "/")
 	if appURL == "" {
 		appURL = "http://localhost:5173"
 	}
-	body := verificationEmailBody(appURL, token)
-	if err := a.sendMail(email, "验证你的 BudgetCentre 邮箱", body); err != nil {
+	message := verificationEmailMessage(appURL, token, language)
+	if err := a.sendMail(email, message.subject, message.body); err != nil {
 		return apiError("MAIL_DELIVERY_FAILED", "Email delivery failed. Please try again later.", http.StatusServiceUnavailable)
 	}
 	return nil
 }
 
 func verificationEmailBody(appURL, token string) string {
+	return verificationEmailMessage(appURL, token, "tc").body
+}
+
+type localizedMailMessage struct {
+	subject string
+	body    string
+}
+
+func verificationEmailMessage(appURL, token, language string) localizedMailMessage {
 	link := appURL + "/email/verify?token=" + token
-	return `你好：
+	switch normalizeAppLanguage(language) {
+	case "en":
+		return localizedMailMessage{
+			subject: "Verify your BudgetCentre email",
+			body: `Hello:
+
+Please open the link below to verify your BudgetCentre email:
+
+` + link + `
+
+This link is valid for 24 hours. If you did not request this, you can ignore this email.
+
+BudgetCentre`,
+		}
+	case "sc":
+		return localizedMailMessage{
+			subject: "验证你的 BudgetCentre 邮箱",
+			body: `你好：
 
 请打开下面的链接验证你的 BudgetCentre 邮箱：
 
@@ -169,5 +195,72 @@ func verificationEmailBody(appURL, token string) string {
 
 此链接 24 小时内有效。如果不是你本人操作，可以忽略这封邮件。
 
-BudgetCentre`
+BudgetCentre`,
+		}
+	case "ja":
+		return localizedMailMessage{
+			subject: "BudgetCentre のメールアドレスを確認してください",
+			body: `こんにちは：
+
+以下のリンクを開いて、BudgetCentre のメールアドレスを確認してください：
+
+` + link + `
+
+このリンクは 24 時間有効です。心当たりがない場合は、このメールを無視してください。
+
+BudgetCentre`,
+		}
+	case "fr":
+		return localizedMailMessage{
+			subject: "Vérifiez votre adresse e-mail BudgetCentre",
+			body: `Bonjour :
+
+Veuillez ouvrir le lien ci-dessous pour vérifier votre adresse e-mail BudgetCentre :
+
+` + link + `
+
+Ce lien est valable pendant 24 heures. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.
+
+BudgetCentre`,
+		}
+	case "ru":
+		return localizedMailMessage{
+			subject: "Подтвердите адрес электронной почты BudgetCentre",
+			body: `Здравствуйте!
+
+Откройте ссылку ниже, чтобы подтвердить адрес электронной почты BudgetCentre:
+
+` + link + `
+
+Ссылка действительна в течение 24 часов. Если вы не запрашивали это письмо, просто проигнорируйте его.
+
+BudgetCentre`,
+		}
+	case "de":
+		return localizedMailMessage{
+			subject: "Bestätigen Sie Ihre BudgetCentre-E-Mail-Adresse",
+			body: `Hallo:
+
+Bitte öffnen Sie den folgenden Link, um Ihre BudgetCentre-E-Mail-Adresse zu bestätigen:
+
+` + link + `
+
+Dieser Link ist 24 Stunden gültig. Wenn Sie dies nicht angefordert haben, können Sie diese E-Mail ignorieren.
+
+BudgetCentre`,
+		}
+	default:
+		return localizedMailMessage{
+			subject: "驗證你的 BudgetCentre 信箱",
+			body: `你好：
+
+請打開下面的連結驗證你的 BudgetCentre 信箱：
+
+` + link + `
+
+此連結 24 小時內有效。如果不是你本人操作，可以忽略這封郵件。
+
+BudgetCentre`,
+		}
+	}
 }

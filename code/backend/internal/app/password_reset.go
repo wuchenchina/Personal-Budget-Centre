@@ -32,7 +32,7 @@ func (a *App) authPasswordResetEmail(w http.ResponseWriter, r *http.Request) err
 		if err != nil {
 			return err
 		}
-		if err := a.sendPasswordResetEmail(accountEmail, displayName, token); err != nil {
+		if err := a.sendPasswordResetEmail(accountEmail, displayName, token, requestLanguage(r)); err != nil {
 			return err
 		}
 	}
@@ -184,21 +184,42 @@ func (a *App) createPasswordResetTokenForUser(ctx context.Context, userID int64,
 	return a.createPasswordResetToken(ctx, userID, method)
 }
 
-func (a *App) sendPasswordResetEmail(email, _ string, token string) error {
+func (a *App) sendPasswordResetEmail(email, _ string, token string, language string) error {
 	appURL := strings.TrimRight(a.cfg.AppURL, "/")
 	if appURL == "" {
 		appURL = "http://localhost:5173"
 	}
-	body := passwordResetEmailBody(appURL, token)
-	if err := a.sendMail(email, "重设你的 BudgetCentre 密码", body); err != nil {
+	message := passwordResetEmailMessage(appURL, token, language)
+	if err := a.sendMail(email, message.subject, message.body); err != nil {
 		return apiError("MAIL_DELIVERY_FAILED", "Email delivery failed. Please try again later.", http.StatusServiceUnavailable)
 	}
 	return nil
 }
 
 func passwordResetEmailBody(appURL, token string) string {
+	return passwordResetEmailMessage(appURL, token, "tc").body
+}
+
+func passwordResetEmailMessage(appURL, token, language string) localizedMailMessage {
 	link := appURL + "/password/reset?token=" + token
-	return `你好：
+	switch normalizeAppLanguage(language) {
+	case "en":
+		return localizedMailMessage{
+			subject: "Reset your BudgetCentre password",
+			body: `Hello:
+
+Please open the link below to reset your BudgetCentre password:
+
+` + link + `
+
+This link is valid for 30 minutes and can only be used once. If you did not request this, you can ignore this email.
+
+BudgetCentre`,
+		}
+	case "sc":
+		return localizedMailMessage{
+			subject: "重设你的 BudgetCentre 密码",
+			body: `你好：
 
 请打开下面的链接重设你的 BudgetCentre 密码：
 
@@ -206,5 +227,72 @@ func passwordResetEmailBody(appURL, token string) string {
 
 此链接 30 分钟内有效，并且只能使用一次。如果不是你本人操作，可以忽略这封邮件。
 
-BudgetCentre`
+BudgetCentre`,
+		}
+	case "ja":
+		return localizedMailMessage{
+			subject: "BudgetCentre のパスワードをリセットしてください",
+			body: `こんにちは：
+
+以下のリンクを開いて、BudgetCentre のパスワードをリセットしてください：
+
+` + link + `
+
+このリンクは 30 分間有効で、1 回だけ使用できます。心当たりがない場合は、このメールを無視してください。
+
+BudgetCentre`,
+		}
+	case "fr":
+		return localizedMailMessage{
+			subject: "Réinitialisez votre mot de passe BudgetCentre",
+			body: `Bonjour :
+
+Veuillez ouvrir le lien ci-dessous pour réinitialiser votre mot de passe BudgetCentre :
+
+` + link + `
+
+Ce lien est valable pendant 30 minutes et ne peut être utilisé qu'une seule fois. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.
+
+BudgetCentre`,
+		}
+	case "ru":
+		return localizedMailMessage{
+			subject: "Сбросьте пароль BudgetCentre",
+			body: `Здравствуйте!
+
+Откройте ссылку ниже, чтобы сбросить пароль BudgetCentre:
+
+` + link + `
+
+Ссылка действительна в течение 30 минут и может быть использована только один раз. Если вы не запрашивали это письмо, просто проигнорируйте его.
+
+BudgetCentre`,
+		}
+	case "de":
+		return localizedMailMessage{
+			subject: "Setzen Sie Ihr BudgetCentre-Passwort zurück",
+			body: `Hallo:
+
+Bitte öffnen Sie den folgenden Link, um Ihr BudgetCentre-Passwort zurückzusetzen:
+
+` + link + `
+
+Dieser Link ist 30 Minuten gültig und kann nur einmal verwendet werden. Wenn Sie dies nicht angefordert haben, können Sie diese E-Mail ignorieren.
+
+BudgetCentre`,
+		}
+	default:
+		return localizedMailMessage{
+			subject: "重設你的 BudgetCentre 密碼",
+			body: `你好：
+
+請打開下面的連結重設你的 BudgetCentre 密碼：
+
+` + link + `
+
+此連結 30 分鐘內有效，並且只能使用一次。如果不是你本人操作，可以忽略這封郵件。
+
+BudgetCentre`,
+		}
+	}
 }
