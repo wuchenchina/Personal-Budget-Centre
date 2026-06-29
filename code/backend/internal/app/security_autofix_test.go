@@ -64,6 +64,9 @@ func TestSMTPAddressAndHeaderSanitizersBlockInjection(t *testing.T) {
 	if strings.Contains(headerBlock, "Bcc:") {
 		t.Fatalf("mail headers contain injected Bcc: %s", headerBlock)
 	}
+	if strings.Contains(msg, "\r\nbody") {
+		t.Fatalf("mail body should be transfer-encoded, got raw message: %q", msg)
+	}
 }
 
 func TestVerificationEmailBodyDoesNotIncludeUserControlledDisplayName(t *testing.T) {

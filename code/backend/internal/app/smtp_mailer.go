@@ -108,9 +108,9 @@ func mailMessage(from, fromName, to, subject, body string) string {
 		"Subject: " + encodedHeader(subject),
 		"MIME-Version: 1.0",
 		"Content-Type: text/plain; charset=UTF-8",
-		"Content-Transfer-Encoding: 8bit",
+		"Content-Transfer-Encoding: base64",
 	}
-	return strings.Join(headers, "\r\n") + "\r\n\r\n" + body
+	return strings.Join(headers, "\r\n") + "\r\n\r\n" + encodedMailBody(body)
 }
 
 func sanitizeSMTPAddress(value string) (string, error) {
@@ -135,6 +135,22 @@ func encodedHeader(value string) string {
 		value = "BudgetCentre"
 	}
 	return "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte(value)) + "?="
+}
+
+func encodedMailBody(value string) string {
+	encoded := base64.StdEncoding.EncodeToString([]byte(value))
+	if len(encoded) <= 76 {
+		return encoded
+	}
+	lines := make([]string, 0, (len(encoded)+75)/76)
+	for len(encoded) > 76 {
+		lines = append(lines, encoded[:76])
+		encoded = encoded[76:]
+	}
+	if encoded != "" {
+		lines = append(lines, encoded)
+	}
+	return strings.Join(lines, "\r\n")
 }
 
 func escapeSMTPBody(body string) string {
