@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -410,7 +411,13 @@ func (a *App) adminLogs(w http.ResponseWriter, r *http.Request) error {
 	if _, err := a.requireAdmin(r); err != nil {
 		return err
 	}
-	limit := int(queryInt(r, "limit"))
+	limit64 := queryInt(r, "limit")
+	if limit64 < 0 {
+		limit64 = 0
+	} else if limit64 > int64(math.MaxInt) {
+		limit64 = int64(math.MaxInt)
+	}
+	limit := int(limit64)
 	httpx.WriteOK(w, map[string]any{"logs": a.recentLogs(limit)}, http.StatusOK)
 	return nil
 }
