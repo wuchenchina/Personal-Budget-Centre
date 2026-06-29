@@ -147,13 +147,21 @@ LIMIT 1`, hash).Scan(&usedEmail, &usedUsername, &usedVerified)
 	return map[string]any{"verified": true, "alreadyVerified": false, "email": email, "username": username}, nil
 }
 
-func (a *App) sendVerificationEmail(email, displayName, token string) error {
+func (a *App) sendVerificationEmail(email, _ string, token string) error {
 	appURL := strings.TrimRight(a.cfg.AppURL, "/")
 	if appURL == "" {
 		appURL = "http://localhost:5173"
 	}
+	body := verificationEmailBody(appURL, token)
+	if err := a.sendMail(email, "验证你的 BudgetCentre 邮箱", body); err != nil {
+		return apiError("MAIL_DELIVERY_FAILED", "Email delivery failed. Please try again later.", http.StatusServiceUnavailable)
+	}
+	return nil
+}
+
+func verificationEmailBody(appURL, token string) string {
 	link := appURL + "/email/verify?token=" + token
-	body := displayName + `，你好：
+	return `你好：
 
 请打开下面的链接验证你的 BudgetCentre 邮箱：
 
@@ -162,8 +170,4 @@ func (a *App) sendVerificationEmail(email, displayName, token string) error {
 此链接 24 小时内有效。如果不是你本人操作，可以忽略这封邮件。
 
 BudgetCentre`
-	if err := a.sendMail(email, "验证你的 BudgetCentre 邮箱", body); err != nil {
-		return apiError("MAIL_DELIVERY_FAILED", "Email delivery failed. Please try again later.", http.StatusServiceUnavailable)
-	}
-	return nil
 }

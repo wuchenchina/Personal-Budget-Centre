@@ -65,3 +65,13 @@ func TestSMTPAddressAndHeaderSanitizersBlockInjection(t *testing.T) {
 		t.Fatalf("mail headers contain injected Bcc: %s", headerBlock)
 	}
 }
+
+func TestVerificationEmailBodyDoesNotIncludeUserControlledDisplayName(t *testing.T) {
+	body := verificationEmailBody("https://budget.example", "safe-token")
+	if strings.Contains(body, "attacker") {
+		t.Fatalf("verification body should not contain attacker-controlled content: %q", body)
+	}
+	if !strings.Contains(body, "https://budget.example/email/verify?token=safe-token") {
+		t.Fatalf("verification body missing link: %q", body)
+	}
+}
