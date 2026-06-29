@@ -851,7 +851,10 @@ func positiveIntValue(value any) (int, bool) {
 			return 0, false
 		}
 		out, err := strconv.ParseInt(text, 10, 64)
-		return int(out), err == nil && out > 0
+		if err != nil || out <= 0 || out > int64(math.MaxInt) {
+			return 0, false
+		}
+		return int(out), true
 	default:
 		return 0, false
 	}
@@ -877,7 +880,10 @@ func nonNegativeIntValue(value any) (int, bool) {
 			return 0, false
 		}
 		out, err := strconv.ParseInt(text, 10, 64)
-		return int(out), err == nil && out >= 0
+		if err != nil || out < 0 || out > int64(math.MaxInt) {
+			return 0, false
+		}
+		return int(out), true
 	default:
 		return 0, false
 	}
