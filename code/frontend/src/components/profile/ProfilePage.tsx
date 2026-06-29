@@ -966,7 +966,23 @@ function SsoProviderLogo({ provider }: { provider: SsoProvider }) {
     );
   }
 
+  if (isAxchenProvider(provider)) {
+    return (
+      <svg className={styles.axchenLogo} viewBox="0 0 2000 2000" aria-hidden="true" focusable="false">
+        <rect width="2000" height="2000" />
+        <polygon points="530.33 1900 100 1900 791.84 100 1222.16 100 530.33 1900" />
+        <polygon points="1472.24 1900 1900 1900 1212.29 100 784.53 100 1472.24 1900" />
+        <polygon points="1212.29 1900 784.53 1900 1472.24 100 1900 100 1212.29 1900" />
+      </svg>
+    );
+  }
+
   return <ShieldCheck size={16} />;
+}
+
+function isAxchenProvider(provider: SsoProvider) {
+  const providerText = `${provider.provider} ${provider.slug} ${provider.logo ?? ''} ${provider.name}`.toLowerCase();
+  return providerText.includes('casdoor') || providerText.includes('axchen');
 }
 
 function pdfThemePreviewClass(theme: string) {
