@@ -161,6 +161,20 @@ func queryInt(r *http.Request, key string) int64 {
 	return out
 }
 
+func queryBoundedInt(r *http.Request, key string, minValue, maxValue int) int {
+	out, err := strconv.ParseInt(r.URL.Query().Get(key), 10, strconv.IntSize)
+	if err != nil {
+		return 0
+	}
+	if out < int64(minValue) {
+		return minValue
+	}
+	if out > int64(maxValue) {
+		return maxValue
+	}
+	return int(out)
+}
+
 func firstQuery(r *http.Request, keys ...string) string {
 	for _, key := range keys {
 		if value := strings.TrimSpace(r.URL.Query().Get(key)); value != "" {

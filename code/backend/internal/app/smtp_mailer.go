@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net"
+	"net/mail"
 	"net/smtp"
 	"strconv"
 	"strings"
@@ -20,11 +21,20 @@ func (a *App) sendMail(to, subject, body string) error {
 	if from == "" {
 		from = a.cfg.SMTPUsername
 	}
+	safeFrom, err := sanitizeSMTPAddress(from)
+	if err != nil {
+		return err
+	}
+	safeTo, err := sanitizeSMTPAddress(to)
+	if err != nil {
+		return err
+	}
+	safeSubject := sanitizeSMTPHeaderValue(subject)
 	if a.cfg.SMTPPort == 465 {
-		return a.sendMailTLS(to, from, subject, body)
+		return a.sendMailTLS(safeTo, safeFrom, safeSubject, body)
 	}
 	auth := smtp.PlainAuth("", a.cfg.SMTPUsername, a.cfg.SMTPPassword, a.cfg.SMTPHost)
-	return smtp.SendMail(a.cfg.SMTPHost+":"+strconv.Itoa(a.cfg.SMTPPort), auth, from, []string{to}, []byte(mailMessage(from, a.cfg.MailFromName, to, subject, body)))
+	return smtp.SendMail(a.cfg.SMTPHost+":"+strconv.Itoa(a.cfg.SMTPPort), auth, safeFrom, []string{safeTo}, []byte(mailMessage(safeFrom, a.cfg.MailFromName, safeTo, safeSubject, body)))
 }
 
 func (a *App) sendMailTLS(to, from, subject, body string) error {
@@ -101,6 +111,23 @@ func mailMessage(from, fromName, to, subject, body string) string {
 		"Content-Transfer-Encoding: 8bit",
 	}
 	return strings.Join(headers, "\r\n") + "\r\n\r\n" + body
+}
+
+func sanitizeSMTPAddress(value string) (string, error) {
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("invalid email address")
+	}
+	parsed, err := mail.ParseAddress(strings.TrimSpace(value))
+	if err != nil || parsed.Address == "" || strings.ContainsAny(parsed.Address, "\r\n") {
+		return "", fmt.Errorf("invalid email address")
+	}
+	return parsed.Address, nil
+}
+
+func sanitizeSMTPHeaderValue(value string) string {
+	value = strings.ReplaceAll(value, "\r", "")
+	value = strings.ReplaceAll(value, "\n", "")
+	return strings.TrimSpace(value)
 }
 
 func encodedHeader(value string) string {

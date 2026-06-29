@@ -836,22 +836,31 @@ func positiveIntValue(value any) (int, bool) {
 	case int:
 		return v, v > 0
 	case int64:
-		return int(v), v > 0
+		if v <= 0 || v > int64(math.MaxInt) {
+			return 0, false
+		}
+		return int(v), true
 	case float64:
-		if v <= 0 || math.Trunc(v) != v {
+		if v <= 0 || math.Trunc(v) != v || v > float64(math.MaxInt) {
 			return 0, false
 		}
 		return int(v), true
 	case json.Number:
 		out, err := v.Int64()
-		return int(out), err == nil && out > 0
+		if err != nil || out <= 0 || out > int64(math.MaxInt) {
+			return 0, false
+		}
+		return int(out), true
 	case string:
 		text := strings.TrimSpace(v)
 		if text == "" {
 			return 0, false
 		}
 		out, err := strconv.ParseInt(text, 10, 64)
-		return int(out), err == nil && out > 0
+		if err != nil || out <= 0 || out > int64(math.MaxInt) {
+			return 0, false
+		}
+		return int(out), true
 	default:
 		return 0, false
 	}
@@ -862,22 +871,31 @@ func nonNegativeIntValue(value any) (int, bool) {
 	case int:
 		return v, v >= 0
 	case int64:
-		return int(v), v >= 0
+		if v < 0 || v > int64(math.MaxInt) {
+			return 0, false
+		}
+		return int(v), true
 	case float64:
-		if v < 0 || math.Trunc(v) != v {
+		if v < 0 || math.Trunc(v) != v || v > float64(math.MaxInt) {
 			return 0, false
 		}
 		return int(v), true
 	case json.Number:
 		out, err := v.Int64()
-		return int(out), err == nil && out >= 0
+		if err != nil || out < 0 || out > int64(math.MaxInt) {
+			return 0, false
+		}
+		return int(out), true
 	case string:
 		text := strings.TrimSpace(v)
 		if text == "" {
 			return 0, false
 		}
 		out, err := strconv.ParseInt(text, 10, 64)
-		return int(out), err == nil && out >= 0
+		if err != nil || out < 0 || out > int64(math.MaxInt) {
+			return 0, false
+		}
+		return int(out), true
 	default:
 		return 0, false
 	}

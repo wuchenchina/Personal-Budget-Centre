@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,6 +18,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const maxAdminUserListPage = math.MaxInt32 / 100
+
 func (a *App) adminUserList(w http.ResponseWriter, r *http.Request) error {
 	if _, err := a.requireAdmin(r); err != nil {
 		return err
@@ -26,11 +29,11 @@ func (a *App) adminUserList(w http.ResponseWriter, r *http.Request) error {
 	if status != "" && !validUserStatus(status) {
 		return apiError("VALIDATION_ERROR", "Invalid user status.", http.StatusUnprocessableEntity)
 	}
-	page := int(queryInt(r, "page"))
+	page := queryBoundedInt(r, "page", 1, maxAdminUserListPage)
 	if page <= 0 {
 		page = 1
 	}
-	pageSize := int(queryInt(r, "pageSize"))
+	pageSize := queryBoundedInt(r, "pageSize", 0, 100)
 	if pageSize <= 0 {
 		pageSize = 30
 	}
@@ -410,7 +413,7 @@ func (a *App) adminLogs(w http.ResponseWriter, r *http.Request) error {
 	if _, err := a.requireAdmin(r); err != nil {
 		return err
 	}
-	limit := int(queryInt(r, "limit"))
+	limit := queryBoundedInt(r, "limit", 0, 200)
 	httpx.WriteOK(w, map[string]any{"logs": a.recentLogs(limit)}, http.StatusOK)
 	return nil
 }
