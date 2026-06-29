@@ -130,7 +130,7 @@ ORDER BY FIELD(r.role_key, 'owner', 'admin', 'editor', 'auditor', 'viewer'), u.d
 		if err := rows.Scan(&id, &wsID, &userID, &email, &displayName, &role, &status, &joined); err != nil {
 			return nil, err
 		}
-		members = append(members, map[string]any{"id": id, "workspaceId": wsID, "userId": userID, "email": email, "displayName": displayName, "role": role, "status": status, "joinedAt": nullableString(joined)})
+		members = append(members, map[string]any{"id": id, "workspaceId": wsID, "userId": userID, "email": email, "displayName": displayName, "role": role, "status": status, "joinedAt": nullableDateTime(joined)})
 	}
 	return members, rows.Err()
 }

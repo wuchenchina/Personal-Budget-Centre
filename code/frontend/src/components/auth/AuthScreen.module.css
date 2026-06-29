@@ -183,6 +183,33 @@
   border-color: var(--bc-accent);
 }
 
+.linuxDoLogo {
+  display: inline-grid;
+  grid-template-rows: 30% 40% 30%;
+  width: 16px;
+  height: 16px;
+  overflow: hidden;
+  background: #f0f0f0;
+  border: 1px solid #d8d8d8;
+  border-radius: 999px;
+}
+
+.linuxDoLogo span {
+  display: block;
+}
+
+.linuxDoLogo span:nth-child(1) {
+  background: #1c1c1e;
+}
+
+.linuxDoLogo span:nth-child(2) {
+  background: #f0f0f0;
+}
+
+.linuxDoLogo span:nth-child(3) {
+  background: #ffb003;
+}
+
 .passwordStrength {
   margin: -8px 0 14px;
   font-size: 12px;

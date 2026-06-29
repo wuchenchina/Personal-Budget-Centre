@@ -33,6 +33,55 @@ func normalizeCasdoorUserinfo(decoded map[string]any) (map[string]any, error) {
 	return nil, apiError("CASDOOR_USERINFO_INVALID", "Casdoor user info is missing subject.", http.StatusBadGateway)
 }
 
+func normalizeOAuthUserinfo(decoded map[string]any) (map[string]any, error) {
+	for _, key := range []string{"", "data", "user", "userinfo"} {
+		var candidate any = decoded
+		if key != "" {
+			candidate = decoded[key]
+		}
+		if item, ok := candidate.(map[string]any); ok {
+			if normalized := normalizeOAuthUserinfoItem(item); normalized != nil {
+				return normalized, nil
+			}
+		}
+	}
+	for _, key := range []string{"id_token", "access_token", "token"} {
+		if claims := jwtPayload(stringValue(decoded[key])); claims != nil {
+			if normalized := normalizeOAuthUserinfoItem(claims); normalized != nil {
+				for k, v := range decoded {
+					if _, ok := normalized[k]; !ok {
+						normalized[k] = v
+					}
+				}
+				return normalized, nil
+			}
+		}
+	}
+	return nil, apiError("SSO_USERINFO_INVALID", "SSO user info is missing subject.", http.StatusBadGateway)
+}
+
+func normalizeOAuthUserinfoItem(item map[string]any) map[string]any {
+	subject := nonEmptyString(item["sub"], item["id"], item["user_id"], item["uid"])
+	if subject == "" {
+		return nil
+	}
+	normalized := map[string]any{}
+	for key, value := range item {
+		normalized[key] = value
+	}
+	normalized["sub"] = subject
+	if stringValue(normalized["preferred_username"]) == "" {
+		normalized["preferred_username"] = nonEmptyString(item["username"], item["login"], item["name"])
+	}
+	if stringValue(normalized["name"]) == "" {
+		normalized["name"] = nonEmptyString(item["display_name"], item["displayName"], item["username"], item["login"])
+	}
+	if stringValue(normalized["picture"]) == "" {
+		normalized["picture"] = nonEmptyString(item["picture"], item["avatar_url"], item["avatarUrl"], item["avatar"])
+	}
+	return normalized
+}
+
 func jwtPayload(token string) map[string]any {
 	if token == "" {
 		return nil
@@ -53,24 +102,43 @@ func jwtPayload(token string) map[string]any {
 }
 
 func publicCasdoorAccount(subject string, userinfo map[string]any) map[string]any {
+	provider := oauthProvider{ID: ssoProviderCasdoor, Name: "Axchen SSO"}
+	return publicSSOAccount(provider, subject, userinfo)
+}
+
+func publicSSOAccount(provider oauthProvider, subject string, userinfo map[string]any) map[string]any {
 	return map[string]any{
-		"subject":     subject,
-		"username":    nullableStringValue(casdoorUsername(userinfo)),
-		"email":       nullableStringValue(normalizedEmail(userinfo["email"])),
-		"displayName": casdoorDisplayName(userinfo),
-		"avatarUrl":   nullableStringValue(casdoorAvatarURL(userinfo)),
+		"provider":     provider.ID,
+		"providerName": provider.Name,
+		"subject":      subject,
+		"username":     nullableStringValue(ssoUsername(userinfo)),
+		"email":        nullableStringValue(normalizedEmail(userinfo["email"])),
+		"displayName":  ssoDisplayName(userinfo),
+		"avatarUrl":    nullableStringValue(ssoAvatarURL(userinfo)),
 	}
 }
 
 func casdoorUsername(userinfo map[string]any) string {
-	return nonEmptyString(userinfo["preferred_username"], userinfo["name"])
+	return ssoUsername(userinfo)
 }
 
 func casdoorDisplayName(userinfo map[string]any) string {
-	return nonEmptyDefault(userinfo["displayName"], nonEmptyDefault(userinfo["display_name"], nonEmptyDefault(userinfo["name"], nonEmptyDefault(userinfo["preferred_username"], nonEmptyDefault(userinfo["email"], "SSO User")))))
+	return ssoDisplayName(userinfo)
 }
 
 func casdoorAvatarURL(userinfo map[string]any) string {
+	return ssoAvatarURL(userinfo)
+}
+
+func ssoUsername(userinfo map[string]any) string {
+	return nonEmptyString(userinfo["preferred_username"], userinfo["username"], userinfo["login"], userinfo["name"])
+}
+
+func ssoDisplayName(userinfo map[string]any) string {
+	return nonEmptyDefault(userinfo["displayName"], nonEmptyDefault(userinfo["display_name"], nonEmptyDefault(userinfo["name"], nonEmptyDefault(userinfo["preferred_username"], nonEmptyDefault(userinfo["username"], nonEmptyDefault(userinfo["email"], "SSO User"))))))
+}
+
+func ssoAvatarURL(userinfo map[string]any) string {
 	for _, key := range []string{"picture", "avatar", "avatarUrl", "avatar_url"} {
 		value := stringValue(userinfo[key])
 		if len(value) <= 512 && (strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://")) {

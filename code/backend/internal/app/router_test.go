@@ -1,16 +1,22 @@
 package app
 
 import (
+	"database/sql"
+	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"budgetcentre/backend/internal/config"
+
+	wan "github.com/go-webauthn/webauthn/webauthn"
 )
 
 func TestGoRoutesCoverPHPLegacyRoutes(t *testing.T) {
@@ -20,12 +26,17 @@ func TestGoRoutesCoverPHPLegacyRoutes(t *testing.T) {
 		"DELETE /api/currencies":                      true,
 		"GET /api/admin/database":                     true,
 		"GET /api/account-exchange-rates":             true,
+		"GET /api/auth/sso-providers":                 true,
+		"GET /api/auth/sso/casdoor/authorize":         true,
+		"GET /api/auth/sso/linux-do/authorize":        true,
 		"GET /api/budget-exchange-rates":              true,
+		"GET /api/callback":                           true,
 		"GET /api/currency-presets":                   true,
 		"GET /api/exchange-rates/reference/board":     true,
 		"POST /api/admin/database/migrate":            true,
 		"POST /api/admin/exports/cleanup":             true,
 		"POST /api/account-exchange-rates":            true,
+		"POST /api/callback":                          true,
 		"POST /api/budget-exchange-rates":             true,
 		"POST /api/budget-exchange-rates/sync-global": true,
 		"POST /api/currencies":                        true,
@@ -96,6 +107,79 @@ func TestDateStringNormalizesISODateTimes(t *testing.T) {
 	}
 }
 
+func TestWebAuthnSessionExpiresFallsBackWhenLibraryDoesNotEnforceTTL(t *testing.T) {
+	before := time.Now().UTC().Add(webAuthnSessionFallbackTTL - time.Second)
+	got := webAuthnSessionExpires(&wan.SessionData{})
+	after := time.Now().UTC().Add(webAuthnSessionFallbackTTL + time.Second)
+	if got.Before(before) || got.After(after) {
+		t.Fatalf("fallback expiry = %s, want between %s and %s", got, before, after)
+	}
+
+	explicit := time.Date(2026, time.June, 29, 7, 10, 0, 0, time.FixedZone("CST", 8*60*60))
+	got = webAuthnSessionExpires(&wan.SessionData{Expires: explicit})
+	if !got.Equal(explicit.UTC()) {
+		t.Fatalf("explicit expiry = %s, want %s", got, explicit.UTC())
+	}
+}
+
+func TestNullableDateTimeSuppressesZeroAndFormatsUTC(t *testing.T) {
+	if got := nullableDateTime(sql.NullString{String: "0000-00-00 00:00:00", Valid: true}); got != nil {
+		t.Fatalf("zero datetime = %#v, want nil", got)
+	}
+	if got := nullableDateTime(sql.NullString{String: "2026-07-15 00:00:00", Valid: true}); got != "2026-07-15T00:00:00Z" {
+		t.Fatalf("datetime = %#v, want RFC3339 UTC", got)
+	}
+	if got := nullableDateOnly(sql.NullString{String: "2026-07-15T00:00:00Z", Valid: true}); got != "2026-07-15" {
+		t.Fatalf("date only = %#v, want YYYY-MM-DD", got)
+	}
+}
+
+func TestOAuthCallbackStateUsesCookieProviderAndMode(t *testing.T) {
+	app := &App{cfg: config.Config{
+		APIURL:                       "https://bc.example.test",
+		AppURL:                       "https://bc.example.test",
+		CasdoorServerURL:             "https://sso.example.test",
+		CasdoorClientID:              "client-id",
+		CasdoorClientSecret:          "client-secret",
+		CasdoorRedirectURI:           "https://bc.example.test/api/callback",
+		CasdoorDisplayName:           "Axchen SSO",
+		LinuxDoClientID:              "",
+		LinuxDoClientSecret:          "",
+		LinuxDoRedirectURI:           "",
+		LinuxDoTokenEndpoint:         "",
+		LinuxDoUserEndpoint:          "",
+		LinuxDoDisplayName:           "",
+		LinuxDoScope:                 "",
+		LinuxDoAuthorizationEndpoint: "",
+	}}
+	req := httptest.NewRequest(http.MethodPost, "/api/callback", nil)
+	req.AddCookie(app.oauthCookie(map[string]string{
+		"provider":     ssoProviderCasdoor,
+		"state":        "server-state",
+		"codeVerifier": "server-verifier",
+		"mode":         "bind",
+	}, time.Now().Add(time.Minute)))
+	recorder := httptest.NewRecorder()
+
+	provider, mode, pkce, err := app.oauthCallbackState(recorder, req, map[string]any{
+		"provider": "",
+		"mode":     "login",
+		"state":    "server-state",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider.ID != ssoProviderCasdoor {
+		t.Fatalf("provider = %q, want %q", provider.ID, ssoProviderCasdoor)
+	}
+	if mode != "bind" {
+		t.Fatalf("mode = %q, want bind", mode)
+	}
+	if pkce["codeVerifier"] != "server-verifier" {
+		t.Fatalf("code verifier was not restored from cookie")
+	}
+}
+
 func TestExportJobTokenContract(t *testing.T) {
 	got := exportJobToken("secret", 12, 34, 56, "bookkeeping", "20260627-budget-bookkeeping-ledger.pdf")
 	want := "f83beaa627e9aa42667484dcbe10d1aeea9a111b87462eb05cc33934b47becc4"
@@ -128,6 +212,40 @@ func TestMethodNotAllowedIsNotWrittenToAppLog(t *testing.T) {
 	app.appendAppLog(req, apiError("METHOD_NOT_ALLOWED", "API route does not support this method.", http.StatusMethodNotAllowed))
 	if _, err := os.Stat(logPath); !os.IsNotExist(err) {
 		t.Fatalf("method-not-allowed should not create an app log entry, stat err: %v", err)
+	}
+}
+
+func TestAppLogIncludesAPIErrorMeta(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "app.log")
+	app := &App{cfg: config.Config{AppLogFile: logPath}, logger: slog.New(slog.NewTextHandler(os.Stderr, nil))}
+	req, err := http.NewRequest(http.MethodPost, "/api/callback?code=secret-code&state=state", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.appendAppLog(req, apiErrorWithMeta("SSO_REQUEST_REJECTED", "SSO service rejected the request.", http.StatusBadGateway, map[string]any{
+		"provider":       ssoProviderLinuxDo,
+		"phase":          "token",
+		"upstreamStatus": 400,
+	}))
+
+	raw, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var entry map[string]any
+	if err := json.Unmarshal(raw, &entry); err != nil {
+		t.Fatal(err)
+	}
+	meta, ok := entry["meta"].(map[string]any)
+	if !ok {
+		t.Fatalf("log meta missing: %#v", entry)
+	}
+	if meta["provider"] != ssoProviderLinuxDo || meta["phase"] != "token" || meta["upstreamStatus"] != float64(400) {
+		t.Fatalf("unexpected log meta: %#v", meta)
+	}
+	query, ok := entry["query"].(map[string]any)
+	if !ok || query["code"] != "[redacted]" {
+		t.Fatalf("callback code query must be redacted, got %#v", entry["query"])
 	}
 }
 
@@ -553,6 +671,9 @@ func containsString(values []string, needle string) bool {
 }
 
 func isRetiredLegacyRoute(route string) bool {
+	if route == "POST /api/Callback" {
+		return true
+	}
 	if strings.HasPrefix(route, "POST /api/exchange-rates/") && strings.HasSuffix(route, "/refresh") {
 		return true
 	}

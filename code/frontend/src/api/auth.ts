@@ -6,6 +6,8 @@ import type {
   RegisterPayload,
   RegisterResult,
   SsoBinding,
+  SsoProvider,
+  SsoProviderID,
 } from '../types/auth';
 import type { CurrencyCode } from '../types/budget';
 
@@ -38,8 +40,13 @@ export interface UpdatePasswordPayload {
   password: string;
 }
 
-export interface SsoBindingResult {
-  binding: SsoBinding | null;
+export interface SsoProviderListResult {
+  providers: SsoProvider[];
+}
+
+export interface SsoBindingsResult {
+  bindings: SsoBinding[];
+  providers?: SsoProvider[];
 }
 
 export interface SsoMergeBeginResult {
@@ -48,12 +55,14 @@ export interface SsoMergeBeginResult {
 
 export interface SsoMergeCompleteResult {
   session: AuthSession;
-  binding: SsoBinding;
+  bindings: SsoBinding[];
 }
 
 export interface SsoAccountActionRequired {
   requiresSsoAccountAction: true;
   ssoAccount: {
+    provider: SsoProviderID;
+    providerName: string;
     subject: string;
     username: string | null;
     email: string | null;
@@ -63,7 +72,8 @@ export interface SsoAccountActionRequired {
   ssoCreateToken: string;
 }
 
-export interface CasdoorCallbackPayload {
+export interface SsoCallbackPayload {
+  provider?: SsoProviderID;
   code?: string;
   state?: string;
   accessToken?: string;
@@ -72,7 +82,7 @@ export interface CasdoorCallbackPayload {
   ssoCreateToken?: string;
 }
 
-export type CasdoorCallbackMode = 'login' | 'bind';
+export type SsoCallbackMode = 'login' | 'bind';
 
 export function getCurrentSession(): Promise<AuthSession | null> {
   return apiGet<CurrentSessionResult>('/api/auth/me').then((result) => result.session);
@@ -82,16 +92,16 @@ export function login(payload: LoginPayload): Promise<AuthSession> {
   return apiPost<AuthSession>('/api/auth/login', payload);
 }
 
-export function casdoorCallback(
-  payload: CasdoorCallbackPayload,
+export function ssoCallback(
+  payload: SsoCallbackPayload,
   mode: 'login',
 ): Promise<AuthSession | SsoAccountActionRequired>;
-export function casdoorCallback(payload: CasdoorCallbackPayload, mode: 'bind'): Promise<SsoBindingResult>;
-export function casdoorCallback(
-  payload: CasdoorCallbackPayload,
-  mode: CasdoorCallbackMode = 'login',
-): Promise<AuthSession | SsoBindingResult | SsoAccountActionRequired> {
-  return apiPost<AuthSession | SsoBindingResult | SsoAccountActionRequired>('/api/Callback', {
+export function ssoCallback(payload: SsoCallbackPayload, mode: 'bind'): Promise<{ binding: SsoBinding }>;
+export function ssoCallback(
+  payload: SsoCallbackPayload,
+  mode: SsoCallbackMode = 'login',
+): Promise<AuthSession | { binding: SsoBinding } | SsoAccountActionRequired> {
+  return apiPost<AuthSession | { binding: SsoBinding } | SsoAccountActionRequired>('/api/callback', {
     ...payload,
     mode,
   });
@@ -119,12 +129,16 @@ export function updatePassword(payload: UpdatePasswordPayload): Promise<{ change
   return apiPatch<{ changed: true }>('/api/auth/password', payload);
 }
 
-export function getSsoBinding(): Promise<SsoBindingResult> {
-  return apiGet<SsoBindingResult>('/api/auth/sso-binding');
+export function getSsoProviders(): Promise<SsoProviderListResult> {
+  return apiGet<SsoProviderListResult>('/api/auth/sso-providers');
 }
 
-export function beginSsoMerge(): Promise<SsoMergeBeginResult> {
-  return apiPost<SsoMergeBeginResult>('/api/auth/sso-merge', { action: 'begin' });
+export function getSsoBindings(): Promise<SsoBindingsResult> {
+  return apiGet<SsoBindingsResult>('/api/auth/sso-binding');
+}
+
+export function beginSsoMerge(provider: SsoProviderID): Promise<SsoMergeBeginResult> {
+  return apiPost<SsoMergeBeginResult>('/api/auth/sso-merge', { action: 'begin', provider });
 }
 
 export function completeSsoMerge(mergeToken: string): Promise<SsoMergeCompleteResult> {
@@ -134,8 +148,8 @@ export function completeSsoMerge(mergeToken: string): Promise<SsoMergeCompleteRe
   });
 }
 
-export function unlinkSsoBinding(): Promise<SsoBindingResult> {
-  return apiDelete<SsoBindingResult>('/api/auth/sso-binding');
+export function unlinkSsoBinding(provider: SsoProviderID): Promise<SsoBindingsResult> {
+  return apiDelete<SsoBindingsResult>(`/api/auth/sso-binding?provider=${encodeURIComponent(provider)}`);
 }
 
 export function logout(): Promise<Record<string, never>> {

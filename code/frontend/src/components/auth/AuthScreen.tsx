@@ -1,9 +1,10 @@
 import { Alert, Button, Divider, Form, Input, Progress, Select, Tabs } from 'antd';
 import type { FormInstance } from 'antd';
 import { KeyRound, LockKeyhole, UserRound } from 'lucide-react';
-import { startCasdoorSignin } from '../../config/casdoor';
+import { startSsoSignin } from '../../config/sso';
 import type { AppLanguage } from '../../i18n';
 import { languageOptions, useI18n } from '../../i18n';
+import type { SsoProvider } from '../../types/auth';
 import type { AuthFormValues, AuthMode } from '../../types/forms';
 import { renderCurrencyOption, type CurrencySelectOption } from '../../utils/currencyOptions';
 import { passwordProgressStatus, passwordStrengthFor } from '../../utils/password';
@@ -16,6 +17,7 @@ interface AuthScreenProps {
   notice: string | null;
   isSubmitting: boolean;
   language: AppLanguage;
+  ssoProviders: SsoProvider[];
   currencyOptions: CurrencySelectOption[];
   watchedPassword: string | undefined;
   onFinish: (values: AuthFormValues) => Promise<void>;
@@ -31,6 +33,7 @@ export function AuthScreen({
   notice,
   isSubmitting,
   language,
+  ssoProviders,
   currencyOptions,
   watchedPassword,
   onFinish,
@@ -45,9 +48,6 @@ export function AuthScreen({
     poor: t('passwordStrengthPoor'),
     pass: t('passwordStrengthPass'),
     ok: t('passwordStrengthOk'),
-  };
-  const handleSsoLogin = () => {
-    startCasdoorSignin('login');
   };
   const submitText = mode === 'login' ? t('login') : t('createAccount');
 
@@ -253,18 +253,36 @@ export function AuthScreen({
             >
               {t('loginWithPasskey')}
             </Button>
-            <Button
-              block
-              className={styles.altButton}
-              disabled={isSubmitting}
-              size="large"
-              onClick={handleSsoLogin}
-            >
-              {t('loginWithSso')}
-            </Button>
+            {ssoProviders.map((provider) => (
+              <Button
+                block
+                className={styles.altButton}
+                disabled={isSubmitting}
+                icon={<SsoProviderLogo provider={provider} />}
+                key={provider.provider}
+                size="large"
+                onClick={() => startSsoSignin(provider, 'login')}
+              >
+                {t('loginWithSso')} · {provider.name}
+              </Button>
+            ))}
           </div>
         ) : null}
       </div>
     </main>
   );
+}
+
+function SsoProviderLogo({ provider }: { provider: SsoProvider }) {
+  if (provider.provider === 'linux_do' || provider.logo === 'linux_do') {
+    return (
+      <span className={styles.linuxDoLogo} aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </span>
+    );
+  }
+
+  return <KeyRound size={16} />;
 }

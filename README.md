@@ -81,7 +81,10 @@ Important values:
 - `APP_URL` and `API_URL`: public frontend/API origins.
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`: MySQL connection.
 - `WEBAUTHN_RP_ID` and `WEBAUTHN_ORIGIN`: must match the deployed domain.
-- `CASDOOR_*`: optional Casdoor SSO configuration.
+- `CASDOOR_*`: optional Axchen/Casdoor SSO configuration.
+- `LINUX_DO_*`: optional Linux Do OAuth/OIDC SSO configuration. The callback
+  endpoint is shared with other SSO providers at `/api/callback`; set each
+  provider's redirect URI to your public API origin plus `/api/callback`.
 - `SMTP_*`: optional mail configuration.
 - `WEB_BIND`: host bind for the web container, default `127.0.0.1:18080`.
 - `BANK_REFERENCE_RATES_URL`: optional private reference-rate endpoint. Leave
@@ -172,8 +175,12 @@ DB_PASSWORD="${DB_PASSWORD:-change-me}"
 APP_KEY="${APP_KEY:-change-me-long-random-secret}"
 
 CASDOOR_SERVER_URL="${CASDOOR_SERVER_URL:-}"
+CASDOOR_DISPLAY_NAME="${CASDOOR_DISPLAY_NAME:-Axchen SSO}"
 CASDOOR_CLIENT_ID="${CASDOOR_CLIENT_ID:-}"
+CASDOOR_REDIRECT_URI="${CASDOOR_REDIRECT_URI:-${API_URL%/}/api/callback}"
 CASDOOR_CLIENT_SECRET="${CASDOOR_CLIENT_SECRET:-}"
+LINUX_DO_CLIENT_ID="${LINUX_DO_CLIENT_ID:-}"
+LINUX_DO_CLIENT_SECRET="${LINUX_DO_CLIENT_SECRET:-}"
 SMTP_HOST="${SMTP_HOST:-}"
 SMTP_USERNAME="${SMTP_USERNAME:-}"
 SMTP_PASSWORD="${SMTP_PASSWORD:-}"

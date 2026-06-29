@@ -114,8 +114,8 @@ func (a *App) bankReferenceRateBoardList(w http.ResponseWriter, r *http.Request)
 			"customerSellRate":  row.CustomerSellRate,
 			"customerBuyRate":   row.CustomerBuyRate,
 			"rateDate":          row.RateDate,
-			"providerUpdatedAt": nullableText(row.ProviderUpdatedAt),
-			"fetchedAt":         nullableText(row.FetchedAt),
+			"providerUpdatedAt": dateTimeValue(row.ProviderUpdatedAt),
+			"fetchedAt":         dateTimeValue(row.FetchedAt),
 			"sourceName":        nullableText(row.SourceName),
 			"sourceUrl":         nil,
 		})
@@ -583,7 +583,7 @@ func (a *App) exchangeRateConvert(w http.ResponseWriter, r *http.Request) error 
 		"amount":          amount,
 		"rate":            conversion.Rate,
 		"convertedAmount": amount * conversion.Rate,
-		"rateDate":        nullableText(conversion.RateDate),
+		"rateDate":        nullableDate(conversion.RateDate),
 		"source":          conversion.Source,
 		"conversionPath":  conversion.ConversionPath,
 	}}, http.StatusOK)

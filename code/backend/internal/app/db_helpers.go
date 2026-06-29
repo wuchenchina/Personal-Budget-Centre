@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func nullableString(value sql.NullString) any {
@@ -15,6 +16,74 @@ func nullableString(value sql.NullString) any {
 		return value.String
 	}
 	return nil
+}
+
+func nullableDateOnly(value sql.NullString) any {
+	text, ok := cleanNullableText(value)
+	if !ok {
+		return nil
+	}
+	if date := dateString(text); date != "" {
+		return date
+	}
+	return text
+}
+
+func nullableDateTime(value sql.NullString) any {
+	text, ok := cleanNullableText(value)
+	if !ok {
+		return nil
+	}
+	return dateTimeValue(text)
+}
+
+func dateTimeValue(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	if isZeroDateTime(value) {
+		return nil
+	}
+	if parsed, ok := parseDateTime(value); ok {
+		return parsed.UTC().Format(time.RFC3339)
+	}
+	return value
+}
+
+func cleanNullableText(value sql.NullString) (string, bool) {
+	if !value.Valid {
+		return "", false
+	}
+	text := strings.TrimSpace(value.String)
+	if text == "" || isZeroDateTime(text) {
+		return "", false
+	}
+	return text, true
+}
+
+func isZeroDateTime(value string) bool {
+	text := strings.TrimSpace(value)
+	return text == "0000-00-00" || strings.HasPrefix(text, "0000-00-00 ")
+}
+
+func parseDateTime(value string) (time.Time, bool) {
+	text := strings.TrimSpace(value)
+	if text == "" || isZeroDateTime(text) {
+		return time.Time{}, false
+	}
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05",
+		"2006-01-02 15:04",
+		"2006-01-02",
+	} {
+		parsed, err := time.Parse(layout, text)
+		if err == nil {
+			return parsed.UTC(), true
+		}
+	}
+	return time.Time{}, false
 }
 
 func nullableInt(value sql.NullInt64) any {

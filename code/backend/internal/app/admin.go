@@ -272,7 +272,7 @@ func scanAdminUser(row rowScanner) (map[string]any, error) {
 	if err := row.Scan(&id, &email, &username, &display, &status, &admin, &verified, &sent, &created, &updated, &defaultCurrency); err != nil {
 		return nil, err
 	}
-	return map[string]any{"id": id, "email": email, "username": nullableString(username), "displayName": display, "status": status, "isAdmin": admin, "emailVerifiedAt": nullableString(verified), "emailVerificationSentAt": nullableString(sent), "defaultCurrency": nullableString(defaultCurrency), "createdAt": created, "updatedAt": updated}, nil
+	return map[string]any{"id": id, "email": email, "username": nullableString(username), "displayName": display, "status": status, "isAdmin": admin, "emailVerifiedAt": nullableDateTime(verified), "emailVerificationSentAt": nullableDateTime(sent), "defaultCurrency": nullableString(defaultCurrency), "createdAt": dateTimeValue(created), "updatedAt": dateTimeValue(updated)}, nil
 }
 
 func adminUserFilters(search, status string) (string, []any) {

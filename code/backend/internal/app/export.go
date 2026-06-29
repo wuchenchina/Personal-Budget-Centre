@@ -235,8 +235,8 @@ func scanExport(row rowScanner) (map[string]any, error) {
 		"errorMessage": nullableString(errorMessage), "progressPercent": progressPercent,
 		"progressStage": progressStage, "rowsTotal": nullableInt(rowsTotal),
 		"rowsProcessed": nullableInt(rowsProcessed), "pages": nullableInt(pages),
-		"fileSize": nullableInt(fileSize), "createdAt": created,
-		"startedAt": nullableString(startedAt), "completedAt": nullableString(completedAt),
+		"fileSize": nullableInt(fileSize), "createdAt": dateTimeValue(created),
+		"startedAt": nullableDateTime(startedAt), "completedAt": nullableDateTime(completedAt),
 		"downloadUrl": fmt.Sprintf("/api/exports/download?id=%d", id),
 	}, nil
 }

@@ -241,11 +241,11 @@ func sharePayload(share budgetShare) map[string]any {
 		"role":            share.Role,
 		"canExport":       share.CanExport,
 		"canReshare":      share.CanReshare,
-		"expiresAt":       nullableString(share.ExpiresAt),
+		"expiresAt":       nullableDateTime(share.ExpiresAt),
 		"createdByUserId": share.CreatedByUserID,
 		"createdByName":   nullableString(share.CreatedByName),
-		"createdAt":       share.CreatedAt,
-		"updatedAt":       share.UpdatedAt,
+		"createdAt":       dateTimeValue(share.CreatedAt),
+		"updatedAt":       dateTimeValue(share.UpdatedAt),
 	}
 }
 

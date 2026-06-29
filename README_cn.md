@@ -78,7 +78,10 @@ go run ./cmd/api
 - `APP_URL`、`API_URL`：前端和 API 的公网访问地址。
 - `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD`：MySQL 连接信息。
 - `WEBAUTHN_RP_ID`、`WEBAUTHN_ORIGIN`：必须与部署域名匹配。
-- `CASDOOR_*`：可选 Casdoor SSO 配置。
+- `CASDOOR_*`：可选 Axchen/Casdoor SSO 配置。
+- `LINUX_DO_*`：可选 Linux Do OAuth/OIDC SSO 配置。所有 SSO provider
+  共用 `/api/callback` 回调地址；请将各 provider 的 redirect URI 设置为
+  你的公开 API 来源加 `/api/callback`。
 - `SMTP_*`：可选邮件配置。
 - `WEB_BIND`：web 容器绑定地址，默认 `127.0.0.1:18080`。
 - `BANK_REFERENCE_RATES_URL`：可选私有参考汇率接口。开源或默认部署可留空。
@@ -160,8 +163,12 @@ DB_PASSWORD="${DB_PASSWORD:-change-me}"
 APP_KEY="${APP_KEY:-change-me-long-random-secret}"
 
 CASDOOR_SERVER_URL="${CASDOOR_SERVER_URL:-}"
+CASDOOR_DISPLAY_NAME="${CASDOOR_DISPLAY_NAME:-Axchen SSO}"
 CASDOOR_CLIENT_ID="${CASDOOR_CLIENT_ID:-}"
+CASDOOR_REDIRECT_URI="${CASDOOR_REDIRECT_URI:-${API_URL%/}/api/callback}"
 CASDOOR_CLIENT_SECRET="${CASDOOR_CLIENT_SECRET:-}"
+LINUX_DO_CLIENT_ID="${LINUX_DO_CLIENT_ID:-}"
+LINUX_DO_CLIENT_SECRET="${LINUX_DO_CLIENT_SECRET:-}"
 SMTP_HOST="${SMTP_HOST:-}"
 SMTP_USERNAME="${SMTP_USERNAME:-}"
 SMTP_PASSWORD="${SMTP_PASSWORD:-}"

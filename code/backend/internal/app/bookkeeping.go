@@ -258,7 +258,7 @@ WHERE br.budget_id = ? ORDER BY br.sort_order ASC, br.id ASC`, budgetID)
 			"id":                        id,
 			"budgetId":                  budget,
 			"transactionType":           txType,
-			"recordDate":                nullableString(recordDate),
+			"recordDate":                nullableDateOnly(recordDate),
 			"orderReference":            nullableString(orderRef),
 			"details":                   details,
 			"categoryLabel":             nullableString(category),
@@ -273,8 +273,8 @@ WHERE br.budget_id = ? ORDER BY br.sort_order ASC, br.id ASC`, budgetID)
 			"destinationRate":           parseNullFloat(destRate),
 			"remark":                    nullableString(remark),
 			"sortOrder":                 sort,
-			"createdAt":                 created,
-			"updatedAt":                 updated,
+			"createdAt":                 dateTimeValue(created),
+			"updatedAt":                 dateTimeValue(updated),
 		})
 	}
 	return records, rows.Err()

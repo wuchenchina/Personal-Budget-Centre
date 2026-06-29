@@ -1001,7 +1001,7 @@ func installmentVersionsFromInput(value any) ([]map[string]any, error) {
 		totalAmount, hasTotal := optionalNumber(input["totalAmount"])
 		versions = append(versions, map[string]any{
 			"id":             id,
-			"createdAt":      createdAt,
+			"createdAt":      dateTimeValue(createdAt),
 			"label":          label,
 			"periodAmounts":  amounts,
 			"periodProgress": periodBoolsFromInput(input["periodProgress"]),

@@ -52,6 +52,7 @@ func (a *App) appendAppLog(r *http.Request, err error) {
 		entry["status"] = apiErr.Status
 		entry["message"] = apiErr.Message
 		entry["exception"] = "APIError"
+		entry["meta"] = apiErr.Meta
 	}
 	raw, marshalErr := json.Marshal(entry)
 	if marshalErr != nil {
@@ -113,6 +114,7 @@ func normalizedLogEntry(entry map[string]any, raw string) map[string]any {
 		"ipAddress": entry["ipAddress"],
 		"userAgent": entry["userAgent"],
 		"trace":     normalizedLogTrace(entry["trace"]),
+		"meta":      normalizedLogObject(entry["meta"]),
 	}
 	if out["status"] == int64(0) {
 		out["status"] = http.StatusInternalServerError
@@ -155,7 +157,7 @@ func redactedQuery(r *http.Request) map[string]any {
 	out := map[string]any{}
 	for key, values := range r.URL.Query() {
 		lower := strings.ToLower(key)
-		if strings.Contains(lower, "token") || strings.Contains(lower, "password") || strings.Contains(lower, "secret") {
+		if lower == "code" || strings.Contains(lower, "token") || strings.Contains(lower, "password") || strings.Contains(lower, "secret") {
 			out[key] = "[redacted]"
 			continue
 		}

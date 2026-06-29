@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS webauthn_challenges (
   user_id BIGINT UNSIGNED NULL,
   challenge CHAR(128) NOT NULL,
   type ENUM('registration', 'authentication') NOT NULL,
+  session_json JSON NULL,
   expires_at DATETIME NOT NULL,
   used_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

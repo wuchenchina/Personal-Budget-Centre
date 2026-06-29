@@ -53,8 +53,17 @@ export interface AuthSession {
   csrfToken: string;
 }
 
+export type SsoProviderID = 'casdoor' | 'linux_do' | string;
+
+export interface SsoProvider {
+  provider: SsoProviderID;
+  slug: string;
+  name: string;
+  logo: string | null;
+}
+
 export interface SsoBinding {
-  provider: 'casdoor';
+  provider: SsoProviderID;
   subject: string;
   username: string | null;
   email: string | null;

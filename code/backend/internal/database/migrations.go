@@ -195,7 +195,14 @@ var recoverableMigrationChecksums = []recoverableMigrationChecksum{
 		appliedFilename: "001_schema.sql",
 		appliedChecksum: "0a121ead65d74c6207f950e2070a772cbd3d8142d4b2bb103273e4bf4b1950d0",
 		currentFilename: "001_schema.sql",
-		currentChecksum: "a3d94cea1adadcd675c075d86b7126013306b2431e534b2fe590b44fb7e71a61",
+		currentChecksum: "100538299ad524260f2e9baa2dd26e46fee7eebe76982b52cd906a2490615581",
+	},
+	{
+		version:         "001",
+		appliedFilename: "001_schema.sql",
+		appliedChecksum: "a3d94cea1adadcd675c075d86b7126013306b2431e534b2fe590b44fb7e71a61",
+		currentFilename: "001_schema.sql",
+		currentChecksum: "100538299ad524260f2e9baa2dd26e46fee7eebe76982b52cd906a2490615581",
 	},
 	{
 		version:         "016",

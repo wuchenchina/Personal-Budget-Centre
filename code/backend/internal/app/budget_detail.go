@@ -23,7 +23,7 @@ func (a *App) participants(r *http.Request, budgetID int64) ([]map[string]any, e
 		if err := rows.Scan(&id, &member, &name, &email, &sort, &created, &updated); err != nil {
 			return nil, err
 		}
-		out = append(out, map[string]any{"id": id, "memberUserId": nullableInt(member), "name": name, "email": nullableString(email), "sortOrder": sort, "createdAt": created, "updatedAt": updated})
+		out = append(out, map[string]any{"id": id, "memberUserId": nullableInt(member), "name": name, "email": nullableString(email), "sortOrder": sort, "createdAt": dateTimeValue(created), "updatedAt": dateTimeValue(updated)})
 	}
 	return out, rows.Err()
 }
@@ -284,7 +284,7 @@ WHERE tx.budget_id = ? ORDER BY tx.sort_order ASC, tx.id ASC`, budgetID)
 		if txPayments == nil {
 			txPayments = []any{}
 		}
-		out = append(out, map[string]any{"id": id, "categoryId": nullableInt(catID), "paidByParticipantId": nullableInt(paidBy), "payments": txPayments, "category": nullableString(cat), "transactionDate": nullableString(date), "details": details, "currency": cur, "amountOriginal": amount, "rateToBase": rate, "amountBase": base, "pricingConfig": pricingMap(pricing), "referenceCurrency": nullableString(refCur), "referenceAmountOriginal": parseNullFloat(refAmt), "remark": nullableString(remark), "sortOrder": sort})
+		out = append(out, map[string]any{"id": id, "categoryId": nullableInt(catID), "paidByParticipantId": nullableInt(paidBy), "payments": txPayments, "category": nullableString(cat), "transactionDate": nullableDateOnly(date), "details": details, "currency": cur, "amountOriginal": amount, "rateToBase": rate, "amountBase": base, "pricingConfig": pricingMap(pricing), "referenceCurrency": nullableString(refCur), "referenceAmountOriginal": parseNullFloat(refAmt), "remark": nullableString(remark), "sortOrder": sort})
 	}
 	return out, rows.Err()
 }
@@ -298,7 +298,7 @@ func (a *App) overallInstallmentPlan(r *http.Request, budgetID int64) (map[strin
 		}
 		return nil, err
 	}
-	return map[string]any{"periodAmounts": jsonArray(amounts), "periodLocked": jsonArray(locked), "periodProgress": jsonArray(progress), "periodRemarks": jsonArray(remarks), "updatedAt": nullableString(updated)}, nil
+	return map[string]any{"periodAmounts": jsonArray(amounts), "periodLocked": jsonArray(locked), "periodProgress": jsonArray(progress), "periodRemarks": jsonArray(remarks), "updatedAt": nullableDateTime(updated)}, nil
 }
 
 func pricingMap(raw sql.NullString) map[string]any {

@@ -214,7 +214,7 @@ FROM budget_category_aliases WHERE workspace_id = ? ORDER BY alias ASC, id ASC`,
 		if err := rows.Scan(&id, &categoryID, &alias, &created); err != nil {
 			return nil, err
 		}
-		out[categoryID] = append(out[categoryID], map[string]any{"id": id, "categoryId": categoryID, "alias": alias, "createdAt": created})
+		out[categoryID] = append(out[categoryID], map[string]any{"id": id, "categoryId": categoryID, "alias": alias, "createdAt": dateTimeValue(created)})
 	}
 	return out, rows.Err()
 }

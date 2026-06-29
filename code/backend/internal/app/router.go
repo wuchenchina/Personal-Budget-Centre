@@ -81,12 +81,18 @@ func (a *App) route(method, path string) handlerFunc {
 		return a.ssoUnlink
 	case method == http.MethodPost && path == "/api/auth/sso-merge":
 		return a.ssoMerge
+	case method == http.MethodGet && path == "/api/auth/sso-providers":
+		return a.ssoProviders
+	case method == http.MethodGet && path == "/api/auth/sso/casdoor/authorize":
+		return a.casdoorAuthorize
 	case method == http.MethodGet && path == "/api/auth/casdoor/authorize":
 		return a.casdoorAuthorize
 	case method == http.MethodGet && path == "/api/callback":
-		return a.casdoorBrowserCallback
-	case method == http.MethodPost && path == "/api/Callback":
-		return a.casdoorCallback
+		return a.oauthBrowserCallback
+	case method == http.MethodPost && path == "/api/callback":
+		return a.oauthCallback
+	case method == http.MethodGet && path == "/api/auth/sso/linux-do/authorize":
+		return a.linuxDoAuthorize
 	case method == http.MethodGet && path == "/api/auth/passkey/register/options":
 		return a.passkeyRegisterOptions
 	case method == http.MethodPost && path == "/api/auth/passkey/register/verify":
@@ -299,4 +305,11 @@ func ok(data map[string]any) handlerFunc {
 
 func apiError(code, message string, status int) error {
 	return httpx.APIError{Code: code, Message: message, Status: status, Meta: map[string]any{}}
+}
+
+func apiErrorWithMeta(code, message string, status int, meta map[string]any) error {
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	return httpx.APIError{Code: code, Message: message, Status: status, Meta: meta}
 }

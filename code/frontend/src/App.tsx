@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, ConfigProvider, message } from 'antd';
-import { casdoorCallback, getCurrentSession, logout } from './api/auth';
+import { getCurrentSession, logout, ssoCallback } from './api/auth';
 import { AuthLoadingScreen } from './components/auth/AuthLoadingScreen';
 import styles from './components/auth/AuthScreen.module.css';
 import { appTheme } from './config/appConfig';
-import { consumeCasdoorIntent } from './config/casdoor';
+import { consumeSsoIntent } from './config/sso';
 import type { AppLanguage, I18nKey, I18nValues } from './i18n';
 import { I18nContext, antdLocales, normalizeLanguage, translate, useI18n } from './i18n';
 import './App.css';
@@ -39,19 +39,20 @@ function replacePath(path: string) {
   window.history.replaceState(null, '', path);
 }
 
-interface CasdoorCallbackScreenProps {
+interface SsoCallbackScreenProps {
   onAuthenticated: (session: AuthSession) => void;
   onNavigateHome: () => void;
   onNavigateProfile: () => void;
 }
 
-function CasdoorCallbackScreen({
+function SsoCallbackScreen({
   onAuthenticated,
   onNavigateHome,
   onNavigateProfile,
-}: CasdoorCallbackScreenProps) {
+}: SsoCallbackScreenProps) {
   const { t } = useI18n();
   const [ssoDecision, setSsoDecision] = useState<SsoAccountActionRequired | null>(null);
+  const [callbackError, setCallbackError] = useState<string | null>(null);
   const [isCreatingSsoAccount, setIsCreatingSsoAccount] = useState(false);
   const hasHandledCallback = useRef(false);
   const callbackHandlersRef = useRef({
@@ -78,15 +79,15 @@ function CasdoorCallbackScreen({
     }
 
     hasHandledCallback.current = true;
-    const mode = consumeCasdoorIntent();
+    const intent = consumeSsoIntent();
+    const mode = intent.mode;
 
     const query = new URLSearchParams(window.location.search);
     const code = query.get('code');
     const state = query.get('state') ?? undefined;
 
     if (code === null || code.trim() === '') {
-      void message.error(handlers().t('authFailed'));
-      queueMicrotask(mode === 'bind' ? handlers().onNavigateProfile : handlers().onNavigateHome);
+      setCallbackError(handlers().t('authFailed'));
 
       return;
     }
@@ -95,8 +96,8 @@ function CasdoorCallbackScreen({
 
     const callbackRequest =
       mode === 'bind'
-        ? casdoorCallback({ code, state }, 'bind')
-        : casdoorCallback({ code, state }, 'login');
+        ? ssoCallback({ code, state }, 'bind')
+        : ssoCallback({ code, state }, 'login');
 
     callbackRequest
       .then((result) => {
@@ -123,13 +124,7 @@ function CasdoorCallbackScreen({
           return;
         }
 
-        void message.error(error instanceof Error ? error.message : handlers().t('authFailed'));
-        if (mode === 'bind') {
-          handlers().onNavigateProfile();
-          return;
-        }
-
-        handlers().onNavigateHome();
+        setCallbackError(error instanceof Error ? error.message : handlers().t('authFailed'));
       });
 
     return () => {
@@ -143,9 +138,10 @@ function CasdoorCallbackScreen({
     }
 
     setIsCreatingSsoAccount(true);
-    casdoorCallback(
+    ssoCallback(
       {
         action: 'create',
+        provider: ssoDecision.ssoAccount.provider,
         ssoCreateToken: ssoDecision.ssoCreateToken,
       },
       'login',
@@ -213,6 +209,38 @@ function CasdoorCallbackScreen({
     );
   }
 
+  if (callbackError !== null) {
+    return (
+      <main className={styles.loadingShell}>
+        <section className={styles.ssoDecisionCard}>
+          <div className={styles.loadingBrand}>
+            <img
+              className={styles.brandLogo}
+              src="/favicon.webp"
+              alt="BudgetCentre"
+              width={48}
+              height={48}
+            />
+            <span className={styles.brandName}>BudgetCentre</span>
+            <p className={styles.brandSubtitle}>{t('authFailed')}</p>
+          </div>
+          <Alert
+            className={styles.authAlert}
+            message={t('authFailed')}
+            description={callbackError}
+            type="error"
+            showIcon
+          />
+          <div className={styles.ssoDecisionActions}>
+            <Button className={styles.submitButton} type="primary" block onClick={onNavigateHome}>
+              {t('backToLogin')}
+            </Button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return <AuthLoadingScreen />;
 }
 
@@ -233,9 +261,9 @@ function App() {
   );
   const currentUrl = new URL(currentLocation, window.location.origin);
   const isEmailVerificationRoute = currentUrl.pathname === '/email/verify';
-  const isCasdoorCallbackRoute =
+  const isSsoCallbackRoute =
     currentUrl.pathname === '/api/callback'
-    || currentUrl.search.includes('casdoor_callback=1');
+    || currentUrl.search.includes('sso_callback=1');
 
   useEffect(() => {
     let isMounted = true;
@@ -309,9 +337,9 @@ function App() {
         <EmailVerificationScreen />
       </Suspense>
     );
-  } else if (isCasdoorCallbackRoute) {
+  } else if (isSsoCallbackRoute) {
     content = (
-      <CasdoorCallbackScreen
+      <SsoCallbackScreen
         onAuthenticated={handleAuthenticated}
         onNavigateHome={() => navigateToPath('/')}
         onNavigateProfile={() => navigateToPath('/profile')}

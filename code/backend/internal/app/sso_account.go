@@ -40,6 +40,8 @@ func (a *App) availableSSOUsername(ctx context.Context, userinfo map[string]any,
 	local, _, _ := strings.Cut(email, "@")
 	candidates := []string{
 		username(userinfo["preferred_username"]),
+		username(userinfo["username"]),
+		username(userinfo["login"]),
 		username(userinfo["name"]),
 		username(local),
 		username("sso-" + subject),

@@ -52,7 +52,7 @@ func unsafeMethod(method string) bool {
 
 func publicUnsafePath(path string) bool {
 	switch path {
-	case "/api/auth/login", "/api/auth/register", "/api/auth/email/resend", "/api/auth/passkey/login/verify", "/api/Callback":
+	case "/api/auth/login", "/api/auth/register", "/api/auth/email/resend", "/api/auth/passkey/login/verify", "/api/callback":
 		return true
 	default:
 		return false
@@ -102,7 +102,7 @@ func (a *App) sessionPayload(s *session, workspace map[string]any) map[string]an
 		_ = json.Unmarshal([]byte(s.PDFExportSettings.String), &settings)
 	}
 	return map[string]any{
-		"user":      map[string]any{"id": s.UserID, "email": s.Email, "username": nullableString(s.Username), "displayName": s.DisplayName, "avatarUrl": nullableString(s.AvatarURL), "timezone": s.Timezone, "locale": s.Locale, "defaultCurrency": nullableString(s.DefaultCurrency), "defaultPdfTheme": stringDefault(s.DefaultPDFTheme, "classic"), "pdfExportSettings": settings, "status": s.Status, "isAdmin": s.IsAdmin, "emailVerifiedAt": nullableString(s.EmailVerifiedAt), "hasPassword": s.PasswordHash.Valid},
+		"user":      map[string]any{"id": s.UserID, "email": s.Email, "username": nullableString(s.Username), "displayName": s.DisplayName, "avatarUrl": nullableString(s.AvatarURL), "timezone": s.Timezone, "locale": s.Locale, "defaultCurrency": nullableString(s.DefaultCurrency), "defaultPdfTheme": stringDefault(s.DefaultPDFTheme, "classic"), "pdfExportSettings": settings, "status": s.Status, "isAdmin": s.IsAdmin, "emailVerifiedAt": nullableDateTime(s.EmailVerifiedAt), "hasPassword": s.PasswordHash.Valid},
 		"workspace": workspace,
 		"csrfToken": csrfToken(s.Token),
 	}

@@ -183,11 +183,11 @@ func scanExchangeRate(row rowScanner) (map[string]any, error) {
 		"providerRateType":  provider,
 		"providerSellRate":  parseNullFloat(sell),
 		"providerBuyRate":   parseNullFloat(buy),
-		"providerUpdatedAt": nullableString(updated),
-		"fetchedAt":         nullableString(fetched),
+		"providerUpdatedAt": nullableDateTime(updated),
+		"fetchedAt":         nullableDateTime(fetched),
 		"note":              nullableString(note),
 		"rateDate":          dateString(rateDate),
-		"createdAt":         created,
+		"createdAt":         dateTimeValue(created),
 	}, nil
 }
 
@@ -476,7 +476,7 @@ func (a *App) resolveExchangeRateForBudget(ctx context.Context, budgetID, userID
 		return exchangeRateConversion{}, httpx.APIError{Code: "EXCHANGE_RATE_NOT_FOUND", Message: "Exchange rate is missing. Enter a manual rate or use an external reference.", Status: http.StatusUnprocessableEntity, Meta: map[string]any{
 			"fromCurrency": nullableText(fromCode),
 			"toCurrency":   nullableText(toCode),
-			"rateDate":     nullableText(onDate),
+			"rateDate":     nullableDate(onDate),
 		}}
 	}
 	return exchangeRateConversion{
@@ -643,7 +643,7 @@ func scanBudgetExchangeRate(row rowScanner) (map[string]any, error) {
 		"rateDate":  dateString(rateDate),
 		"source":    "budget_default",
 		"note":      nullableString(note),
-		"updatedAt": updated,
+		"updatedAt": dateTimeValue(updated),
 	}, nil
 }
 

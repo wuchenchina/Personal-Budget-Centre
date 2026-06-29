@@ -4,20 +4,20 @@ import type { RadioChangeEvent } from 'antd';
 import { FileText, KeyRound, Link2, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import {
   beginSsoMerge,
-  getSsoBinding,
+  getSsoBindings,
   logout,
   resendEmailVerification,
   unlinkSsoBinding,
   updatePassword,
   updateProfile,
 } from '../../api/auth';
-import { startCasdoorSignin } from '../../config/casdoor';
+import { ssoProviderName, startSsoSignin } from '../../config/sso';
 import { setPendingSsoMergeToken } from '../../config/ssoMerge';
 import { normalizePdfTheme, pdfThemeOptions } from '../../config/pdfThemes';
 import type { OperationsController } from '../../hooks/useOperationsController';
 import { languageOptions, useI18n } from '../../i18n';
 import type { I18nKey } from '../../i18n';
-import type { AuthSession, SsoBinding } from '../../types/auth';
+import type { AuthSession, SsoBinding, SsoProvider, SsoProviderID } from '../../types/auth';
 import type { BudgetSignatureLabelMode } from '../../types/budget';
 import type { EmailChangeFormValues, PasswordFormValues, ProfileFormValues } from '../../types/forms';
 import {
@@ -73,10 +73,11 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   const [isEmailVerificationSending, setIsEmailVerificationSending] = useState(false);
   const [isEmailChangeOpen, setIsEmailChangeOpen] = useState(false);
-  const [ssoBinding, setSsoBinding] = useState<SsoBinding | null>(null);
+  const [ssoProviders, setSsoProviders] = useState<SsoProvider[]>([]);
+  const [ssoBindings, setSsoBindings] = useState<SsoBinding[]>([]);
   const [isSsoLoading, setIsSsoLoading] = useState(true);
-  const [isSsoUnlinking, setIsSsoUnlinking] = useState(false);
-  const [isSsoMergeStarting, setIsSsoMergeStarting] = useState(false);
+  const [ssoUnlinkingProvider, setSsoUnlinkingProvider] = useState<SsoProviderID | null>(null);
+  const [ssoMergeStartingProvider, setSsoMergeStartingProvider] = useState<SsoProviderID | null>(null);
   const isSsoOnlyAccount = !session.user.hasPassword;
   const watchedPdfTheme = Form.useWatch('defaultPdfTheme', exportForm);
   const watchedShowWorkspace = Form.useWatch(['pdfExportSettings', 'showWorkspace'], exportForm);
@@ -128,10 +129,11 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   useEffect(() => {
     let isMounted = true;
 
-    getSsoBinding()
+    getSsoBindings()
       .then((result) => {
         if (isMounted) {
-          setSsoBinding(result.binding);
+          setSsoBindings(result.bindings);
+          setSsoProviders(result.providers ?? []);
         }
       })
       .catch((error: unknown) => {
@@ -266,11 +268,11 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     }
   };
 
-  const handleSsoMergeStart = async () => {
-    setIsSsoMergeStarting(true);
+  const handleSsoMergeStart = async (provider: SsoProviderID) => {
+    setSsoMergeStartingProvider(provider);
 
     try {
-      const result = await beginSsoMerge();
+      const result = await beginSsoMerge(provider);
       setPendingSsoMergeToken(result.mergeToken);
       await logout();
       void message.info(t('ssoMergeLoginPrompt'));
@@ -278,36 +280,39 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     } catch (error: unknown) {
       void message.error(error instanceof Error ? error.message : t('authFailed'));
     } finally {
-      setIsSsoMergeStarting(false);
+      setSsoMergeStartingProvider(null);
     }
   };
 
-  const handleSsoBind = () => {
-    startCasdoorSignin('bind');
+  const handleSsoBind = (provider: SsoProvider) => {
+    startSsoSignin(provider, 'bind');
   };
 
-  const handleSsoUnlink = () => {
+  const handleSsoUnlink = (provider: SsoProvider) => {
     Modal.confirm({
-      title: t('genericSsoUnlinkTitle'),
+      title: `${t('genericSsoUnlinkTitle')} · ${provider.name}`,
       content: t('genericSsoUnlinkConfirm'),
       okText: t('genericSsoUnlink'),
       okButtonProps: { danger: true },
       cancelText: t('cancel'),
       onOk: async () => {
-        setIsSsoUnlinking(true);
+        setSsoUnlinkingProvider(provider.provider);
 
         try {
-          const result = await unlinkSsoBinding();
-          setSsoBinding(result.binding);
+          const result = await unlinkSsoBinding(provider.provider);
+          setSsoBindings(result.bindings);
           void message.success(t('genericSsoUnlinked'));
         } catch (error: unknown) {
           void message.error(error instanceof Error ? error.message : t('authFailed'));
         } finally {
-          setIsSsoUnlinking(false);
+          setSsoUnlinkingProvider(null);
         }
       },
     });
   };
+
+  const ssoProviderRows = providerRows(ssoProviders, ssoBindings);
+  const hasLinkedAccountTab = ssoProviderRows.length > 0 || isSsoLoading;
 
   return (
     <div className={styles.page}>
@@ -791,76 +796,63 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                 ),
                 children: (
                   <div className={styles.tabContent}>
-                    <section className={styles.settingSection}>
-                      <div className={styles.panelHeader}>
-                        <span className={styles.panelIcon}>
-                          <ShieldCheck size={16} />
-                        </span>
-                        <div>
-                          <Text strong>{t('genericSso')}</Text>
-                          <Text type="secondary">
-                            {ssoBinding === null ? t('genericSsoNotLinked') : t('genericSsoLinked')}
-                          </Text>
+                    {ssoProviderRows.map(({ provider, binding }) => (
+                      <section className={styles.settingSection} key={provider.provider}>
+                        <div className={styles.panelHeader}>
+                          <span className={styles.panelIcon}>
+                            <SsoProviderLogo provider={provider} />
+                          </span>
+                          <div>
+                            <Text strong>{provider.name}</Text>
+                            <Text type="secondary">
+                              {binding === null ? t('genericSsoNotLinked') : t('genericSsoLinked')}
+                            </Text>
+                          </div>
                         </div>
-                      </div>
-                      {ssoBinding === null ? (
-                        session.user.hasPassword ? (
-                          <Button className={styles.outlineAction} loading={isSsoLoading} onClick={handleSsoBind}>
-                            {t('genericSsoBind')}
+                        {binding === null ? (
+                          <Button
+                            className={styles.outlineAction}
+                            disabled={isSsoLoading}
+                            loading={isSsoLoading}
+                            onClick={() => handleSsoBind(provider)}
+                          >
+                            {t('genericSsoBind')} {provider.name}
                           </Button>
                         ) : (
-                          <Alert
-                            className={styles.sideAlert}
-                            type="info"
-                            showIcon
-                            message={t('ssoOnlyAccount')}
-                            description={t('ssoOnlyBindExistingDescription')}
-                            action={
-                              <Button
-                                size="small"
-                                type="primary"
-                                loading={isSsoMergeStarting}
-                                onClick={() => void handleSsoMergeStart()}
-                              >
-                                {t('ssoBindExistingAccount')}
-                              </Button>
-                            }
-                          />
-                        )
-                      ) : (
-                        <>
-                          <div className={styles.readonlyValue}>
-                            <strong>{ssoBinding.username ?? ssoBinding.email ?? ssoBinding.subject}</strong>
-                            <small>{ssoBinding.email ?? t('genericSsoBoundFallback')}</small>
-                          </div>
-                          <div className={styles.ssoActions}>
-                            <Tag color="green">{t('genericSsoBound')}</Tag>
-                            {session.user.hasPassword ? (
-                              <Button
-                                danger
-                                className={styles.dangerOutlineAction}
-                                loading={isSsoUnlinking}
-                                onClick={handleSsoUnlink}
-                              >
-                                {t('genericSsoUnlink')}
-                              </Button>
-                            ) : (
-                              <Button
-                                className={styles.outlineAction}
-                                loading={isSsoMergeStarting}
-                                onClick={() => void handleSsoMergeStart()}
-                              >
-                                {t('ssoBindExistingAccount')}
-                              </Button>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </section>
+                          <>
+                            <div className={styles.readonlyValue}>
+                              <strong>{binding.username ?? binding.email ?? binding.subject}</strong>
+                              <small>{binding.email ?? `${provider.name} ${t('genericSsoBound')}`}</small>
+                            </div>
+                            <div className={styles.ssoActions}>
+                              <Tag color="green">{t('genericSsoBound')}</Tag>
+                              {session.user.hasPassword ? (
+                                <Button
+                                  danger
+                                  className={styles.dangerOutlineAction}
+                                  loading={ssoUnlinkingProvider === provider.provider}
+                                  onClick={() => handleSsoUnlink(provider)}
+                                >
+                                  {t('genericSsoUnlink')}
+                                </Button>
+                              ) : (
+                                <Button
+                                  className={styles.outlineAction}
+                                  loading={ssoMergeStartingProvider === provider.provider}
+                                  onClick={() => void handleSsoMergeStart(provider.provider)}
+                                >
+                                  {t('ssoBindExistingAccount')}
+                                </Button>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </section>
+                    ))}
                   </div>
                 ),
               },
-            ].filter((item) => item.key !== 'loginSecurity' || !isSsoOnlyAccount)}
+            ].filter((item) => (item.key !== 'loginSecurity' || !isSsoOnlyAccount) && (item.key !== 'linkedAccounts' || hasLinkedAccountTab))}
           />
         </main>
       </div>
@@ -939,6 +931,42 @@ function pdfThemeTagColor(theme: string) {
     default:
       return 'default';
   }
+}
+
+function providerRows(providers: SsoProvider[], bindings: SsoBinding[]) {
+  const byProvider = new Map<SsoProviderID, SsoProvider>();
+  providers.forEach((provider) => {
+    byProvider.set(provider.provider, provider);
+  });
+  bindings.forEach((binding) => {
+    if (!byProvider.has(binding.provider)) {
+      byProvider.set(binding.provider, {
+        provider: binding.provider,
+        slug: String(binding.provider).replaceAll('_', '-'),
+        name: ssoProviderName(undefined, binding.provider),
+        logo: binding.provider === 'linux_do' ? 'linux_do' : null,
+      });
+    }
+  });
+
+  return Array.from(byProvider.values()).map((provider) => ({
+    provider,
+    binding: bindings.find((item) => item.provider === provider.provider) ?? null,
+  }));
+}
+
+function SsoProviderLogo({ provider }: { provider: SsoProvider }) {
+  if (provider.provider === 'linux_do' || provider.logo === 'linux_do') {
+    return (
+      <span className={styles.linuxDoLogo} aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </span>
+    );
+  }
+
+  return <ShieldCheck size={16} />;
 }
 
 function pdfThemePreviewClass(theme: string) {

@@ -326,7 +326,7 @@ func TestRecoverableOpenSourceReleaseMigrationChecksums(t *testing.T) {
 			current: migrationFile{
 				Version:  "001",
 				Name:     "001_schema.sql",
-				Checksum: "a3d94cea1adadcd675c075d86b7126013306b2431e534b2fe590b44fb7e71a61",
+				Checksum: "100538299ad524260f2e9baa2dd26e46fee7eebe76982b52cd906a2490615581",
 			},
 		},
 		{

@@ -19,11 +19,15 @@ func (a *App) ssoBinding(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	binding, err := a.ssoBindingByUser(r.Context(), s.UserID)
-	if err != nil && err != sql.ErrNoRows {
+	bindings, err := a.ssoBindingsByUser(r.Context(), s.UserID)
+	if err != nil {
 		return err
 	}
-	httpx.WriteOK(w, map[string]any{"binding": binding}, http.StatusOK)
+	providers := []map[string]any{}
+	for _, provider := range a.configuredOAuthProviders() {
+		providers = append(providers, provider.public())
+	}
+	httpx.WriteOK(w, map[string]any{"bindings": bindings, "providers": providers}, http.StatusOK)
 	return nil
 }
 
@@ -32,10 +36,21 @@ func (a *App) ssoUnlink(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if _, err := a.db.ExecContext(r.Context(), "DELETE FROM user_sso_bindings WHERE user_id = ? AND provider = ?", s.UserID, casdoorProvider); err != nil {
+	if !s.PasswordHash.Valid {
+		return apiError("SSO_ONLY_UNLINK_DISABLED", "Bind an existing account before unlinking SSO.", http.StatusConflict)
+	}
+	provider := normalizeSSOProviderID(r.URL.Query().Get("provider"))
+	if provider == "" {
+		return apiError("VALIDATION_ERROR", "SSO provider is required.", http.StatusUnprocessableEntity)
+	}
+	if _, err := a.db.ExecContext(r.Context(), "DELETE FROM user_sso_bindings WHERE user_id = ? AND provider = ?", s.UserID, provider); err != nil {
 		return err
 	}
-	httpx.WriteOK(w, map[string]any{"binding": nil}, http.StatusOK)
+	bindings, err := a.ssoBindingsByUser(r.Context(), s.UserID)
+	if err != nil {
+		return err
+	}
+	httpx.WriteOK(w, map[string]any{"bindings": bindings}, http.StatusOK)
 	return nil
 }
 
@@ -49,11 +64,18 @@ func (a *App) ssoMerge(w http.ResponseWriter, r *http.Request) error {
 		if s.PasswordHash.Valid {
 			return apiError("VALIDATION_ERROR", "Only SSO-only accounts need account merge.", http.StatusUnprocessableEntity)
 		}
-		binding, err := a.ssoBindingByUser(r.Context(), s.UserID)
+		provider, err := a.ssoMergeProvider(r.Context(), s.UserID, stringValue(input["provider"]))
 		if err != nil {
 			return err
 		}
-		token, err := a.issueSSOMergeToken(s.UserID, binding["subject"].(string))
+		binding, err := a.ssoBindingByUserAndProvider(r.Context(), s.UserID, provider)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return apiError("SSO_MERGE_BINDING_REQUIRED", "This account is not linked to SSO.", http.StatusUnprocessableEntity)
+			}
+			return err
+		}
+		token, err := a.issueSSOMergeToken(s.UserID, provider, binding["subject"].(string))
 		if err != nil {
 			return err
 		}
@@ -65,15 +87,19 @@ func (a *App) ssoMerge(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 		sourceUserID := int64Value(payload["sourceUserId"])
+		provider := normalizeSSOProviderID(stringValue(payload["provider"]))
 		subject := stringValue(payload["providerSubject"])
-		binding, err := a.ssoBindingBySubject(r.Context(), subject)
+		if provider == "" || subject == "" {
+			return apiError("SSO_MERGE_TOKEN_INVALID", "SSO account merge token is invalid.", http.StatusUnprocessableEntity)
+		}
+		binding, err := a.ssoBindingBySubject(r.Context(), provider, subject)
 		if err != nil {
 			return err
 		}
 		if binding["userId"].(int64) != sourceUserID {
 			return apiError("SSO_MERGE_TOKEN_INVALID", "SSO account merge token is invalid.", http.StatusUnprocessableEntity)
 		}
-		if err := a.mergeSSOUser(r.Context(), sourceUserID, s.UserID, subject); err != nil {
+		if err := a.mergeSSOUser(r.Context(), sourceUserID, s.UserID); err != nil {
 			return err
 		}
 		current, err := a.sessionByToken(r.Context(), s.Token)
@@ -84,43 +110,75 @@ func (a *App) ssoMerge(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		bound, _ := a.ssoBindingByUser(r.Context(), s.UserID)
-		httpx.WriteOK(w, map[string]any{"session": a.sessionPayload(current, workspace), "binding": bound}, http.StatusOK)
+		bindings, _ := a.ssoBindingsByUser(r.Context(), s.UserID)
+		httpx.WriteOK(w, map[string]any{"session": a.sessionPayload(current, workspace), "bindings": bindings}, http.StatusOK)
 		return nil
 	default:
 		return apiError("VALIDATION_ERROR", "Unsupported SSO merge action.", http.StatusUnprocessableEntity)
 	}
 }
 
-func (a *App) bindCasdoorAccount(r *http.Request, subject string, userinfo map[string]any) (map[string]any, error) {
+func (a *App) ssoMergeProvider(ctx context.Context, userID int64, provider string) (string, error) {
+	if provider != "" {
+		return normalizeSSOProviderID(provider), nil
+	}
+	bindings, err := a.ssoBindingsByUser(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if len(bindings) == 1 {
+		return bindings[0]["provider"].(string), nil
+	}
+	return "", apiError("SSO_MERGE_BINDING_REQUIRED", "This account is not linked to SSO.", http.StatusUnprocessableEntity)
+}
+
+func (a *App) bindSSOAccount(r *http.Request, provider oauthProvider, subject string, userinfo map[string]any) (map[string]any, error) {
 	s, err := a.currentSession(r)
 	if err != nil {
 		return nil, err
 	}
-	existing, err := a.ssoBindingBySubject(r.Context(), subject)
+	existing, err := a.ssoBindingBySubject(r.Context(), provider.ID, subject)
 	if err == nil && existing["userId"].(int64) != s.UserID {
-		return nil, apiError("SSO_ACCOUNT_ALREADY_BOUND", "This Casdoor account is already linked to another user.", http.StatusConflict)
+		return nil, apiError("SSO_ACCOUNT_ALREADY_BOUND", "This SSO account is already linked to another user.", http.StatusConflict)
 	}
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	if _, err := a.db.ExecContext(r.Context(), ssoUpsertSQL(), s.UserID, casdoorProvider, subject, nullableStringValue(casdoorUsername(userinfo)), nullableStringValue(normalizedEmail(userinfo["email"])), jsonString(userinfo)); err != nil {
+	if _, err := a.db.ExecContext(r.Context(), ssoUpsertSQL(), s.UserID, provider.ID, subject, nullableStringValue(ssoUsername(userinfo)), nullableStringValue(normalizedEmail(userinfo["email"])), jsonString(userinfo)); err != nil {
 		return nil, err
 	}
-	if avatar := casdoorAvatarURL(userinfo); avatar != "" {
+	if avatar := ssoAvatarURL(userinfo); avatar != "" {
 		_, _ = a.db.ExecContext(r.Context(), "UPDATE users SET avatar_url = ? WHERE id = ?", avatar, s.UserID)
 	}
-	return a.ssoBindingByUser(r.Context(), s.UserID)
+	return a.ssoBindingByUserAndProvider(r.Context(), s.UserID, provider.ID)
 }
 
-func (a *App) ssoBindingByUser(ctx context.Context, userID int64) (map[string]any, error) {
+func (a *App) ssoBindingByUserAndProvider(ctx context.Context, userID int64, provider string) (map[string]any, error) {
 	return scanSSOBinding(a.db.QueryRowContext(ctx, `SELECT id, user_id, provider, provider_subject, provider_username, provider_email, linked_at, updated_at
-FROM user_sso_bindings WHERE user_id = ? AND provider = ? LIMIT 1`, userID, casdoorProvider))
+FROM user_sso_bindings WHERE user_id = ? AND provider = ? LIMIT 1`, userID, provider))
 }
 
-func (a *App) ssoBindingBySubject(ctx context.Context, subject string) (map[string]any, error) {
+func (a *App) ssoBindingBySubject(ctx context.Context, provider, subject string) (map[string]any, error) {
 	return scanSSOBinding(a.db.QueryRowContext(ctx, `SELECT id, user_id, provider, provider_subject, provider_username, provider_email, linked_at, updated_at
-FROM user_sso_bindings WHERE provider = ? AND provider_subject = ? LIMIT 1`, casdoorProvider, subject))
+FROM user_sso_bindings WHERE provider = ? AND provider_subject = ? LIMIT 1`, provider, subject))
+}
+
+func (a *App) ssoBindingsByUser(ctx context.Context, userID int64) ([]map[string]any, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT id, user_id, provider, provider_subject, provider_username, provider_email, linked_at, updated_at
+FROM user_sso_bindings WHERE user_id = ? ORDER BY provider`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	bindings := []map[string]any{}
+	for rows.Next() {
+		binding, err := scanSSOBinding(rows)
+		if err != nil {
+			return nil, err
+		}
+		bindings = append(bindings, binding)
+	}
+	return bindings, rows.Err()
 }
 
 func scanSSOBinding(row rowScanner) (map[string]any, error) {
@@ -130,11 +188,11 @@ func scanSSOBinding(row rowScanner) (map[string]any, error) {
 	if err := row.Scan(&id, &userID, &provider, &subject, &username, &email, &linked, &updated); err != nil {
 		return nil, err
 	}
-	return map[string]any{"id": id, "userId": userID, "provider": provider, "subject": subject, "username": nullableString(username), "email": nullableString(email), "linkedAt": linked, "updatedAt": updated}, nil
+	return map[string]any{"id": id, "userId": userID, "provider": provider, "subject": subject, "username": nullableString(username), "email": nullableString(email), "linkedAt": dateTimeValue(linked), "updatedAt": dateTimeValue(updated)}, nil
 }
 
-func upsertSSOBindingTx(ctx context.Context, tx *sql.Tx, userID int64, subject string, userinfo map[string]any) error {
-	_, err := tx.ExecContext(ctx, ssoUpsertSQL(), userID, casdoorProvider, subject, nullableStringValue(casdoorUsername(userinfo)), nullableStringValue(normalizedEmail(userinfo["email"])), jsonString(userinfo))
+func upsertSSOBindingTx(ctx context.Context, tx *sql.Tx, userID int64, provider, subject string, userinfo map[string]any) error {
+	_, err := tx.ExecContext(ctx, ssoUpsertSQL(), userID, provider, subject, nullableStringValue(ssoUsername(userinfo)), nullableStringValue(normalizedEmail(userinfo["email"])), jsonString(userinfo))
 	return err
 }
 
@@ -144,7 +202,7 @@ VALUES (?, ?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), provider_username = VALUES(provider_username), provider_email = VALUES(provider_email), raw_userinfo_json = VALUES(raw_userinfo_json), updated_at = UTC_TIMESTAMP()`
 }
 
-func (a *App) mergeSSOUser(ctx context.Context, sourceUserID, targetUserID int64, subject string) error {
+func (a *App) mergeSSOUser(ctx context.Context, sourceUserID, targetUserID int64) error {
 	if sourceUserID == targetUserID {
 		return nil
 	}
@@ -153,10 +211,14 @@ func (a *App) mergeSSOUser(ctx context.Context, sourceUserID, targetUserID int64
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, "DELETE FROM user_sso_bindings WHERE user_id = ? AND provider = ?", targetUserID, casdoorProvider); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE target_binding FROM user_sso_bindings target_binding
+JOIN user_sso_bindings source_binding
+  ON source_binding.provider = target_binding.provider
+ AND source_binding.user_id = ?
+WHERE target_binding.user_id = ?`, sourceUserID, targetUserID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, "UPDATE user_sso_bindings SET user_id = ? WHERE user_id = ? AND provider = ? AND provider_subject = ?", targetUserID, sourceUserID, casdoorProvider, subject); err != nil {
+	if _, err := tx.ExecContext(ctx, "UPDATE user_sso_bindings SET user_id = ?, updated_at = UTC_TIMESTAMP() WHERE user_id = ?", targetUserID, sourceUserID); err != nil {
 		return err
 	}
 	if err := deleteDuplicateMemberships(ctx, tx, "workspace_members", "workspace_id", sourceUserID, targetUserID); err != nil {
@@ -218,24 +280,35 @@ func (a *App) ensureActiveUser(ctx context.Context, userID int64) error {
 	return nil
 }
 
-func (a *App) issueSSOCreateToken(subject string, userinfo map[string]any) (string, error) {
-	return a.signedToken(map[string]any{"sub": subject, "exp": time.Now().Add(10 * time.Minute).Unix(), "userinfo": userinfo})
+func (a *App) issueSSOCreateToken(provider, subject string, userinfo map[string]any) (string, error) {
+	return a.signedToken(map[string]any{"provider": provider, "sub": subject, "exp": time.Now().Add(10 * time.Minute).Unix(), "userinfo": userinfo})
 }
 
-func (a *App) userinfoFromSSOCreateToken(input map[string]any) (map[string]any, error) {
+func (a *App) ssoCreatePayload(input map[string]any) (oauthProvider, string, map[string]any, error) {
 	payload, err := a.signedTokenPayload(stringValue(input["ssoCreateToken"]), "SSO_CREATE_TOKEN_INVALID")
 	if err != nil {
-		return nil, err
+		return oauthProvider{}, "", nil, err
+	}
+	provider, err := a.oauthProvider(stringValue(payload["provider"]))
+	if err != nil {
+		return oauthProvider{}, "", nil, err
 	}
 	userinfo, ok := payload["userinfo"].(map[string]any)
 	if !ok {
-		return nil, apiError("SSO_CREATE_TOKEN_INVALID", "SSO account creation token is invalid or expired.", http.StatusUnprocessableEntity)
+		return oauthProvider{}, "", nil, apiError("SSO_CREATE_TOKEN_INVALID", "SSO account creation token is invalid or expired.", http.StatusUnprocessableEntity)
 	}
-	return userinfo, nil
+	subject := stringValue(payload["sub"])
+	if subject == "" {
+		subject = stringValue(userinfo["sub"])
+	}
+	if subject == "" {
+		return oauthProvider{}, "", nil, apiError("SSO_CREATE_TOKEN_INVALID", "SSO account creation token is invalid or expired.", http.StatusUnprocessableEntity)
+	}
+	return provider, subject, userinfo, nil
 }
 
-func (a *App) issueSSOMergeToken(sourceUserID int64, subject string) (string, error) {
-	return a.signedToken(map[string]any{"sourceUserId": sourceUserID, "providerSubject": subject, "exp": time.Now().Add(10 * time.Minute).Unix()})
+func (a *App) issueSSOMergeToken(sourceUserID int64, provider, subject string) (string, error) {
+	return a.signedToken(map[string]any{"sourceUserId": sourceUserID, "provider": provider, "providerSubject": subject, "exp": time.Now().Add(10 * time.Minute).Unix()})
 }
 
 func (a *App) ssoMergePayload(input map[string]any) (map[string]any, error) {
@@ -294,5 +367,8 @@ func (a *App) ssoTokenSecret() (string, error) {
 	if a.cfg.CasdoorClientSecret != "" {
 		return a.cfg.CasdoorClientSecret, nil
 	}
-	return "", apiError("SERVER_ERROR", "APP_KEY or CASDOOR_CLIENT_SECRET is required for SSO.", http.StatusServiceUnavailable)
+	if a.cfg.LinuxDoClientSecret != "" {
+		return a.cfg.LinuxDoClientSecret, nil
+	}
+	return "", apiError("SERVER_ERROR", "APP_KEY or an SSO client secret is required for SSO.", http.StatusServiceUnavailable)
 }

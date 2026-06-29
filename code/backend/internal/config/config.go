@@ -37,9 +37,19 @@ type Config struct {
 	MailFromName string
 
 	CasdoorServerURL    string
+	CasdoorDisplayName  string
 	CasdoorClientID     string
 	CasdoorRedirectURI  string
 	CasdoorClientSecret string
+
+	LinuxDoDisplayName           string
+	LinuxDoClientID              string
+	LinuxDoClientSecret          string
+	LinuxDoAuthorizationEndpoint string
+	LinuxDoTokenEndpoint         string
+	LinuxDoUserEndpoint          string
+	LinuxDoRedirectURI           string
+	LinuxDoScope                 string
 
 	WebAuthnRPID   string
 	WebAuthnRPName string
@@ -85,9 +95,19 @@ func Load() Config {
 		MailFromName: env("MAIL_FROM_NAME", "BudgetCentre"),
 
 		CasdoorServerURL:    env("CASDOOR_SERVER_URL", ""),
+		CasdoorDisplayName:  env("CASDOOR_DISPLAY_NAME", "Axchen SSO"),
 		CasdoorClientID:     env("CASDOOR_CLIENT_ID", ""),
-		CasdoorRedirectURI:  env("CASDOOR_REDIRECT_URI", "http://localhost:5173/api/callback"),
+		CasdoorRedirectURI:  env("CASDOOR_REDIRECT_URI", strings.TrimRight(env("API_URL", "http://localhost:8080"), "/")+"/api/callback"),
 		CasdoorClientSecret: env("CASDOOR_CLIENT_SECRET", ""),
+
+		LinuxDoDisplayName:           env("LINUX_DO_DISPLAY_NAME", "Linux Do"),
+		LinuxDoClientID:              env("LINUX_DO_CLIENT_ID", ""),
+		LinuxDoClientSecret:          env("LINUX_DO_CLIENT_SECRET", ""),
+		LinuxDoAuthorizationEndpoint: env("LINUX_DO_AUTHORIZATION_ENDPOINT", "https://connect.linux.do/oauth2/authorize"),
+		LinuxDoTokenEndpoint:         env("LINUX_DO_TOKEN_ENDPOINT", "https://connect.linux.do/oauth2/token"),
+		LinuxDoUserEndpoint:          env("LINUX_DO_USER_ENDPOINT", "https://connect.linux.do/api/user"),
+		LinuxDoRedirectURI:           env("LINUX_DO_REDIRECT_URI", strings.TrimRight(env("API_URL", "http://localhost:8080"), "/")+"/api/callback"),
+		LinuxDoScope:                 env("LINUX_DO_SCOPE", "openid profile email"),
 
 		WebAuthnRPID:   env("WEBAUTHN_RP_ID", "localhost"),
 		WebAuthnRPName: env("WEBAUTHN_RP_NAME", "BudgetCentre"),
