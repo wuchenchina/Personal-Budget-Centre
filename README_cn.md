@@ -244,3 +244,7 @@ bash -n deploy.local.sh deploy.example.sh
 - `build/`、`dist/`、`node_modules/`、`vendor/`、`storage/`
 - `code/font` 中的本地字体二进制文件
 - `__pycache__`、日志、系统或编辑器元数据
+
+## 鸣谢
+
+[Linux Do](https://linux.do/)

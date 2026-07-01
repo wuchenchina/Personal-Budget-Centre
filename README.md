@@ -265,3 +265,7 @@ This repository is intended to be open-source friendly. Do not commit:
 - `build/`, `dist/`, `node_modules/`, `vendor/`, `storage/`
 - local font binaries in `code/font`
 - caches such as `__pycache__`, logs, and OS/editor metadata
+
+## Thanks
+
+[Linux Do](https://linux.do/)
