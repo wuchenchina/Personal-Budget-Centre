@@ -659,16 +659,16 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                             </div>
                             <div className={styles.previewMeta}>
                               <span>
-                                <b>Page / 頁</b>
+                                <b>{t('pdfExportPreviewPage')}</b>
                                 <em>1</em>
                               </span>
                               <span>
-                                <b>Date / 日期</b>
-                                <em>20 Jun 2026</em>
+                                <b>{t('date')}</b>
+                                <em>{t('pdfExportPreviewSampleDate')}</em>
                               </span>
                               {previewShowWorkspace ? (
                                 <span>
-                                  <b>Workspace / 工作區</b>
+                                  <b>{t('workspace')}</b>
                                   <em>{previewWorkspaceName}</em>
                                 </span>
                               ) : null}

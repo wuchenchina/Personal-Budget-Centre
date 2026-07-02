@@ -314,6 +314,16 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem('budgetCentre.language', language);
     document.documentElement.lang = documentLanguageTags[language];
+    document.title = translate(language, 'appMetaTitle');
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute('content', translate(language, 'appMetaDescription'));
+    document
+      .querySelector('meta[property="og:title"]')
+      ?.setAttribute('content', translate(language, 'appMetaTitle'));
+    document
+      .querySelector('meta[property="og:description"]')
+      ?.setAttribute('content', translate(language, 'appMetaDescription'));
   }, [language]);
 
   useEffect(() => {

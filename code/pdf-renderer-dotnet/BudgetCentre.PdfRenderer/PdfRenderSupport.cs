@@ -65,11 +65,6 @@ public sealed partial class PdfExportRenderer
         return Join(values, options);
     }
 
-    private static string LabelLiteral(string en, ExportOptions options)
-    {
-        return options.PdfLanguages.Length == 1 && options.PdfLanguages[0] == "en" ? en : en;
-    }
-
     private static string SignatureLabel(ExportOptions options)
     {
         return options.SignatureLabelMode switch
@@ -277,7 +272,9 @@ public sealed partial class PdfExportRenderer
         ["balance"] = Text("Balance", "差額", "差额", "残高", "Solde", "Баланс", "Saldo"),
         ["budget"] = Text("Budget", "預算", "预算", "予算", "Budget", "Бюджет", "Budget"),
         ["category"] = Text("Category", "類別", "类别", "カテゴリ", "Catégorie", "Категория", "Kategorie"),
+        ["date"] = Text("Date", "日期", "日期", "日付", "Date", "Дата", "Datum"),
         ["estimated_actuals"] = Text("Estimated Actuals", "預估實際", "预估实际", "見込実績", "Réel estimé", "Оценка факта", "Geschätzte Istwerte"),
+        ["export"] = Text("Export", "匯出", "导出", "エクスポート", "Export", "Экспорт", "Export"),
         ["from"] = Text("From", "付款方", "付款方", "支払元", "De", "От", "Von"),
         ["metric"] = Text("Metric", "項目", "项目", "指標", "Indicateur", "Показатель", "Kennzahl"),
         ["paid"] = Text("Paid", "已支付", "已支付", "支払済み", "Payé", "Оплачено", "Bezahlt"),
@@ -286,10 +283,13 @@ public sealed partial class PdfExportRenderer
         ["participants"] = Text("Participants", "參與者", "参与者", "参加者", "Participants", "Участники", "Teilnehmer"),
         ["period"] = Text("Period", "期間", "期间", "期間", "Période", "Период", "Zeitraum"),
         ["period_amount"] = Text("Amount", "金額", "金额", "金額", "Montant", "Сумма", "Betrag"),
+        ["personalExpense"] = Text("Personal expense", "個人自付", "个人自付", "個人負担", "Dépense personnelle", "Личный расход", "Persönliche Ausgabe"),
         ["progress"] = Text("Done", "進度", "进度", "完了", "Terminé", "Готово", "Erledigt"),
         ["remark"] = Text("Remark", "備註", "备注", "備考", "Remarque", "Примечание", "Bemerkung"),
         ["sequence"] = Text("No.", "序號", "序号", "番号", "N°", "№", "Nr."),
         ["share"] = Text("Share", "應承擔", "应承担", "負担分", "Part", "Доля", "Anteil"),
+        ["sharedExpense"] = Text("Shared expense", "共同支出", "共同支出", "共有費用", "Dépense partagée", "Общий расход", "Gemeinsame Ausgabe"),
+        ["scope"] = Text("Scope", "範圍", "范围", "範囲", "Périmètre", "Область", "Umfang"),
         ["split_type"] = Text("Split Type", "分攤方式", "分摊方式", "分割方式", "Type de partage", "Тип распределения", "Aufteilungsart"),
         ["target_amount"] = Text("Target", "目標", "目标", "目標", "Objectif", "Цель", "Ziel"),
         ["to"] = Text("To", "收款方", "收款方", "受取先", "À", "Кому", "An"),
@@ -297,6 +297,7 @@ public sealed partial class PdfExportRenderer
         ["unit_price"] = Text("Unit Price", "單價", "单价", "単価", "Prix unitaire", "Цена за единицу", "Einzelpreis"),
         ["quantity"] = Text("Quantity", "數量", "数量", "数量", "Quantité", "Количество", "Menge"),
         ["variance"] = Text("Variance", "差額", "差额", "差異", "Écart", "Отклонение", "Abweichung"),
+        ["workspace"] = Text("Workspace", "工作區", "工作区", "ワークスペース", "Espace de travail", "Рабочая область", "Arbeitsbereich"),
         ["signatureTitle"] = Text("Preparation & Review Record", "製表及覆核記錄", "制表及复核记录", "作成・確認記録", "Registre de préparation et de revue", "Запись подготовки и проверки", "Erstellungs- und Prüfvermerk"),
         ["dateTime"] = Text("Date & Time", "日期及時間", "日期及时间", "日時", "Date et heure", "Дата и время", "Datum und Uhrzeit"),
     };

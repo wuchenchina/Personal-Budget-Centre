@@ -106,12 +106,12 @@ public sealed partial class PdfExportRenderer(RendererConfig config)
         header.AddCell(titleCell);
 
         var meta = new Table(UnitValue.CreatePercentArray([42, 58])).UseAllAvailableWidth().SetFontSize(7);
-        AddMetaRow(meta, "Export", $"#{job.Id}", theme, fonts);
-        AddMetaRow(meta, "Scope", job.Scope, theme, fonts);
-        AddMetaRow(meta, "Date", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) + " UTC", theme, fonts);
+        AddMetaRow(meta, Label("export", job.Options), $"#{job.Id}", theme, fonts);
+        AddMetaRow(meta, Label("scope", job.Options), job.Scope, theme, fonts);
+        AddMetaRow(meta, Label("date", job.Options), DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) + " UTC", theme, fonts);
         if (job.Options.ShowWorkspace && !string.IsNullOrWhiteSpace(budget.WorkspaceName))
         {
-            AddMetaRow(meta, "Workspace", budget.WorkspaceName!, theme, fonts);
+            AddMetaRow(meta, Label("workspace", job.Options), budget.WorkspaceName!, theme, fonts);
         }
         header.AddCell(new Cell().SetBorder(Border.NO_BORDER).SetPadding(0).Add(meta));
         document.Add(header);
@@ -315,8 +315,8 @@ public sealed partial class PdfExportRenderer(RendererConfig config)
             new TableColumn("metric", Label("metric", options), 70),
             new TableColumn("amount", Label("amount", options), 30, "right", "money"),
         ]), [
-            [LabelLiteral("Shared expense", options), Money(budget.BaseCurrency, summary.SharedExpenseBase)],
-            [LabelLiteral("Personal expense", options), Money(budget.BaseCurrency, summary.PersonalExpenseBase)]
+            [Label("sharedExpense", options), Money(budget.BaseCurrency, summary.SharedExpenseBase)],
+            [Label("personalExpense", options), Money(budget.BaseCurrency, summary.PersonalExpenseBase)]
         ], [Label("total", options), Money(budget.BaseCurrency, summary.SharedExpenseBase + summary.PersonalExpenseBase)], theme, fonts, budget, options);
 
         var participantRows = summary.Participants.Select(v => new[]
