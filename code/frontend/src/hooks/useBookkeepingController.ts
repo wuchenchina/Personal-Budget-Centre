@@ -174,7 +174,7 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
         remark: normalizedText(values.remark),
         sortOrder: values.sortOrder ?? 0,
       };
-      const nextRecords = editingRecord === null
+      const savedRecord = editingRecord === null
         ? await createBookkeepingRecord({
           ...payload,
           budgetId: options.selectedBudget.id,
@@ -184,7 +184,7 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
           id: editingRecord.id,
         });
 
-      setRecords(nextRecords);
+      setRecords((currentRecords) => mergeBookkeepingRecord(currentRecords, savedRecord));
       closeModal();
     } catch (saveError: unknown) {
       if (saveError instanceof Error) {
@@ -200,7 +200,8 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
     setError(null);
 
     try {
-      setRecords(await deleteBookkeepingRecord(id));
+      const deletedId = await deleteBookkeepingRecord(id);
+      setRecords((currentRecords) => currentRecords.filter((record) => record.id !== deletedId));
     } catch (deleteError: unknown) {
       setError(deleteError instanceof Error ? deleteError.message : translateCurrent('authFailed'));
     } finally {
@@ -270,3 +271,15 @@ function rateToBaseFromBookkeepingForm(
 }
 
 export type BookkeepingController = ReturnType<typeof useBookkeepingController>;
+
+function mergeBookkeepingRecord(
+  records: BookkeepingRecord[],
+  savedRecord: BookkeepingRecord,
+): BookkeepingRecord[] {
+  const existingIndex = records.findIndex((record) => record.id === savedRecord.id);
+  if (existingIndex === -1) {
+    return [...records, savedRecord];
+  }
+
+  return records.map((record, index) => (index === existingIndex ? savedRecord : record));
+}

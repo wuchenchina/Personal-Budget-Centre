@@ -168,6 +168,7 @@ export function BudgetBookkeepingPage({
       title: t('date'),
       dataIndex: 'recordDate',
       width: 106,
+      shouldCellUpdate: shouldBookkeepingCellUpdate('recordDate'),
       render: (value: BookkeepingRecord['recordDate']) => formatRecordDate(value),
     },
     {
@@ -175,6 +176,7 @@ export function BudgetBookkeepingPage({
       title: t('orderReference'),
       dataIndex: 'orderReference',
       width: 170,
+      shouldCellUpdate: shouldBookkeepingCellUpdate('orderReference'),
       render: (value: BookkeepingRecord['orderReference']) => (
         <span className="bookkeeping-order-cell">{value ?? '-'}</span>
       ),
@@ -184,6 +186,7 @@ export function BudgetBookkeepingPage({
       title: t('transactionDetails'),
       dataIndex: 'details',
       minWidth: 220,
+      shouldCellUpdate: shouldBookkeepingCellUpdate('details'),
       render: (_value, row) => (
         <div className="bookkeeping-detail-cell">
           <strong>{row.details}</strong>
@@ -195,6 +198,7 @@ export function BudgetBookkeepingPage({
       title: t('category'),
       dataIndex: 'categoryLabel',
       width: 140,
+      shouldCellUpdate: shouldBookkeepingCellUpdate('categoryLabel'),
       render: (value: BookkeepingRecord['categoryLabel']) => (
         <span className="bookkeeping-category-cell">{value ?? '-'}</span>
       ),
@@ -203,6 +207,9 @@ export function BudgetBookkeepingPage({
       key: 'accounts',
       title: t('fundsAccounts'),
       width: 128,
+      shouldCellUpdate: (record, previousRecord) =>
+        record.sourceAccountName !== previousRecord.sourceAccountName
+        || record.destinationAccountName !== previousRecord.destinationAccountName,
       render: (_value, row) => (
         <span className="bookkeeping-account-cell">{accountRouteText(row) ?? '-'}</span>
       ),
@@ -226,6 +233,9 @@ export function BudgetBookkeepingPage({
       title: t('destinationAmount'),
       align: 'right',
       width: 138,
+      shouldCellUpdate: (record, previousRecord) =>
+        record.destinationCurrency !== previousRecord.destinationCurrency
+        || record.destinationAmountOriginal !== previousRecord.destinationAmountOriginal,
       render: (_value, row) => (
         row.destinationCurrency && row.destinationAmountOriginal !== null
           ? formatMoney({
@@ -240,6 +250,7 @@ export function BudgetBookkeepingPage({
       title: t('note'),
       dataIndex: 'remark',
       minWidth: 120,
+      shouldCellUpdate: shouldBookkeepingCellUpdate('remark'),
       render: (value: BookkeepingRecord['remark']) => value ?? '-',
     },
     {
@@ -407,6 +418,7 @@ export function BudgetBookkeepingPage({
           locale={{ emptyText: <Empty image={<Landmark size={34} />} description={t('bookkeepingRecordsEmpty')} /> }}
           pagination={{
             defaultPageSize: 50,
+            hideOnSinglePage: filteredRecords.length <= 50,
             pageSizeOptions: [12, 20, 50, 100],
             position: ['bottomRight'],
             showSizeChanger: true,
@@ -450,6 +462,11 @@ export function BudgetBookkeepingPage({
       ) : null}
     </div>
   );
+}
+
+function shouldBookkeepingCellUpdate<Key extends keyof BookkeepingRecord>(key: Key) {
+  return (record: BookkeepingRecord, previousRecord: BookkeepingRecord) =>
+    record[key] !== previousRecord[key];
 }
 
 function BookkeepingTile({ label, value }: { label: string; value: string }) {

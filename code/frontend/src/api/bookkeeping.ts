@@ -5,6 +5,14 @@ interface BookkeepingRecordsResponse {
   records: BookkeepingRecord[];
 }
 
+interface BookkeepingRecordResponse {
+  record: BookkeepingRecord;
+}
+
+interface DeleteBookkeepingRecordResponse {
+  id: number;
+}
+
 export interface SaveBookkeepingRecordPayload {
   transactionType: TransactionType;
   recordDate?: string | null;
@@ -41,22 +49,22 @@ export function listBookkeepingRecords(budgetId: number): Promise<BookkeepingRec
 
 export function createBookkeepingRecord(
   payload: CreateBookkeepingRecordPayload,
-): Promise<BookkeepingRecord[]> {
-  return apiPost<BookkeepingRecordsResponse>('/api/bookkeeping-records', payload).then(
-    (response) => response.records,
+): Promise<BookkeepingRecord> {
+  return apiPost<BookkeepingRecordResponse>('/api/bookkeeping-records', payload).then(
+    (response) => response.record,
   );
 }
 
 export function updateBookkeepingRecord(
   payload: UpdateBookkeepingRecordPayload,
-): Promise<BookkeepingRecord[]> {
-  return apiPatch<BookkeepingRecordsResponse>('/api/bookkeeping-records', payload).then(
-    (response) => response.records,
+): Promise<BookkeepingRecord> {
+  return apiPatch<BookkeepingRecordResponse>('/api/bookkeeping-records', payload).then(
+    (response) => response.record,
   );
 }
 
-export function deleteBookkeepingRecord(id: number): Promise<BookkeepingRecord[]> {
-  return apiDelete<BookkeepingRecordsResponse>('/api/bookkeeping-records', { id }).then(
-    (response) => response.records,
+export function deleteBookkeepingRecord(id: number): Promise<number> {
+  return apiDelete<DeleteBookkeepingRecordResponse>('/api/bookkeeping-records', { id }).then(
+    (response) => response.id,
   );
 }

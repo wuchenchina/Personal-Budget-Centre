@@ -38,7 +38,7 @@ func (a *App) bookkeepingCreate(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	_, err = a.db.ExecContext(r.Context(), `INSERT INTO budget_bookkeeping_records
+	result, err := a.db.ExecContext(r.Context(), `INSERT INTO budget_bookkeeping_records
 (budget_id, transaction_type, record_date, order_reference, details, category_label, source_account_name,
 destination_account_name, currency_id, amount_original, rate_to_base, amount_base, destination_currency_id,
 destination_amount_original, destination_rate, remark, sort_order)
@@ -51,7 +51,11 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	if err != nil {
 		return err
 	}
-	return a.writeBookkeepingList(w, r, budgetID)
+	id, err := result.LastInsertId()
+	if err != nil {
+		return err
+	}
+	return a.writeBookkeepingRecord(w, r, id)
 }
 
 func (a *App) bookkeepingUpdate(w http.ResponseWriter, r *http.Request) error {
@@ -85,7 +89,7 @@ WHERE id = ?`,
 	if err != nil {
 		return err
 	}
-	return a.writeBookkeepingList(w, r, budgetID)
+	return a.writeBookkeepingRecord(w, r, id)
 }
 
 func (a *App) bookkeepingDelete(w http.ResponseWriter, r *http.Request) error {
@@ -104,15 +108,16 @@ func (a *App) bookkeepingDelete(w http.ResponseWriter, r *http.Request) error {
 	if _, err := a.db.ExecContext(r.Context(), "DELETE FROM budget_bookkeeping_records WHERE id = ?", id); err != nil {
 		return err
 	}
-	return a.writeBookkeepingList(w, r, budgetID)
+	httpx.WriteOK(w, map[string]any{"id": id}, http.StatusOK)
+	return nil
 }
 
-func (a *App) writeBookkeepingList(w http.ResponseWriter, r *http.Request, budgetID int64) error {
-	records, err := a.bookkeepingRecordsForBudget(r.Context(), budgetID)
+func (a *App) writeBookkeepingRecord(w http.ResponseWriter, r *http.Request, id int64) error {
+	record, err := a.bookkeepingRecordByID(r.Context(), id)
 	if err != nil {
 		return err
 	}
-	httpx.WriteOK(w, map[string]any{"records": records}, http.StatusOK)
+	httpx.WriteOK(w, map[string]any{"record": record}, http.StatusOK)
 	return nil
 }
 
@@ -247,37 +252,32 @@ WHERE br.budget_id = ? ORDER BY br.sort_order ASC, br.id ASC`, budgetID)
 	defer rows.Close()
 	records := []map[string]any{}
 	for rows.Next() {
-		var id, budget, sort int64
-		var txType, details, currency, created, updated string
-		var recordDate, orderRef, category, source, destAccount, destCurrency, destAmount, destRate, remark sql.NullString
-		var amount, rate, base float64
-		if err := rows.Scan(&id, &budget, &txType, &recordDate, &orderRef, &details, &category, &source, &destAccount, &currency, &amount, &rate, &base, &destCurrency, &destAmount, &destRate, &remark, &sort, &created, &updated); err != nil {
+		record, err := scanBookkeepingRecord(rows)
+		if err != nil {
 			return nil, err
 		}
-		records = append(records, map[string]any{
-			"id":                        id,
-			"budgetId":                  budget,
-			"transactionType":           txType,
-			"recordDate":                nullableDateOnly(recordDate),
-			"orderReference":            nullableString(orderRef),
-			"details":                   details,
-			"categoryLabel":             nullableString(category),
-			"sourceAccountName":         nullableString(source),
-			"destinationAccountName":    nullableString(destAccount),
-			"currency":                  currency,
-			"amountOriginal":            amount,
-			"rateToBase":                rate,
-			"amountBase":                base,
-			"destinationCurrency":       nullableString(destCurrency),
-			"destinationAmountOriginal": parseNullFloat(destAmount),
-			"destinationRate":           parseNullFloat(destRate),
-			"remark":                    nullableString(remark),
-			"sortOrder":                 sort,
-			"createdAt":                 dateTimeValue(created),
-			"updatedAt":                 dateTimeValue(updated),
-		})
+		records = append(records, record)
 	}
 	return records, rows.Err()
+}
+
+func (a *App) bookkeepingRecordByID(ctx context.Context, id int64) (map[string]any, error) {
+	row := a.db.QueryRowContext(ctx, `SELECT br.id, br.budget_id, br.transaction_type, br.record_date, br.order_reference,
+br.details, br.category_label, br.source_account_name, br.destination_account_name, c.code,
+br.amount_original, br.rate_to_base, br.amount_base, dc.code, br.destination_amount_original,
+br.destination_rate, br.remark, br.sort_order, br.created_at, br.updated_at
+FROM budget_bookkeeping_records br
+JOIN currencies c ON c.id = br.currency_id
+LEFT JOIN currencies dc ON dc.id = br.destination_currency_id
+WHERE br.id = ? LIMIT 1`, id)
+	record, err := scanBookkeepingRecord(row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apiError("BOOKKEEPING_RECORD_NOT_FOUND", "Bookkeeping record was not found.", http.StatusNotFound)
+		}
+		return nil, err
+	}
+	return record, nil
 }
 
 func (a *App) bookkeepingBudgetIDForRecord(ctx context.Context, id int64) (int64, error) {
@@ -309,4 +309,40 @@ func numericInput(value any) (float64, bool) {
 	default:
 		return floatValue(v), true
 	}
+}
+
+type bookkeepingRecordScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanBookkeepingRecord(scanner bookkeepingRecordScanner) (map[string]any, error) {
+	var id, budget, sort int64
+	var txType, details, currency, created, updated string
+	var recordDate, orderRef, category, source, destAccount, destCurrency, destAmount, destRate, remark sql.NullString
+	var amount, rate, base float64
+	if err := scanner.Scan(&id, &budget, &txType, &recordDate, &orderRef, &details, &category, &source, &destAccount, &currency, &amount, &rate, &base, &destCurrency, &destAmount, &destRate, &remark, &sort, &created, &updated); err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"id":                        id,
+		"budgetId":                  budget,
+		"transactionType":           txType,
+		"recordDate":                nullableDateOnly(recordDate),
+		"orderReference":            nullableString(orderRef),
+		"details":                   details,
+		"categoryLabel":             nullableString(category),
+		"sourceAccountName":         nullableString(source),
+		"destinationAccountName":    nullableString(destAccount),
+		"currency":                  currency,
+		"amountOriginal":            amount,
+		"rateToBase":                rate,
+		"amountBase":                base,
+		"destinationCurrency":       nullableString(destCurrency),
+		"destinationAmountOriginal": parseNullFloat(destAmount),
+		"destinationRate":           parseNullFloat(destRate),
+		"remark":                    nullableString(remark),
+		"sortOrder":                 sort,
+		"createdAt":                 dateTimeValue(created),
+		"updatedAt":                 dateTimeValue(updated),
+	}, nil
 }
