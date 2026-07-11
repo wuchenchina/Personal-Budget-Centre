@@ -103,10 +103,11 @@ export function BudgetBookkeepingPage({
       return undefined;
     }
 
+    const isMacOS = navigator.platform.toLowerCase().includes('mac');
     const handleKeyDown = (event: KeyboardEvent) => {
       const isShortcut =
         event.key.toLowerCase() === 'n'
-        && !event.altKey
+        && (isMacOS ? !event.altKey : event.altKey)
         && !event.shiftKey
         && event.ctrlKey
         && !event.metaKey;
