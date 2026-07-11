@@ -90,6 +90,7 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
     const defaultCurrency = options.selectedBudget.displayCurrency ?? options.selectedBudget.baseCurrency;
     form.setFieldsValue({
       transactionType: 'expense',
+      createLoanIncome: false,
       recordDate: dayjs(),
       currency: defaultCurrency,
       rate: defaultCurrency === options.selectedBudget.baseCurrency ? 1 : undefined,
@@ -174,17 +175,21 @@ export function useBookkeepingController(options: UseBookkeepingControllerOption
         remark: normalizedText(values.remark),
         sortOrder: values.sortOrder ?? 0,
       };
-      const savedRecord = editingRecord === null
+      const savedRecords = editingRecord === null
         ? await createBookkeepingRecord({
           ...payload,
           budgetId: options.selectedBudget.id,
+          createLoanIncome: values.createLoanIncome === true,
         })
-        : await updateBookkeepingRecord({
+        : [await updateBookkeepingRecord({
           ...payload,
           id: editingRecord.id,
-        });
+        })];
 
-      setRecords((currentRecords) => mergeBookkeepingRecord(currentRecords, savedRecord));
+      setRecords((currentRecords) => savedRecords.reduce(
+        (nextRecords, savedRecord) => mergeBookkeepingRecord(nextRecords, savedRecord),
+        currentRecords,
+      ));
       closeModal();
     } catch (saveError: unknown) {
       if (saveError instanceof Error) {

@@ -200,6 +200,7 @@ export const jaDictionary = {
   transactionType: "取引種別",
   selectTransactionType: "取引タイプを選択します。",
   transactionTypeExpense: "注文 / 支出",
+  bookkeepingLoan: "借入",
   transactionTypeIncome: "収入",
   transactionTypeSof: "資金源",
   transactionTypeTransfer: "振替",

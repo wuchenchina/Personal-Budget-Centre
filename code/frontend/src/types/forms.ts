@@ -126,6 +126,7 @@ export interface TransactionFormValues {
 
 export interface BookkeepingRecordFormValues {
   transactionType?: TransactionType;
+  createLoanIncome?: boolean;
   recordDate?: Dayjs;
   orderReference?: string;
   details: string;

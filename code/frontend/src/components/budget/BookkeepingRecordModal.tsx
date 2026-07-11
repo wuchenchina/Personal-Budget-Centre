@@ -1,4 +1,4 @@
-import { Alert, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
+import { Alert, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
 import type { FormInstance } from 'antd';
 import { useI18n } from '../../i18n';
 import type { BookkeepingRecord, CurrencyCode, TransactionType } from '../../types/budget';
@@ -70,9 +70,13 @@ export function BookkeepingRecordModal({
     const destinationFields = nextShowDestinationFields
       ? clearDestinationAmountWhenCurrencyCleared(changedValues, allValues)
       : clearDestinationFields(allValues);
+    const loanIncomeFields = (allValues.transactionType ?? 'expense') === 'expense'
+      ? {}
+      : clearLoanIncomeFields(allValues);
     const nextFields = {
       ...sourceFields,
       ...destinationFields,
+      ...loanIncomeFields,
     };
     if (Object.keys(nextFields).length > 0) {
       form.setFieldsValue(nextFields);
@@ -113,6 +117,12 @@ export function BookkeepingRecordModal({
             <DatePicker className="form-full-width" />
           </Form.Item>
         </div>
+
+        {editingRecord === null && transactionType === 'expense' ? (
+          <Form.Item name="createLoanIncome" valuePropName="checked">
+            <Checkbox>{t('bookkeepingLoan')}</Checkbox>
+          </Form.Item>
+        ) : null}
 
         <div className="entry-basic-grid">
           <Form.Item
@@ -412,6 +422,16 @@ function clearDestinationFields(
   }
 
   return nextFields;
+}
+
+function clearLoanIncomeFields(
+  allValues: BookkeepingRecordFormValues,
+): Partial<BookkeepingRecordFormValues> {
+  if (allValues.createLoanIncome !== undefined) {
+    return { createLoanIncome: undefined };
+  }
+
+  return {};
 }
 
 function resetForeignCurrencySourceFields(

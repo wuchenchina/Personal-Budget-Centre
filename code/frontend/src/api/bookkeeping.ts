@@ -9,6 +9,10 @@ interface BookkeepingRecordResponse {
   record: BookkeepingRecord;
 }
 
+interface CreateBookkeepingRecordResponse extends BookkeepingRecordResponse {
+  generatedIncomeRecord?: BookkeepingRecord;
+}
+
 interface DeleteBookkeepingRecordResponse {
   id: number;
 }
@@ -35,6 +39,7 @@ export interface SaveBookkeepingRecordPayload {
 
 export interface CreateBookkeepingRecordPayload extends SaveBookkeepingRecordPayload {
   budgetId: number;
+  createLoanIncome?: boolean;
 }
 
 export interface UpdateBookkeepingRecordPayload extends SaveBookkeepingRecordPayload {
@@ -49,9 +54,11 @@ export function listBookkeepingRecords(budgetId: number): Promise<BookkeepingRec
 
 export function createBookkeepingRecord(
   payload: CreateBookkeepingRecordPayload,
-): Promise<BookkeepingRecord> {
-  return apiPost<BookkeepingRecordResponse>('/api/bookkeeping-records', payload).then(
-    (response) => response.record,
+): Promise<BookkeepingRecord[]> {
+  return apiPost<CreateBookkeepingRecordResponse>('/api/bookkeeping-records', payload).then(
+    (response) => response.generatedIncomeRecord === undefined
+      ? [response.record]
+      : [response.record, response.generatedIncomeRecord],
   );
 }
 

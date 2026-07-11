@@ -201,6 +201,7 @@ export const scDictionary = {
     transactionType: '交易类型',
     selectTransactionType: '请选择交易类型。',
     transactionTypeExpense: '订单 / 支出',
+    bookkeepingLoan: '借款',
     transactionTypeIncome: '收入',
     transactionTypeSof: '资金来源',
     transactionTypeTransfer: '资金划转',

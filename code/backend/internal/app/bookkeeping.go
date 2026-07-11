@@ -34,28 +34,60 @@ func (a *App) bookkeepingCreate(w http.ResponseWriter, r *http.Request) error {
 	if err := a.requireBudgetWrite(r, budgetID, s.UserID); err != nil {
 		return err
 	}
+	createLoanIncome := boolValue(input["createLoanIncome"])
+	if createLoanIncome && stringDefault(stringValue(input["transactionType"]), "expense") != "expense" {
+		return apiError("VALIDATION_ERROR", "Loan income can only be created with an expense record.", http.StatusUnprocessableEntity)
+	}
 	record, err := a.bookkeepingRecordValues(r.Context(), input, budgetID, s.UserID)
 	if err != nil {
 		return err
 	}
-	result, err := a.db.ExecContext(r.Context(), `INSERT INTO budget_bookkeeping_records
-(budget_id, transaction_type, record_date, order_reference, details, category_label, source_account_name,
-destination_account_name, currency_id, amount_original, rate_to_base, amount_base, destination_currency_id,
-destination_amount_original, destination_rate, remark, sort_order)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		budgetID, record.transactionType, record.recordDate, record.orderReference, record.details,
-		record.categoryLabel, record.sourceAccountName, record.destinationAccountName, record.currencyID,
-		record.amount, record.rate, round4(record.amount*record.rate), record.destinationCurrencyID,
-		record.destinationAmount, record.destinationRate, record.remark, record.sortOrder,
-	)
+
+	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		return err
 	}
-	id, err := result.LastInsertId()
+	defer tx.Rollback()
+	if record.budgetRateToSave != nil {
+		if _, err := saveBudgetExchangeRateTx(r.Context(), tx, *record.budgetRateToSave); err != nil {
+			return err
+		}
+	}
+
+	id, err := insertBookkeepingRecordTx(r.Context(), tx, budgetID, record)
 	if err != nil {
 		return err
 	}
-	return a.writeBookkeepingRecord(w, r, id)
+	var generatedIncomeRecordID int64
+	if createLoanIncome {
+		generatedIncomeRecordID, err = insertBookkeepingRecordTx(
+			r.Context(),
+			tx,
+			budgetID,
+			loanIncomeRecordValues(record, bookkeepingLoanDetails(requestLanguage(r))),
+		)
+		if err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	createdRecord, err := a.bookkeepingRecordByID(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	response := map[string]any{"record": createdRecord}
+	if generatedIncomeRecordID != 0 {
+		generatedIncomeRecord, err := a.bookkeepingRecordByID(r.Context(), generatedIncomeRecordID)
+		if err != nil {
+			return err
+		}
+		response["generatedIncomeRecord"] = generatedIncomeRecord
+	}
+	httpx.WriteOK(w, response, http.StatusOK)
+	return nil
 }
 
 func (a *App) bookkeepingUpdate(w http.ResponseWriter, r *http.Request) error {
@@ -75,7 +107,17 @@ func (a *App) bookkeepingUpdate(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	_, err = a.db.ExecContext(r.Context(), `UPDATE budget_bookkeeping_records
+	tx, err := a.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if record.budgetRateToSave != nil {
+		if _, err := saveBudgetExchangeRateTx(r.Context(), tx, *record.budgetRateToSave); err != nil {
+			return err
+		}
+	}
+	_, err = tx.ExecContext(r.Context(), `UPDATE budget_bookkeeping_records
 SET transaction_type = ?, record_date = ?, order_reference = ?, details = ?, category_label = ?,
 source_account_name = ?, destination_account_name = ?, currency_id = ?, amount_original = ?,
 rate_to_base = ?, amount_base = ?, destination_currency_id = ?, destination_amount_original = ?,
@@ -87,6 +129,9 @@ WHERE id = ?`,
 		record.destinationAmount, record.destinationRate, record.remark, record.sortOrder, id,
 	)
 	if err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	return a.writeBookkeepingRecord(w, r, id)
@@ -137,6 +182,64 @@ type bookkeepingRecordValues struct {
 	destinationRate        any
 	remark                 any
 	sortOrder              int64
+	budgetRateToSave       *budgetExchangeRateInput
+}
+
+func insertBookkeepingRecordTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	budgetID int64,
+	record bookkeepingRecordValues,
+) (int64, error) {
+	result, err := tx.ExecContext(ctx, `INSERT INTO budget_bookkeeping_records
+(budget_id, transaction_type, record_date, order_reference, details, category_label, source_account_name,
+destination_account_name, currency_id, amount_original, rate_to_base, amount_base, destination_currency_id,
+destination_amount_original, destination_rate, remark, sort_order)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		budgetID, record.transactionType, record.recordDate, record.orderReference, record.details,
+		record.categoryLabel, record.sourceAccountName, record.destinationAccountName, record.currencyID,
+		record.amount, record.rate, round4(record.amount*record.rate), record.destinationCurrencyID,
+		record.destinationAmount, record.destinationRate, record.remark, record.sortOrder,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+func loanIncomeRecordValues(
+	expense bookkeepingRecordValues,
+	details string,
+) bookkeepingRecordValues {
+	return bookkeepingRecordValues{
+		transactionType:   "income",
+		recordDate:        expense.recordDate,
+		details:           details,
+		sourceAccountName: expense.sourceAccountName,
+		currencyID:        expense.currencyID,
+		amount:            expense.amount,
+		rate:              expense.rate,
+		sortOrder:         expense.sortOrder,
+	}
+}
+
+func bookkeepingLoanDetails(language string) string {
+	switch normalizeAppLanguage(language) {
+	case "en":
+		return "Loan"
+	case "sc", "tc":
+		return "借款"
+	case "ja":
+		return "借入"
+	case "fr":
+		return "Prêt"
+	case "ru":
+		return "Заём"
+	case "de":
+		return "Darlehen"
+	default:
+		return "借款"
+	}
 }
 
 func (a *App) bookkeepingRecordValues(ctx context.Context, input map[string]any, budgetID, userID int64) (bookkeepingRecordValues, error) {
@@ -188,19 +291,16 @@ func (a *App) bookkeepingRecordValues(ctx context.Context, input map[string]any,
 	if err != nil {
 		return bookkeepingRecordValues{}, err
 	}
-	if shouldSaveBudgetRate(input, []string{"rateScope"}) && hasExplicitRate {
-		if currencyID != basics.BaseCurrencyID {
-			if _, err := a.saveBudgetExchangeRate(ctx, budgetExchangeRateInput{
-				BudgetID:       budgetID,
-				UserID:         userID,
-				FromCurrencyID: currencyID,
-				ToCurrencyID:   basics.BaseCurrencyID,
-				Rate:           rate,
-				RateDate:       dateStringOrToday(rateDate),
-				Note:           "Saved from bookkeeping record.",
-			}); err != nil {
-				return bookkeepingRecordValues{}, err
-			}
+	var budgetRateToSave *budgetExchangeRateInput
+	if shouldSaveBudgetRate(input, []string{"rateScope"}) && hasExplicitRate && currencyID != basics.BaseCurrencyID {
+		budgetRateToSave = &budgetExchangeRateInput{
+			BudgetID:       budgetID,
+			UserID:         userID,
+			FromCurrencyID: currencyID,
+			ToCurrencyID:   basics.BaseCurrencyID,
+			Rate:           rate,
+			RateDate:       dateStringOrToday(rateDate),
+			Note:           "Saved from bookkeeping record.",
 		}
 	}
 	destinationAmount, hasDestinationAmount := numericInput(input["destinationAmount"])
@@ -234,6 +334,7 @@ func (a *App) bookkeepingRecordValues(ctx context.Context, input map[string]any,
 		destinationRate:        destinationRate,
 		remark:                 remark,
 		sortOrder:              int64Value(input["sortOrder"]),
+		budgetRateToSave:       budgetRateToSave,
 	}, nil
 }
 

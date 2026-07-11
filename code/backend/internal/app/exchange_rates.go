@@ -49,6 +49,11 @@ type budgetExchangeRateInput struct {
 	Note           any
 }
 
+type budgetExchangeRateExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 type currentExchangeRateInput struct {
 	UserID            sql.NullInt64
 	WorkspaceID       sql.NullInt64
@@ -648,10 +653,22 @@ func scanBudgetExchangeRate(row rowScanner) (map[string]any, error) {
 }
 
 func (a *App) saveBudgetExchangeRate(ctx context.Context, input budgetExchangeRateInput) (int64, error) {
+	return saveBudgetExchangeRateWithExecutor(ctx, a.db, input)
+}
+
+func saveBudgetExchangeRateTx(ctx context.Context, tx *sql.Tx, input budgetExchangeRateInput) (int64, error) {
+	return saveBudgetExchangeRateWithExecutor(ctx, tx, input)
+}
+
+func saveBudgetExchangeRateWithExecutor(
+	ctx context.Context,
+	executor budgetExchangeRateExecutor,
+	input budgetExchangeRateInput,
+) (int64, error) {
 	if input.RateDate == "" {
 		input.RateDate = todayDate()
 	}
-	res, err := a.db.ExecContext(ctx, `INSERT INTO budget_exchange_rates
+	res, err := executor.ExecContext(ctx, `INSERT INTO budget_exchange_rates
 (budget_id, user_id, from_currency_id, to_currency_id, rate, rate_date, source_note)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
@@ -669,7 +686,7 @@ ON DUPLICATE KEY UPDATE
 	if id > 0 {
 		return id, nil
 	}
-	row := a.db.QueryRowContext(ctx, `SELECT id FROM budget_exchange_rates
+	row := executor.QueryRowContext(ctx, `SELECT id FROM budget_exchange_rates
 WHERE budget_id = ? AND from_currency_id = ? AND to_currency_id = ?
 LIMIT 1`, input.BudgetID, input.FromCurrencyID, input.ToCurrencyID)
 	var existingID int64

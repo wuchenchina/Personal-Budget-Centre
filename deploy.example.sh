@@ -136,6 +136,7 @@ DEPLOY_REMOTE_PRUNE_PATHS=(
   ".claude"
   ".gitignore"
   "AGENTS.md"
+  "Users"
   "local-only"
   "build/deploy"
   "code/README.md"
@@ -426,21 +427,24 @@ sync_release_allowlist() {
 
   for rel in "${DEPLOY_ROOT_FILES[@]}"; do
     require_release_file "${rel}"
-    sources+=("${PROJECT_ROOT}/./${rel}")
+    sources+=("./${rel}")
   done
   for rel in "${DEPLOY_DIRS[@]}"; do
     require_release_dir "${rel}"
-    sources+=("${PROJECT_ROOT}/./${rel}/")
+    sources+=("./${rel}/")
   done
   for rel in "${DEPLOY_MANUAL_FILES[@]}"; do
     require_release_file "${rel}"
-    sources+=("${PROJECT_ROOT}/./${rel}")
+    sources+=("./${rel}")
   done
 
-  rsync -avz --progress --itemize-changes --delete --delete-excluded --relative \
-    "${RSYNC_RELEASE_EXCLUDES[@]}" \
-    -e "$(rsync_ssh_command)" \
-    "${sources[@]}" "${REMOTE}:${REMOTE_PATH}/"
+  (
+    cd "${PROJECT_ROOT}"
+    rsync -avz --progress --itemize-changes --delete --delete-excluded --relative \
+      "${RSYNC_RELEASE_EXCLUDES[@]}" \
+      -e "$(rsync_ssh_command)" \
+      "${sources[@]}" "${REMOTE}:${REMOTE_PATH}/"
+  )
 }
 
 sync_env_file() {

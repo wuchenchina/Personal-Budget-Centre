@@ -201,6 +201,7 @@ export const tcDictionary = {
     transactionType: '交易類型',
     selectTransactionType: '請選擇交易類型。',
     transactionTypeExpense: '訂單 / 支出',
+    bookkeepingLoan: '借款',
     transactionTypeIncome: '收入',
     transactionTypeSof: '資金來源',
     transactionTypeTransfer: '資金劃轉',

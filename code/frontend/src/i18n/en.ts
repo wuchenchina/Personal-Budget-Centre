@@ -207,6 +207,7 @@ export const enDictionary = {
     transactionType: 'Transaction type',
     selectTransactionType: 'Choose transaction type.',
     transactionTypeExpense: 'Order / expense',
+    bookkeepingLoan: 'Loan',
     transactionTypeIncome: 'Income',
     transactionTypeSof: 'Source of funds',
     transactionTypeTransfer: 'Transfer',

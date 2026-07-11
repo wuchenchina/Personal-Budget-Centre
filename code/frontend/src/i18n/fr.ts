@@ -200,6 +200,7 @@ export const frDictionary = {
   transactionType: "Type d'opération",
   selectTransactionType: "Choisissez le type de transaction.",
   transactionTypeExpense: "Commande / dépense",
+  bookkeepingLoan: "Prêt",
   transactionTypeIncome: "Revenu",
   transactionTypeSof: "Source des fonds",
   transactionTypeTransfer: "Transfert",

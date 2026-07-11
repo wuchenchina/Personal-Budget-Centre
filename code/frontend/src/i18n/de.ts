@@ -200,6 +200,7 @@ export const deDictionary = {
   transactionType: "Transaktionstyp",
   selectTransactionType: "Wählen Sie die Transaktionsart.",
   transactionTypeExpense: "Auftrag/Kosten",
+  bookkeepingLoan: "Darlehen",
   transactionTypeIncome: "Einkommen",
   transactionTypeSof: "Geldquelle",
   transactionTypeTransfer: "Überweisen",

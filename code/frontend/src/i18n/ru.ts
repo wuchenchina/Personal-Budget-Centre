@@ -200,6 +200,7 @@ export const ruDictionary = {
   transactionType: "Тип транзакции",
   selectTransactionType: "Выберите тип транзакции.",
   transactionTypeExpense: "Заказ/расход",
+  bookkeepingLoan: "Заём",
   transactionTypeIncome: "Доход",
   transactionTypeSof: "Источник средств",
   transactionTypeTransfer: "Передача",
