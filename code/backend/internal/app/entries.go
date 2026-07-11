@@ -565,7 +565,10 @@ func (a *App) rateToBase(ctx context.Context, userID, workspaceID, currencyID in
 func rateInput(input map[string]any, keys []string, label string) (float64, bool, error) {
 	for _, key := range keys {
 		value, ok := input[key]
-		if !ok || value == nil || stringValue(value) == "" {
+		if !ok || value == nil {
+			continue
+		}
+		if text, isString := value.(string); isString && strings.TrimSpace(text) == "" {
 			continue
 		}
 		rate, ok := optionalNumber(value)

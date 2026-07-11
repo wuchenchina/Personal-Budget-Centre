@@ -447,6 +447,21 @@ func TestRateToBaseUsesExplicitRateBeforeSharedResolver(t *testing.T) {
 	}
 }
 
+func TestRateInputAcceptsNumericManualRate(t *testing.T) {
+	rate, hasRate, err := rateInput(map[string]any{
+		"rate": float64(1),
+	}, []string{"rate"}, "Transaction rate")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRate {
+		t.Fatal("numeric manual rate must be treated as an explicit rate")
+	}
+	if rate != 1 {
+		t.Fatalf("rate = %v, want 1", rate)
+	}
+}
+
 func TestSaveCurrentExchangeRateOverwritesWithoutRuntimeHistory(t *testing.T) {
 	content, err := os.ReadFile("exchange_rates.go")
 	if err != nil {
