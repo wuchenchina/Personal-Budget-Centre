@@ -35,6 +35,9 @@ build/
 **/node_modules/
 code/frontend/dist/
 code/frontend/dist-ssr/
+code/app/dist/
+code/app/build/
+code/app/release/
 template/frontend/dist/
 template/frontend/dist-ssr/
 coverage/
