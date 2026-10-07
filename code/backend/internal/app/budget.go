@@ -505,8 +505,10 @@ WHERE b.id = ? LIMIT 1`, id).Scan(
 		}
 		return budgetInputValues{}, err
 	}
-	values.StartDate = stringValue(nullableString(start))
-	values.EndDate = stringValue(nullableString(end))
+	// MySQL drivers may expose DATE values as midnight timestamps. Keep the
+	// date-only representation before these values are reused in an UPDATE.
+	values.StartDate = dateString(nullableString(start))
+	values.EndDate = dateString(nullableString(end))
 	values.Note = stringValue(nullableString(note))
 	values.SignatureConfig = nullableString(signature)
 	values.ExpectedIncome = nullableString(income)
