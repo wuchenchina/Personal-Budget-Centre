@@ -19,9 +19,9 @@ ENV HTTP_PROXY=${HTTP_PROXY} \
     DOTNET_NOLOGO=1
 WORKDIR /src
 COPY code/pdf-renderer-dotnet/BudgetCentre.PdfRenderer/BudgetCentre.PdfRenderer.csproj ./BudgetCentre.PdfRenderer/
+COPY code/font/NotoSansCJKkr-Regular.otf code/font/NotoSansCJK-LICENSE.txt /font/
 RUN dotnet restore ./BudgetCentre.PdfRenderer/BudgetCentre.PdfRenderer.csproj --verbosity minimal
 COPY code/pdf-renderer-dotnet/BudgetCentre.PdfRenderer ./BudgetCentre.PdfRenderer
-COPY code/font/NotoSansCJKkr-Regular.otf code/font/NotoSansCJK-LICENSE.txt /font/
 RUN dotnet publish ./BudgetCentre.PdfRenderer/BudgetCentre.PdfRenderer.csproj -c Release -o /out --no-restore
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0-alpine AS runtime
