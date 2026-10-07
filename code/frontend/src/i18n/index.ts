@@ -104,6 +104,21 @@ import {
   tcVisibilityLabels,
   tcWorkspaceTypeLabels,
 } from './tc';
+import {
+  koAntdLocale,
+  koApiErrorMessages,
+  koBudgetShareRoleLabels,
+  koBudgetStatusLabels,
+  koCurrencyRateSourceLabels,
+  koDictionary,
+  koLanguageLabel,
+  koLanguageOption,
+  koPrincipalTypeLabels,
+  koRoleLabels,
+  koUserStatusLabels,
+  koVisibilityLabels,
+  koWorkspaceTypeLabels,
+} from './ko';
 import type { AppLanguage, I18nValues } from './types';
 
 export type { AppLanguage, I18nValues, WorkspaceType } from './types';
@@ -118,6 +133,7 @@ export const languageOptions = [
   frLanguageOption,
   ruLanguageOption,
   deLanguageOption,
+  koLanguageOption,
 ];
 
 export const languageLabels = {
@@ -128,6 +144,7 @@ export const languageLabels = {
   fr: frLanguageLabel,
   ru: ruLanguageLabel,
   de: deLanguageLabel,
+  ko: koLanguageLabel,
 } satisfies Record<AppLanguage, string>;
 
 export const antdLocales = {
@@ -138,6 +155,7 @@ export const antdLocales = {
   fr: frAntdLocale,
   ru: ruAntdLocale,
   de: deAntdLocale,
+  ko: koAntdLocale,
 };
 
 export const dictionaries: Record<AppLanguage, Record<I18nKey, string>> = {
@@ -148,6 +166,7 @@ export const dictionaries: Record<AppLanguage, Record<I18nKey, string>> = {
   fr: frDictionary,
   ru: ruDictionary,
   de: deDictionary,
+  ko: koDictionary,
 };
 
 export const i18nDictionaries = dictionaries;
@@ -160,6 +179,7 @@ export const roleLabelsByLanguage = {
   fr: frRoleLabels,
   ru: ruRoleLabels,
   de: deRoleLabels,
+  ko: koRoleLabels,
 };
 
 export const budgetShareRoleLabelsByLanguage = {
@@ -170,6 +190,7 @@ export const budgetShareRoleLabelsByLanguage = {
   fr: frBudgetShareRoleLabels,
   ru: ruBudgetShareRoleLabels,
   de: deBudgetShareRoleLabels,
+  ko: koBudgetShareRoleLabels,
 };
 
 export const budgetStatusLabelsByLanguage = {
@@ -180,6 +201,7 @@ export const budgetStatusLabelsByLanguage = {
   fr: frBudgetStatusLabels,
   ru: ruBudgetStatusLabels,
   de: deBudgetStatusLabels,
+  ko: koBudgetStatusLabels,
 };
 
 export const visibilityLabelsByLanguage = {
@@ -190,6 +212,7 @@ export const visibilityLabelsByLanguage = {
   fr: frVisibilityLabels,
   ru: ruVisibilityLabels,
   de: deVisibilityLabels,
+  ko: koVisibilityLabels,
 };
 
 export const principalTypeLabelsByLanguage = {
@@ -200,6 +223,7 @@ export const principalTypeLabelsByLanguage = {
   fr: frPrincipalTypeLabels,
   ru: ruPrincipalTypeLabels,
   de: dePrincipalTypeLabels,
+  ko: koPrincipalTypeLabels,
 };
 
 export const userStatusLabelsByLanguage = {
@@ -210,6 +234,7 @@ export const userStatusLabelsByLanguage = {
   fr: frUserStatusLabels,
   ru: ruUserStatusLabels,
   de: deUserStatusLabels,
+  ko: koUserStatusLabels,
 };
 
 export const workspaceTypeLabelsByLanguage = {
@@ -220,6 +245,7 @@ export const workspaceTypeLabelsByLanguage = {
   fr: frWorkspaceTypeLabels,
   ru: ruWorkspaceTypeLabels,
   de: deWorkspaceTypeLabels,
+  ko: koWorkspaceTypeLabels,
 };
 
 export const currencyRateSourceLabelsByLanguage = {
@@ -230,6 +256,7 @@ export const currencyRateSourceLabelsByLanguage = {
   fr: frCurrencyRateSourceLabels,
   ru: ruCurrencyRateSourceLabels,
   de: deCurrencyRateSourceLabels,
+  ko: koCurrencyRateSourceLabels,
 };
 
 export const apiErrorMessagesByLanguage: Record<AppLanguage, Record<string, string>> = {
@@ -240,6 +267,7 @@ export const apiErrorMessagesByLanguage: Record<AppLanguage, Record<string, stri
   fr: frApiErrorMessages,
   ru: ruApiErrorMessages,
   de: deApiErrorMessages,
+  ko: koApiErrorMessages,
 };
 
 export function normalizeLanguage(value: string | null | undefined): AppLanguage {
@@ -251,6 +279,7 @@ export function normalizeLanguage(value: string | null | undefined): AppLanguage
     || value === 'fr'
     || value === 'ru'
     || value === 'de'
+    || value === 'ko'
   ) {
     return value;
   }
@@ -274,6 +303,10 @@ export function normalizeLanguage(value: string | null | undefined): AppLanguage
 
   if (normalized.startsWith('de')) {
     return 'de';
+  }
+
+  if (normalized.startsWith('ko')) {
+    return 'ko';
   }
 
   if (normalized.includes('hans') || normalized.includes('cn')) {

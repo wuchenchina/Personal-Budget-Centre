@@ -30,6 +30,8 @@ func normalizeAppLanguage(value string) string {
 			return "ru"
 		case language == "de" || strings.HasPrefix(language, "de-"):
 			return "de"
+		case language == "ko" || strings.HasPrefix(language, "ko-"):
+			return "ko"
 		case strings.Contains(language, "hans") || strings.HasPrefix(language, "zh-cn") || strings.HasPrefix(language, "zh-sg") || language == "sc":
 			return "sc"
 		case strings.Contains(language, "hant") || strings.HasPrefix(language, "zh-tw") || strings.HasPrefix(language, "zh-hk") || strings.HasPrefix(language, "zh-mo") || language == "tc":

@@ -38,6 +38,7 @@ const documentLanguageTags: Record<AppLanguage, string> = {
   fr: 'fr',
   ru: 'ru',
   de: 'de',
+  ko: 'ko',
 };
 
 function replacePath(path: string) {

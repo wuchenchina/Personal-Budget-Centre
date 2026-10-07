@@ -30,12 +30,12 @@ public sealed partial class PdfExportRenderer
     {
         return type switch
         {
-            "income" => Join(Text("Income", "收入", "收入", "収入", "Revenu", "Доход", "Einnahme"), options),
-            "expense" => Join(Text("Order / expense", "訂單 / 支出", "订单 / 支出", "注文 / 支出", "Commande / dépense", "Заказ / расход", "Bestellung / Ausgabe"), options),
-            "transfer" => Join(Text("Transfer", "資金劃轉", "资金划转", "振替", "Virement", "Перевод", "Überweisung"), options),
-            "sof" => Join(Text("Source of funds", "資金來源", "资金来源", "資金源", "Source des fonds", "Источник средств", "Mittelherkunft"), options),
-            "fx_exchange" => Join(Text("Currency exchange", "貨幣兌換", "货币兑换", "通貨両替", "Change de devise", "Обмен валюты", "Währungswechsel"), options),
-            "cross_border_remittance" => Join(Text("Cross-border remittance", "跨境匯款", "跨境汇款", "海外送金", "Virement transfrontalier", "Трансграничный перевод", "Grenzüberschreitende Überweisung"), options),
+            "income" => Join(Text("Income", "收入", "收入", "収入", "Revenu", "Доход", "Einnahme", "수입"), options),
+            "expense" => Join(Text("Order / expense", "訂單 / 支出", "订单 / 支出", "注文 / 支出", "Commande / dépense", "Заказ / расход", "Bestellung / Ausgabe", "주문 / 지출"), options),
+            "transfer" => Join(Text("Transfer", "資金劃轉", "资金划转", "振替", "Virement", "Перевод", "Überweisung", "이체"), options),
+            "sof" => Join(Text("Source of funds", "資金來源", "资金来源", "資金源", "Source des fonds", "Источник средств", "Mittelherkunft", "자금 출처"), options),
+            "fx_exchange" => Join(Text("Currency exchange", "貨幣兌換", "货币兑换", "通貨両替", "Change de devise", "Обмен валюты", "Währungswechsel", "환전"), options),
+            "cross_border_remittance" => Join(Text("Cross-border remittance", "跨境匯款", "跨境汇款", "海外送金", "Virement transfrontalier", "Трансграничный перевод", "Grenzüberschreitende Überweisung", "해외 송금"), options),
             _ => type,
         };
     }
@@ -44,9 +44,9 @@ public sealed partial class PdfExportRenderer
     {
         return type switch
         {
-            "custom_amount" => Join(Text("Custom amount", "自訂金額", "自定义金额", "カスタム金額", "Montant personnalisé", "Своя сумма", "Benutzerdefinierter Betrag"), options),
-            "custom_share" => Join(Text("Custom share", "自訂比例", "自定义比例", "カスタム比率", "Part personnalisée", "Своя доля", "Benutzerdefinierter Anteil"), options),
-            "equal" => Join(Text("Equal split", "平均分攤", "平均分摊", "均等分割", "Partage égal", "Равное распределение", "Gleichmäßige Aufteilung"), options),
+            "custom_amount" => Join(Text("Custom amount", "自訂金額", "自定义金额", "カスタム金額", "Montant personnalisé", "Своя сумма", "Benutzerdefinierter Betrag", "사용자 지정 금액"), options),
+            "custom_share" => Join(Text("Custom share", "自訂比例", "自定义比例", "カスタム比率", "Part personnalisée", "Своя доля", "Benutzerdefinierter Anteil", "사용자 지정 비율"), options),
+            "equal" => Join(Text("Equal split", "平均分攤", "平均分摊", "均等分割", "Partage égal", "Равное распределение", "Gleichmäßige Aufteilung", "균등 분할"), options),
             "excluded" => Join(Text("Excluded from settlement", "不納入結算", "不纳入结算", "精算対象外", "Exclu du règlement", "Исключено из расчета", "Von der Abrechnung ausgeschlossen"), options),
             "individual" => Join(Text("Individual payment", "各自付款", "各自付款", "個別支払い", "Paiement individuel", "Индивидуальный платеж", "Einzelzahlung"), options),
             "per_person" => Join(Text("Same amount per person", "每人同額", "每人同额", "1 人あたり同額", "Même montant par personne", "Одинаковая сумма на человека", "Gleicher Betrag pro Person"), options),
@@ -76,7 +76,10 @@ public sealed partial class PdfExportRenderer
     }
 
     private static LocalizedText Text(string en, string tc, string sc, string ja, string fr, string ru, string de) =>
-        new(en, tc, sc, ja, fr, ru, de);
+        new(en, tc, sc, ja, fr, ru, de, en);
+
+    private static LocalizedText Text(string en, string tc, string sc, string ja, string fr, string ru, string de, string ko) =>
+        new(en, tc, sc, ja, fr, ru, de, ko);
 
     private static string Join(LocalizedText text, ExportOptions options) => JoinWithLanguages(text, options.PdfLanguages);
 
@@ -94,6 +97,7 @@ public sealed partial class PdfExportRenderer
                 "fr" => text.Fr,
                 "ru" => text.Ru,
                 "de" => text.De,
+                "ko" => string.IsNullOrWhiteSpace(text.Ko) ? text.En : text.Ko,
                 _ => text.En,
             };
             if (!parts.Contains(value))
@@ -119,6 +123,7 @@ public sealed partial class PdfExportRenderer
                     "fr" => "Date",
                     "ru" => "Дата",
                     "de" => "Datum",
+                    "ko" => "날짜",
                     _ => "Date",
                 }
                 : lang switch
@@ -129,6 +134,7 @@ public sealed partial class PdfExportRenderer
                     "fr" => "Date",
                     "ru" => "Дата",
                     "de" => "Datum",
+                    "ko" => "날짜",
                     _ => "Date",
                 };
             if (!labels.Contains(value))
@@ -336,7 +342,7 @@ public sealed partial class PdfExportRenderer
         ["destination"] = Text("Destination", "目的金額", "目的金额", "宛先金額", "Destination", "Назначение", "Zielbetrag"),
     };
 
-    private sealed record LocalizedText(string En, string Tc, string Sc, string Ja, string Fr, string Ru, string De);
+    private sealed record LocalizedText(string En, string Tc, string Sc, string Ja, string Fr, string Ru, string De, string Ko);
 
     private sealed record CurrencyTotal(string Currency, decimal AmountOriginal, decimal AmountBase);
     private sealed record EffectiveAmounts(decimal BudgetBase, decimal EstimatedBase, decimal VarianceBase, IReadOnlyList<CurrencyTotal> TransactionTotals);

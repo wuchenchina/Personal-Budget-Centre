@@ -237,6 +237,8 @@ func bookkeepingLoanDetails(language string) string {
 		return "Заём"
 	case "de":
 		return "Darlehen"
+	case "ko":
+		return "대출"
 	default:
 		return "借款"
 	}

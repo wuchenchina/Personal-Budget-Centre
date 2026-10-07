@@ -1,4 +1,4 @@
-export type AppLanguage = 'en' | 'sc' | 'tc' | 'ja' | 'fr' | 'ru' | 'de';
+export type AppLanguage = 'en' | 'sc' | 'tc' | 'ja' | 'fr' | 'ru' | 'de' | 'ko';
 
 export type I18nValues = Record<string, string | number | null | undefined>;
 

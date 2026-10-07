@@ -597,6 +597,7 @@ public sealed partial class PdfExportRenderer
             "fr" => new Dictionary<string, string> { ["confirmation"] = "Confirmation", ["signature"] = "Signature" },
             "ru" => new Dictionary<string, string> { ["confirmation"] = "Подтверждение", ["signature"] = "Подпись" },
             "de" => new Dictionary<string, string> { ["confirmation"] = "Bestätigung", ["signature"] = "Unterschrift" },
+            "ko" => new Dictionary<string, string> { ["confirmation"] = "확인", ["signature"] = "서명" },
             _ => new Dictionary<string, string> { ["confirmation"] = "Confirmation", ["signature"] = "Signature" },
         };
         var parts = mode == "confirmation_signature" ? new[] { labels["confirmation"], labels["signature"] } : new[] { labels.GetValueOrDefault(mode, labels["signature"]) };
@@ -606,7 +607,7 @@ public sealed partial class PdfExportRenderer
     private static string SignatureLanguage(JsonElement config)
     {
         var language = JsonValue.String(config, "labelLanguage", "en");
-        return language is "en" or "sc" or "tc" or "ja" or "fr" or "ru" or "de" or "en_sc" or "en_tc" ? language : "en";
+        return language is "en" or "sc" or "tc" or "ja" or "fr" or "ru" or "de" or "ko" or "en_sc" or "en_tc" ? language : "en";
     }
 
     private static string JoinSignatureLabelParts(IReadOnlyList<string> parts, string separator)

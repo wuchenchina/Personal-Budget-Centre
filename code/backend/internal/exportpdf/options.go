@@ -26,12 +26,13 @@ var supportedPDFLanguages = map[string]bool{
 	"fr": true,
 	"ru": true,
 	"de": true,
+	"ko": true,
 }
 
 var supportedPDFThemes = map[string]bool{
 	"classic":       true,
 	"statement_red": true,
-	"civic_blue":   true,
+	"civic_blue":    true,
 }
 
 func OptionsFromInput(input map[string]any, defaultTheme string, rawSettings any) Options {

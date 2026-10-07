@@ -19,6 +19,7 @@ export function formatBudgetPeriod(budget: BudgetPeriodLike, language: AppLangua
       fr: ' au ',
       ru: ' — ',
       de: ' bis ',
+      ko: ' ~ ',
     } satisfies Record<AppLanguage, string>;
 
     return `${budget.startDate}${separator[language]}${budget.endDate}`;

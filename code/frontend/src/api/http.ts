@@ -121,6 +121,8 @@ function networkErrorMessage(): string {
       return 'Не удается подключиться к серверу. Убедитесь, что используется https://, или повторите попытку позже.';
     case 'de':
       return 'Es kann keine Verbindung zum Server hergestellt werden. Bitte prüfen Sie https:// oder versuchen Sie es später erneut.';
+    case 'ko':
+      return '서버에 연결할 수 없습니다. https://로 접속했는지 확인하거나 나중에 다시 시도하세요.';
   }
 }
 
@@ -140,6 +142,8 @@ function requestFailedMessage(status: number): string {
       return `Запрос завершился ошибкой: ${status}`;
     case 'de':
       return `Anfrage fehlgeschlagen: ${status}`;
+    case 'ko':
+      return `요청 실패: ${status}`;
   }
 }
 
@@ -159,6 +163,8 @@ function nonJsonResponseMessage(status: number, detail: string): string {
       return `Сервер вернул ответ не в формате JSON. Проверьте журналы Go API, обратный прокси или права каталога${detail || `: ${status}`}`;
     case 'de':
       return `Der Server hat eine Nicht-JSON-Antwort zurückgegeben. Prüfen Sie Go-API-Logs, Reverse Proxy oder Verzeichnisrechte${detail || `: ${status}`}`;
+    case 'ko':
+      return `서버가 JSON이 아닌 응답을 반환했습니다. Go API 로그, 리버스 프록시 또는 저장소 권한을 확인하세요${detail || `: ${status}`}`;
   }
 }
 

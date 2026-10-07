@@ -14,6 +14,7 @@ public sealed class VisualFixtureRunner(RendererConfig config, ExportRepository 
         ("fr", ["fr"], ["fr"]),
         ("ru", ["ru"], ["ru"]),
         ("de", ["de"], ["de"]),
+        ("ko", ["ko"], ["ko"]),
         ("en-tc", ["en", "tc"], ["en", "tc"]),
         ("en-sc", ["en", "sc"], ["en", "sc"]),
     ];

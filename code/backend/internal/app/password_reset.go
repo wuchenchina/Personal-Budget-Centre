@@ -281,6 +281,19 @@ Dieser Link ist 30 Minuten gültig und kann nur einmal verwendet werden. Wenn Si
 
 BudgetCentre`,
 		}
+	case "ko":
+		return localizedMailMessage{
+			subject: "BudgetCentre 비밀번호 재설정",
+			body: `안녕하세요:
+
+아래 링크를 열어 BudgetCentre 비밀번호를 재설정하세요:
+
+` + link + `
+
+이 링크는 30분 동안 유효하며 한 번만 사용할 수 있습니다. 요청하지 않은 경우 이 이메일을 무시해도 됩니다.
+
+BudgetCentre`,
+		}
 	default:
 		return localizedMailMessage{
 			subject: "重設你的 BudgetCentre 密碼",

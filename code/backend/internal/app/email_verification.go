@@ -249,6 +249,19 @@ Dieser Link ist 24 Stunden gültig. Wenn Sie dies nicht angefordert haben, könn
 
 BudgetCentre`,
 		}
+	case "ko":
+		return localizedMailMessage{
+			subject: "BudgetCentre 이메일을 인증하세요",
+			body: `안녕하세요:
+
+아래 링크를 열어 BudgetCentre 이메일을 인증하세요:
+
+` + link + `
+
+이 링크는 24시간 동안 유효합니다. 요청하지 않은 경우 이 이메일을 무시해도 됩니다.
+
+BudgetCentre`,
+		}
 	default:
 		return localizedMailMessage{
 			subject: "驗證你的 BudgetCentre 信箱",

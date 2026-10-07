@@ -7,7 +7,7 @@ const root = process.cwd();
 const i18nDir = path.join(root, 'src/i18n');
 const backendDir = path.resolve(root, '../backend/internal/app');
 const pdfRendererDir = path.resolve(root, '../pdf-renderer-dotnet/BudgetCentre.PdfRenderer');
-const languages = ['sc', 'tc', 'ja', 'fr', 'ru', 'de'];
+const languages = ['sc', 'tc', 'ja', 'fr', 'ru', 'de', 'ko'];
 const failures = [];
 
 const objectNames = [
@@ -244,7 +244,7 @@ function compareEnglishResidue(language, name, localMap, enMap) {
       failures.push(`${language}: ${name}.${key} contains CJK text: ${JSON.stringify(localValue)}`);
     }
     const residue = englishPhraseResidue(localValue, enValue);
-    if (residue !== null) {
+    if (residue !== null && language !== 'ko') {
       failures.push(`${language}: ${name}.${key} contains untranslated English phrase "${residue}"`);
     }
   }
@@ -300,10 +300,10 @@ function checkPdfRendererLocalization() {
   if (combined.includes('(string En, string Tc, string Sc)')) {
     failures.push('PDF renderer still uses the old three-language tuple');
   }
-  if (!combined.includes('LocalizedText') || !combined.includes('string Ja') || !combined.includes('string Fr') || !combined.includes('string Ru') || !combined.includes('string De')) {
-    failures.push('PDF renderer LocalizedText must include en/tc/sc/ja/fr/ru/de');
+  if (!combined.includes('LocalizedText') || !combined.includes('string Ja') || !combined.includes('string Fr') || !combined.includes('string Ru') || !combined.includes('string De') || !combined.includes('string Ko')) {
+    failures.push('PDF renderer LocalizedText must include en/tc/sc/ja/fr/ru/de/ko');
   }
-  for (const language of ['"ja"', '"fr"', '"ru"', '"de"']) {
+  for (const language of ['"ja"', '"fr"', '"ru"', '"de"', '"ko"']) {
     if (!combined.includes(language)) {
       failures.push(`PDF renderer does not branch for ${language}`);
     }

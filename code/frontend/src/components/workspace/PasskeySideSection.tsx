@@ -148,6 +148,7 @@ const passkeyDateLocales: Record<AppLanguage, string> = {
   fr: 'fr-FR',
   ru: 'ru-RU',
   de: 'de-DE',
+  ko: 'ko-KR',
 };
 
 function formatPasskeyDate(value: string, language: AppLanguage): string {
