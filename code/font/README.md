@@ -1,7 +1,8 @@
 # PDF Font Assets
 
 PDF export uses local font files from this directory. The actual font binaries are
-not committed because many system fonts are not redistributable.
+not committed because many system fonts are not redistributable, except the
+redistributable Noto Sans CJK KR Korean fallback bundled under the SIL Open Font License.
 
 Add compatible fonts with these filenames before building Docker images or
 exporting PDFs locally:
@@ -25,3 +26,13 @@ exporting PDFs locally:
 
 You may use your system-installed copies, or adapt the PDF theme code to use
 fonts with licenses suitable for your deployment.
+
+## Korean PDF fallback
+
+`NotoSansCJKkr-Regular.otf` is distributed with the renderer and its license is
+in `NotoSansCJK-LICENSE.txt`. Source: https://github.com/notofonts/noto-cjk/tree/main/Sans/OTF/Korean.
+It is used only when the existing fonts cannot render a character. Existing
+fonts take precedence. The SVG signature block also registers this fallback.
+The build and Docker publish include the font so deployments do not depend on
+a Korean font installed on the host. Rebuild and restart the PDF worker after
+updating; previously generated exports must be generated again.

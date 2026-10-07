@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="../../font/NotoSansCJKkr-Regular.otf" Link="fonts/NotoSansCJKkr-Regular.otf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../font/NotoSansCJK-LICENSE.txt" Link="fonts/NotoSansCJK-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <PackageReference Include="itext" Version="9.3.0" />
     <PackageReference Include="itext.bouncy-castle-adapter" Version="9.3.0" />
     <PackageReference Include="MySqlConnector" Version="2.4.0" />

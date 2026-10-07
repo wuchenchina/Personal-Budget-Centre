@@ -28,20 +28,28 @@ public sealed class FontSet
         var cjkBoldFont = PdfFontFactory.CreateFont(Path.Combine(fontDir, cjkBold), PdfEncodings.IDENTITY_H);
         var cjkFallback = PdfFontFactory.CreateFont(Path.Combine(fontDir, cjkRegularFallback), PdfEncodings.IDENTITY_H);
         var cjkBoldFallbackFont = PdfFontFactory.CreateFont(Path.Combine(fontDir, cjkBoldFallback), PdfEncodings.IDENTITY_H);
+        var korean = PdfFontFactory.CreateFont(KoreanFontPath(fontDir), PdfEncodings.IDENTITY_H);
         return new FontSet
         {
             Regular = PdfFontFactory.CreateFont(Path.Combine(fontDir, "Arial.ttf"), PdfEncodings.IDENTITY_H),
             Bold = PdfFontFactory.CreateFont(Path.Combine(fontDir, "Arial Bold.ttf"), PdfEncodings.IDENTITY_H),
             Cjk = cjk,
             CjkBold = cjkBoldFont,
-            CjkFallbacks = [cjk, cjkFallback],
-            CjkBoldFallbacks = [cjkBoldFont, cjkBoldFallbackFont],
+            CjkFallbacks = [cjk, cjkFallback, korean],
+            CjkBoldFallbacks = [cjkBoldFont, cjkBoldFallbackFont, korean],
             Mono = PdfFontFactory.CreateFont(Path.Combine(fontDir, "SF-Mono-Regular.ttf"), PdfEncodings.IDENTITY_H),
             MonoBold = PdfFontFactory.CreateFont(Path.Combine(fontDir, "SF-Mono-Bold.ttf"), PdfEncodings.IDENTITY_H),
             MonoLight = PdfFontFactory.CreateFont(Path.Combine(fontDir, "SF-Mono-Light.ttf"), PdfEncodings.IDENTITY_H),
             Serif = PdfFontFactory.CreateFont(Path.Combine(fontDir, "Times New Roman.ttf"), PdfEncodings.IDENTITY_H),
             SerifBold = PdfFontFactory.CreateFont(Path.Combine(fontDir, "Times New Roman Bold.ttf"), PdfEncodings.IDENTITY_H),
         };
+    }
+
+    public static string KoreanFontPath(string fontDir)
+    {
+        const string fileName = "NotoSansCJKkr-Regular.otf";
+        var local = Path.Combine(fontDir, fileName);
+        return File.Exists(local) ? local : Path.Combine(AppContext.BaseDirectory, "fonts", fileName);
     }
 
     private static string CjkFont(string chineseLanguage, bool sans, bool bold)

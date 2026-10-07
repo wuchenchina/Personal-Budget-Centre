@@ -303,6 +303,9 @@ function checkPdfRendererLocalization() {
   if (!combined.includes('LocalizedText') || !combined.includes('string Ja') || !combined.includes('string Fr') || !combined.includes('string Ru') || !combined.includes('string De') || !combined.includes('string Ko')) {
     failures.push('PDF renderer LocalizedText must include en/tc/sc/ja/fr/ru/de/ko');
   }
+  if (/Text\(string en, string tc, string sc, string ja, string fr, string ru, string de\)/.test(support)) {
+    failures.push('PDF renderer must require an explicit Korean translation for every LocalizedText');
+  }
   for (const language of ['"ja"', '"fr"', '"ru"', '"de"', '"ko"']) {
     if (!combined.includes(language)) {
       failures.push(`PDF renderer does not branch for ${language}`);

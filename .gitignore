@@ -55,6 +55,8 @@ code/backend/storage/
 code/font/*
 !code/font/
 !code/font/README.md
+!code/font/NotoSansCJKkr-Regular.otf
+!code/font/NotoSansCJK-LICENSE.txt
 
 # Legacy PHP backend kept locally only
 code/backend-php-legacy/

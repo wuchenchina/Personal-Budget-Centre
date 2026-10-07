@@ -110,7 +110,7 @@ public sealed partial class PdfExportRenderer
                 svg.Append(LineSvg(2, rowTop - 1.1f, width - 2, rowTop - 1.1f, palette.Divider, 0.16f));
             }
             var box = SignatureBoxMetrics(rowTop, width, Math.Max(1, row.Fields.Count));
-            svg.Append(SignatureBoxSvg(config, rowTop, width, Math.Max(1, row.Fields.Count), palette, check));
+            svg.Append(SignatureBoxSvg(config, rowTop, width, Math.Max(1, row.Fields.Count), palette, check, options));
             svg.Append(SignatureMetaSvg(row.Fields, rowTop, width, box.X, palette));
             rowTop += rowHeight;
         }
@@ -252,10 +252,15 @@ public sealed partial class PdfExportRenderer
         return svg.ToString();
     }
 
-    private static string SignatureBoxSvg(JsonElement config, float rowTop, float width, int fieldCount, SignaturePalette palette, string check)
+    private static string SignatureBoxSvg(JsonElement config, float rowTop, float width, int fieldCount, SignaturePalette palette, string check, ExportOptions options)
     {
         var box = SignatureBoxMetrics(rowTop, width, fieldCount);
-        var label = SignatureLabelForDisplay(config);
+        var label = options.SignatureLabelMode switch
+        {
+            "confirmation" => JoinWithLanguages(Text("Confirmation", "確認", "确认", "確認", "Confirmation", "Подтверждение", "Bestätigung", "확인"), options.SignatureLabelLanguages),
+            "signature" => JoinWithLanguages(Text("Signature", "簽署", "签署", "署名", "Signature", "Подпись", "Unterschrift", "서명"), options.SignatureLabelLanguages),
+            _ => JoinWithLanguages(Text("Confirmation / Signature", "確認 / 簽署", "确认 / 签署", "確認 / 署名", "Confirmation / signature", "Подтверждение / подпись", "Bestätigung / Unterschrift", "확인 / 서명"), options.SignatureLabelLanguages),
+        };
         var captionLines = label.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(7).ToList();
         if (captionLines.Count == 0)
         {
@@ -474,7 +479,7 @@ public sealed partial class PdfExportRenderer
         {
             return JsonValue.String(config, "title");
         }
-        return JoinWithLanguages(Text("Preparation & Review Record", "製表及覆核記錄", "制表及复核记录", "作成・確認記録", "Registre de préparation et de revue", "Запись подготовки и проверки", "Erstellungs- und Prüfvermerk"), options.SignatureLabelLanguages);
+        return JoinWithLanguages(Text("Preparation & Review Record", "製表及覆核記錄", "制表及复核记录", "作成・確認記録", "Registre de préparation et de revue", "Запись подготовки и проверки", "Erstellungs- und Prüfvermerk", "작성 및 검토 기록"), options.SignatureLabelLanguages);
     }
 
     private static SignaturePalette SignaturePaletteForTheme(PdfTheme theme)
@@ -491,11 +496,11 @@ public sealed partial class PdfExportRenderer
     {
         return key switch
         {
-            "participant" => JoinWithLanguages(Text("Name", "姓名", "姓名", "氏名", "Nom", "Имя", "Name"), options.SignatureLabelLanguages),
-            "capacity" => JoinWithLanguages(Text("Capacity", "身份", "身份", "役割", "Qualité", "Роль", "Funktion"), options.SignatureLabelLanguages),
-            "position" => JoinWithLanguages(Text("Position", "職務", "职务", "職位", "Poste", "Должность", "Position"), options.SignatureLabelLanguages),
-            "email" => JoinWithLanguages(Text("Email", "電子郵件", "电子邮件", "メール", "E-mail", "Электронная почта", "E-Mail"), options.SignatureLabelLanguages),
-            "dateTime" => JoinWithLanguages(Text("Date & Time", "日期及時間", "日期及时间", "日時", "Date et heure", "Дата и время", "Datum und Uhrzeit"), options.SignatureLabelLanguages),
+            "participant" => JoinWithLanguages(Text("Name", "姓名", "姓名", "氏名", "Nom", "Имя", "Name", "이름"), options.SignatureLabelLanguages),
+            "capacity" => JoinWithLanguages(Text("Capacity", "身份", "身份", "役割", "Qualité", "Роль", "Funktion", "역할"), options.SignatureLabelLanguages),
+            "position" => JoinWithLanguages(Text("Position", "職務", "职务", "職位", "Poste", "Должность", "Position", "직책"), options.SignatureLabelLanguages),
+            "email" => JoinWithLanguages(Text("Email", "電子郵件", "电子邮件", "メール", "E-mail", "Электронная почта", "E-Mail", "이메일"), options.SignatureLabelLanguages),
+            "dateTime" => JoinWithLanguages(Text("Date & Time", "日期及時間", "日期及时间", "日時", "Date et heure", "Дата и время", "Datum und Uhrzeit", "날짜 및 시간"), options.SignatureLabelLanguages),
             _ => key,
         };
     }
@@ -510,7 +515,7 @@ public sealed partial class PdfExportRenderer
         };
         if (string.IsNullOrWhiteSpace(trimmed) || legacy.Contains(trimmed) || trimmed == SignatureLabel(config))
         {
-            return JoinWithLanguages(Text("Confirmed by", "確認", "确认", "確認者", "Confirmé par", "Подтвердил", "Bestätigt von"), options.SignatureLabelLanguages);
+            return JoinWithLanguages(Text("Confirmed by", "確認", "确认", "確認者", "Confirmé par", "Подтвердил", "Bestätigt von", "확인자"), options.SignatureLabelLanguages);
         }
         return TranslateSignaturePhrase(trimmed, SignatureRolePhrases(), options.SignatureLabelLanguages);
     }
@@ -519,8 +524,8 @@ public sealed partial class PdfExportRenderer
     {
         return value.Trim() switch
         {
-            "Budget Owner" or "預算負責人" or "预算负责人" => JoinWithLanguages(Text("Budget Owner", "預算負責人", "预算负责人", "予算責任者", "Responsable du budget", "Ответственный за бюджет", "Budgetverantwortliche Person"), options.SignatureLabelLanguages),
-            "Finance Owner" or "財務負責人" or "财务负责人" => JoinWithLanguages(Text("Finance Owner", "財務負責人", "财务负责人", "財務責任者", "Responsable financier", "Ответственный за финансы", "Finanzverantwortliche Person"), options.SignatureLabelLanguages),
+            "Budget Owner" or "預算負責人" or "预算负责人" => JoinWithLanguages(Text("Budget Owner", "預算負責人", "预算负责人", "予算責任者", "Responsable du budget", "Ответственный за бюджет", "Budgetverantwortliche Person", "예산 담당자"), options.SignatureLabelLanguages),
+            "Finance Owner" or "財務負責人" or "财务负责人" => JoinWithLanguages(Text("Finance Owner", "財務負責人", "财务负责人", "財務責任者", "Responsable financier", "Ответственный за финансы", "Finanzverantwortliche Person", "재무 담당자"), options.SignatureLabelLanguages),
             var other => other,
         };
     }
@@ -529,29 +534,29 @@ public sealed partial class PdfExportRenderer
     {
         return value.Trim() switch
         {
-            "Telephone" or "Tel. No." or "電話號碼" or "电话号码" => JoinWithLanguages(Text("Tel. No.", "電話號碼", "电话号码", "電話番号", "Téléphone", "Телефон", "Telefonnummer"), options.SignatureLabelLanguages),
-            "Mobile" or "Mobile No." or "流動電話號碼" or "流动电话号码" => JoinWithLanguages(Text("Mobile No.", "流動電話號碼", "流动电话号码", "携帯番号", "Mobile", "Мобильный телефон", "Mobilnummer"), options.SignatureLabelLanguages),
+            "Telephone" or "Tel. No." or "電話號碼" or "电话号码" => JoinWithLanguages(Text("Tel. No.", "電話號碼", "电话号码", "電話番号", "Téléphone", "Телефон", "Telefonnummer", "전화번호"), options.SignatureLabelLanguages),
+            "Mobile" or "Mobile No." or "流動電話號碼" or "流动电话号码" => JoinWithLanguages(Text("Mobile No.", "流動電話號碼", "流动电话号码", "携帯番号", "Mobile", "Мобильный телефон", "Mobilnummer", "휴대전화번호"), options.SignatureLabelLanguages),
             var other => other,
         };
     }
 
     private static IReadOnlyList<LocalizedText> SignatureRolePhrases() =>
     [
-        Text("Prepared by", "製表", "制表", "作成者", "Préparé par", "Подготовил", "Erstellt von"),
-        Text("Handled by", "經辦", "经办", "担当者", "Traité par", "Обработал", "Bearbeitet von"),
-        Text("Checked by", "覆核", "复核", "確認者", "Vérifié par", "Проверил", "Geprüft von"),
-        Text("Reviewed by", "審核", "审核", "レビュー者", "Revu par", "Рассмотрел", "Kontrolliert von"),
-        Text("Approved by", "審批", "审批", "承認者", "Approuvé par", "Утвердил", "Genehmigt von"),
-        Text("Audited by", "審計", "审计", "監査者", "Audité par", "Аудитор", "Geprüft durch"),
-        Text("Confirmed by", "確認", "确认", "確認者", "Confirmé par", "Подтвердил", "Bestätigt von"),
-        Text("Verified by", "核驗", "核验", "検証者", "Validé par", "Верифицировал", "Verifiziert von"),
-        Text("Authorised by", "授權", "授权", "承認者", "Autorisé par", "Авторизовал", "Autorisiert von"),
-        Text("Accepted by", "接納", "接纳", "受理者", "Accepté par", "Принял", "Akzeptiert von"),
-        Text("Acknowledged by", "知悉確認", "知悉确认", "確認済み", "Pris en compte par", "Подтверждено", "Zur Kenntnis genommen von"),
-        Text("Reconciled by", "對賬", "对账", "照合者", "Rapproché par", "Сверил", "Abgeglichen von"),
-        Text("Documented by", "記錄", "记录", "記録者", "Documenté par", "Задокументировал", "Dokumentiert von"),
-        Text("Processed by", "處理", "处理", "処理者", "Traité par", "Обработал", "Verarbeitet von"),
-        Text("Finance reviewed by", "財務覆核", "财务复核", "財務確認者", "Revu par les finances", "Проверено финансами", "Finanziell geprüft von"),
+        Text("Prepared by", "製表", "制表", "作成者", "Préparé par", "Подготовил", "Erstellt von", "작성자"),
+        Text("Handled by", "經辦", "经办", "担当者", "Traité par", "Обработал", "Bearbeitet von", "담당자"),
+        Text("Checked by", "覆核", "复核", "確認者", "Vérifié par", "Проверил", "Geprüft von", "확인자"),
+        Text("Reviewed by", "審核", "审核", "レビュー者", "Revu par", "Рассмотрел", "Kontrolliert von", "검토자"),
+        Text("Approved by", "審批", "审批", "承認者", "Approuvé par", "Утвердил", "Genehmigt von", "승인자"),
+        Text("Audited by", "審計", "审计", "監査者", "Audité par", "Аудитор", "Geprüft durch", "감사자"),
+        Text("Confirmed by", "確認", "确认", "確認者", "Confirmé par", "Подтвердил", "Bestätigt von", "확인자"),
+        Text("Verified by", "核驗", "核验", "検証者", "Validé par", "Верифицировал", "Verifiziert von", "검증자"),
+        Text("Authorised by", "授權", "授权", "承認者", "Autorisé par", "Авторизовал", "Autorisiert von", "권한 부여자"),
+        Text("Accepted by", "接納", "接纳", "受理者", "Accepté par", "Принял", "Akzeptiert von", "수락자"),
+        Text("Acknowledged by", "知悉確認", "知悉确认", "確認済み", "Pris en compte par", "Подтверждено", "Zur Kenntnis genommen von", "인지 확인자"),
+        Text("Reconciled by", "對賬", "对账", "照合者", "Rapproché par", "Сверил", "Abgeglichen von", "대사 담당자"),
+        Text("Documented by", "記錄", "记录", "記録者", "Documenté par", "Задокументировал", "Dokumentiert von", "기록자"),
+        Text("Processed by", "處理", "处理", "処理者", "Traité par", "Обработал", "Verarbeitet von", "처리자"),
+        Text("Finance reviewed by", "財務覆核", "财务复核", "財務確認者", "Revu par les finances", "Проверено финансами", "Finanziell geprüft von", "재무 검토자"),
     ];
 
     private static string TranslateSignaturePhrase(string value, IReadOnlyList<LocalizedText> phrases, IReadOnlyList<string> languages)
@@ -559,7 +564,7 @@ public sealed partial class PdfExportRenderer
         var trimmed = value.Trim();
         foreach (var phrase in phrases)
         {
-            if (trimmed == phrase.En || trimmed == phrase.Tc || trimmed == phrase.Sc || trimmed == phrase.Ja || trimmed == phrase.Fr || trimmed == phrase.Ru || trimmed == phrase.De)
+            if (trimmed == phrase.En || trimmed == phrase.Tc || trimmed == phrase.Sc || trimmed == phrase.Ja || trimmed == phrase.Fr || trimmed == phrase.Ru || trimmed == phrase.De || trimmed == phrase.Ko)
             {
                 return JoinWithLanguages(phrase, languages);
             }
@@ -678,6 +683,7 @@ public sealed partial class PdfExportRenderer
         return "<style>" +
             FontFace("sf-mono", Path.Combine(fontDir, "SF-Mono-Regular.ttf"), "400") +
             FontFace("sf-mono-light", Path.Combine(fontDir, "SF-Mono-Light.ttf"), "300") +
+            FontFace("korean-fallback", FontSet.KoreanFontPath(fontDir), "400") +
             FontFace("theme-title", Path.Combine(fontDir, cjkFile), theme.Key == "civic_blue" ? "700" : "400") +
             "</style>";
     }
@@ -690,6 +696,10 @@ public sealed partial class PdfExportRenderer
 
     private static string SignatureTextSvg(float x, float y, string value, float size, string color, string fontFamily)
     {
+        if (value.Any(c => c is >= '\u1100' and <= '\u11ff' or >= '\u3130' and <= '\u318f' or >= '\uac00' and <= '\ud7af'))
+        {
+            fontFamily += ",korean-fallback";
+        }
         return "<text x=\"" + SigNum(x) + "\" y=\"" + SigNum(y) + "\" font-family=\"" + fontFamily + "\" font-size=\"" + SigNum(size) + "\" fill=\"" + color + "\">" + WebUtility.HtmlEncode(value) + "</text>";
     }
 
