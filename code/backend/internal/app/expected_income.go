@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"regexp"
+	"time"
 )
 
 func decodedObject(raw sql.NullString) map[string]any {
@@ -66,7 +67,7 @@ func validateAnnualSalary(raw any) (any, error) {
 
 // Annual income is copied from the authenticated user's private profile, never accepted from a client.
 // Existing snapshots are retained unless the user explicitly chooses to refresh them.
-func validateExpectedIncomeEntry(raw any, salary sql.NullString, base string, existing any) (any, error) {
+func validateExpectedIncomeEntry(raw any, salary sql.NullString, base string, existing any, workdayLimits ...int) (any, error) {
 	if raw == nil {
 		return nil, nil
 	}
@@ -86,7 +87,11 @@ func validateExpectedIncomeEntry(raw any, salary sql.NullString, base string, ex
 	if err != nil {
 		return nil, err
 	}
-	days, err := incomeNumber(input, "workdays", 31, true)
+	workdayLimit := 1000
+	if mode == "daily" && len(workdayLimits) > 0 && workdayLimits[0] > 0 {
+		workdayLimit = workdayLimits[0]
+	}
+	days, err := incomeNumber(input, "workdays", float64(workdayLimit), true)
 	if err != nil || days < 1 {
 		return nil, incomeValidationError()
 	}
@@ -115,7 +120,7 @@ func validateExpectedIncomeEntry(raw any, salary sql.NullString, base string, ex
 }
 
 // Multiple entries share the budget currency. Snapshots are matched by stable entry IDs.
-func validateExpectedIncome(raw any, salary sql.NullString, base string, existing any) (any, error) {
+func validateExpectedIncome(raw any, salary sql.NullString, base string, existing any, startDate, endDate string) (any, error) {
 	if raw == nil {
 		return nil, nil
 	}
@@ -126,7 +131,7 @@ func validateExpectedIncome(raw any, salary sql.NullString, base string, existin
 	rawEntries, ok := input["entries"].([]any)
 	if !ok {
 		// Preserve compatibility with the original single-entry representation.
-		return validateExpectedIncomeEntry(raw, salary, base, existing)
+		return validateExpectedIncomeEntry(raw, salary, base, existing, budgetWorkdayLimit(startDate, endDate))
 	}
 	if len(rawEntries) > 100 {
 		return nil, incomeValidationError()
@@ -154,7 +159,7 @@ func validateExpectedIncome(raw any, salary sql.NullString, base string, existin
 			return nil, incomeValidationError()
 		}
 		seen[id] = true
-		validated, err := validateExpectedIncomeEntry(entry, salary, base, byID[id])
+		validated, err := validateExpectedIncomeEntry(entry, salary, base, byID[id], budgetWorkdayLimit(startDate, endDate))
 		if err != nil {
 			return nil, err
 		}
@@ -167,4 +172,19 @@ func validateExpectedIncome(raw any, salary sql.NullString, base string, existin
 		entries = append(entries, value)
 	}
 	return jsonString(map[string]any{"entries": entries}), nil
+}
+
+func budgetWorkdayLimit(startDate, endDate string) int {
+	if startDate == "" || endDate == "" {
+		return 1000
+	}
+	start, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return 1000
+	}
+	end, err := time.Parse("2006-01-02", endDate)
+	if err != nil || end.Before(start) {
+		return 0
+	}
+	return int(end.Sub(start).Hours()/24) + 1
 }

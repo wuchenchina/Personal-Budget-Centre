@@ -424,7 +424,7 @@ func (a *App) budgetValues(r *http.Request, input map[string]any, defaultOwnerNa
 		if err != nil {
 			return budgetInputValues{}, err
 		}
-		values.ExpectedIncome, err = validateExpectedIncome(raw, s.AnnualSalary, values.BaseCurrency, values.ExpectedIncome)
+		values.ExpectedIncome, err = validateExpectedIncome(raw, s.AnnualSalary, values.BaseCurrency, values.ExpectedIncome, values.StartDate, values.EndDate)
 		if err != nil {
 			return budgetInputValues{}, err
 		}

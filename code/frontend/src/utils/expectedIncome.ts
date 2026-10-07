@@ -17,6 +17,14 @@ export function expectedMonthlyIncome(income: ExpectedIncomeEntry | null | undef
 }
 
 // Inclusive dates, prorated by the actual number of calendar days in each month.
+export function incomePeriodDays(start: string | null, end: string | null): number {
+  if (!start || !end) return 1000;
+  const first = dayjs(start).startOf('day');
+  const last = dayjs(end).startOf('day');
+  if (!first.isValid() || !last.isValid() || first.isAfter(last)) return 0;
+  return last.diff(first, 'day') + 1;
+}
+
 export function incomePeriodMonths(start: string | null, end: string | null): number {
   if (!start || !end) return 1;
   let cursor = dayjs(start).startOf('day');
@@ -41,9 +49,17 @@ export function incomeEntries(income: ExpectedIncome | null | undefined): Expect
 
 export function incomeSummary(budget: Pick<BudgetSummary, 'expectedIncome' | 'startDate' | 'endDate' | 'totals'>) {
   const entries = incomeEntries(budget.expectedIncome);
-  const monthly = entries.reduce((sum, entry) => sum + expectedMonthlyIncome(entry), 0);
+  const periodMonths = incomePeriodMonths(budget.startDate, budget.endDate);
+  const monthly = entries.reduce((sum, entry) => {
+    if (entry.mode === 'daily') return sum + entry.dailyAmount * entry.workdays / periodMonths;
+    return sum + expectedMonthlyIncome(entry);
+  }, 0);
   const oneOff = entries.reduce((sum, entry) => sum + (entry.mode === 'one_off' ? entry.oneOffAmount : 0), 0);
-  const total = monthly * incomePeriodMonths(budget.startDate, budget.endDate) + oneOff;
+  const total = entries.reduce((sum, entry) => {
+    if (entry.mode === 'one_off') return sum + entry.oneOffAmount;
+    if (entry.mode === 'daily') return sum + entry.dailyAmount * entry.workdays;
+    return sum + expectedMonthlyIncome(entry) * periodMonths;
+  }, 0);
   const expenses = budget.totals.totalBudgetBase;
   return { monthly, oneOff, total, expenses, balance: total - expenses };
 }

@@ -9,8 +9,8 @@ using iText.Layout.Properties;
 
 const string data = """
 {"entries":[
- {"id":"main","title":"Primary job / 主要工作","mode":"auto","annualAmount":120000,"annualCurrency":"CNY","monthlyAmount":9000,"workdays":26},
- {"id":"side","title":"Second job / 兼職工作","mode":"daily","dailyAmount":500,"workdays":26},
+ {"id":"main","title":"Primary job / 主要工作","mode":"auto","annualAmount":120000,"annualCurrency":"CNY","monthlyAmount":9000,"workdays":52},
+ {"id":"side","title":"Second job / 兼職工作","mode":"daily","dailyAmount":500,"workdays":52},
  {"id":"gift","title":"Unexpected income / 意外收入","mode":"one_off","oneOffAmount":5000,"workdays":26}
 ]}
 """;
@@ -26,8 +26,11 @@ Equal(51000, income.Total, "period total");
 Equal(1000, income.Balance, "surplus");
 Equal(-9000, ExpectedIncomeProjection.Calculate(budget, 60000)!.Balance, "shortfall");
 Equal(0, ExpectedIncomeProjection.Calculate(budget, 51000)!.Balance, "balanced");
-Equal(28000, ExpectedIncomeProjection.Calculate(budget with { StartDate = null, EndDate = null }, 0)!.Total, "undated budget");
+Equal(41000, ExpectedIncomeProjection.Calculate(budget with { StartDate = null, EndDate = null }, 0)!.Total, "undated budget");
 Equal(1, ExpectedIncomeProjection.PeriodMonths("2024-02-01", "2024-02-29"), "leap month");
+Equal(25m / 31m, ExpectedIncomeProjection.PeriodMonths("2026-10-07", "2026-10-31"), "October 7-31 partial month");
+var fortyFiveDayBudget = budget with { StartDate = "2026-10-01", EndDate = "2026-11-14", ExpectedIncomeJson = "{\"entries\":[{\"id\":\"daily\",\"title\":\"Daily work\",\"mode\":\"daily\",\"dailyAmount\":100,\"workdays\":45}]}" };
+Equal(4500, ExpectedIncomeProjection.Calculate(fortyFiveDayBudget, 0)!.Total, "45 workdays in a 45-day budget");
 Equal(12, ExpectedIncomeProjection.PeriodMonths("2024-01-01", "2024-12-31"), "full year");
 Equal(1m / 31 + 1m / 29, ExpectedIncomeProjection.PeriodMonths("2024-01-31", "2024-02-01"), "partial months");
 Equal(49000, ExpectedIncomeProjection.Calculate(budget with { BaseCurrency = "USD" }, 0)!.Total, "mismatched annual currency falls back to monthly");

@@ -92,9 +92,23 @@ func TestExpectedIncomeProfilePriorityAndSnapshots(t *testing.T) {
 	}
 }
 
+func TestExpectedIncomeUsesBudgetPeriodForWorkdayLimit(t *testing.T) {
+	entry := map[string]any{"mode": "daily", "monthlyAmount": 0.0, "dailyAmount": 500.0, "workdays": 45.0}
+	raw, err := validateExpectedIncomeEntry(entry, sql.NullString{}, "CNY", nil, budgetWorkdayLimit("2026-10-01", "2026-11-14"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := incomeObject(t, raw)["workdays"]; got != 45.0 {
+		t.Fatalf("workdays = %v, want 45", got)
+	}
+	if _, err := validateExpectedIncomeEntry(map[string]any{"mode": "daily", "monthlyAmount": 0.0, "dailyAmount": 500.0, "workdays": 46.0}, sql.NullString{}, "CNY", nil, budgetWorkdayLimit("2026-10-01", "2026-11-14")); err == nil {
+		t.Fatal("accepted more workdays than the 45-day budget period")
+	}
+}
+
 func TestExpectedIncomeRejectsInvalidWorkdays(t *testing.T) {
-	for _, days := range []any{nil, 0.0, -1.0, 26.5, 32.0, "26"} {
-		if _, err := validateExpectedIncomeEntry(map[string]any{"mode": "daily", "monthlyAmount": 0.0, "dailyAmount": 500.0, "workdays": days}, sql.NullString{}, "CNY", nil); err == nil {
+	for _, days := range []any{nil, 0.0, -1.0, 26.5, 46.0, "26"} {
+		if _, err := validateExpectedIncomeEntry(map[string]any{"mode": "daily", "monthlyAmount": 0.0, "dailyAmount": 500.0, "workdays": days}, sql.NullString{}, "CNY", nil, budgetWorkdayLimit("2026-10-01", "2026-11-14")); err == nil {
 			t.Fatalf("accepted workdays %v", days)
 		}
 	}
@@ -120,7 +134,7 @@ func TestMultipleIncomeEntriesAndStableSnapshots(t *testing.T) {
 		map[string]any{"id": "gift", "title": "Gift", "mode": "one_off", "oneOffAmount": 5000.0, "monthlyAmount": 0.0, "dailyAmount": 0.0, "workdays": 26.0},
 		map[string]any{"id": "job", "title": "Job", "mode": "annual", "oneOffAmount": 0.0, "monthlyAmount": 0.0, "dailyAmount": 0.0, "workdays": 26.0},
 	}}
-	raw, err := validateExpectedIncome(input, sql.NullString{}, "CNY", existing)
+	raw, err := validateExpectedIncome(input, sql.NullString{}, "CNY", existing, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,10 +146,10 @@ func TestMultipleIncomeEntriesAndStableSnapshots(t *testing.T) {
 		t.Fatal("lost one-off amount")
 	}
 	input["entries"].([]any)[0].(map[string]any)["id"] = "job"
-	if _, err := validateExpectedIncome(input, sql.NullString{}, "CNY", existing); err == nil {
+	if _, err := validateExpectedIncome(input, sql.NullString{}, "CNY", existing, "", ""); err == nil {
 		t.Fatal("accepted duplicate IDs")
 	}
-	raw, err = validateExpectedIncome(map[string]any{"entries": []any{}}, sql.NullString{}, "CNY", existing)
+	raw, err = validateExpectedIncome(map[string]any{"entries": []any{}}, sql.NullString{}, "CNY", existing, "", "")
 	if err != nil || len(incomeObject(t, raw)["entries"].([]any)) != 0 {
 		t.Fatal("could not delete all incomes")
 	}

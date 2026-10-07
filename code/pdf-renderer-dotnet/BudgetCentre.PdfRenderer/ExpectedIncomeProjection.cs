@@ -25,13 +25,14 @@ public sealed record ExpectedIncomeProjection(IReadOnlyList<ProjectedIncomeEntry
             {
                 "annual" => annual / 12,
                 "auto" when annual > 0 => annual / 12,
-                "daily" => JsonValue.Decimal(entry, "dailyAmount") * days,
+                "daily" => JsonValue.Decimal(entry, "dailyAmount") * days / months,
                 "one_off" => 0,
                 _ => JsonValue.Decimal(entry, "monthlyAmount"),
             };
             var oneOff = mode == "one_off" ? JsonValue.Decimal(entry, "oneOffAmount") : 0;
             var effectiveMode = mode == "auto" ? (annual > 0 ? "annual" : "monthly") : mode;
-            projected.Add(new ProjectedIncomeEntry(JsonValue.String(entry, "title"), effectiveMode, monthly, oneOff, monthly * months + oneOff, days, effectiveMode switch { "annual" => annual, "daily" => JsonValue.Decimal(entry, "dailyAmount"), "one_off" => oneOff, _ => monthly }));
+            var periodAmount = effectiveMode == "daily" ? JsonValue.Decimal(entry, "dailyAmount") * days : monthly * months + oneOff;
+            projected.Add(new ProjectedIncomeEntry(JsonValue.String(entry, "title"), effectiveMode, monthly, oneOff, periodAmount, days, effectiveMode switch { "annual" => annual, "daily" => JsonValue.Decimal(entry, "dailyAmount"), "one_off" => oneOff, _ => monthly }));
         }
         var total = Round(projected.Sum(entry => entry.Period));
         return new ExpectedIncomeProjection(projected, Round(projected.Sum(entry => entry.Monthly)), Round(projected.Sum(entry => entry.OneOff)), total, Round(plannedExpenses), Round(total - plannedExpenses));
