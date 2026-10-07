@@ -29,6 +29,7 @@ import {
 } from '../../utils/pdfExportSettings';
 import { currencySearchLabel, renderCurrencyOption } from '../../utils/currencyOptions';
 import { PasskeySideSection } from '../workspace/PasskeySideSection';
+import { AnnualSalaryFields } from './AnnualSalaryFields';
 import styles from './ProfilePage.module.css';
 
 const { Text, Title } = Typography;
@@ -109,6 +110,8 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
     }));
   useEffect(() => {
     const profileValues = {
+      annualSalaryEnabled: Boolean(session.user.annualSalary),
+      annualSalary: session.user.annualSalary ?? { mode: 'total' as const, amount: 0, paymentsPerYear: 12, currency: session.user.defaultCurrency ?? 'CNY' },
       defaultCurrency: session.user.defaultCurrency,
       defaultPdfTheme: normalizePdfTheme(session.user.defaultPdfTheme),
       displayName: session.user.displayName,
@@ -120,6 +123,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
   }, [
     accountForm,
     exportForm,
+    session.user.annualSalary,
     session.user.defaultCurrency,
     session.user.defaultPdfTheme,
     session.user.displayName,
@@ -159,7 +163,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
 
     try {
       const result = await updateProfile({
-        ...(includeDefaultCurrency ? { defaultCurrency: values.defaultCurrency ?? null } : {}),
+        ...(includeDefaultCurrency ? { defaultCurrency: values.defaultCurrency ?? null, annualSalary: values.annualSalaryEnabled ? values.annualSalary : null } : {}),
         defaultPdfTheme: normalizePdfTheme(values.defaultPdfTheme),
         displayName: values.displayName.trim(),
         email: session.user.email,
@@ -434,6 +438,7 @@ export function ProfilePage({ session, operations, onSessionUpdate }: ProfilePag
                             placeholder={t('defaultCurrencyPlaceholder')}
                           />
                         </Form.Item>
+                        <AnnualSalaryFields form={accountForm} currencyOptions={profileCurrencyOptions} />
                         <Button type="primary" htmlType="submit" loading={isProfileSaving}>
                           {t('saveProfile')}
                         </Button>

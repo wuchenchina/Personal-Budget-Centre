@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "i18n:check": "node scripts/i18n-check.mjs",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:income": "node --experimental-strip-types --test tests/expectedIncome.test.mjs"
   },
   "dependencies": {
     "@ant-design/pro-components": "3.1.12-0",

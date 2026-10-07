@@ -1,3 +1,4 @@
+import { ExpectedIncomePanel } from './ExpectedIncomePanel';
 import { lazy, Suspense } from 'react';
 import { BudgetExchangeRateManager } from './BudgetExchangeRateManager';
 import { BudgetMetrics } from './BudgetMetrics';
@@ -67,6 +68,7 @@ export function BudgetEditorView({
         baseCurrency={baseCurrency}
         loading={budget.isBudgetDetailLoading}
       />
+      <ExpectedIncomePanel key={budget.selectedBudget?.id ?? 'none'} budget={budget.selectedBudget} annualSalary={budget.annualSalary} canWrite={canWriteBudgets} onSaved={budget.replaceBudgetDetail} />
       <GroupBudgetSummaryPanel
         selectedBudget={budget.selectedBudget}
         baseCurrency={baseCurrency}

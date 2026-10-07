@@ -1,3 +1,4 @@
+import { ExpectedIncomeSummary } from './ExpectedIncomeSummary';
 import { Button, Empty, Skeleton, Space, Tag } from 'antd';
 import { ArrowRight, BriefcaseBusiness, CalendarRange, Plus, ReceiptText } from 'lucide-react';
 import { budgetStatusColors } from '../../config/appConfig';
@@ -85,6 +86,7 @@ export function BudgetProjectDashboard({
         />
       </section>
 
+      <ExpectedIncomeSummary budget={activeProject} />
       <section className="project-main-grid">
         <div className="project-panel project-panel-focus">
           <div className="project-panel-heading">

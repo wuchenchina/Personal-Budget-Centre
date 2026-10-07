@@ -55,7 +55,8 @@ public sealed record BudgetInfo(
     string InstallmentDisplayMode,
     string InstallmentPeriodUnit,
     bool PricingEnabled,
-    string? SignatureConfigJson);
+    string? SignatureConfigJson,
+    string? ExpectedIncomeJson = null);
 
 public sealed record LedgerRow(
     string Type,

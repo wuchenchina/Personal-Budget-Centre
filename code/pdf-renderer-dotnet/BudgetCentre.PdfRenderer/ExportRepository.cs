@@ -174,7 +174,7 @@ SELECT b.id, b.title, b.owner_name, c.code, w.name,
        b.installment_display_mode,
        b.installment_period_unit,
        b.pricing_enabled,
-       b.signature_config
+       b.signature_config, b.expected_income
 FROM budgets b
 JOIN currencies c ON c.id = b.base_currency_id
 LEFT JOIN workspaces w ON w.id = b.workspace_id
@@ -198,7 +198,8 @@ WHERE b.id = @budgetId", connection);
             reader.GetString(9),
             reader.GetString(10),
             reader.GetBoolean(11),
-            reader.IsDBNull(12) ? null : reader.GetString(12));
+            reader.IsDBNull(12) ? null : reader.GetString(12),
+            reader.IsDBNull(13) ? null : reader.GetString(13));
     }
 
     public async Task<VisualFixtureBudgetCandidates> FindVisualFixtureBudgetCandidatesAsync(long fallbackBudgetId, CancellationToken cancellationToken)

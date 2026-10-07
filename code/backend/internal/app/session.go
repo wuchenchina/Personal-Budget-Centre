@@ -25,6 +25,7 @@ type session struct {
 	DefaultCurrency   sql.NullString
 	DefaultPDFTheme   string
 	PDFExportSettings sql.NullString
+	AnnualSalary      sql.NullString
 	Status            string
 	IsAdmin           bool
 	EmailVerifiedAt   sql.NullString
@@ -67,7 +68,7 @@ func (a *App) currentSession(r *http.Request) (*session, error) {
 	row := a.db.QueryRowContext(r.Context(), `
 SELECT us.id, us.user_id, us.current_workspace_id, u.email, u.username, u.password_hash,
        u.display_name, u.avatar_url, u.timezone, u.locale, dc.code, u.default_pdf_theme,
-       u.pdf_export_settings, u.status, u.is_admin, u.email_verified_at
+       u.pdf_export_settings, u.annual_salary, u.status, u.is_admin, u.email_verified_at
 FROM user_sessions us
 JOIN users u ON u.id = us.user_id
 LEFT JOIN currencies dc ON dc.id = u.default_currency_id
@@ -76,7 +77,7 @@ LIMIT 1`, sha256Hex(cookie.Value))
 	var s session
 	s.Token = cookie.Value
 	s.TokenHash = sha256Hex(cookie.Value)
-	if err := row.Scan(&s.ID, &s.UserID, &s.CurrentWorkspace, &s.Email, &s.Username, &s.PasswordHash, &s.DisplayName, &s.AvatarURL, &s.Timezone, &s.Locale, &s.DefaultCurrency, &s.DefaultPDFTheme, &s.PDFExportSettings, &s.Status, &s.IsAdmin, &s.EmailVerifiedAt); err != nil {
+	if err := row.Scan(&s.ID, &s.UserID, &s.CurrentWorkspace, &s.Email, &s.Username, &s.PasswordHash, &s.DisplayName, &s.AvatarURL, &s.Timezone, &s.Locale, &s.DefaultCurrency, &s.DefaultPDFTheme, &s.PDFExportSettings, &s.AnnualSalary, &s.Status, &s.IsAdmin, &s.EmailVerifiedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, apiError("UNAUTHENTICATED", "Authentication is required.", http.StatusUnauthorized)
 		}
@@ -102,7 +103,7 @@ func (a *App) sessionPayload(s *session, workspace map[string]any) map[string]an
 		_ = json.Unmarshal([]byte(s.PDFExportSettings.String), &settings)
 	}
 	return map[string]any{
-		"user":      map[string]any{"id": s.UserID, "email": s.Email, "username": nullableString(s.Username), "displayName": s.DisplayName, "avatarUrl": nullableString(s.AvatarURL), "timezone": s.Timezone, "locale": s.Locale, "defaultCurrency": nullableString(s.DefaultCurrency), "defaultPdfTheme": stringDefault(s.DefaultPDFTheme, "classic"), "pdfExportSettings": settings, "status": s.Status, "isAdmin": s.IsAdmin, "emailVerifiedAt": nullableDateTime(s.EmailVerifiedAt), "hasPassword": s.PasswordHash.Valid},
+		"user":      map[string]any{"id": s.UserID, "email": s.Email, "username": nullableString(s.Username), "displayName": s.DisplayName, "avatarUrl": nullableString(s.AvatarURL), "timezone": s.Timezone, "locale": s.Locale, "defaultCurrency": nullableString(s.DefaultCurrency), "defaultPdfTheme": stringDefault(s.DefaultPDFTheme, "classic"), "pdfExportSettings": settings, "annualSalary": decodedObject(s.AnnualSalary), "status": s.Status, "isAdmin": s.IsAdmin, "emailVerifiedAt": nullableDateTime(s.EmailVerifiedAt), "hasPassword": s.PasswordHash.Valid},
 		"workspace": workspace,
 		"csrfToken": csrfToken(s.Token),
 	}

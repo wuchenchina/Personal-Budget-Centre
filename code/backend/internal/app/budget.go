@@ -107,7 +107,7 @@ func (a *App) budgetCreate(w http.ResponseWriter, r *http.Request) error {
 		values.InstallmentDisplayMode,
 		values.InstallmentPeriodUnit,
 		boolInt(values.PricingEnabled), values.Visibility,
-		values.Status, nullableText(values.Note), values.SignatureConfig)
+		values.Status, nullableText(values.Note), values.SignatureConfig, values.ExpectedIncome)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (a *App) budgetUpdate(w http.ResponseWriter, r *http.Request) error {
 		values.InstallmentDisplayMode,
 		values.InstallmentPeriodUnit,
 		boolInt(values.PricingEnabled), values.Visibility,
-		values.Status, nullableText(values.Note), values.SignatureConfig, id)
+		values.Status, nullableText(values.Note), values.SignatureConfig, values.ExpectedIncome, id)
 	if err != nil {
 		return err
 	}
@@ -250,24 +250,24 @@ func (a *App) budgetDetailPayload(r *http.Request, id, userID int64) (map[string
 func scanBudget(row rowScanner) (map[string]any, error) {
 	var id, workspaceID, txCount int64
 	var title, workspaceName, ownerName, base, display, budgetType, participantMode, displayMode, periodUnit, visibility, status string
-	var start, end, note, signature, templateKey, templateName sql.NullString
+	var start, end, note, signature, income, templateKey, templateName sql.NullString
 	var pricing bool
 	var created, updated string
 	var totalBudget, totalEstimated, totalVariance, totalTransaction float64
-	if err := row.Scan(&id, &workspaceID, &workspaceName, &title, &ownerName, &start, &end, &base, &display, &budgetType, &participantMode, &displayMode, &periodUnit, &pricing, &visibility, &status, &note, &signature, &templateKey, &templateName, &created, &updated, &totalBudget, &totalEstimated, &totalVariance, &txCount, &totalTransaction); err != nil {
+	if err := row.Scan(&id, &workspaceID, &workspaceName, &title, &ownerName, &start, &end, &base, &display, &budgetType, &participantMode, &displayMode, &periodUnit, &pricing, &visibility, &status, &note, &signature, &income, &templateKey, &templateName, &created, &updated, &totalBudget, &totalEstimated, &totalVariance, &txCount, &totalTransaction); err != nil {
 		return nil, err
 	}
 	signatureConfig := map[string]any{"enabled": false, "rows": []any{}}
 	if signature.Valid && signature.String != "" {
 		_ = json.Unmarshal([]byte(signature.String), &signatureConfig)
 	}
-	return map[string]any{"id": id, "workspaceId": workspaceID, "workspaceName": workspaceName, "title": title, "ownerName": ownerName, "startDate": nullableDateOnly(start), "endDate": nullableDateOnly(end), "baseCurrency": base, "displayCurrency": display, "budgetType": budgetType, "participantMode": participantMode, "installmentDisplayMode": displayMode, "installmentPeriodUnit": periodUnit, "pricingEnabled": pricing, "visibility": visibility, "status": status, "note": nullableString(note), "signatureConfig": signatureConfig, "template": map[string]any{"key": nullableString(templateKey), "name": nullableString(templateName)}, "totals": map[string]any{"totalBudgetBase": totalBudget, "totalEstimatedBase": totalEstimated, "totalVarianceBase": totalVariance, "totalTransactionBase": totalTransaction, "transactionCount": txCount}, "createdAt": dateTimeValue(created), "updatedAt": dateTimeValue(updated)}, nil
+	return map[string]any{"id": id, "workspaceId": workspaceID, "workspaceName": workspaceName, "title": title, "ownerName": ownerName, "startDate": nullableDateOnly(start), "endDate": nullableDateOnly(end), "baseCurrency": base, "displayCurrency": display, "budgetType": budgetType, "participantMode": participantMode, "installmentDisplayMode": displayMode, "installmentPeriodUnit": periodUnit, "pricingEnabled": pricing, "visibility": visibility, "status": status, "note": nullableString(note), "signatureConfig": signatureConfig, "expectedIncome": decodedObject(income), "template": map[string]any{"key": nullableString(templateKey), "name": nullableString(templateName)}, "totals": map[string]any{"totalBudgetBase": totalBudget, "totalEstimatedBase": totalEstimated, "totalVarianceBase": totalVariance, "totalTransactionBase": totalTransaction, "transactionCount": txCount}, "createdAt": dateTimeValue(created), "updatedAt": dateTimeValue(updated)}, nil
 }
 
 func budgetSelectSQL(where string) string {
 	return `SELECT b.id, b.workspace_id, w.name, b.title, b.owner_name, b.start_date, b.end_date,
 base.code, display.code, b.budget_type, b.participant_mode, b.installment_display_mode,
-b.installment_period_unit, b.pricing_enabled, b.visibility, b.status, b.note, b.signature_config,
+b.installment_period_unit, b.pricing_enabled, b.visibility, b.status, b.note, b.signature_config, b.expected_income,
 bt.template_key, bt.name, b.created_at, b.updated_at,
 COALESCE(SUM(ie.effective_budget_base), 0), COALESCE(SUM(ie.effective_estimated_base), 0),
 COALESCE(SUM(ie.effective_variance_base), 0),
@@ -316,7 +316,7 @@ LEFT JOIN (
 ) ie ON ie.budget_id = b.id ` + where + `
  GROUP BY b.id, b.workspace_id, w.name, b.title, b.owner_name, b.start_date, b.end_date,
 base.code, display.code, b.budget_type, b.participant_mode, b.installment_display_mode,
-b.installment_period_unit, b.pricing_enabled, b.visibility, b.status, b.note, b.signature_config,
+b.installment_period_unit, b.pricing_enabled, b.visibility, b.status, b.note, b.signature_config, b.expected_income,
 bt.template_key, bt.name, b.created_at, b.updated_at`
 }
 
@@ -324,14 +324,14 @@ func budgetInsertSQL() string {
 	return `INSERT INTO budgets (workspace_id, user_id, owner_user_id, created_by_user_id, template_id,
 title, owner_name, start_date, end_date, base_currency_id, display_currency_id,
 budget_type, participant_mode, installment_display_mode, installment_period_unit,
-pricing_enabled, visibility, status, note, signature_config)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+pricing_enabled, visibility, status, note, signature_config, expected_income)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 }
 
 func budgetUpdateSQL() string {
 	return `UPDATE budgets SET title=?, owner_name=?, start_date=?, end_date=?, base_currency_id=?, display_currency_id=?,
 budget_type=?, participant_mode=?, installment_display_mode=?, installment_period_unit=?, pricing_enabled=?,
-visibility=?, status=?, note=?, signature_config=? WHERE id=?`
+visibility=?, status=?, note=?, signature_config=?, expected_income=? WHERE id=?`
 }
 
 type budgetInputValues struct {
@@ -350,6 +350,7 @@ type budgetInputValues struct {
 	Status                 string
 	Note                   string
 	SignatureConfig        any
+	ExpectedIncome         any
 }
 
 func (a *App) budgetValues(r *http.Request, input map[string]any, defaultOwnerName string, existing *budgetInputValues) (budgetInputValues, error) {
@@ -415,6 +416,19 @@ func (a *App) budgetValues(r *http.Request, input map[string]any, defaultOwnerNa
 	if hasAnyKey(input, "signatureConfig", "signature_config") || existing == nil {
 		values.SignatureConfig = jsonString(firstValue(input, "signatureConfig", "signature_config"))
 	}
+	if !hasAnyKey(input, "expectedIncome") && existing != nil && existing.BaseCurrency != values.BaseCurrency && existing.ExpectedIncome != nil {
+		input["expectedIncome"] = decodedObject(sql.NullString{String: stringValue(existing.ExpectedIncome), Valid: true})
+	}
+	if raw, ok := input["expectedIncome"]; ok {
+		s, err := a.currentSession(r)
+		if err != nil {
+			return budgetInputValues{}, err
+		}
+		values.ExpectedIncome, err = validateExpectedIncome(raw, s.AnnualSalary, values.BaseCurrency, values.ExpectedIncome)
+		if err != nil {
+			return budgetInputValues{}, err
+		}
+	}
 	if err := validateBudgetValues(values); err != nil {
 		return budgetInputValues{}, err
 	}
@@ -460,10 +474,10 @@ func validateBudgetValues(values budgetInputValues) error {
 
 func (a *App) budgetValuesByID(r *http.Request, id int64) (budgetInputValues, error) {
 	var values budgetInputValues
-	var start, end, note, signature sql.NullString
+	var start, end, note, signature, income sql.NullString
 	err := a.db.QueryRowContext(r.Context(), `SELECT b.title, b.owner_name, b.start_date, b.end_date,
 base.code, display.code, b.budget_type, b.participant_mode, b.installment_display_mode,
-b.installment_period_unit, b.pricing_enabled, b.visibility, b.status, b.note, b.signature_config
+b.installment_period_unit, b.pricing_enabled, b.visibility, b.status, b.note, b.signature_config, b.expected_income
 FROM budgets b
 JOIN currencies base ON base.id = b.base_currency_id
 JOIN currencies display ON display.id = b.display_currency_id
@@ -483,6 +497,7 @@ WHERE b.id = ? LIMIT 1`, id).Scan(
 		&values.Status,
 		&note,
 		&signature,
+		&income,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -494,6 +509,7 @@ WHERE b.id = ? LIMIT 1`, id).Scan(
 	values.EndDate = stringValue(nullableString(end))
 	values.Note = stringValue(nullableString(note))
 	values.SignatureConfig = nullableString(signature)
+	values.ExpectedIncome = nullableString(income)
 	return values, nil
 }
 

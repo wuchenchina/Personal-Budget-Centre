@@ -415,6 +415,23 @@ export interface BudgetTemplateRef {
   name: string | null;
 }
 
+export interface ExpectedIncomeEntry {
+  id: string;
+  title: string;
+  mode: 'auto' | 'annual' | 'monthly' | 'daily' | 'one_off';
+  oneOffAmount: number;
+  monthlyAmount: number;
+  dailyAmount: number;
+  workdays: number;
+  annualAmount?: number;
+  annualCurrency?: CurrencyCode;
+  refreshAnnual?: boolean;
+}
+
+export interface ExpectedIncome {
+  entries: ExpectedIncomeEntry[];
+}
+
 export interface BudgetSummary {
   id: number;
   workspaceId: number;
@@ -434,6 +451,7 @@ export interface BudgetSummary {
   note: string | null;
   signatureConfig: BudgetSignatureConfig;
   template: BudgetTemplateRef;
+  expectedIncome?: ExpectedIncome | null;
   totals: BudgetTotals;
   createdAt: string;
   updatedAt: string;

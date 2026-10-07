@@ -1,5 +1,6 @@
 import { apiDelete, apiGet, apiPatch, apiPost } from './http';
 import type {
+  ExpectedIncome,
   BudgetDetail,
   BudgetInstallmentDisplayMode,
   BudgetInstallmentPeriodUnit,
@@ -22,6 +23,7 @@ interface BudgetResponse {
 }
 
 export interface CreateBudgetPayload {
+  expectedIncome?: ExpectedIncome | null;
   workspaceId: number;
   title: string;
   ownerName: string;
@@ -71,4 +73,8 @@ export function getBudgetDetail(id: number): Promise<BudgetDetail> {
   return apiGet<BudgetResponse>(`/api/budget?id=${id}`).then(
     (payload) => payload.budget,
   );
+}
+
+export function updateBudgetIncome(id: number, expectedIncome: ExpectedIncome): Promise<BudgetDetail> {
+  return apiPatch<BudgetResponse>('/api/budgets', { id, expectedIncome }).then((response) => response.budget);
 }

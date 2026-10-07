@@ -1,6 +1,7 @@
 import type { Dayjs } from 'dayjs';
-import type { PdfExportSettings } from './auth';
+import type { AnnualSalary, PdfExportSettings } from './auth';
 import type {
+  ExpectedIncome,
   BudgetInstallmentConfig,
   BudgetInstallmentDisplayMode,
   BudgetInstallmentPeriodUnit,
@@ -67,6 +68,7 @@ export interface WorkspaceMemberFormValues {
 }
 
 export interface BudgetFormValues {
+  expectedIncome?: ExpectedIncome | null;
   workspaceId: number;
   title: string;
   ownerName?: string;
@@ -146,6 +148,8 @@ export interface BookkeepingRecordFormValues {
 }
 
 export interface ProfileFormValues {
+  annualSalaryEnabled?: boolean;
+  annualSalary?: AnnualSalary | null;
   displayName: string;
   defaultCurrency?: CurrencyCode | null;
   defaultPdfTheme: PdfThemeKey;

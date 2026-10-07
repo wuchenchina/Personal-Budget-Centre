@@ -177,6 +177,14 @@ func (a *App) authProfile(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	var salaryJSON any
+	if raw, ok := input["annualSalary"]; ok {
+		salaryJSON, err = validateAnnualSalary(raw)
+		if err != nil {
+			return err
+		}
+	}
+
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		return err
@@ -204,6 +212,11 @@ WHERE id = ?`, email, displayName, defaultTheme, settingsJSON, s.UserID)
 			if err := ensureUserCurrencyByIDTx(r.Context(), tx, s.UserID, defaultCurrencyID.Int64, "catalog"); err != nil {
 				return err
 			}
+		}
+	}
+	if _, ok := input["annualSalary"]; ok {
+		if _, err := tx.ExecContext(r.Context(), "UPDATE users SET annual_salary = ? WHERE id = ?", salaryJSON, s.UserID); err != nil {
+			return err
 		}
 	}
 	var verificationToken string

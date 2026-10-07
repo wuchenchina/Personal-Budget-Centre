@@ -464,6 +464,7 @@ export function useBudgetController(options: UseBudgetControllerOptions) {
   };
 
   return {
+    annualSalary: session?.user.annualSalary ?? null,
     budgetForm,
     budgets,
     selectedBudget,

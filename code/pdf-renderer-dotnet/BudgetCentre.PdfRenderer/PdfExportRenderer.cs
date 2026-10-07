@@ -250,6 +250,8 @@ public sealed partial class PdfExportRenderer(RendererConfig config)
         }).ToList();
         AddSectionTable(document, budgetSection, budgetRows, [Label("total", job.Options), Money(budget.BaseCurrency, totals.BudgetBase), Money(budget.BaseCurrency, totals.EstimatedBase), Money(budget.BaseCurrency, totals.VarianceBase)], theme, fonts, budget, job.Options);
 
+        AddExpectedIncomeSection(document, theme, fonts, budget, job.Options, totals.BudgetBase);
+
         if (budget.ParticipantMode == "group" && participants.Count > 0)
         {
             AddGroupSections(document, theme, fonts, job.Options, budget, items, transactions, participants, splitMap);

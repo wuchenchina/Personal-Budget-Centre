@@ -3,6 +3,14 @@ import type { AppLanguage } from '../i18n/types';
 
 export type UserStatus = 'active' | 'disabled' | 'pending';
 
+export interface AnnualSalary {
+  mode: 'total' | 'monthly';
+  amount: number;
+  paymentsPerYear: number;
+  currency: CurrencyCode;
+  annualAmount?: number;
+}
+
 export interface AuthUser {
   id: number;
   email: string;
@@ -14,6 +22,7 @@ export interface AuthUser {
   defaultCurrency: CurrencyCode | null;
   defaultPdfTheme: PdfThemeKey;
   pdfExportSettings: PdfExportSettings;
+  annualSalary: AnnualSalary | null;
   status: UserStatus;
   isAdmin: boolean;
   emailVerifiedAt: string | null;

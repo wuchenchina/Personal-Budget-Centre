@@ -1754,3 +1754,15 @@
   justify-content: space-between;
   gap: 8px;
 }
+
+.income-settings { border-top: 1px solid #222; padding-top: 16px; margin-top: 16px; }
+.income-settings .ant-alert { margin-bottom: 16px; }
+.income-settings p, .income-summary p { font-size: 12px; line-height: 1.6; color: #595959; }
+.income-summary { margin-bottom: 16px; }
+.income-panel { margin-bottom: 16px; }
+.income-panel > .ant-alert { margin-bottom: 16px; }
+.income-entry { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 8px 16px; padding: 16px 0; border-bottom: 1px solid #222; }
+.income-entry .ant-btn { align-self: end; justify-self: start; margin-bottom: 24px; }
+.income-actions { margin: 16px 0; }
+.income-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 16px; }
+.income-panel p { font-size: 12px; color: #595959; line-height: 1.6; }

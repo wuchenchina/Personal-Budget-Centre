@@ -23,6 +23,7 @@ export interface EmailVerificationResult {
 }
 
 export interface UpdateProfilePayload {
+  annualSalary?: AuthSession['user']['annualSalary'];
   displayName: string;
   email: string;
   defaultCurrency?: CurrencyCode | null;

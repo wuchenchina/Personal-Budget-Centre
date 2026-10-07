@@ -17,3 +17,14 @@ The worker is separate from the Go API:
 
 `bin/` and `obj/` are local .NET build intermediates. They contain local machine
 paths and must not be committed or shipped as source artifacts.
+
+Expected income is exported from the budget's saved income entries, including annual salary snapshots, daily/monthly jobs, and one-off amounts. The funding balance compares expected income for the inclusive budget period with planned expenses; it does not change actual bookkeeping totals. Without dates, recurring income uses one month.
+
+Run the income calculation and rendering checks without a database:
+
+```sh
+dotnet run --project code/pdf-renderer-dotnet/BudgetCentre.PdfRenderer.Tests
+dotnet run --project code/pdf-renderer-dotnet/BudgetCentre.PdfRenderer.Tests -- --render /absolute/path/to/BudgetCentre
+```
+
+The render option requires the existing fonts in `code/font` and writes three theme samples to `output/pdf`. It checks all seven languages and English/Traditional Chinese output using the production income section renderer. These samples use test data and do not exercise database access or the export job queue.

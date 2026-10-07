@@ -67,6 +67,7 @@ export function budgetFormValuesFromSummary(
   session: AuthSession | null,
 ): Partial<BudgetFormValues> {
   return {
+    expectedIncome: budget.expectedIncome ?? { entries: [] },
     workspaceId: budget.workspaceId,
     title: budget.title,
     ownerName: budget.ownerName,
@@ -94,6 +95,7 @@ export function budgetFormValuesFromSummary(
 
 export function createPayloadFromForm(values: BudgetFormValues): CreateBudgetPayload {
   return {
+    expectedIncome: values.expectedIncome,
     workspaceId: values.workspaceId,
     title: values.title.trim(),
     ownerName: values.ownerName?.trim() ?? '',
