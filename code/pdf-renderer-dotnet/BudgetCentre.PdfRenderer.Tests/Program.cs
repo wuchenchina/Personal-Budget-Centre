@@ -38,6 +38,23 @@ Equal(0, ExpectedIncomeProjection.Calculate(budget with { ExpectedIncomeJson = "
 if (ExpectedIncomeProjection.Calculate(budget with { ExpectedIncomeJson = null }, 0) != null) throw new Exception("legacy budgets must not gain income settings");
 Console.WriteLine("Expected income calculation checks passed.");
 
+var hourlyBudget = budget with { StartDate = "2026-10-07", EndDate = "2026-10-31", ExpectedIncomeJson = """
+{"entries":[
+ {"id":"hourly-daily","title":"Hourly schedule","mode":"hourly","hourlyAmount":20,"hoursMode":"daily","dailyHours":7.5,"workdays":18,"totalHours":999},
+ {"id":"hourly-total","title":"Hourly total","mode":"hourly","hourlyAmount":20,"hoursMode":"total","totalHours":135.25,"dailyHours":24,"workdays":1}
+]}
+""" };
+var hourlyIncome = ExpectedIncomeProjection.Calculate(hourlyBudget, 2000)!;
+Equal(5405, hourlyIncome.Total, "hourly period total");
+Equal(6702.20m, hourlyIncome.Monthly, "hourly monthly average");
+Equal(3405, hourlyIncome.Balance, "hourly surplus");
+Equal(135, hourlyIncome.Entries[0].Hours, "daily schedule hours");
+Equal(135.25m, hourlyIncome.Entries[1].Hours, "direct fractional hours");
+Equal(20, hourlyIncome.Entries[0].Rate, "hourly rate");
+Equal(5405, ExpectedIncomeProjection.Calculate(hourlyBudget with { StartDate = null, EndDate = null }, 0)!.Total, "undated hourly total");
+Equal(5405, ExpectedIncomeProjection.Calculate(hourlyBudget with { EndDate = "2026-10-07" }, 0)!.Total, "one-day hourly total is not prorated twice");
+Console.WriteLine("Hourly income calculation checks passed.");
+
 var koreanOptions = new ExportOptions { PdfLanguages = ["ko"], SignatureLabelLanguages = ["ko"] };
 var labelMethod = typeof(PdfExportRenderer).GetMethod("Label", BindingFlags.Static | BindingFlags.NonPublic)!;
 foreach (var name in new[] { "BudgetLabels", "BookkeepingLabels" })

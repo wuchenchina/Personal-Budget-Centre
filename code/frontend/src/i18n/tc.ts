@@ -19,6 +19,17 @@ export const tcLanguageOption = { label: tcLanguageLabel, value: tcLanguage };
 export const tcAntdLocale = zhTW;
 
 export const tcDictionary = {
+    netHourlySalary: "到手時薪",
+    salaryHoursMethod: "工時計算方式",
+    salaryHoursDaily: "每日工時 × 工作天數",
+    salaryHoursTotal: "直接輸入總工時",
+    salaryDailyHours: "每日工時",
+    salaryTotalHours: "預算期間總工時",
+    salaryHourlyHelp: "期間收入 = 時薪 × 總工時。總工時可用每日工時 × 工作天數計算，或直接輸入。工作天數不得超過預算期間日數，工時支援小數。",
+    salaryHoursMethodRequired: "請選擇工時計算方式。",
+    salaryDailyHoursRequired: "請輸入 0.01 至 24 小時的每日工時。",
+    salaryTotalHoursRequired: "總工時至少為 0.01 小時，且不得超過預算期間日曆日數 × 24。",
+
     incomePrimaryWork: "主要工作",
     incomeEntriesHelp: "可新增多份工作和一次性意外收入，金額均使用此Budget基礎幣別。",
     incomeSaved: "收入設定已儲存",
@@ -52,7 +63,7 @@ export const tcDictionary = {
     annualSalaryProfileHelp: "Budget基礎幣別相同時可使用此年薪，也可在Budget中選擇月薪或日薪。",
     expectedIncome: "預計收入",
     incomeBasis: "收入計算依據",
-    incomeBasisHelp: "自動模式優先年薪；可選擇月薪或日薪覆蓋。金額使用Budget基礎幣別。",
+    incomeBasisHelp: "自動模式優先使用年薪；可切換為月薪、日薪或時薪覆蓋。金額使用此Budget基礎幣別。",
     salaryAuto: "自動（年薪優先）",
     incomeAmountRequired: "請輸入零至一兆的金額。",
     salaryWorkdays: "預算期間工作日數",

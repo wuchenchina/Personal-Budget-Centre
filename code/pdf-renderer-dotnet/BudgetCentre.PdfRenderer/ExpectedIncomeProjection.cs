@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace BudgetCentre.PdfRenderer;
 
-public sealed record ProjectedIncomeEntry(string Title, string Mode, decimal Monthly, decimal OneOff, decimal Period, int Workdays, decimal Rate);
+public sealed record ProjectedIncomeEntry(string Title, string Mode, decimal Monthly, decimal OneOff, decimal Period, int Workdays, decimal Rate, decimal Hours = 0);
 public sealed record ExpectedIncomeProjection(IReadOnlyList<ProjectedIncomeEntry> Entries, decimal Monthly, decimal OneOff, decimal Total, decimal Expenses, decimal Balance)
 {
     public static ExpectedIncomeProjection? Calculate(BudgetInfo budget, decimal plannedExpenses)
@@ -21,18 +21,21 @@ public sealed record ExpectedIncomeProjection(IReadOnlyList<ProjectedIncomeEntry
             var mode = JsonValue.String(entry, "mode", "auto");
             var annual = JsonValue.String(entry, "annualCurrency") == budget.BaseCurrency ? JsonValue.Decimal(entry, "annualAmount") : 0;
             var days = (int)JsonValue.Decimal(entry, "workdays");
+            var hours = JsonValue.String(entry, "hoursMode") == "total" ? JsonValue.Decimal(entry, "totalHours") : JsonValue.Decimal(entry, "dailyHours") * days;
+            var hourlyIncome = JsonValue.Decimal(entry, "hourlyAmount") * hours;
             var monthly = mode switch
             {
                 "annual" => annual / 12,
                 "auto" when annual > 0 => annual / 12,
-                "daily" => JsonValue.Decimal(entry, "dailyAmount") * days / months,
+                "daily" => months > 0 ? JsonValue.Decimal(entry, "dailyAmount") * days / months : 0,
+                "hourly" => months > 0 ? hourlyIncome / months : 0,
                 "one_off" => 0,
                 _ => JsonValue.Decimal(entry, "monthlyAmount"),
             };
             var oneOff = mode == "one_off" ? JsonValue.Decimal(entry, "oneOffAmount") : 0;
             var effectiveMode = mode == "auto" ? (annual > 0 ? "annual" : "monthly") : mode;
-            var periodAmount = effectiveMode == "daily" ? JsonValue.Decimal(entry, "dailyAmount") * days : monthly * months + oneOff;
-            projected.Add(new ProjectedIncomeEntry(JsonValue.String(entry, "title"), effectiveMode, monthly, oneOff, periodAmount, days, effectiveMode switch { "annual" => annual, "daily" => JsonValue.Decimal(entry, "dailyAmount"), "one_off" => oneOff, _ => monthly }));
+            var periodAmount = effectiveMode switch { "daily" => JsonValue.Decimal(entry, "dailyAmount") * days, "hourly" => hourlyIncome, _ => monthly * months + oneOff };
+            projected.Add(new ProjectedIncomeEntry(JsonValue.String(entry, "title"), effectiveMode, monthly, oneOff, periodAmount, days, effectiveMode switch { "annual" => annual, "daily" => JsonValue.Decimal(entry, "dailyAmount"), "hourly" => JsonValue.Decimal(entry, "hourlyAmount"), "one_off" => oneOff, _ => monthly }, hours));
         }
         var total = Round(projected.Sum(entry => entry.Period));
         return new ExpectedIncomeProjection(projected, Round(projected.Sum(entry => entry.Monthly)), Round(projected.Sum(entry => entry.OneOff)), total, Round(plannedExpenses), Round(total - plannedExpenses));

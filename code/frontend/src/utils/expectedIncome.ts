@@ -13,7 +13,12 @@ export function expectedMonthlyIncome(income: ExpectedIncomeEntry | null | undef
     return (income.annualAmount ?? 0) / 12;
   }
   if (income.mode === 'daily') return income.dailyAmount * income.workdays;
+  if (income.mode === 'hourly') return (income.hourlyAmount ?? 0) * incomeTotalHours(income);
   return income.monthlyAmount;
+}
+
+export function incomeTotalHours(income: ExpectedIncomeEntry): number {
+  return income.hoursMode === 'total' ? (income.totalHours ?? 0) : (income.dailyHours ?? 0) * income.workdays;
 }
 
 // Inclusive dates, prorated by the actual number of calendar days in each month.
@@ -51,13 +56,14 @@ export function incomeSummary(budget: Pick<BudgetSummary, 'expectedIncome' | 'st
   const entries = incomeEntries(budget.expectedIncome);
   const periodMonths = incomePeriodMonths(budget.startDate, budget.endDate);
   const monthly = entries.reduce((sum, entry) => {
-    if (entry.mode === 'daily') return sum + entry.dailyAmount * entry.workdays / periodMonths;
+    if (entry.mode === 'daily' || entry.mode === 'hourly') return sum + (periodMonths > 0 ? expectedMonthlyIncome(entry) / periodMonths : 0);
     return sum + expectedMonthlyIncome(entry);
   }, 0);
   const oneOff = entries.reduce((sum, entry) => sum + (entry.mode === 'one_off' ? entry.oneOffAmount : 0), 0);
   const total = entries.reduce((sum, entry) => {
     if (entry.mode === 'one_off') return sum + entry.oneOffAmount;
     if (entry.mode === 'daily') return sum + entry.dailyAmount * entry.workdays;
+    if (entry.mode === 'hourly') return sum + expectedMonthlyIncome(entry);
     return sum + expectedMonthlyIncome(entry) * periodMonths;
   }, 0);
   const expenses = budget.totals.totalBudgetBase;

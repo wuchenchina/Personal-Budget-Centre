@@ -1,6 +1,24 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { annualSalaryAmount, expectedMonthlyIncome, incomePeriodMonths } from '../src/utils/expectedIncome.ts';
+import { incomeSummary, incomeTotalHours } from '../src/utils/expectedIncome.ts';
+
+test('hourly pay supports daily schedules and direct fractional total hours without prorating twice', () => {
+  const entry = { id: 'hourly', title: 'Hourly work', mode: 'hourly', monthlyAmount: 0, dailyAmount: 0, oneOffAmount: 0, hourlyAmount: 20, hoursMode: 'daily', dailyHours: 7.5, workdays: 18, totalHours: 999 };
+  const budget = { startDate: '2026-10-07', endDate: '2026-10-31', totals: { totalBudgetBase: 2000 }, expectedIncome: { entries: [entry] } };
+  assert.equal(incomeTotalHours(entry), 135);
+  assert.deepEqual(incomeSummary(budget), { monthly: 3348, oneOff: 0, total: 2700, expenses: 2000, balance: 700 });
+  const direct = { ...entry, hoursMode: 'total', totalHours: 135.25, dailyHours: 24, workdays: 1 };
+  assert.equal(incomeTotalHours(direct), 135.25);
+  const directBudget = { ...budget, expectedIncome: { entries: [direct] } };
+  assert.equal(incomeSummary(directBudget).total, 2705);
+  assert.equal(incomeSummary({ ...directBudget, startDate: null, endDate: null }).total, 2705);
+  assert.equal(incomeSummary({ ...directBudget, startDate: '2026-10-01', endDate: '2026-11-30' }).monthly, 1352.5);
+  assert.equal(incomeSummary({ ...directBudget, startDate: '2026-10-07', endDate: '2026-10-07' }).total, 2705);
+  const mixed = incomeSummary({ ...directBudget, expectedIncome: { entries: [direct, { ...entry, mode: 'one_off', oneOffAmount: 100 }, { ...entry, mode: 'monthly', monthlyAmount: 3100 }] } });
+  assert.equal(mixed.total, 2705 + 100 + 2500);
+  assert.equal(incomeSummary({ ...budget, expectedIncome: { entries: [{ ...entry, hourlyAmount: 0 }] } }).total, 0);
+});
 
 test('annual total and 12/13/16 salary payments', () => {
   assert.equal(annualSalaryAmount({ mode: 'total', amount: 160000, paymentsPerYear: 12 }), 160000);

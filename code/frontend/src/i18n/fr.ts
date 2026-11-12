@@ -20,6 +20,17 @@ export const frLanguageOption = { label: frLanguageLabel, value: frLanguage };
 export const frAntdLocale = frFR;
 
 export const frDictionary = {
+    netHourlySalary: "Salaire horaire net",
+    salaryHoursMethod: "Calcul des heures de travail",
+    salaryHoursDaily: "Heures par jour × jours travaillés",
+    salaryHoursTotal: "Saisir directement le total des heures",
+    salaryDailyHours: "Heures par jour travaillé",
+    salaryTotalHours: "Total des heures sur la période du budget",
+    salaryHourlyHelp: "Revenu de la période = salaire horaire × total des heures. Calculez le total par heures par jour × jours travaillés, ou saisissez-le directement. Les jours travaillés ne peuvent dépasser la durée du budget. Les heures décimales sont acceptées.",
+    salaryHoursMethodRequired: "Choisissez une méthode de calcul des heures.",
+    salaryDailyHoursRequired: "Saisissez entre 0,01 et 24 heures par jour.",
+    salaryTotalHoursRequired: "Saisissez au moins 0,01 heure, sans dépasser 24 × le nombre de jours calendaires du budget.",
+
     incomePrimaryWork: "Emploi principal",
     incomeEntriesHelp: "Ajoutez plusieurs emplois et revenus ponctuels. Tous les montants utilisent la devise de base du budget.",
     incomeSaved: "Paramètres de revenu enregistrés",
@@ -53,7 +64,7 @@ export const frDictionary = {
     annualSalaryProfileHelp: "Les budgets de même devise de base peuvent utiliser ce salaire annuel. Le salaire mensuel ou journalier reste disponible dans chaque budget.",
     expectedIncome: "Revenu prévisionnel",
     incomeBasis: "Base de calcul du revenu",
-    incomeBasisHelp: "Le mode automatique privilégie le salaire annuel. Choisissez mensuel ou journalier pour le remplacer. Les montants utilisent la devise de base du budget.",
+    incomeBasisHelp: "Le mode automatique privilégie le salaire annuel ; choisissez une rémunération mensuelle, journalière ou horaire pour le remplacer. Les montants utilisent la devise de base du budget.",
     salaryAuto: "Automatique (annuel prioritaire)",
     incomeAmountRequired: "Saisissez un montant entre zéro et mille milliards.",
     salaryWorkdays: "Jours travaillés sur la période du budget",

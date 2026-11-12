@@ -15,9 +15,10 @@ public sealed partial class PdfExportRenderer
             {
                 "annual" => "netAnnualSalary",
                 "daily" => "netDailySalary",
+                "hourly" => "netHourlySalary",
                 "one_off" => "incomeOneOff",
                 _ => "netMonthlySalary",
-            }, options) + ": " + Money(budget.BaseCurrency, entry.Rate) + (entry.Mode == "daily" ? " · " + Label("salaryWorkdays", options) + ": " + entry.Workdays : ""),
+            }, options) + ": " + Money(budget.BaseCurrency, entry.Rate) + (entry.Mode == "daily" ? " · " + Label("salaryWorkdays", options) + ": " + entry.Workdays : entry.Mode == "hourly" ? " · " + Label("salaryTotalHours", options) + ": " + entry.Hours.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : ""),
             Money(budget.BaseCurrency, entry.Period),
         }).ToList();
         rows.Add([Label("expectedMonthlyIncome", options), Money(budget.BaseCurrency, income.Monthly)]);

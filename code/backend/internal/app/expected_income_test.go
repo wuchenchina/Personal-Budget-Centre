@@ -16,6 +16,61 @@ func incomeObject(t *testing.T, raw any) map[string]any {
 	return value
 }
 
+func TestHourlyIncomeValidationAndPersistence(t *testing.T) {
+	for _, method := range []string{"daily", "total"} {
+		entry := map[string]any{"id": "hourly", "title": "Hourly work", "mode": "hourly", "monthlyAmount": 0.0, "dailyAmount": 0.0, "oneOffAmount": 0.0, "hourlyAmount": 20.5, "hoursMode": method, "dailyHours": 7.5, "totalHours": 135.25, "workdays": 18.0}
+		raw, err := validateExpectedIncome(map[string]any{"entries": []any{entry}}, sql.NullString{}, "CNY", nil, "2026-10-07", "2026-10-31")
+		if err != nil {
+			t.Fatalf("%s: %v", method, err)
+		}
+		saved := incomeObject(t, raw)["entries"].([]any)[0].(map[string]any)
+		if saved["mode"] != "hourly" || saved["hoursMode"] != method || saved["hourlyAmount"] != 20.5 {
+			t.Fatalf("hourly settings lost: %v", saved)
+		}
+		key, want := "dailyHours", 7.5
+		if method == "total" {
+			key, want = "totalHours", 135.25
+		}
+		if saved[key] != want {
+			t.Fatalf("hours lost: %v", saved)
+		}
+		if _, err := validateExpectedIncome(map[string]any{"entries": []any{saved}}, sql.NullString{}, "CNY", raw, "2026-10-07", "2026-10-31"); err != nil {
+			t.Fatalf("saved hourly settings cannot be saved again: %v", err)
+		}
+	}
+}
+
+func TestHourlyIncomeRejectsInvalidInputs(t *testing.T) {
+	for _, tc := range []struct {
+		method, field string
+		value         any
+	}{
+		{"daily", "dailyHours", nil}, {"daily", "dailyHours", 0.0}, {"daily", "dailyHours", 24.01},
+		{"daily", "workdays", 26.0}, {"daily", "workdays", 1.5},
+		{"total", "totalHours", 0.0}, {"total", "totalHours", 600.01}, {"total", "totalHours", "100"},
+		{"total", "hoursMode", "invalid"}, {"total", "hoursMode", nil},
+	} {
+		entry := map[string]any{"mode": "hourly", "monthlyAmount": 0.0, "dailyAmount": 0.0, "workdays": 18.0, "hourlyAmount": 20.0, "hoursMode": tc.method, "dailyHours": 7.5, "totalHours": 100.5}
+		entry[tc.field] = tc.value
+		if _, err := validateExpectedIncomeEntry(entry, sql.NullString{}, "CNY", nil, 25); err == nil {
+			t.Fatalf("accepted %s %s=%v", tc.method, tc.field, tc.value)
+		}
+	}
+	for _, method := range []string{"daily", "total"} {
+		for _, invalid := range []any{nil, "20", -1.0, math.NaN(), math.Inf(1), 1e13} {
+			entry := map[string]any{"mode": "hourly", "monthlyAmount": 0.0, "dailyAmount": 0.0, "workdays": 18.0, "hourlyAmount": invalid, "hoursMode": method, "dailyHours": 7.5, "totalHours": 100.5}
+			if _, err := validateExpectedIncomeEntry(entry, sql.NullString{}, "CNY", nil, 25); err == nil {
+				t.Fatalf("accepted hourlyAmount=%v", invalid)
+			}
+		}
+	}
+	// Direct totals are independent of the inactive daily schedule.
+	entry := map[string]any{"mode": "hourly", "monthlyAmount": 0.0, "dailyAmount": 0.0, "workdays": 26.0, "hourlyAmount": 0.0, "hoursMode": "total", "dailyHours": nil, "totalHours": 24.0}
+	if _, err := validateExpectedIncomeEntry(entry, sql.NullString{}, "CNY", nil, 1); err != nil {
+		t.Fatalf("valid direct total rejected: %v", err)
+	}
+}
+
 func TestAnnualSalaryCalculation(t *testing.T) {
 	for _, tc := range []struct {
 		mode                   string

@@ -6,7 +6,7 @@ import { useI18n } from '../../i18n';
 import type { AnnualSalary } from '../../types/auth';
 import type { BudgetDetail, ExpectedIncome, ExpectedIncomeEntry } from '../../types/budget';
 import { formatMoney } from '../../utils/currency';
-import { annualSalaryAmount, incomeEntries, incomePeriodDays } from '../../utils/expectedIncome';
+import { annualSalaryAmount, incomeEntries, incomePeriodDays, incomeTotalHours } from '../../utils/expectedIncome';
 import { ExpectedIncomeSummary } from './ExpectedIncomeSummary';
 
 export function ExpectedIncomePanel({ budget, annualSalary, canWrite, onSaved }: {
@@ -26,7 +26,11 @@ export function ExpectedIncomePanel({ budget, annualSalary, canWrite, onSaved }:
     if (!budget) return;
     form.setFieldsValue({ entries: incomeEntries(budget.expectedIncome).map((entry) => ({
       ...entry,
-      workdays: entry.mode === 'daily' ? Math.min(entry.workdays || 1, maxWorkdays) : entry.workdays,
+      hoursMode: entry.hoursMode ?? 'daily',
+      hourlyAmount: entry.hourlyAmount ?? 0,
+      dailyHours: entry.dailyHours ?? 8,
+      totalHours: entry.totalHours ?? 8,
+      workdays: entry.mode === 'daily' || (entry.mode === 'hourly' && entry.hoursMode !== 'total') ? Math.min(entry.workdays || 1, maxWorkdays) : entry.workdays,
     })) });
   }, [budget, form, maxWorkdays]);
   if (!budget) return null;
@@ -58,7 +62,7 @@ export function ExpectedIncomePanel({ budget, annualSalary, canWrite, onSaved }:
       <Form form={form} layout="vertical" disabled={!canWrite || saving} onValuesChange={(_changed, values) => {
         setSaved(false);
         values.entries?.forEach((entry, index) => {
-          if (entry?.mode === 'daily' && entry.workdays > maxWorkdays) {
+          if ((entry?.mode === 'daily' || (entry?.mode === 'hourly' && entry.hoursMode !== 'total')) && entry.workdays > maxWorkdays) {
             form.setFieldValue(['entries', index, 'workdays'], maxWorkdays);
           }
         });
@@ -68,6 +72,8 @@ export function ExpectedIncomePanel({ budget, annualSalary, canWrite, onSaved }:
             {fields.map((field) => {
               const entry = watchedEntries?.[field.name];
               const mode = entry?.mode ?? 'auto';
+              const hourlyDaily = mode === 'hourly' && entry?.hoursMode !== 'total';
+              const usesWorkdays = mode === 'daily' || hourlyDaily;
               const hasSnapshot = entry?.annualCurrency === budget.baseCurrency && (entry?.annualAmount ?? 0) > 0;
               return <div className="income-entry" key={field.key}>
                 <Form.Item hidden name={[field.name, 'id']}><Input /></Form.Item>
@@ -78,20 +84,28 @@ export function ExpectedIncomePanel({ budget, annualSalary, canWrite, onSaved }:
                     { label: t('netAnnualSalary'), value: 'annual', disabled: !canUseAnnual && !hasSnapshot },
                     { label: t('netMonthlySalary'), value: 'monthly' },
                     { label: t('netDailySalary'), value: 'daily' },
+                    { label: t('netHourlySalary'), value: 'hourly' },
                     { label: t('incomeOneOff'), value: 'one_off' },
                   ]} />
                 </Form.Item>
-                <Form.Item hidden={mode !== 'monthly' && mode !== 'auto'} label={t('netMonthlySalary')} name={[field.name, 'monthlyAmount']} rules={amountRules}><InputNumber className="form-full-width" min={0} max={1e12} precision={2} suffix={budget.baseCurrency} /></Form.Item>
-                <Form.Item hidden={mode !== 'daily'} label={t('netDailySalary')} name={[field.name, 'dailyAmount']} rules={amountRules}><InputNumber className="form-full-width" min={0} max={1e12} precision={2} suffix={budget.baseCurrency} /></Form.Item>
-                <Form.Item hidden={mode !== 'daily'} label={t('salaryWorkdays')} name={[field.name, 'workdays']} extra={t('salaryWorkdaysHelp')} rules={[{ required: true, type: 'integer', min: 1, max: maxWorkdays, message: t('salaryWorkdaysRequired') }]}><InputNumber className="form-full-width" min={1} max={maxWorkdays} precision={0} /></Form.Item>
-                <Form.Item hidden={mode !== 'one_off'} label={t('incomeOneOffAmount')} name={[field.name, 'oneOffAmount']} rules={amountRules}><InputNumber className="form-full-width" min={0} max={1e12} precision={2} suffix={budget.baseCurrency} /></Form.Item>
+                <Form.Item hidden={mode !== 'monthly' && mode !== 'auto'} label={t('netMonthlySalary')} name={[field.name, 'monthlyAmount']} rules={mode === 'monthly' || mode === 'auto' ? amountRules : []}><InputNumber className="form-full-width" min={0} max={1e12} precision={2} suffix={budget.baseCurrency} /></Form.Item>
+                <Form.Item hidden={mode !== 'daily'} label={t('netDailySalary')} name={[field.name, 'dailyAmount']} rules={mode === 'daily' ? amountRules : []}><InputNumber className="form-full-width" min={0} max={1e12} precision={2} suffix={budget.baseCurrency} /></Form.Item>
+                <Form.Item hidden={mode !== 'hourly'} label={t('netHourlySalary')} name={[field.name, 'hourlyAmount']} rules={mode === 'hourly' ? amountRules : []}><InputNumber className="form-full-width" min={0} max={1e12} precision={2} suffix={budget.baseCurrency} /></Form.Item>
+                <Form.Item hidden={mode !== 'hourly'} label={t('salaryHoursMethod')} name={[field.name, 'hoursMode']} extra={t('salaryHourlyHelp')} rules={mode === 'hourly' ? [{ required: true, message: t('salaryHoursMethodRequired') }] : []}>
+                  <Select options={[{ label: t('salaryHoursDaily'), value: 'daily' }, { label: t('salaryHoursTotal'), value: 'total' }]} />
+                </Form.Item>
+                <Form.Item hidden={!hourlyDaily} label={t('salaryDailyHours')} name={[field.name, 'dailyHours']} rules={hourlyDaily ? [{ required: true, type: 'number', min: 0.01, max: 24, message: t('salaryDailyHoursRequired') }] : []}><InputNumber className="form-full-width" min={0.01} max={24} precision={2} step={0.25} /></Form.Item>
+                <Form.Item hidden={!usesWorkdays} label={t('salaryWorkdays')} name={[field.name, 'workdays']} extra={mode === 'daily' ? t('salaryWorkdaysHelp') : t('salaryHourlyHelp')} rules={usesWorkdays ? [{ required: true, type: 'integer', min: 1, max: maxWorkdays, message: t('salaryWorkdaysRequired') }] : []}><InputNumber className="form-full-width" min={1} max={maxWorkdays} precision={0} /></Form.Item>
+                <Form.Item hidden={mode !== 'hourly' || hourlyDaily} label={t('salaryTotalHours')} name={[field.name, 'totalHours']} rules={mode === 'hourly' && !hourlyDaily ? [{ required: true, type: 'number', min: 0.01, max: maxWorkdays * 24, message: t('salaryTotalHoursRequired') }] : []}><InputNumber className="form-full-width" min={0.01} max={maxWorkdays * 24} precision={2} step={0.25} /></Form.Item>
+                {hourlyDaily && entry ? <p>{t('salaryTotalHours')}: {incomeTotalHours(entry)}</p> : null}
+                <Form.Item hidden={mode !== 'one_off'} label={t('incomeOneOffAmount')} name={[field.name, 'oneOffAmount']} rules={mode === 'one_off' ? amountRules : []}><InputNumber className="form-full-width" min={0} max={1e12} precision={2} suffix={budget.baseCurrency} /></Form.Item>
                 {mode === 'annual' ? <Form.Item name={[field.name, 'refreshAnnual']} valuePropName="checked"><Checkbox disabled={!canUseAnnual}>{t('refreshAnnualSalary')}</Checkbox></Form.Item> : null}
                 {(mode === 'annual' || mode === 'auto') && (previewEntries[field.name]?.annualAmount ?? 0) > 0 ? <p>{t('netAnnualSalary')}: {formatMoney({ currency: budget.baseCurrency, amount: previewEntries[field.name]?.annualAmount ?? 0 })}</p> : null}
                 {canWrite ? <Button danger icon={<Trash2 size={15} />} onClick={() => remove(field.name)} aria-label={t('delete')}>{t('delete')}</Button> : null}
               </div>;
             })}
             {canWrite ? <Space wrap className="income-actions">
-              <Button icon={<Plus size={15} />} disabled={fields.length >= 100} onClick={() => add({ id: crypto.randomUUID(), title: '', mode: fields.length === 0 && canUseAnnual ? 'auto' : 'monthly', monthlyAmount: 0, dailyAmount: 0, workdays: Math.min(26, maxWorkdays), oneOffAmount: 0 })}>{t('addIncomeEntry')}</Button>
+              <Button icon={<Plus size={15} />} disabled={fields.length >= 100} onClick={() => add({ id: crypto.randomUUID(), title: '', mode: fields.length === 0 && canUseAnnual ? 'auto' : 'monthly', monthlyAmount: 0, dailyAmount: 0, hourlyAmount: 0, hoursMode: 'daily', dailyHours: 8, totalHours: 8, workdays: Math.min(26, maxWorkdays), oneOffAmount: 0 })}>{t('addIncomeEntry')}</Button>
               <Button type="primary" loading={saving} onClick={() => void save()}>{t('save')}</Button>
             </Space> : null}
           </>}

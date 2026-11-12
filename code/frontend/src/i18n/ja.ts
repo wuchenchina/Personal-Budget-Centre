@@ -20,6 +20,17 @@ export const jaLanguageOption = { label: jaLanguageLabel, value: jaLanguage };
 export const jaAntdLocale = jaJP;
 
 export const jaDictionary = {
+    netHourlySalary: "手取り時給",
+    salaryHoursMethod: "勤務時間の計算方法",
+    salaryHoursDaily: "1日の勤務時間 × 勤務日数",
+    salaryHoursTotal: "合計時間を直接入力",
+    salaryDailyHours: "1日の勤務時間",
+    salaryTotalHours: "予算期間の合計勤務時間",
+    salaryHourlyHelp: "期間収入＝時給×合計時間。合計時間は1日の勤務時間×勤務日数で計算するか、直接入力します。勤務日数の上限は予算期間の日数です。時間は小数で入力できます。",
+    salaryHoursMethodRequired: "勤務時間の計算方法を選択してください。",
+    salaryDailyHoursRequired: "1日の勤務時間を0.01～24時間で入力してください。",
+    salaryTotalHoursRequired: "合計時間は0.01時間以上、予算期間の暦日数×24以下で入力してください。",
+
     incomePrimaryWork: "主な仕事",
     incomeEntriesHelp: "複数の仕事や臨時収入を追加できます。すべて予算の基準通貨で入力してください。",
     incomeSaved: "収入設定を保存しました",
@@ -53,7 +64,7 @@ export const jaDictionary = {
     annualSalaryProfileHelp: "予算の基準通貨が同じ場合にこの年収を使用できます。各予算で月給・日給も選択できます。",
     expectedIncome: "収入見込み",
     incomeBasis: "収入の計算基準",
-    incomeBasisHelp: "自動では年収を優先します。月給・日給で上書きできます。金額は予算の基準通貨です。",
+    incomeBasisHelp: "自動モードでは年収を優先します。月給・日給・時給を選択すると切り替わります。金額には予算の基準通貨を使用します。",
     salaryAuto: "自動（年収優先）",
     incomeAmountRequired: "0～1兆の金額を入力してください。",
     salaryWorkdays: "予算期間の勤務日数",

@@ -418,11 +418,15 @@ export interface BudgetTemplateRef {
 export interface ExpectedIncomeEntry {
   id: string;
   title: string;
-  mode: 'auto' | 'annual' | 'monthly' | 'daily' | 'one_off';
+  mode: 'auto' | 'annual' | 'monthly' | 'daily' | 'hourly' | 'one_off';
   oneOffAmount: number;
   monthlyAmount: number;
   dailyAmount: number;
   workdays: number;
+  hourlyAmount?: number;
+  hoursMode?: 'daily' | 'total';
+  dailyHours?: number;
+  totalHours?: number;
   annualAmount?: number;
   annualCurrency?: CurrencyCode;
   refreshAnnual?: boolean;

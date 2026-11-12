@@ -20,6 +20,17 @@ export const deLanguageOption = { label: deLanguageLabel, value: deLanguage };
 export const deAntdLocale = deDE;
 
 export const deDictionary = {
+    netHourlySalary: "Nettostundenlohn",
+    salaryHoursMethod: "Berechnung der Arbeitszeit",
+    salaryHoursDaily: "Stunden pro Tag × Arbeitstage",
+    salaryHoursTotal: "Gesamtstunden direkt eingeben",
+    salaryDailyHours: "Stunden pro Arbeitstag",
+    salaryTotalHours: "Gesamtstunden im Budgetzeitraum",
+    salaryHourlyHelp: "Einkommen im Zeitraum = Stundenlohn × Gesamtstunden. Berechnen Sie die Stunden als Stunden pro Tag × Arbeitstage oder geben Sie sie direkt ein. Arbeitstage dürfen die Kalendertage des Budgets nicht überschreiten. Dezimalstunden sind möglich.",
+    salaryHoursMethodRequired: "Wählen Sie eine Berechnungsmethode für die Arbeitszeit.",
+    salaryDailyHoursRequired: "Geben Sie 0,01 bis 24 Stunden pro Tag ein.",
+    salaryTotalHoursRequired: "Geben Sie mindestens 0,01 Stunden und höchstens 24 × die Kalendertage des Budgetzeitraums ein.",
+
     incomePrimaryWork: "Hauptbeschäftigung",
     incomeEntriesHelp: "Fügen Sie mehrere Beschäftigungen und einmalige Einnahmen hinzu. Alle Beträge gelten in der Budgetbasiswährung.",
     incomeSaved: "Einkommenseinstellungen gespeichert",
@@ -53,7 +64,7 @@ export const deDictionary = {
     annualSalaryProfileHelp: "Budgets mit derselben Basiswährung können dieses Jahresgehalt verwenden. Monats- oder Tageslohn können je Budget gewählt werden.",
     expectedIncome: "Erwartetes Einkommen",
     incomeBasis: "Berechnungsgrundlage",
-    incomeBasisHelp: "Automatisch wird das Jahresgehalt bevorzugt. Monats- oder Tageslohn können stattdessen gewählt werden. Beträge gelten in der Budgetbasiswährung.",
+    incomeBasisHelp: "Im Automatikmodus hat das Jahresgehalt Vorrang; wählen Sie Monats-, Tages- oder Stundenlohn zum Überschreiben. Beträge verwenden die Basiswährung des Budgets.",
     salaryAuto: "Automatisch (Jahresgehalt bevorzugt)",
     incomeAmountRequired: "Geben Sie einen Betrag von null bis zu einer Billion ein.",
     salaryWorkdays: "Arbeitstage im Budgetzeitraum",

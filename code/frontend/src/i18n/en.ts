@@ -19,6 +19,17 @@ export const enLanguageOption = { label: enLanguageLabel, value: enLanguage };
 export const enAntdLocale = enUS;
 
 export const enDictionary = {
+    netHourlySalary: "Hourly take-home pay",
+    salaryHoursMethod: "Work hours calculation",
+    salaryHoursDaily: "Hours per day × workdays",
+    salaryHoursTotal: "Enter total hours directly",
+    salaryDailyHours: "Hours per workday",
+    salaryTotalHours: "Total hours in budget period",
+    salaryHourlyHelp: "Period income = hourly pay × total hours. Total hours = hours per day × workdays, or enter them directly. Workdays cannot exceed the budget period; fractional hours are supported.",
+    salaryHoursMethodRequired: "Choose a work hours calculation method.",
+    salaryDailyHoursRequired: "Enter hours per day from 0.01 to 24.",
+    salaryTotalHoursRequired: "Enter total hours of at least 0.01, up to 24 × the number of calendar days in the budget period.",
+
     incomePrimaryWork: "Primary job",
     incomeEntriesHelp: "Add separate jobs and one-off income. All amounts use this budget’s base currency.",
     incomeSaved: "Income settings saved",
@@ -52,7 +63,7 @@ export const enDictionary = {
     annualSalaryProfileHelp: "Budgets can use this annual salary when their base currency matches. You can also choose monthly or daily pay in each budget.",
     expectedIncome: "Expected income",
     incomeBasis: "Income calculation basis",
-    incomeBasisHelp: "Annual salary takes priority in automatic mode; choose monthly or daily to override it. Amounts use the budget base currency.",
+    incomeBasisHelp: "Annual salary takes priority in automatic mode; choose monthly, daily or hourly pay to override it. Amounts use the budget base currency.",
     salaryAuto: "Automatic (annual salary first)",
     incomeAmountRequired: "Enter an amount between zero and 1 trillion.",
     salaryWorkdays: "Workdays in budget period",

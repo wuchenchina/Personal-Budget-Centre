@@ -76,7 +76,7 @@ func validateExpectedIncomeEntry(raw any, salary sql.NullString, base string, ex
 		return nil, incomeValidationError()
 	}
 	mode := stringValue(input["mode"])
-	if !stringIn(mode, []string{"auto", "annual", "monthly", "daily", "one_off"}) {
+	if !stringIn(mode, []string{"auto", "annual", "monthly", "daily", "hourly", "one_off"}) {
 		return nil, incomeValidationError()
 	}
 	monthly, err := incomeNumber(input, "monthlyAmount", 1e12, false)
@@ -88,14 +88,37 @@ func validateExpectedIncomeEntry(raw any, salary sql.NullString, base string, ex
 		return nil, err
 	}
 	workdayLimit := 1000
-	if mode == "daily" && len(workdayLimits) > 0 && workdayLimits[0] > 0 {
+	hoursMode := stringValue(input["hoursMode"])
+	if (mode == "daily" || mode == "hourly") && len(workdayLimits) > 0 {
 		workdayLimit = workdayLimits[0]
 	}
-	days, err := incomeNumber(input, "workdays", float64(workdayLimit), true)
+	daysLimit := 1000
+	if mode == "daily" || (mode == "hourly" && hoursMode == "daily") {
+		daysLimit = workdayLimit
+	}
+	days, err := incomeNumber(input, "workdays", float64(daysLimit), true)
 	if err != nil || days < 1 {
 		return nil, incomeValidationError()
 	}
 	result := map[string]any{"mode": mode, "monthlyAmount": monthly, "dailyAmount": daily, "workdays": days}
+	if mode == "hourly" {
+		if !stringIn(hoursMode, []string{"daily", "total"}) {
+			return nil, incomeValidationError()
+		}
+		hourly, err := incomeNumber(input, "hourlyAmount", 1e12, false)
+		if err != nil {
+			return nil, err
+		}
+		key, limit := "dailyHours", 24.0
+		if hoursMode == "total" {
+			key, limit = "totalHours", float64(workdayLimit)*24
+		}
+		hours, err := incomeNumber(input, key, limit, false)
+		if err != nil || hours < 0.01 {
+			return nil, incomeValidationError()
+		}
+		result["hourlyAmount"], result["hoursMode"], result[key] = hourly, hoursMode, hours
+	}
 	annual := decodedObject(sql.NullString{String: stringValue(existing), Valid: existing != nil})
 	if annual != nil && stringValue(annual["annualCurrency"]) == base {
 		result["annualAmount"] = annual["annualAmount"]

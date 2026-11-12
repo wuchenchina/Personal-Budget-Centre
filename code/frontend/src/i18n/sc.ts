@@ -19,6 +19,17 @@ export const scLanguageOption = { label: scLanguageLabel, value: scLanguage };
 export const scAntdLocale = zhCN;
 
 export const scDictionary = {
+    netHourlySalary: "到手时薪",
+    salaryHoursMethod: "工时计算方式",
+    salaryHoursDaily: "每日工时 × 工作天数",
+    salaryHoursTotal: "直接输入总工时",
+    salaryDailyHours: "每日工时",
+    salaryTotalHours: "预算期间总工时",
+    salaryHourlyHelp: "期间收入 = 时薪 × 总工时。总工时可用每日工时 × 工作天数计算，或直接输入。工作天数不得超过预算期间天数，工时支持小数。",
+    salaryHoursMethodRequired: "请选择工时计算方式。",
+    salaryDailyHoursRequired: "请输入 0.01 至 24 小时的每日工时。",
+    salaryTotalHoursRequired: "总工时至少为 0.01 小时，且不得超过预算期间日历天数 × 24。",
+
     incomePrimaryWork: "主要工作",
     incomeEntriesHelp: "可添加多份工作和一次性意外收入，金额均使用此Budget基础币种。",
     incomeSaved: "收入设置已保存",
@@ -52,7 +63,7 @@ export const scDictionary = {
     annualSalaryProfileHelp: "Budget基础币种相同时可使用此年薪，也可在Budget中选择月薪或日薪。",
     expectedIncome: "预计收入",
     incomeBasis: "收入计算依据",
-    incomeBasisHelp: "自动模式优先年薪；可选择月薪或日薪覆盖。金额使用Budget基础币种。",
+    incomeBasisHelp: "自动模式优先使用年薪；可切换为月薪、日薪或时薪覆盖。金额使用此Budget基础币种。",
     salaryAuto: "自动（年薪优先）",
     incomeAmountRequired: "请输入零至一万亿的金额。",
     salaryWorkdays: "预算期间工作日数",
